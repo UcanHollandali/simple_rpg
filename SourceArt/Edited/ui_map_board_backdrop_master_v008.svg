@@ -1,0 +1,17 @@
+<svg width="720" height="960" viewBox="0 0 720 960" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<linearGradient id="boardFill" x1="360" y1="34" x2="360" y2="926" gradientUnits="userSpaceOnUse">
+<stop stop-color="#24341F"/>
+<stop offset="1" stop-color="#1D2B1A"/>
+</linearGradient>
+<linearGradient id="innerWash" x1="360" y1="120" x2="360" y2="840" gradientUnits="userSpaceOnUse">
+<stop stop-color="#31452A" stop-opacity="0.34"/>
+<stop offset="0.5" stop-color="#425A33" stop-opacity="0.14"/>
+<stop offset="1" stop-color="#2B3C24" stop-opacity="0.22"/>
+</linearGradient>
+</defs>
+<rect x="8" y="8" width="704" height="944" rx="42" fill="#101612" stroke="#8F7A53" stroke-width="6"/>
+<rect x="26" y="26" width="668" height="908" rx="34" fill="#1B2719"/>
+<rect x="34" y="34" width="652" height="892" rx="28" fill="url(#boardFill)"/>
+<rect x="48" y="48" width="624" height="864" rx="24" fill="url(#innerWash)"/>
+</svg>
