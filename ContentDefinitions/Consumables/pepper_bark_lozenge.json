@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "definition_id": "pepper_bark_lozenge",
+  "family": "Consumables",
+  "tags": [
+    "consumable",
+    "food",
+    "combat",
+    "tactical"
+  ],
+  "display": {
+    "name": "Pepper Bark Lozenge",
+    "short_description": "A bitter bark chew that buys breathing room against hunger pressure during longer fights.",
+    "icon_key": "consumable_pepper_bark_lozenge"
+  },
+  "rules": {
+    "stats": {
+      "max_stack": 3
+    },
+    "use_effect": {
+      "trigger": "on_use",
+      "condition": {
+        "op": "always"
+      },
+      "target": "self",
+      "effects": [
+        {
+          "type": "modify_hunger",
+          "params": {
+            "amount": -3
+          }
+        }
+      ]
+    }
+  }
+}

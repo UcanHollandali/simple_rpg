@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "definition_id": "field_broth",
+  "family": "Consumables",
+  "tags": [
+    "consumable",
+    "food",
+    "combat",
+    "tactical"
+  ],
+  "display": {
+    "name": "Field Broth",
+    "short_description": "A warm ration flask that steadies HP while shaving off a little hunger in longer fights.",
+    "icon_key": "consumable_field_broth"
+  },
+  "rules": {
+    "stats": {
+      "max_stack": 3,
+      "restore_hp": 6
+    },
+    "use_effect": {
+      "trigger": "on_use",
+      "condition": {
+        "op": "always"
+      },
+      "target": "self",
+      "effects": [
+        {
+          "type": "heal",
+          "params": {
+            "base": 6
+          }
+        },
+        {
+          "type": "modify_hunger",
+          "params": {
+            "amount": -2
+          }
+        }
+      ]
+    }
+  }
+}

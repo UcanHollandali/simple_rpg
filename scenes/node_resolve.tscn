@@ -1,0 +1,119 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/node_resolve.gd" id="1"]
+[ext_resource type="Texture2D" path="res://Assets/Backgrounds/bg_choice_far.png" id="2"]
+[ext_resource type="Texture2D" path="res://Assets/Backgrounds/bg_choice_mid.png" id="3"]
+[ext_resource type="Texture2D" path="res://Assets/Backgrounds/bg_choice_overlay.png" id="4"]
+[ext_resource type="Texture2D" path="res://Assets/Icons/icon_node_marker.svg" id="5"]
+
+[node name="NodeResolve" type="Control"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="PanelOpenSfxPlayer" type="AudioStreamPlayer" parent="."]
+volume_db = -10.0
+
+[node name="BackgroundRect" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.0862745, 0.0980392, 0.113725, 1)
+
+[node name="BackgroundFar" type="TextureRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("2")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="BackgroundMid" type="TextureRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("3")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="BackgroundOverlay" type="TextureRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("4")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="Margin" type="MarginContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 24
+
+[node name="Center" type="CenterContainer" parent="Margin"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="Margin/Center"]
+custom_minimum_size = Vector2(404, 0)
+
+[node name="VBox" type="VBoxContainer" parent="Margin/Center/Panel"]
+theme_override_constants/separation = 12
+
+[node name="ChipCard" type="PanelContainer" parent="Margin/Center/Panel/VBox"]
+size_flags_horizontal = 4
+
+[node name="ChipLabel" type="Label" parent="Margin/Center/Panel/VBox/ChipCard"]
+horizontal_alignment = 1
+text = "PATH READ"
+
+[node name="NodeIcon" type="TextureRect" parent="Margin/Center/Panel/VBox"]
+custom_minimum_size = Vector2(48, 48)
+texture = ExtResource("5")
+stretch_mode = 5
+
+[node name="TitleLabel" type="Label" parent="Margin/Center/Panel/VBox"]
+anchors_preset = 8
+text = "Resolving Next Node"
+horizontal_alignment = 1
+theme_override_colors/font_color = Color(0.94902, 0.937255, 0.85098, 1)
+
+[node name="SummaryLabel" type="Label" parent="Margin/Center/Panel/VBox"]
+text = "Applying the next runtime-owned node resolution."
+horizontal_alignment = 1
+autowrap_mode = 3
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+
+[node name="DetailLabel" type="Label" parent="Margin/Center/Panel/VBox"]
+text = "Short transition shell only."
+horizontal_alignment = 1
+autowrap_mode = 3
+theme_override_colors/font_color = Color(0.858824, 0.85098, 0.796078, 1)
+
+[node name="HintLabel" type="Label" parent="Margin/Center/Panel/VBox"]
+text = "Resolution continues automatically."
+horizontal_alignment = 1
+autowrap_mode = 3
+theme_override_colors/font_color = Color(0.768627, 0.721569, 0.603922, 1)

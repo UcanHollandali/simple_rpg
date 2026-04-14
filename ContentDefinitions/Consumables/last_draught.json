@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "definition_id": "last_draught",
+  "family": "Consumables",
+  "tags": [
+    "consumable",
+    "healing",
+    "combat",
+    "burst"
+  ],
+  "display": {
+    "name": "Last Draught",
+    "short_description": "A heavy emergency bottle that buys one sharp burst of HP when a run is about to crack.",
+    "icon_key": "consumable_last_draught"
+  },
+  "rules": {
+    "stats": {
+      "max_stack": 1,
+      "restore_hp": 20
+    },
+    "use_effect": {
+      "trigger": "on_use",
+      "condition": {
+        "op": "always"
+      },
+      "target": "self",
+      "effects": [
+        {
+          "type": "heal",
+          "params": {
+            "base": 20
+          }
+        }
+      ]
+    }
+  }
+}

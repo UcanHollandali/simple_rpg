@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "definition_id": "salvage_cleaver",
+  "family": "Weapons",
+  "tags": [
+    "weapon",
+    "melee",
+    "cleaver",
+    "physical",
+    "scrap_keeper",
+    "durability"
+  ],
+  "display": {
+    "name": "Salvage Cleaver",
+    "short_description": "Patchwork cleaver with modest damage and exceptional staying power.",
+    "icon_key": "weapon_salvage_cleaver"
+  },
+  "design_intent_question": "Can a modest but long-lasting cleaver make the Scrap Keeper line care about route length, repairs, and shared gold without collapsing into pure bookkeeping?",
+  "rules": {
+    "stats": {
+      "weapon_type": "cleaver",
+      "base_damage": 5,
+      "max_durability": 40,
+      "durability_cost_per_attack": 1
+    }
+  }
+}

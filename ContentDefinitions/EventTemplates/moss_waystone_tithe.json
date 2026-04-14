@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "definition_id": "moss_waystone_tithe",
+  "family": "EventTemplates",
+  "tags": [
+    "event",
+    "forest",
+    "waystone",
+    "prototype"
+  ],
+  "display": {
+    "name": "Waystone Toll",
+    "short_description": "A leaning waystone marks an old patrol road. Fresh coins lie in a crack beneath it, but the stone is wrapped in briars that bite when touched."
+  },
+  "rules": {
+    "choices": [
+      {
+        "choice_id": "lift_the_tithe",
+        "label": "Take the hidden purse",
+        "summary": "Work the coins free before the briars close and pocket what the road forgot.",
+        "effect_type": "grant_gold",
+        "amount": 7
+      },
+      {
+        "choice_id": "pull_the_guide_pin",
+        "label": "Rip the guide-pin loose",
+        "summary": "The iron pin comes free, but the wrapped briars open your palm and take blood for the toll.",
+        "effect_type": "damage_player",
+        "amount": 5
+      }
+    ]
+  }
+}

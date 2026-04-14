@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "definition_id": "starter_loadout",
+  "family": "RunLoadouts",
+  "tags": [
+    "run_loadout",
+    "starter",
+    "prototype"
+  ],
+  "display": {
+    "name": "Starter Loadout",
+    "short_description": "Current prototype baseline for new-run equipment and carried items."
+  },
+  "rules": {
+    "weapon_definition_id": "iron_sword",
+    "consumable_slots": [
+      {
+        "definition_id": "wild_berries",
+        "current_stack": 1
+      }
+    ]
+  }
+}

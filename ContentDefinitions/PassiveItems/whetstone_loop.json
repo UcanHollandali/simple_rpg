@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "definition_id": "whetstone_loop",
+  "authoring_order": 15,
+  "family": "PassiveItems",
+  "tags": [
+    "passive",
+    "combat",
+    "attack",
+    "durability"
+  ],
+  "display": {
+    "name": "Briar Whetstone Loop",
+    "short_description": "A briar-wrapped whetstone that grants +1 attack power and reduces weapon durability cost per attack by 1.",
+    "icon_key": "passive_whetstone_loop"
+  },
+  "rules": {
+    "behaviors": [
+      {
+        "trigger": "passive",
+        "condition": {
+          "op": "always"
+        },
+        "target": "self",
+        "effects": [
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "attack_power_bonus",
+              "amount": 1
+            }
+          },
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "durability_cost_flat_reduction",
+              "amount": 1
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "definition_id": "iron_grip_charm",
+  "authoring_order": 10,
+  "family": "PassiveItems",
+  "tags": [
+    "passive",
+    "combat",
+    "attack"
+  ],
+  "display": {
+    "name": "Thorn Grip Charm",
+    "short_description": "A thorn-etched charm that grants +1 attack power in combat.",
+    "icon_key": "passive_iron_grip_charm"
+  },
+  "rules": {
+    "behaviors": [
+      {
+        "trigger": "passive",
+        "condition": {
+          "op": "always"
+        },
+        "target": "self",
+        "effects": [
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "attack_power_bonus",
+              "amount": 1
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

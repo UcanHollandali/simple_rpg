@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "definition_id": "rotbound_reaver",
+  "authoring_order": 170,
+  "family": "Enemies",
+  "encounter_tier": "minor",
+  "design_intent_question": "Can the player finish a dangerous late-run reaver before its low-HP surge turns an already sharp bleed pattern into a losing race?",
+  "tags": [
+    "enemy",
+    "undead",
+    "stage_3",
+    "bleed",
+    "executioner"
+  ],
+  "display": {
+    "name": "Rotbound Reaver",
+    "short_description": "A grave-soaked butcher who alternates bleeding hooks with a harder finishing chop once wounded.",
+    "icon_key": "enemy_rotbound_reaver"
+  },
+  "rules": {
+    "stats": {
+      "base_hp": 26,
+      "base_damage": 5,
+      "dodge_chance": 10
+    },
+    "intent_pool": [
+      {
+        "intent_id": "ripping_hook",
+        "action_family": "attack",
+        "threat_level": "medium",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 4,
+              "damage_kind": "physical"
+            }
+          },
+          {
+            "type": "apply_status",
+            "params": {
+              "definition_id": "bleed"
+            }
+          }
+        ]
+      },
+      {
+        "intent_id": "rot_chop",
+        "action_family": "attack",
+        "threat_level": "high",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 6,
+              "damage_kind": "physical"
+            }
+          }
+        ]
+      },
+      {
+        "intent_id": "measuring_step",
+        "action_family": "attack",
+        "threat_level": "low",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 2,
+              "damage_kind": "physical"
+            }
+          }
+        ]
+      }
+    ],
+    "behaviors": [
+      {
+        "trigger": "passive",
+        "condition": {
+          "op": "lte",
+          "stat": "hp",
+          "value": 12
+        },
+        "target": "self",
+        "effects": [
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "attack_power_bonus",
+              "amount": 2
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

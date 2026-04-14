@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "definition_id": "tempered_binding",
+  "authoring_order": 30,
+  "family": "PassiveItems",
+  "tags": [
+    "passive",
+    "combat",
+    "durability"
+  ],
+  "display": {
+    "name": "Root-Twine Binding",
+    "short_description": "A root-lashed grip that reduces weapon durability cost per attack by 1.",
+    "icon_key": "passive_tempered_binding"
+  },
+  "rules": {
+    "behaviors": [
+      {
+        "trigger": "passive",
+        "condition": {
+          "op": "always"
+        },
+        "target": "self",
+        "effects": [
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "durability_cost_flat_reduction",
+              "amount": 1
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

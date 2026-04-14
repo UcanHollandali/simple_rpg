@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "definition_id": "chain_trapper",
+  "authoring_order": 140,
+  "family": "Enemies",
+  "encounter_tier": "minor",
+  "design_intent_question": "Can the player read that a weakening setup turn is the warning for a stronger bleed punish on the next beat, instead of treating both turns the same?",
+  "tags": [
+    "enemy",
+    "raider",
+    "stage_2",
+    "bleed",
+    "combo"
+  ],
+  "display": {
+    "name": "Chain Trapper",
+    "short_description": "A path hunter who softens the player with a hooked drag before cashing in with a bleeding rake.",
+    "icon_key": "enemy_chain_trapper"
+  },
+  "rules": {
+    "stats": {
+      "base_hp": 24,
+      "base_damage": 4
+    },
+    "intent_pool": [
+      {
+        "intent_id": "hook_drag",
+        "action_family": "attack",
+        "threat_level": "medium",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 3,
+              "damage_kind": "physical"
+            }
+          },
+          {
+            "type": "apply_status",
+            "params": {
+              "definition_id": "weakened"
+            }
+          }
+        ]
+      },
+      {
+        "intent_id": "chain_rake",
+        "action_family": "attack",
+        "threat_level": "high",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 5,
+              "damage_kind": "physical"
+            }
+          },
+          {
+            "type": "apply_status",
+            "params": {
+              "definition_id": "bleed"
+            }
+          }
+        ]
+      },
+      {
+        "intent_id": "weight_shift",
+        "action_family": "attack",
+        "threat_level": "low",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 2,
+              "damage_kind": "physical"
+            }
+          }
+        ]
+      }
+    ],
+    "behaviors": []
+  }
+}

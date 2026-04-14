@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "definition_id": "stout_tonic",
+  "family": "Consumables",
+  "tags": [
+    "consumable",
+    "healing",
+    "tonic",
+    "merchant"
+  ],
+  "display": {
+    "name": "Stout Tonic",
+    "short_description": "Restore a larger burst of HP in combat, but only stacks lightly.",
+    "icon_key": "consumable_stout_tonic"
+  },
+  "rules": {
+    "stats": {
+      "max_stack": 2,
+      "restore_hp": 18
+    },
+    "use_effect": {
+      "trigger": "on_use",
+      "condition": {
+        "op": "always"
+      },
+      "target": "self",
+      "effects": [
+        {
+          "type": "heal",
+          "params": {
+            "base": 18
+          }
+        }
+      ]
+    }
+  }
+}

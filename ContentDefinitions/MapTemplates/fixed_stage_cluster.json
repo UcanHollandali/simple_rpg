@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "definition_id": "fixed_stage_cluster",
+  "family": "MapTemplates",
+  "tags": [
+    "map_template",
+    "prototype",
+    "fixed_cluster"
+  ],
+  "display": {
+    "name": "Fixed Stage Cluster",
+    "short_description": "Current fixed deterministic stage-local graph for the bounded exploration prototype slice."
+  },
+  "rules": {
+    "nodes": [
+      {
+        "node_id": 0,
+        "node_family": "start",
+        "adjacent_node_ids": [1, 2, 3]
+      },
+      {
+        "node_id": 1,
+        "node_family": "combat",
+        "adjacent_node_ids": [0, 6]
+      },
+      {
+        "node_id": 2,
+        "node_family": "reward",
+        "adjacent_node_ids": [0, 4, 6, 7]
+      },
+      {
+        "node_id": 3,
+        "node_family": "rest",
+        "adjacent_node_ids": [0, 4, 5, 7]
+      },
+      {
+        "node_id": 4,
+        "node_family": "merchant",
+        "adjacent_node_ids": [2, 3]
+      },
+      {
+        "node_id": 5,
+        "node_family": "blacksmith",
+        "adjacent_node_ids": [3, 6]
+      },
+      {
+        "node_id": 6,
+        "node_family": "combat",
+        "adjacent_node_ids": [1, 2, 5, 8, 9]
+      },
+      {
+        "node_id": 7,
+        "node_family": "key",
+        "adjacent_node_ids": [2, 3]
+      },
+      {
+        "node_id": 8,
+        "node_family": "boss",
+        "adjacent_node_ids": [6]
+      },
+      {
+        "node_id": 9,
+        "node_family": "combat",
+        "adjacent_node_ids": [6]
+      }
+    ]
+  }
+}

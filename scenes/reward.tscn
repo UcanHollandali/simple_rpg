@@ -1,0 +1,205 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/reward.gd" id="1"]
+[ext_resource type="Texture2D" path="res://Assets/Backgrounds/bg_choice_far.png" id="2"]
+[ext_resource type="Texture2D" path="res://Assets/Backgrounds/bg_choice_mid.png" id="3"]
+[ext_resource type="Texture2D" path="res://Assets/Backgrounds/bg_choice_overlay.png" id="4"]
+[node name="Reward" type="Control"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="BackgroundFar" type="TextureRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("2")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="BackgroundMid" type="TextureRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+modulate = Color(1, 1, 1, 0.72)
+texture = ExtResource("3")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="BackgroundOverlay" type="TextureRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("4")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="Scrim" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="RewardClaimSfxPlayer" type="AudioStreamPlayer" parent="."]
+volume_db = -5.0
+
+[node name="UiConfirmSfxPlayer" type="AudioStreamPlayer" parent="."]
+volume_db = -8.0
+
+[node name="PanelOpenSfxPlayer" type="AudioStreamPlayer" parent="."]
+volume_db = -10.0
+
+[node name="RewardMusicPlayer" type="AudioStreamPlayer" parent="."]
+volume_db = -16.5
+
+[node name="Margin" type="MarginContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 18
+
+[node name="VBox" type="VBoxContainer" parent="Margin"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="HeaderRow" type="VBoxContainer" parent="Margin/VBox"]
+theme_override_constants/separation = 8
+
+[node name="HeaderStack" type="VBoxContainer" parent="Margin/VBox/HeaderRow"]
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="ChipCard" type="PanelContainer" parent="Margin/VBox/HeaderRow/HeaderStack"]
+
+[node name="ChipLabel" type="Label" parent="Margin/VBox/HeaderRow/HeaderStack/ChipCard"]
+text = "SALVAGE"
+
+[node name="TitleLabel" type="Label" parent="Margin/VBox/HeaderRow/HeaderStack"]
+text = "Victory! Choose a reward"
+autowrap_mode = 3
+
+[node name="ContextLabel" type="Label" parent="Margin/VBox/HeaderRow/HeaderStack"]
+text = "Choose 1 of 3"
+autowrap_mode = 3
+
+[node name="HintLabel" type="Label" parent="Margin/VBox/HeaderRow/HeaderStack"]
+text = "Take one salvage result. The rest is left behind."
+autowrap_mode = 3
+
+[node name="RunStatusCard" type="PanelContainer" parent="Margin/VBox/HeaderRow"]
+size_flags_horizontal = 3
+
+[node name="RunStatusLabel" type="Label" parent="Margin/VBox/HeaderRow/RunStatusCard"]
+text = "HP 0 | Hunger 0 | Gold 0 | Durability 0"
+autowrap_mode = 3
+
+[node name="CardsRow" type="VBoxContainer" parent="Margin/VBox"]
+size_flags_vertical = 1
+theme_override_constants/separation = 8
+
+[node name="ChoiceACard" type="PanelContainer" parent="Margin/VBox/CardsRow"]
+size_flags_horizontal = 3
+size_flags_vertical = 1
+custom_minimum_size = Vector2(0, 100)
+
+[node name="VBox" type="VBoxContainer" parent="Margin/VBox/CardsRow/ChoiceACard"]
+theme_override_constants/separation = 3
+
+[node name="BadgeLabel" type="Label" parent="Margin/VBox/CardsRow/ChoiceACard/VBox"]
+text = "Reward"
+
+[node name="OfferTitleLabel" type="Label" parent="Margin/VBox/CardsRow/ChoiceACard/VBox"]
+text = "Choice A"
+autowrap_mode = 3
+
+[node name="OfferDetailLabel" type="Label" parent="Margin/VBox/CardsRow/ChoiceACard/VBox"]
+text = "Detail"
+autowrap_mode = 3
+
+[node name="Fill" type="Control" parent="Margin/VBox/CardsRow/ChoiceACard/VBox"]
+custom_minimum_size = Vector2(0, 4)
+size_flags_vertical = 1
+
+[node name="ChoiceAButton" type="Button" parent="Margin/VBox/CardsRow/ChoiceACard/VBox"]
+text = "Claim"
+size_flags_horizontal = 3
+
+[node name="ChoiceBCard" type="PanelContainer" parent="Margin/VBox/CardsRow"]
+size_flags_horizontal = 3
+size_flags_vertical = 1
+custom_minimum_size = Vector2(0, 100)
+
+[node name="VBox" type="VBoxContainer" parent="Margin/VBox/CardsRow/ChoiceBCard"]
+theme_override_constants/separation = 3
+
+[node name="BadgeLabel" type="Label" parent="Margin/VBox/CardsRow/ChoiceBCard/VBox"]
+text = "Reward"
+
+[node name="OfferTitleLabel" type="Label" parent="Margin/VBox/CardsRow/ChoiceBCard/VBox"]
+text = "Choice B"
+autowrap_mode = 3
+
+[node name="OfferDetailLabel" type="Label" parent="Margin/VBox/CardsRow/ChoiceBCard/VBox"]
+text = "Detail"
+autowrap_mode = 3
+
+[node name="Fill" type="Control" parent="Margin/VBox/CardsRow/ChoiceBCard/VBox"]
+custom_minimum_size = Vector2(0, 4)
+size_flags_vertical = 1
+
+[node name="ChoiceBButton" type="Button" parent="Margin/VBox/CardsRow/ChoiceBCard/VBox"]
+text = "Claim"
+size_flags_horizontal = 3
+
+[node name="ChoiceCCard" type="PanelContainer" parent="Margin/VBox/CardsRow"]
+size_flags_horizontal = 3
+size_flags_vertical = 1
+custom_minimum_size = Vector2(0, 100)
+
+[node name="VBox" type="VBoxContainer" parent="Margin/VBox/CardsRow/ChoiceCCard"]
+theme_override_constants/separation = 3
+
+[node name="BadgeLabel" type="Label" parent="Margin/VBox/CardsRow/ChoiceCCard/VBox"]
+text = "Reward"
+
+[node name="OfferTitleLabel" type="Label" parent="Margin/VBox/CardsRow/ChoiceCCard/VBox"]
+text = "Choice C"
+autowrap_mode = 3
+
+[node name="OfferDetailLabel" type="Label" parent="Margin/VBox/CardsRow/ChoiceCCard/VBox"]
+text = "Detail"
+autowrap_mode = 3
+
+[node name="Fill" type="Control" parent="Margin/VBox/CardsRow/ChoiceCCard/VBox"]
+custom_minimum_size = Vector2(0, 4)
+size_flags_vertical = 1
+
+[node name="ChoiceCButton" type="Button" parent="Margin/VBox/CardsRow/ChoiceCCard/VBox"]
+text = "Claim"
+size_flags_horizontal = 3
+
+[node name="StatusLabel" type="Label" parent="Margin/VBox"]
+autowrap_mode = 3

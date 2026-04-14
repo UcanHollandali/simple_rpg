@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "definition_id": "watchfire_ruin_cache",
+  "family": "EventTemplates",
+  "tags": [
+    "event",
+    "stage_1",
+    "forest",
+    "ruin",
+    "prototype"
+  ],
+  "display": {
+    "name": "Watchfire Ruin Cache",
+    "short_description": "A ranger watchfire lies cold beneath the pines. Warm stones still hold a trace of heat, and a split lockbox waits under the ash."
+  },
+  "rules": {
+    "choices": [
+      {
+        "choice_id": "warm_your_hands",
+        "label": "Warm your hands",
+        "summary": "Hold your palms over the stubborn coals and let your breathing settle.",
+        "effect_type": "heal",
+        "amount": 5
+      },
+      {
+        "choice_id": "pry_open_the_cache",
+        "label": "Pry open the cache",
+        "summary": "Force the split box the rest of the way open and pocket the road coins inside.",
+        "effect_type": "grant_gold",
+        "amount": 6
+      }
+    ]
+  }
+}

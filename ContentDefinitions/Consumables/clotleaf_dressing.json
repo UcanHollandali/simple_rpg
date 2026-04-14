@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "definition_id": "clotleaf_dressing",
+  "family": "Consumables",
+  "tags": [
+    "consumable",
+    "healing",
+    "combat",
+    "tactical"
+  ],
+  "display": {
+    "name": "Clotleaf Dressing",
+    "short_description": "A fast field wrap for patching a mid-fight cut without committing a full tonic.",
+    "icon_key": "consumable_clotleaf_dressing"
+  },
+  "rules": {
+    "stats": {
+      "max_stack": 4,
+      "restore_hp": 9
+    },
+    "use_effect": {
+      "trigger": "on_use",
+      "condition": {
+        "op": "always"
+      },
+      "target": "self",
+      "effects": [
+        {
+          "type": "heal",
+          "params": {
+            "base": 9
+          }
+        }
+      ]
+    }
+  }
+}

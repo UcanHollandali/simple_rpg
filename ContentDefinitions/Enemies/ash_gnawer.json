@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "definition_id": "ash_gnawer",
+  "authoring_order": 100,
+  "family": "Enemies",
+  "encounter_tier": "minor",
+  "design_intent_question": "Can the player learn that even a weak opener still deserves respect when a second slightly heavier bite is telegraphed right after it?",
+  "tags": [
+    "enemy",
+    "beast",
+    "stage_1",
+    "tutorial",
+    "skirmisher"
+  ],
+  "display": {
+    "name": "Ash Gnawer",
+    "short_description": "A half-starved forest scavenger that teaches the opening rhythm with light bites and a single sharper lunge.",
+    "icon_key": "enemy_ash_gnawer"
+  },
+  "rules": {
+    "stats": {
+      "base_hp": 14,
+      "base_damage": 2
+    },
+    "intent_pool": [
+      {
+        "intent_id": "testing_bite",
+        "action_family": "attack",
+        "threat_level": "low",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 2,
+              "damage_kind": "physical"
+            }
+          }
+        ]
+      },
+      {
+        "intent_id": "sniffing_feint",
+        "action_family": "attack",
+        "threat_level": "low",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 1,
+              "damage_kind": "physical"
+            }
+          }
+        ]
+      },
+      {
+        "intent_id": "ember_lunge",
+        "action_family": "attack",
+        "threat_level": "medium",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 3,
+              "damage_kind": "physical"
+            }
+          }
+        ]
+      }
+    ],
+    "behaviors": []
+  }
+}

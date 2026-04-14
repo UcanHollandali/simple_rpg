@@ -1,0 +1,200 @@
+{
+  "schema_version": 1,
+  "definition_id": "gate_warden",
+  "authoring_order": 90,
+  "family": "Enemies",
+  "encounter_tier": "elite",
+  "design_intent_question": "Can the player read a heavier stage-end telegraph and save Brace or healing for the correct turn?",
+  "tags": [
+    "enemy",
+    "boss",
+    "guardian",
+    "bleed"
+  ],
+  "display": {
+    "name": "Gate Warden",
+    "short_description": "A brutal stage-end sentinel that mixes heavy cleaves with a punishing bleed clock.",
+    "icon_key": "enemy_gate_warden"
+  },
+  "rules": {
+    "stats": {
+      "base_hp": 30,
+      "base_damage": 6
+    },
+    "intent_pool": [
+      {
+        "intent_id": "warden_cleave",
+        "action_family": "attack",
+        "threat_level": "high",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 7,
+              "damage_kind": "physical"
+            }
+          }
+        ]
+      },
+      {
+        "intent_id": "hook_chain",
+        "action_family": "attack",
+        "threat_level": "medium",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 5,
+              "damage_kind": "physical"
+            }
+          },
+          {
+            "type": "apply_status",
+            "params": {
+              "definition_id": "bleed"
+            }
+          }
+        ]
+      },
+      {
+        "intent_id": "pressing_bash",
+        "action_family": "attack",
+        "threat_level": "medium",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 4,
+              "damage_kind": "physical"
+            }
+          }
+        ]
+      }
+    ],
+    "boss_phases": [
+      {
+        "phase_id": "iron_watch",
+        "display_name": "Iron Watch",
+        "intent_pool": [
+          {
+            "intent_id": "pressing_bash",
+            "action_family": "attack",
+            "threat_level": "medium",
+            "effects": [
+              {
+                "type": "deal_damage",
+                "params": {
+                  "base": 4,
+                  "damage_kind": "physical"
+                }
+              }
+            ]
+          },
+          {
+            "intent_id": "hook_chain",
+            "action_family": "attack",
+            "threat_level": "medium",
+            "effects": [
+              {
+                "type": "deal_damage",
+                "params": {
+                  "base": 5,
+                  "damage_kind": "physical"
+                }
+              },
+              {
+                "type": "apply_status",
+                "params": {
+                  "definition_id": "bleed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "phase_id": "chain_unbound",
+        "display_name": "Chain Unbound",
+        "enter_at_or_below_percent": 60,
+        "intent_pool": [
+          {
+            "intent_id": "warden_cleave",
+            "action_family": "attack",
+            "threat_level": "high",
+            "effects": [
+              {
+                "type": "deal_damage",
+                "params": {
+                  "base": 7,
+                  "damage_kind": "physical"
+                }
+              }
+            ]
+          },
+          {
+            "intent_id": "hook_chain",
+            "action_family": "attack",
+            "threat_level": "medium",
+            "effects": [
+              {
+                "type": "deal_damage",
+                "params": {
+                  "base": 5,
+                  "damage_kind": "physical"
+                }
+              },
+              {
+                "type": "apply_status",
+                "params": {
+                  "definition_id": "bleed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "phase_id": "execution_lock",
+        "display_name": "Execution Lock",
+        "enter_at_or_below_percent": 30,
+        "intent_pool": [
+          {
+            "intent_id": "execution_drop",
+            "action_family": "attack",
+            "threat_level": "high",
+            "effects": [
+              {
+                "type": "deal_damage",
+                "params": {
+                  "base": 8,
+                  "damage_kind": "physical"
+                }
+              }
+            ]
+          },
+          {
+            "intent_id": "barbed_hook",
+            "action_family": "attack",
+            "threat_level": "high",
+            "effects": [
+              {
+                "type": "deal_damage",
+                "params": {
+                  "base": 6,
+                  "damage_kind": "physical"
+                }
+              },
+              {
+                "type": "apply_status",
+                "params": {
+                  "definition_id": "bleed"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "behaviors": []
+  }
+}

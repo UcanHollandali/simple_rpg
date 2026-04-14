@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "definition_id": "pilgrim_broth_flask",
+  "family": "Consumables",
+  "tags": [
+    "consumable",
+    "food",
+    "route",
+    "recovery"
+  ],
+  "display": {
+    "name": "Pilgrim Broth Flask",
+    "short_description": "A heavy broth flask meant for rough stretches where HP matters more than pure hunger relief.",
+    "icon_key": "consumable_pilgrim_broth_flask"
+  },
+  "rules": {
+    "stats": {
+      "max_stack": 2,
+      "restore_hp": 12
+    },
+    "use_effect": {
+      "trigger": "on_use",
+      "condition": {
+        "op": "always"
+      },
+      "target": "self",
+      "effects": [
+        {
+          "type": "heal",
+          "params": {
+            "base": 12
+          }
+        },
+        {
+          "type": "modify_hunger",
+          "params": {
+            "amount": -1
+          }
+        }
+      ]
+    }
+  }
+}

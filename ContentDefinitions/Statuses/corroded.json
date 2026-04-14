@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "definition_id": "corroded",
+  "family": "Statuses",
+  "tags": [
+    "status",
+    "debuff",
+    "resource",
+    "corroded"
+  ],
+  "display": {
+    "name": "Corroded",
+    "short_description": "Causes valid attack attempts to spend extra weapon durability.",
+    "icon_key": "status_corroded"
+  },
+  "rules": {
+    "stats": {
+      "duration_turns": 3,
+      "max_stacks": 1,
+      "stat_modifiers": {
+        "durability_cost_flat_reduction": -1
+      }
+    }
+  }
+}

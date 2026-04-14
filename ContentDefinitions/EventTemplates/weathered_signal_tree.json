@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "definition_id": "weathered_signal_tree",
+  "family": "EventTemplates",
+  "tags": [
+    "event",
+    "stage_1",
+    "forest",
+    "trail",
+    "prototype"
+  ],
+  "display": {
+    "name": "Weathered Signal Tree",
+    "short_description": "An old signal tree still bears warning ribbons, trail knots, and a spray of bitter berries the birds somehow left behind."
+  },
+  "rules": {
+    "choices": [
+      {
+        "choice_id": "pick_the_bitter_berries",
+        "label": "Pick the bitter berries",
+        "summary": "The fruit is harsh, but it quiets your stomach enough to keep moving.",
+        "effect_type": "modify_hunger",
+        "amount": -2
+      },
+      {
+        "choice_id": "study_the_warning_knots",
+        "label": "Study the warning knots",
+        "summary": "Trace the old path signs and learn what frightened the wardens out here.",
+        "effect_type": "grant_xp",
+        "amount": 3
+      }
+    ]
+  }
+}

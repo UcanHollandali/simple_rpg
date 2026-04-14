@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="hungerFill" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#E8D39D"/>
+      <stop offset="55%" stop-color="#B38A3D"/>
+      <stop offset="100%" stop-color="#6E5321"/>
+    </linearGradient>
+  </defs>
+  <circle cx="64" cy="64" r="46" fill="#1A2328" stroke="#8C7A5B" stroke-width="8"/>
+  <path d="M34 76c0-16 13-29 30-29s30 13 30 29v8H34z" fill="url(#hungerFill)" stroke="#E6DFC9" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M52 45c3-6 8-10 14-12" fill="none" stroke="#F5E7BF" stroke-width="4" stroke-linecap="round" opacity="0.9"/>
+  <path d="M48 67h32" stroke="#6E5321" stroke-width="4" stroke-linecap="round" opacity="0.45"/>
+</svg>

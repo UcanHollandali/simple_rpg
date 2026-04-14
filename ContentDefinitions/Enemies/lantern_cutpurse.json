@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "definition_id": "lantern_cutpurse",
+  "authoring_order": 110,
+  "family": "Enemies",
+  "encounter_tier": "minor",
+  "design_intent_question": "Can the player keep tempo against a low-damage evasive foe instead of overvaluing Brace when the real lesson is clean attack sequencing?",
+  "tags": [
+    "enemy",
+    "brigand",
+    "stage_1",
+    "tutorial",
+    "evasive"
+  ],
+  "display": {
+    "name": "Lantern Cutpurse",
+    "short_description": "A roadside thief who pokes for chip damage and dodges just enough to punish careless tempo.",
+    "icon_key": "enemy_lantern_cutpurse"
+  },
+  "rules": {
+    "stats": {
+      "base_hp": 16,
+      "base_damage": 2,
+      "dodge_chance": 10
+    },
+    "intent_pool": [
+      {
+        "intent_id": "nicking_cut",
+        "action_family": "attack",
+        "threat_level": "low",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 2,
+              "damage_kind": "physical"
+            }
+          }
+        ]
+      },
+      {
+        "intent_id": "lantern_fake",
+        "action_family": "attack",
+        "threat_level": "low",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 1,
+              "damage_kind": "physical"
+            }
+          }
+        ]
+      },
+      {
+        "intent_id": "heel_stab",
+        "action_family": "attack",
+        "threat_level": "medium",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 3,
+              "damage_kind": "physical"
+            }
+          }
+        ]
+      }
+    ],
+    "behaviors": []
+  }
+}

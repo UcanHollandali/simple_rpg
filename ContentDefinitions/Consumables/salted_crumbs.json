@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "definition_id": "salted_crumbs",
+  "family": "Consumables",
+  "tags": [
+    "consumable",
+    "food",
+    "route",
+    "sustain"
+  ],
+  "display": {
+    "name": "Salted Crumbs",
+    "short_description": "Dry travel scraps that barely heal, but keep hunger from climbing on a longer route.",
+    "icon_key": "consumable_salted_crumbs"
+  },
+  "rules": {
+    "stats": {
+      "max_stack": 5,
+      "restore_hp": 2
+    },
+    "use_effect": {
+      "trigger": "on_use",
+      "condition": {
+        "op": "always"
+      },
+      "target": "self",
+      "effects": [
+        {
+          "type": "heal",
+          "params": {
+            "base": 2
+          }
+        },
+        {
+          "type": "modify_hunger",
+          "params": {
+            "amount": -2
+          }
+        }
+      ]
+    }
+  }
+}

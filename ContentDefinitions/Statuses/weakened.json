@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "definition_id": "weakened",
+  "family": "Statuses",
+  "tags": [
+    "status",
+    "debuff",
+    "attack_down",
+    "weakened"
+  ],
+  "display": {
+    "name": "Weakened",
+    "short_description": "Reduces the afflicted unit's attack power while the status remains active.",
+    "icon_key": "status_weakened"
+  },
+  "rules": {
+    "stats": {
+      "duration_turns": 2,
+      "max_stacks": 1,
+      "stat_modifiers": {
+        "attack_power_bonus": -2
+      }
+    }
+  }
+}

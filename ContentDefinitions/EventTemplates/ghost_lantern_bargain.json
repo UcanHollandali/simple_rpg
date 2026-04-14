@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "definition_id": "ghost_lantern_bargain",
+  "family": "EventTemplates",
+  "tags": [
+    "event",
+    "ghost",
+    "lantern",
+    "prototype"
+  ],
+  "display": {
+    "name": "Lantern at the Split Path",
+    "short_description": "A blue lantern hangs where no branch should. A voice inside it offers guidance if you answer, punishment if you force your way through."
+  },
+  "rules": {
+    "choices": [
+      {
+        "choice_id": "answer_the_question",
+        "label": "Answer honestly",
+        "summary": "Give the lantern the one truth you still cannot stop carrying, and the path ahead sharpens.",
+        "effect_type": "grant_xp",
+        "amount": 5
+      },
+      {
+        "choice_id": "walk_through_the_light",
+        "label": "Push through the light",
+        "summary": "Shoulder past the glow and let it rake through your chest before it lets you go.",
+        "effect_type": "damage_player",
+        "amount": 6
+      }
+    ]
+  }
+}

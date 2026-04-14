@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "definition_id": "packrat_clasp",
+  "authoring_order": 70,
+  "family": "PassiveItems",
+  "tags": [
+    "passive",
+    "combat",
+    "scavenger",
+    "sustain"
+  ],
+  "display": {
+    "name": "Packrat Clasp",
+    "short_description": "A hoarder's clasp that grants 1 flat damage reduction and cuts durability cost by 2 so your run resources stretch farther.",
+    "icon_key": "passive_packrat_clasp"
+  },
+  "rules": {
+    "behaviors": [
+      {
+        "trigger": "passive",
+        "condition": {
+          "op": "always"
+        },
+        "target": "self",
+        "effects": [
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "incoming_damage_flat_reduction",
+              "amount": 1
+            }
+          },
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "durability_cost_flat_reduction",
+              "amount": 2
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

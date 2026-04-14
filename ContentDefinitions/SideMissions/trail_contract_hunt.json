@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "definition_id": "trail_contract_hunt",
+  "family": "SideMissions",
+  "tags": [
+    "side_mission",
+    "contract",
+    "hunt",
+    "prototype"
+  ],
+  "display": {
+    "name": "Village Request",
+    "short_description": "A yolcu asks for help: a köylü in a küçük mezra needs a strong hand after a harap kulübe raid by an avcı."
+  },
+  "rules": {
+    "mission_type": "hunt_marked_enemy",
+    "briefing_text": "A köylü at the harap kulübe by the small path marks a hunter. Track the avcı, end the trouble, and return for a help reward.",
+    "accept_label": "Accept the request",
+    "accepted_text": "The avcı mark is lit on the trail. Kill the marked threat, then come back for your next step.",
+    "reminder_label": "Marked hunter ahead",
+    "completed_text": "The avcı is down. Choose one aid reward, then return to the village and report back.",
+    "claimed_text": "This request post is quiet now; only torn nails and cold ash remain by the harap kulübe.",
+    "claimed_label": "Request fulfilled",
+    "reward_pool": [
+      {
+        "offer_id": "claim_emberhook_blade",
+        "inventory_family": "weapon",
+        "definition_id": "emberhook_blade"
+      },
+      {
+        "offer_id": "claim_moonspur_pike",
+        "inventory_family": "weapon",
+        "definition_id": "moonspur_pike"
+      },
+      {
+        "offer_id": "claim_gravehide_plates",
+        "inventory_family": "armor",
+        "definition_id": "gravehide_plates"
+      },
+      {
+        "offer_id": "claim_trailwarden_cloak",
+        "inventory_family": "armor",
+        "definition_id": "trailwarden_cloak"
+      }
+    ]
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "definition_id": "duelist_knot",
+  "family": "Belts",
+  "tags": [
+    "belt",
+    "combat",
+    "tempo",
+    "attack"
+  ],
+  "display": {
+    "name": "Duelist Knot",
+    "short_description": "A cinched war-belt that grants +1 attack power in combat.",
+    "icon_key": "belt_duelist_knot"
+  },
+  "rules": {
+    "behaviors": [
+      {
+        "trigger": "passive",
+        "condition": {
+          "op": "always"
+        },
+        "target": "self",
+        "effects": [
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "attack_power_bonus",
+              "amount": 1
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

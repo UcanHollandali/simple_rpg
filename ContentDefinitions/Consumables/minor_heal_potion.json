@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "definition_id": "minor_heal_potion",
+  "family": "Consumables",
+  "tags": [
+    "consumable",
+    "healing",
+    "potion",
+    "common"
+  ],
+  "display": {
+    "name": "Minor Heal Potion",
+    "short_description": "Restore a small amount of HP in combat.",
+    "icon_key": "consumable_minor_heal_potion"
+  },
+  "rules": {
+    "stats": {
+      "max_stack": 5,
+      "restore_hp": 12
+    },
+    "use_effect": {
+      "trigger": "on_use",
+      "condition": {
+        "op": "always"
+      },
+      "target": "self",
+      "effects": [
+        {
+          "type": "heal",
+          "params": {
+            "base": 12
+          }
+        }
+      ]
+    }
+  }
+}

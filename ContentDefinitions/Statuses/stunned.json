@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "definition_id": "stunned",
+  "family": "Statuses",
+  "tags": [
+    "status",
+    "debuff",
+    "control",
+    "stunned"
+  ],
+  "display": {
+    "name": "Stunned",
+    "short_description": "Skips the next player action that would resolve while it remains active.",
+    "icon_key": "status_stunned"
+  },
+  "rules": {
+    "stats": {
+      "duration_turns": 2,
+      "max_stacks": 1,
+      "stat_modifiers": {
+        "skip_player_action": 1
+      }
+    }
+  }
+}

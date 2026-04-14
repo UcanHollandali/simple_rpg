@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "definition_id": "venom_scavenger",
+  "authoring_order": 40,
+  "family": "Enemies",
+  "encounter_tier": "minor",
+  "design_intent_question": "Can the player answer a short poison clock without wasting a heal too early?",
+  "tags": [
+    "enemy",
+    "beast",
+    "poison",
+    "skirmisher"
+  ],
+  "display": {
+    "name": "Venom Scavenger",
+    "short_description": "A quick predator that mixes light hits with a short poison clock.",
+    "icon_key": "enemy_venom_scavenger"
+  },
+  "rules": {
+    "stats": {
+      "base_hp": 18,
+      "base_damage": 4
+    },
+    "intent_pool": [
+      {
+        "intent_id": "venom_bite",
+        "action_family": "attack",
+        "threat_level": "medium",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 4,
+              "damage_kind": "physical"
+            }
+          },
+          {
+            "type": "apply_status",
+            "params": {
+              "definition_id": "poison"
+            }
+          }
+        ]
+      },
+      {
+        "intent_id": "scraping_claw",
+        "action_family": "attack",
+        "threat_level": "low",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 2,
+              "damage_kind": "physical"
+            }
+          }
+        ]
+      }
+    ],
+    "behaviors": []
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "definition_id": "whispering_barricade",
+  "family": "EventTemplates",
+  "tags": [
+    "event",
+    "stage_2",
+    "ruin",
+    "roadside",
+    "prototype"
+  ],
+  "display": {
+    "name": "Whispering Barricade",
+    "short_description": "A fallen barricade is packed with torn travel sacks and damp ledgers. Wind through the bottle-neck gaps makes the whole thing murmur."
+  },
+  "rules": {
+    "choices": [
+      {
+        "choice_id": "dig_out_the_ration_wax",
+        "label": "Dig out the ration wax",
+        "summary": "Scrape the waxed crumbs from an old field ration and eat on the move.",
+        "effect_type": "modify_hunger",
+        "amount": -3
+      },
+      {
+        "choice_id": "follow_the_names",
+        "label": "Follow the names",
+        "summary": "Read the ruined ledger until the route patterns click into place in your head.",
+        "effect_type": "grant_xp",
+        "amount": 6
+      }
+    ]
+  }
+}

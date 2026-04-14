@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="cancelFrame" x1="64" y1="18" x2="64" y2="110" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#B09160"/>
+      <stop offset="1" stop-color="#73583A"/>
+    </linearGradient>
+    <linearGradient id="cancelCore" x1="64" y1="28" x2="64" y2="100" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#241F22"/>
+      <stop offset="1" stop-color="#151113"/>
+    </linearGradient>
+  </defs>
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="64" cy="64" r="48" fill="url(#cancelFrame)"/>
+    <circle cx="64" cy="64" r="36" fill="url(#cancelCore)"/>
+    <circle cx="64" cy="64" r="26" fill="#261B1D"/>
+    <path d="m50 50 28 28m0-28-28 28" fill="none" stroke="#D26E4F" stroke-width="10"/>
+  </g>
+</svg>
+

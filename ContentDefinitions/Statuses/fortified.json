@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "definition_id": "fortified",
+  "family": "Statuses",
+  "tags": [
+    "status",
+    "buff",
+    "defense_up",
+    "fortified"
+  ],
+  "display": {
+    "name": "Fortified",
+    "short_description": "Reduces incoming damage while the status remains active.",
+    "icon_key": "status_fortified"
+  },
+  "rules": {
+    "stats": {
+      "duration_turns": 2,
+      "max_stacks": 1,
+      "stat_modifiers": {
+        "incoming_damage_flat_reduction": 2
+      }
+    }
+  }
+}

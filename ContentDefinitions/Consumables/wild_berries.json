@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "definition_id": "wild_berries",
+  "family": "Consumables",
+  "tags": [
+    "consumable",
+    "food",
+    "foraged",
+    "starter"
+  ],
+  "display": {
+    "name": "Wild Berries",
+    "short_description": "A light trail snack that mostly settles hunger with only a small HP lift.",
+    "icon_key": "consumable_wild_berries"
+  },
+  "rules": {
+    "stats": {
+      "max_stack": 4,
+      "restore_hp": 4
+    },
+    "use_effect": {
+      "trigger": "on_use",
+      "condition": {
+        "op": "always"
+      },
+      "target": "self",
+      "effects": [
+        {
+          "type": "heal",
+          "params": {
+            "base": 4
+          }
+        },
+        {
+          "type": "modify_hunger",
+          "params": {
+            "amount": -3
+          }
+        }
+      ]
+    }
+  }
+}

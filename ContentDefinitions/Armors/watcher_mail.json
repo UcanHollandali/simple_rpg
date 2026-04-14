@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "definition_id": "watcher_mail",
+  "family": "Armors",
+  "tags": [
+    "armor",
+    "combat",
+    "defense",
+    "light"
+  ],
+  "display": {
+    "name": "Watcher Mail",
+    "short_description": "Light chain that trims 1 incoming damage each combat hit.",
+    "icon_key": "armor_watcher_mail"
+  },
+  "rules": {
+    "behaviors": [
+      {
+        "trigger": "passive",
+        "condition": {
+          "op": "always"
+        },
+        "target": "self",
+        "effects": [
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "incoming_damage_flat_reduction",
+              "amount": 1
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

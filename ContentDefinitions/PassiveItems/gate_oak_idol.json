@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "definition_id": "gate_oak_idol",
+  "authoring_order": 60,
+  "family": "PassiveItems",
+  "tags": [
+    "passive",
+    "combat",
+    "defense",
+    "iron_wall"
+  ],
+  "display": {
+    "name": "Gate-Oak Idol",
+    "short_description": "A dense ward-carving that grants 2 flat damage reduction, but trims 1 attack power from your swings.",
+    "icon_key": "passive_gate_oak_idol"
+  },
+  "rules": {
+    "behaviors": [
+      {
+        "trigger": "passive",
+        "condition": {
+          "op": "always"
+        },
+        "target": "self",
+        "effects": [
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "incoming_damage_flat_reduction",
+              "amount": 2
+            }
+          },
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "attack_power_bonus",
+              "amount": -1
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,529 @@
+# Layer: UI
+extends RefCounted
+class_name InventoryPresenter
+
+const ContentLoaderScript = preload("res://Game/Infrastructure/content_loader.gd")
+const InventoryStateScript = preload("res://Game/RuntimeState/inventory_state.gd")
+const TempScreenThemeScript = preload("res://Game/UI/temp_screen_theme.gd")
+const UiAssetPathsScript = preload("res://Game/UI/ui_asset_paths.gd")
+
+var _loader: ContentLoader = ContentLoaderScript.new()
+
+
+func build_inventory_title_text(inventory_state: InventoryState) -> String:
+	if inventory_state == null:
+		return "Inventory 0/%d" % InventoryStateScript.BASE_SLOT_CAPACITY
+
+	var total_capacity: int = inventory_state.get_total_capacity()
+	var title_text: String = "Inventory %d/%d" % [inventory_state.get_used_capacity(), total_capacity]
+	if total_capacity > InventoryStateScript.BASE_SLOT_CAPACITY:
+		title_text += " (+2 belt)"
+	return title_text
+
+
+func build_run_inventory_hint_text() -> String:
+	return "Tap gear to equip, tap supplies to use."
+
+
+func build_combat_inventory_hint_text() -> String:
+	return "Tap gear or items to act. Gear and items spend your turn."
+
+
+func build_run_inventory_cards(run_state: RunState) -> Array[Dictionary]:
+	if run_state == null:
+		return _build_empty_inventory_cards(InventoryStateScript.BASE_SLOT_CAPACITY)
+
+	return _build_inventory_cards(run_state.inventory_state, null)
+
+
+func build_combat_inventory_cards(combat_state: CombatState, inventory_source: Variant = null) -> Array[Dictionary]:
+	var inventory_state: InventoryState = null
+	if inventory_source is InventoryState:
+		inventory_state = combat_state.build_inventory_projection(inventory_source) if combat_state != null else inventory_source
+	elif typeof(inventory_source) == TYPE_ARRAY:
+		inventory_state = _build_compat_inventory_state(combat_state, inventory_source as Array)
+	if inventory_state == null:
+		return _build_empty_inventory_cards(InventoryStateScript.BASE_SLOT_CAPACITY)
+
+	return _build_inventory_cards(inventory_state, combat_state)
+
+
+func decorate_card_interaction_state(
+	card_model: Dictionary,
+	is_combat: bool,
+	is_clickable: bool,
+	is_selected: bool = false,
+	is_draggable: bool = false
+) -> Dictionary:
+	var decorated_model: Dictionary = card_model
+	decorated_model["action_hint_text"] = _build_action_hint_text(card_model, is_combat, is_clickable, is_selected, is_draggable)
+	decorated_model["action_hint_tone"] = _build_action_hint_tone(card_model, is_clickable, is_selected)
+	return decorated_model
+
+
+func _build_inventory_cards(inventory_state: InventoryState, combat_state: CombatState = null) -> Array[Dictionary]:
+	var cards: Array[Dictionary] = []
+	if inventory_state == null:
+		return _build_empty_inventory_cards(InventoryStateScript.BASE_SLOT_CAPACITY)
+
+	var total_capacity: int = inventory_state.get_total_capacity()
+	var combat_consumable_index_by_slot_id: Dictionary = _build_combat_consumable_index_by_slot_id(combat_state)
+
+	for slot_index in range(total_capacity):
+		if slot_index < inventory_state.inventory_slots.size():
+			var slot: Dictionary = inventory_state.inventory_slots[slot_index]
+			cards.append(_build_slot_card(slot_index, slot, inventory_state, combat_state, combat_consumable_index_by_slot_id))
+		else:
+			cards.append(_build_empty_card(slot_index))
+
+	return cards
+
+
+func _build_empty_inventory_cards(card_count: int) -> Array[Dictionary]:
+	var cards: Array[Dictionary] = []
+	for slot_index in range(card_count):
+		cards.append(_build_empty_card(slot_index))
+	return cards
+
+
+func _build_compat_inventory_state(combat_state: CombatState, passive_slot_list: Array) -> InventoryState:
+	if combat_state == null:
+		return null
+	var inventory_state: InventoryState = InventoryStateScript.new()
+	inventory_state.set_weapon_instance(combat_state.weapon_instance)
+	inventory_state.set_armor_instance(combat_state.armor_instance)
+	inventory_state.set_belt_instance(combat_state.belt_instance)
+	inventory_state.set_consumable_slots(combat_state.consumable_slots)
+	inventory_state.set_passive_slots(passive_slot_list)
+	combat_state.active_weapon_slot_id = int(inventory_state.active_weapon_slot_id)
+	combat_state.active_armor_slot_id = int(inventory_state.active_armor_slot_id)
+	combat_state.active_belt_slot_id = int(inventory_state.active_belt_slot_id)
+	var hydrated_consumable_slots: Array[Dictionary] = inventory_state.consumable_slots
+	for index in range(min(combat_state.consumable_slots.size(), hydrated_consumable_slots.size())):
+		combat_state.consumable_slots[index]["slot_id"] = int(hydrated_consumable_slots[index].get("slot_id", -1))
+	return inventory_state
+
+
+func _build_slot_card(
+	slot_index: int,
+	slot: Dictionary,
+	inventory_state: InventoryState,
+	combat_state: CombatState,
+	combat_consumable_index_by_slot_id: Dictionary
+) -> Dictionary:
+	var inventory_family: String = String(slot.get("inventory_family", ""))
+	match inventory_family:
+		InventoryStateScript.INVENTORY_FAMILY_WEAPON:
+			return _build_weapon_card(slot_index, slot, inventory_state, combat_state)
+		InventoryStateScript.INVENTORY_FAMILY_ARMOR:
+			return _build_armor_card(slot_index, slot, inventory_state, combat_state)
+		InventoryStateScript.INVENTORY_FAMILY_BELT:
+			return _build_belt_card(slot_index, slot, inventory_state, combat_state)
+		InventoryStateScript.INVENTORY_FAMILY_CONSUMABLE:
+			return _build_consumable_card(slot_index, slot, combat_consumable_index_by_slot_id)
+		InventoryStateScript.INVENTORY_FAMILY_PASSIVE:
+			return _build_passive_card(slot_index, slot)
+		_:
+			return _build_empty_card(slot_index)
+
+
+func _build_empty_card(slot_index: int) -> Dictionary:
+	return {
+		"card_name": "InventorySlot%dCard" % (slot_index + 1),
+		"card_family": "empty",
+		"slot_index": -1,
+		"inventory_slot_index": slot_index,
+		"inventory_slot_id": -1,
+		"slot_label": "INV %d" % (slot_index + 1),
+		"title_text": "Open Slot",
+		"detail_text": "",
+		"count_text": "",
+		"icon_texture_path": "",
+		"tooltip_text": "Open inventory slot.",
+		"accent_color": TempScreenThemeScript.PANEL_BORDER_COLOR.darkened(0.18),
+		"is_equipped": false,
+	}
+
+
+func _build_weapon_card(slot_index: int, slot: Dictionary, inventory_state: InventoryState, combat_state: CombatState) -> Dictionary:
+	var definition_id: String = String(slot.get("definition_id", ""))
+	var definition: Dictionary = _load_definition("Weapons", definition_id)
+	var stats: Dictionary = definition.get("rules", {}).get("stats", {})
+	var current_durability: int = int(slot.get("current_durability", 0))
+	if combat_state != null and int(slot.get("slot_id", -1)) == int(inventory_state.active_weapon_slot_id):
+		current_durability = int(combat_state.weapon_instance.get("current_durability", current_durability))
+	var max_durability: int = max(1, int(stats.get("max_durability", current_durability)))
+	var upgrade_level: int = _extract_upgrade_level(slot)
+	var base_damage: int = int(stats.get("base_damage", 0)) + (
+		upgrade_level * InventoryStateScript.WEAPON_UPGRADE_ATTACK_BONUS_PER_LEVEL
+	)
+	var is_active: bool = int(slot.get("slot_id", -1)) == _resolve_active_slot_id(inventory_state, combat_state, InventoryStateScript.INVENTORY_FAMILY_WEAPON)
+	var tooltip_parts: PackedStringArray = []
+	tooltip_parts.append(_build_equipment_toggle_hint(is_active, combat_state))
+	tooltip_parts.append(_load_short_description(definition))
+	tooltip_parts.append("Damage %d." % base_damage)
+	if upgrade_level > 0:
+		tooltip_parts.append("Forge bonus +%d attack." % upgrade_level)
+	tooltip_parts.append("Durability %d/%d." % [current_durability, max_durability])
+	var durability_cost: int = int(stats.get("durability_cost_per_attack", 0))
+	if durability_cost > 0:
+		tooltip_parts.append("Each attack spends %d durability." % durability_cost)
+	return {
+		"card_name": "InventorySlot%dCard" % (slot_index + 1),
+		"card_family": InventoryStateScript.INVENTORY_FAMILY_WEAPON,
+		"slot_index": -1,
+		"inventory_slot_index": slot_index,
+		"inventory_slot_id": int(slot.get("slot_id", -1)),
+		"slot_label": "INV %d" % (slot_index + 1),
+		"title_text": _build_item_display_name(definition, definition_id, slot),
+		"detail_text": ("EQUIPPED | " if is_active else "") + ("BROKEN" if current_durability <= 0 else "DMG %d" % base_damage),
+		"count_text": "%d/%d" % [current_durability, max_durability],
+		"icon_texture_path": UiAssetPathsScript.WEAPON_ICON_TEXTURE_PATH,
+		"tooltip_text": _join_tooltip_parts(tooltip_parts),
+		"accent_color": TempScreenThemeScript.RUST_ACCENT_COLOR,
+		"is_equipped": is_active,
+	}
+
+
+func _build_armor_card(slot_index: int, slot: Dictionary, inventory_state: InventoryState, combat_state: CombatState = null) -> Dictionary:
+	var definition_id: String = String(slot.get("definition_id", ""))
+	var definition: Dictionary = _load_definition("Armors", definition_id)
+	var summary: Dictionary = _build_modifier_summary(definition, false, {
+		"incoming_damage_flat_reduction": _extract_upgrade_level(slot) * InventoryStateScript.ARMOR_UPGRADE_DEFENSE_BONUS_PER_LEVEL,
+	})
+	var is_active: bool = int(slot.get("slot_id", -1)) == _resolve_active_slot_id(inventory_state, combat_state, InventoryStateScript.INVENTORY_FAMILY_ARMOR)
+	var tooltip_parts: PackedStringArray = [
+		_build_equipment_toggle_hint(is_active, combat_state),
+		_load_short_description(definition),
+		String(summary.get("long_text", "")),
+	]
+	return {
+		"card_name": "InventorySlot%dCard" % (slot_index + 1),
+		"card_family": InventoryStateScript.INVENTORY_FAMILY_ARMOR,
+		"slot_index": -1,
+		"inventory_slot_index": slot_index,
+		"inventory_slot_id": int(slot.get("slot_id", -1)),
+		"slot_label": "INV %d" % (slot_index + 1),
+		"title_text": _build_item_display_name(definition, definition_id, slot),
+		"detail_text": ("EQUIPPED | " if is_active else "") + String(summary.get("short_text", "Armor")),
+		"count_text": "EQP" if is_active else "",
+		"icon_texture_path": UiAssetPathsScript.ARMOR_ICON_TEXTURE_PATH,
+		"tooltip_text": _join_tooltip_parts(tooltip_parts),
+		"accent_color": TempScreenThemeScript.TEAL_ACCENT_COLOR,
+		"is_equipped": is_active,
+	}
+
+
+func _build_belt_card(slot_index: int, slot: Dictionary, inventory_state: InventoryState, combat_state: CombatState = null) -> Dictionary:
+	var definition_id: String = String(slot.get("definition_id", ""))
+	var definition: Dictionary = _load_definition("Belts", definition_id)
+	var summary: Dictionary = _build_modifier_summary(definition, true)
+	var is_active: bool = int(slot.get("slot_id", -1)) == _resolve_active_slot_id(inventory_state, combat_state, InventoryStateScript.INVENTORY_FAMILY_BELT)
+	var tooltip_parts: PackedStringArray = [
+		_build_equipment_toggle_hint(is_active, combat_state),
+		_load_short_description(definition),
+		"Adds 2 inventory slots while equipped.",
+		String(summary.get("long_text", "")),
+	]
+	return {
+		"card_name": "InventorySlot%dCard" % (slot_index + 1),
+		"card_family": InventoryStateScript.INVENTORY_FAMILY_BELT,
+		"slot_index": -1,
+		"inventory_slot_index": slot_index,
+		"inventory_slot_id": int(slot.get("slot_id", -1)),
+		"slot_label": "INV %d" % (slot_index + 1),
+		"title_text": _build_item_display_name(definition, definition_id, slot),
+		"detail_text": ("EQUIPPED | " if is_active else "") + String(summary.get("short_text", "+2 INV")),
+		"count_text": "EQP" if is_active else "",
+		"icon_texture_path": UiAssetPathsScript.BELT_ICON_TEXTURE_PATH,
+		"tooltip_text": _join_tooltip_parts(tooltip_parts),
+		"accent_color": TempScreenThemeScript.PANEL_BORDER_COLOR,
+		"is_equipped": is_active,
+	}
+
+
+func _build_consumable_card(slot_index: int, slot: Dictionary, combat_consumable_index_by_slot_id: Dictionary) -> Dictionary:
+	var definition_id: String = String(slot.get("definition_id", ""))
+	var current_stack: int = int(slot.get("current_stack", 0))
+	var definition: Dictionary = _load_definition("Consumables", definition_id)
+	var profile: Dictionary = _extract_consumable_profile(definition)
+	var inventory_slot_id: int = int(slot.get("slot_id", -1))
+	return {
+		"card_name": "InventorySlot%dCard" % (slot_index + 1),
+		"card_family": InventoryStateScript.INVENTORY_FAMILY_CONSUMABLE,
+		"slot_index": int(combat_consumable_index_by_slot_id.get(inventory_slot_id, -1)),
+		"inventory_slot_index": slot_index,
+		"inventory_slot_id": inventory_slot_id,
+		"slot_label": "INV %d" % (slot_index + 1),
+		"title_text": _build_item_display_name(definition, definition_id, slot),
+		"detail_text": String(profile.get("short_text", "Item")),
+		"count_text": "x%d" % current_stack,
+		"icon_texture_path": UiAssetPathsScript.CONSUMABLE_ICON_TEXTURE_PATH,
+		"tooltip_text": _join_tooltip_parts([
+			_build_consumable_use_hint(combat_consumable_index_by_slot_id.has(inventory_slot_id)),
+			_load_short_description(definition),
+			String(profile.get("long_text", "")),
+			"Current stack %d/%d." % [current_stack, int(profile.get("max_stack", current_stack))],
+		]),
+		"accent_color": TempScreenThemeScript.REWARD_ACCENT_COLOR,
+		"is_equipped": false,
+	}
+
+
+func _build_passive_card(slot_index: int, slot: Dictionary) -> Dictionary:
+	var definition_id: String = String(slot.get("definition_id", ""))
+	var definition: Dictionary = _load_definition("PassiveItems", definition_id)
+	var summary: Dictionary = _build_modifier_summary(definition, false)
+	return {
+		"card_name": "InventorySlot%dCard" % (slot_index + 1),
+		"card_family": InventoryStateScript.INVENTORY_FAMILY_PASSIVE,
+		"slot_index": -1,
+		"inventory_slot_index": slot_index,
+		"inventory_slot_id": int(slot.get("slot_id", -1)),
+		"slot_label": "INV %d" % (slot_index + 1),
+		"title_text": _build_item_display_name(definition, definition_id, slot),
+		"detail_text": String(summary.get("short_text", "Passive")),
+		"count_text": "",
+		"icon_texture_path": UiAssetPathsScript.PASSIVE_ICON_TEXTURE_PATH,
+		"tooltip_text": _join_tooltip_parts([
+			"Passive effect is active while carried.",
+			_load_short_description(definition),
+			String(summary.get("long_text", "")),
+		]),
+		"accent_color": TempScreenThemeScript.TEAL_ACCENT_COLOR,
+		"is_equipped": false,
+	}
+
+
+func _resolve_active_slot_id(inventory_state: InventoryState, combat_state: CombatState, inventory_family: String) -> int:
+	if combat_state == null:
+		match inventory_family:
+			InventoryStateScript.INVENTORY_FAMILY_WEAPON:
+				return int(inventory_state.active_weapon_slot_id)
+			InventoryStateScript.INVENTORY_FAMILY_ARMOR:
+				return int(inventory_state.active_armor_slot_id)
+			InventoryStateScript.INVENTORY_FAMILY_BELT:
+				return int(inventory_state.active_belt_slot_id)
+			_:
+				return -1
+
+	match inventory_family:
+		InventoryStateScript.INVENTORY_FAMILY_WEAPON:
+			return int(combat_state.active_weapon_slot_id)
+		InventoryStateScript.INVENTORY_FAMILY_ARMOR:
+			return int(combat_state.active_armor_slot_id)
+		InventoryStateScript.INVENTORY_FAMILY_BELT:
+			return int(combat_state.active_belt_slot_id)
+		_:
+			return -1
+
+
+func _build_combat_consumable_index_by_slot_id(combat_state: CombatState) -> Dictionary:
+	var result: Dictionary = {}
+	if combat_state == null:
+		return result
+	for index in range(combat_state.consumable_slots.size()):
+		var slot: Dictionary = combat_state.consumable_slots[index]
+		result[int(slot.get("slot_id", -1))] = index
+	return result
+
+
+func _extract_consumable_profile(definition: Dictionary) -> Dictionary:
+	var rules: Dictionary = definition.get("rules", {})
+	var stats: Dictionary = rules.get("stats", {})
+	var use_effect: Dictionary = rules.get("use_effect", {})
+	var heal_amount: int = 0
+	var hunger_restore: int = 0
+	var effects: Array = use_effect.get("effects", [])
+	for effect_value in effects:
+		if typeof(effect_value) != TYPE_DICTIONARY:
+			continue
+		var effect: Dictionary = effect_value
+		var params: Dictionary = effect.get("params", {})
+		match String(effect.get("type", "")):
+			"heal":
+				heal_amount += int(params.get("base", 0))
+			"modify_hunger":
+				hunger_restore += max(0, -int(params.get("amount", 0)))
+
+	var short_fragments: PackedStringArray = []
+	var long_fragments: PackedStringArray = []
+	if heal_amount > 0:
+		short_fragments.append("+%d HP" % heal_amount)
+		long_fragments.append("Heals %d HP." % heal_amount)
+	if hunger_restore > 0:
+		short_fragments.append("+%d H" % hunger_restore)
+		long_fragments.append("Restores hunger by %d." % hunger_restore)
+
+	return {
+		"short_text": " | ".join(short_fragments),
+		"long_text": " ".join(long_fragments),
+		"max_stack": int(stats.get("max_stack", 0)),
+	}
+
+
+func _build_modifier_summary(definition: Dictionary, include_belt_capacity_bonus: bool, bonus_modifiers: Dictionary = {}) -> Dictionary:
+	var modifier_totals: Dictionary = {}
+	var behaviors: Array = definition.get("rules", {}).get("behaviors", [])
+	for behavior_value in behaviors:
+		if typeof(behavior_value) != TYPE_DICTIONARY:
+			continue
+		var behavior: Dictionary = behavior_value
+		var effects: Array = behavior.get("effects", [])
+		for effect_value in effects:
+			if typeof(effect_value) != TYPE_DICTIONARY:
+				continue
+			var effect: Dictionary = effect_value
+			if String(effect.get("type", "")) != "modify_stat":
+				continue
+			var params: Dictionary = effect.get("params", {})
+			var stat_name: String = String(params.get("stat", ""))
+			if stat_name.is_empty():
+				continue
+			modifier_totals[stat_name] = int(modifier_totals.get(stat_name, 0)) + int(params.get("amount", 0))
+
+	for stat_name_variant in bonus_modifiers.keys():
+		var stat_name: String = String(stat_name_variant)
+		if stat_name.is_empty():
+			continue
+		modifier_totals[stat_name] = int(modifier_totals.get(stat_name, 0)) + int(bonus_modifiers.get(stat_name_variant, 0))
+
+	var short_fragments: PackedStringArray = []
+	var long_fragments: PackedStringArray = []
+	if include_belt_capacity_bonus:
+		short_fragments.append("+2 INV")
+		long_fragments.append("Adds 2 inventory slots while equipped.")
+
+	for stat_name in [
+		"attack_power_bonus",
+		"incoming_damage_flat_reduction",
+		"durability_cost_flat_reduction",
+	]:
+		var total_amount: int = int(modifier_totals.get(stat_name, 0))
+		if total_amount == 0:
+			continue
+		var summary: Dictionary = _build_modifier_text(stat_name, total_amount)
+		var short_text: String = String(summary.get("short_text", ""))
+		var long_text: String = String(summary.get("long_text", ""))
+		if not short_text.is_empty():
+			short_fragments.append(short_text)
+		if not long_text.is_empty():
+			long_fragments.append(long_text)
+
+	return {
+		"short_text": " | ".join(short_fragments),
+		"long_text": " ".join(long_fragments),
+	}
+
+
+func _build_modifier_text(stat_name: String, amount: int) -> Dictionary:
+	match stat_name:
+		"attack_power_bonus":
+			return {
+				"short_text": "%+d ATK" % amount,
+				"long_text": "Adds %d attack power in combat." % amount,
+			}
+		"incoming_damage_flat_reduction":
+			return {
+				"short_text": "-%d DMG" % amount,
+				"long_text": "Reduces incoming damage by %d." % amount,
+			}
+		"durability_cost_flat_reduction":
+			return {
+				"short_text": "-%d DUR" % amount,
+				"long_text": "Reduces attack durability cost by %d." % amount,
+			}
+		_:
+			return {
+				"short_text": "",
+				"long_text": "",
+			}
+
+
+func _load_definition(family: String, definition_id: String) -> Dictionary:
+	if definition_id.is_empty():
+		return {}
+	return _loader.load_definition(family, definition_id)
+
+
+func _load_display_name(definition: Dictionary, fallback_id: String) -> String:
+	return String(definition.get("display", {}).get("name", fallback_id))
+
+
+func _build_item_display_name(definition: Dictionary, fallback_id: String, slot: Dictionary) -> String:
+	var display_name: String = _load_display_name(definition, fallback_id)
+	var upgrade_level: int = _extract_upgrade_level(slot)
+	if upgrade_level <= 0:
+		return display_name
+	return "%s +%d" % [display_name, upgrade_level]
+
+
+func _load_short_description(definition: Dictionary) -> String:
+	return String(definition.get("display", {}).get("short_description", ""))
+
+
+func _extract_upgrade_level(slot: Dictionary) -> int:
+	return max(0, int(slot.get("upgrade_level", 0)))
+
+
+func _build_equipment_toggle_hint(is_active: bool, combat_state: CombatState) -> String:
+	if combat_state != null:
+		return "Click in combat to unequip. This spends your turn." if is_active else "Click in combat to equip. This spends your turn."
+	return "Click to unequip." if is_active else "Click to equip."
+
+
+func _build_consumable_use_hint(is_combat_card: bool) -> String:
+	return "Click in combat to use now. This spends your turn." if is_combat_card else "Click to use now."
+
+
+func _join_tooltip_parts(parts: Array) -> String:
+	var filtered: PackedStringArray = []
+	for part_value in parts:
+		var part: String = String(part_value).strip_edges()
+		if not part.is_empty():
+			filtered.append(part)
+	return " ".join(filtered)
+
+
+func _build_action_hint_text(
+	card_model: Dictionary,
+	is_combat: bool,
+	is_clickable: bool,
+	is_selected: bool,
+	_is_draggable: bool
+) -> String:
+	var card_family: String = String(card_model.get("card_family", ""))
+	var is_equipped: bool = bool(card_model.get("is_equipped", false))
+	match card_family:
+		InventoryStateScript.INVENTORY_FAMILY_WEAPON, InventoryStateScript.INVENTORY_FAMILY_ARMOR, InventoryStateScript.INVENTORY_FAMILY_BELT:
+			if is_clickable:
+				if is_combat:
+					return ("Tap to unequip" if is_equipped else "Tap to equip") + " | Ends turn"
+				return "Tap to unequip" if is_equipped else "Tap to equip"
+			if is_combat and String(card_model.get("card_family", "")) == InventoryStateScript.INVENTORY_FAMILY_BELT and is_equipped:
+				return "Bag too full to unequip"
+			return "Cannot change right now" if is_combat else "Stored in bag"
+		InventoryStateScript.INVENTORY_FAMILY_CONSUMABLE:
+			if is_clickable:
+				var consumable_hint: String = "Tap to use"
+				if is_selected and is_combat:
+					consumable_hint = "Ready to use"
+				return consumable_hint + (" | Ends turn" if is_combat else "")
+			return "No HP or hunger gain right now"
+		InventoryStateScript.INVENTORY_FAMILY_PASSIVE:
+			return "Active while carried"
+		_:
+			return ""
+
+
+func _build_action_hint_tone(card_model: Dictionary, is_clickable: bool, is_selected: bool) -> String:
+	var card_family: String = String(card_model.get("card_family", ""))
+	if is_selected:
+		return "selected"
+	if is_clickable:
+		return "interactive"
+	if card_family == "empty":
+		return "muted"
+	if card_family == InventoryStateScript.INVENTORY_FAMILY_PASSIVE:
+		return "passive"
+	return "disabled"

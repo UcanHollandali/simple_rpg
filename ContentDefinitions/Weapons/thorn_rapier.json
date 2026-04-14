@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "definition_id": "thorn_rapier",
+  "family": "Weapons",
+  "tags": [
+    "weapon",
+    "melee",
+    "rapier",
+    "physical",
+    "glass_edge",
+    "tempo"
+  ],
+  "display": {
+    "name": "Thorn Rapier",
+    "short_description": "Fast high-damage blade that burns out quickly if the tempo slips.",
+    "icon_key": "weapon_thorn_rapier"
+  },
+  "design_intent_question": "Can a fragile rapier make the Glass Edge line feel clearly tempo-first by paying the player for fast intent reads and punishing stalled turns through durability pressure?",
+  "rules": {
+    "stats": {
+      "weapon_type": "rapier",
+      "base_damage": 10,
+      "max_durability": 10,
+      "durability_cost_per_attack": 2
+    }
+  }
+}

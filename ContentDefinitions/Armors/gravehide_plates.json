@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "definition_id": "gravehide_plates",
+  "family": "Armors",
+  "tags": [
+    "armor",
+    "quest_reward",
+    "defense",
+    "heavy"
+  ],
+  "display": {
+    "name": "Gravehide Plates",
+    "short_description": "Layered hide-and-bone plates that trim 2 incoming damage each hit.",
+    "icon_key": "armor_gravehide_plates"
+  },
+  "rules": {
+    "behaviors": [
+      {
+        "trigger": "passive",
+        "condition": {
+          "op": "always"
+        },
+        "target": "self",
+        "effects": [
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "incoming_damage_flat_reduction",
+              "amount": 2
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -4,8 +4,6 @@
 [ext_resource type="Texture2D" path="res://Assets/Backgrounds/bg_map_far.png" id="2"]
 [ext_resource type="Texture2D" path="res://Assets/Backgrounds/bg_map_mid.png" id="3"]
 [ext_resource type="Texture2D" path="res://Assets/Backgrounds/bg_map_overlay.png" id="4"]
-[ext_resource type="Texture2D" path="res://Assets/Icons/icon_node_marker.svg" id="5"]
-[ext_resource type="Texture2D" path="res://Assets/Icons/icon_reward.svg" id="6"]
 
 [node name="MapExplore" type="Control"]
 anchors_preset = 15
@@ -68,10 +66,10 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 10
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 10
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
 
 [node name="VBox" type="VBoxContainer" parent="Margin"]
 anchors_preset = 15
@@ -79,35 +77,125 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 8
+theme_override_constants/separation = 1
 
-[node name="TopRow" type="VBoxContainer" parent="Margin/VBox"]
+[node name="TopRow" type="HBoxContainer" parent="Margin/VBox"]
 z_index = 3
-theme_override_constants/separation = 4
+theme_override_constants/separation = 0
+alignment = 0
+size_flags_horizontal = 3
+size_flags_vertical = 1
+
+[node name="SettingsMenuAnchor" type="Control" parent="Margin/VBox/TopRow"]
+custom_minimum_size = Vector2(48, 40)
+size_flags_horizontal = 0
+size_flags_vertical = 1
+mouse_filter = 2
 
 [node name="HeaderCard" type="PanelContainer" parent="Margin/VBox/TopRow"]
 size_flags_horizontal = 3
+size_flags_vertical = 1
+size_flags_stretch_ratio = 1.0
 
 [node name="HeaderStack" type="VBoxContainer" parent="Margin/VBox/TopRow/HeaderCard"]
 theme_override_constants/separation = 1
 
 [node name="TitleLabel" type="Label" parent="Margin/VBox/TopRow/HeaderCard/HeaderStack"]
 text = "Route Board"
-autowrap_mode = 3
+autowrap_mode = 0
+clip_text = true
+max_lines_visible = 1
 
 [node name="ProgressLabel" type="Label" parent="Margin/VBox/TopRow/HeaderCard/HeaderStack"]
 text = "Node 0 | Seen 0/0 | Cleared 0"
-autowrap_mode = 3
+autowrap_mode = 0
+clip_text = true
+max_lines_visible = 1
 
 [node name="RunSummaryCard" type="PanelContainer" parent="Margin/VBox/TopRow"]
+custom_minimum_size = Vector2(0, 0)
 size_flags_horizontal = 3
+size_flags_vertical = 1
+size_flags_stretch_ratio = 1.0
 
-[node name="StatsLabel" type="Label" parent="Margin/VBox/TopRow/RunSummaryCard"]
-text = "Stats"
-autowrap_mode = 3
+[node name="StatsStack" type="VBoxContainer" parent="Margin/VBox/TopRow/RunSummaryCard"]
+theme_override_constants/separation = 1
+
+[node name="StatusRows" type="VBoxContainer" parent="Margin/VBox/TopRow/RunSummaryCard/StatsStack"]
+theme_override_constants/separation = 1
+
+[node name="HpRow" type="HBoxContainer" parent="Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows"]
+alignment = 0
+theme_override_constants/separation = 3
+
+[node name="HpStatusIcon" type="TextureRect" parent="Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HpRow"]
+custom_minimum_size = Vector2(14, 14)
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="HpStatusLabel" type="Label" parent="Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HpRow"]
+text = "HP 0"
+horizontal_alignment = 2
+
+[node name="HpSpacer" type="Control" parent="Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HpRow"]
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="GoldStatusIcon" type="TextureRect" parent="Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HpRow"]
+custom_minimum_size = Vector2(14, 14)
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="GoldStatusValueLabel" type="Label" parent="Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HpRow"]
+text = "Gold 0"
+horizontal_alignment = 2
+
+[node name="HungerRow" type="HBoxContainer" parent="Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows"]
+alignment = 0
+theme_override_constants/separation = 3
+
+[node name="HungerStatusIcon" type="TextureRect" parent="Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HungerRow"]
+custom_minimum_size = Vector2(14, 14)
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="HungerStatusLabel" type="Label" parent="Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HungerRow"]
+text = "Hunger 0"
+horizontal_alignment = 2
+
+[node name="DurabilityRow" type="HBoxContainer" parent="Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows"]
+alignment = 0
+theme_override_constants/separation = 3
+
+[node name="DurabilityStatusIcon" type="TextureRect" parent="Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/DurabilityRow"]
+custom_minimum_size = Vector2(14, 14)
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="DurabilityStatusLabel" type="Label" parent="Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/DurabilityRow"]
+text = "Dur 0"
+horizontal_alignment = 2
+
+[node name="XpRow" type="HBoxContainer" parent="Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows"]
+alignment = 0
+theme_override_constants/separation = 3
+
+[node name="XpProgressBar" type="ProgressBar" parent="Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/XpRow"]
+size_flags_horizontal = 3
+max_value = 20.0
+value = 0.0
+custom_minimum_size = Vector2(0, 14)
+
+[node name="XpLabel" type="Label" parent="Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/XpRow"]
+text = "XP 0/20"
+horizontal_alignment = 2
 
 [node name="RouteGrid" type="Control" parent="Margin/VBox"]
-custom_minimum_size = Vector2(0, 600)
+custom_minimum_size = Vector2(0, 0)
 size_flags_horizontal = 3
 size_flags_vertical = 3
 clip_contents = true
@@ -125,12 +213,6 @@ mouse_filter = 2
 expand_mode = 1
 stretch_mode = 6
 
-[node name="RouteIcon" type="TextureRect" parent="Margin/VBox/RouteGrid/CombatNodeMarker"]
-texture = ExtResource("5")
-mouse_filter = 2
-expand_mode = 1
-stretch_mode = 5
-
 [node name="CombatNodeButton" type="Button" parent="Margin/VBox/RouteGrid"]
 flat = true
 text = "Combat\nReachable"
@@ -139,12 +221,6 @@ text = "Combat\nReachable"
 mouse_filter = 2
 expand_mode = 1
 stretch_mode = 6
-
-[node name="RouteIcon" type="TextureRect" parent="Margin/VBox/RouteGrid/RestNodeMarker"]
-texture = ExtResource("5")
-mouse_filter = 2
-expand_mode = 1
-stretch_mode = 5
 
 [node name="RestNodeButton" type="Button" parent="Margin/VBox/RouteGrid"]
 flat = true
@@ -155,12 +231,6 @@ mouse_filter = 2
 expand_mode = 1
 stretch_mode = 6
 
-[node name="RouteIcon" type="TextureRect" parent="Margin/VBox/RouteGrid/RewardNodeMarker"]
-texture = ExtResource("6")
-mouse_filter = 2
-expand_mode = 1
-stretch_mode = 5
-
 [node name="RewardNodeButton" type="Button" parent="Margin/VBox/RouteGrid"]
 flat = true
 text = "Reward\nReachable"
@@ -169,12 +239,6 @@ text = "Reward\nReachable"
 mouse_filter = 2
 expand_mode = 1
 stretch_mode = 6
-
-[node name="RouteIcon" type="TextureRect" parent="Margin/VBox/RouteGrid/MerchantNodeMarker"]
-texture = ExtResource("5")
-mouse_filter = 2
-expand_mode = 1
-stretch_mode = 5
 
 [node name="MerchantNodeButton" type="Button" parent="Margin/VBox/RouteGrid"]
 flat = true
@@ -185,12 +249,6 @@ mouse_filter = 2
 expand_mode = 1
 stretch_mode = 6
 
-[node name="RouteIcon" type="TextureRect" parent="Margin/VBox/RouteGrid/BlacksmithNodeMarker"]
-texture = ExtResource("5")
-mouse_filter = 2
-expand_mode = 1
-stretch_mode = 5
-
 [node name="BlacksmithNodeButton" type="Button" parent="Margin/VBox/RouteGrid"]
 flat = true
 text = "Blacksmith\nReachable"
@@ -200,48 +258,27 @@ mouse_filter = 2
 expand_mode = 1
 stretch_mode = 6
 
-[node name="RouteIcon" type="TextureRect" parent="Margin/VBox/RouteGrid/BossNodeMarker"]
-texture = ExtResource("5")
-mouse_filter = 2
-expand_mode = 1
-stretch_mode = 5
-
 [node name="BossNodeButton" type="Button" parent="Margin/VBox/RouteGrid"]
 flat = true
 text = "Boss Gate\nLocked"
 disabled = true
 
-[node name="FogWestCard" type="TextureRect" parent="Margin/VBox/RouteGrid"]
-mouse_filter = 2
-
-[node name="FogWestLabel" type="Label" parent="Margin/VBox/RouteGrid/FogWestCard"]
-text = "?\nFOG"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="FogNorthCard" type="TextureRect" parent="Margin/VBox/RouteGrid"]
-mouse_filter = 2
-
-[node name="FogNorthLabel" type="Label" parent="Margin/VBox/RouteGrid/FogNorthCard"]
-text = "?\nFOG"
-horizontal_alignment = 1
-vertical_alignment = 1
-
 [node name="KeyMarkerCard" type="TextureRect" parent="Margin/VBox/RouteGrid"]
 mouse_filter = 2
 
-[node name="KeyMarkerLabel" type="Label" parent="Margin/VBox/RouteGrid/KeyMarkerCard"]
-text = "KEY\nUNCLAIMED"
-horizontal_alignment = 1
-vertical_alignment = 1
+[node name="InventorySection" type="VBoxContainer" parent="Margin/VBox"]
+z_index = 3
+theme_override_constants/separation = 4
 
-[node name="FogEastCard" type="TextureRect" parent="Margin/VBox/RouteGrid"]
-mouse_filter = 2
+[node name="InventoryTitleLabel" type="Label" parent="Margin/VBox/InventorySection"]
+text = "Inventory"
 
-[node name="FogEastLabel" type="Label" parent="Margin/VBox/RouteGrid/FogEastCard"]
-text = "?\nFOG"
-horizontal_alignment = 1
-vertical_alignment = 1
+[node name="InventoryCard" type="PanelContainer" parent="Margin/VBox/InventorySection"]
+custom_minimum_size = Vector2(0, 152)
+size_flags_horizontal = 3
+
+[node name="InventoryCardsFlow" type="HBoxContainer" parent="Margin/VBox/InventorySection/InventoryCard"]
+theme_override_constants/separation = 6
 
 [node name="BottomRow" type="VBoxContainer" parent="Margin/VBox"]
 z_index = 3
@@ -251,17 +288,14 @@ theme_override_constants/separation = 4
 size_flags_horizontal = 3
 
 [node name="VBox" type="VBoxContainer" parent="Margin/VBox/BottomRow/CurrentAnchorCard"]
-theme_override_constants/separation = 2
-
-[node name="CurrentChipLabel" type="Label" parent="Margin/VBox/BottomRow/CurrentAnchorCard/VBox"]
-text = "YOU ARE HERE"
+theme_override_constants/separation = 1
 
 [node name="CurrentAnchorLabel" type="Label" parent="Margin/VBox/BottomRow/CurrentAnchorCard/VBox"]
-text = "Start\nNode 0"
+text = "At Start"
 autowrap_mode = 3
 
 [node name="CurrentAnchorDetailLabel" type="Label" parent="Margin/VBox/BottomRow/CurrentAnchorCard/VBox"]
-text = "Placeholder read only."
+text = "Node 0 | Key ahead | 3 open"
 autowrap_mode = 3
 
 [node name="StatusCard" type="PanelContainer" parent="Margin/VBox/BottomRow"]

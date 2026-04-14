@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "definition_id": "salt_pork_strip",
+  "family": "Consumables",
+  "tags": [
+    "consumable",
+    "food",
+    "route",
+    "hunger"
+  ],
+  "display": {
+    "name": "Salt Pork Strip",
+    "short_description": "A greasy ration strip that does little for wounds but pushes hunger back before the next branch.",
+    "icon_key": "consumable_salt_pork_strip"
+  },
+  "rules": {
+    "stats": {
+      "max_stack": 3,
+      "restore_hp": 3
+    },
+    "use_effect": {
+      "trigger": "on_use",
+      "condition": {
+        "op": "always"
+      },
+      "target": "self",
+      "effects": [
+        {
+          "type": "heal",
+          "params": {
+            "base": 3
+          }
+        },
+        {
+          "type": "modify_hunger",
+          "params": {
+            "amount": -4
+          }
+        }
+      ]
+    }
+  }
+}

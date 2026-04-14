@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "definition_id": "forager_knife",
+  "family": "Weapons",
+  "tags": [
+    "weapon",
+    "melee",
+    "knife",
+    "physical",
+    "scavenger",
+    "consumable_route"
+  ],
+  "display": {
+    "name": "Forager Knife",
+    "short_description": "Balanced field knife that stays efficient while a run leans on consumables.",
+    "icon_key": "weapon_forager_knife"
+  },
+  "design_intent_question": "Can a balanced knife support the Scavenger line by keeping attack pressure steady enough that the player can spend consumables aggressively instead of hoarding them for safety?",
+  "rules": {
+    "stats": {
+      "weapon_type": "knife",
+      "base_damage": 6,
+      "max_durability": 18,
+      "durability_cost_per_attack": 1
+    }
+  }
+}

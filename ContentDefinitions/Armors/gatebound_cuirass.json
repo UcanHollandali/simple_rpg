@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "definition_id": "gatebound_cuirass",
+  "family": "Armors",
+  "tags": [
+    "armor",
+    "combat",
+    "defense",
+    "heavy"
+  ],
+  "display": {
+    "name": "Gatebound Cuirass",
+    "short_description": "Heavy plate that cuts 2 incoming damage but blunts your swing by 1.",
+    "icon_key": "armor_gatebound_cuirass"
+  },
+  "rules": {
+    "behaviors": [
+      {
+        "trigger": "passive",
+        "condition": {
+          "op": "always"
+        },
+        "target": "self",
+        "effects": [
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "incoming_damage_flat_reduction",
+              "amount": 2
+            }
+          },
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "attack_power_bonus",
+              "amount": -1
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

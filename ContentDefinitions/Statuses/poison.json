@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "definition_id": "poison",
+  "family": "Statuses",
+  "tags": [
+    "status",
+    "damage_over_time",
+    "debuff",
+    "poison"
+  ],
+  "display": {
+    "name": "Poison",
+    "short_description": "Deals damage to the afflicted unit at turn end.",
+    "icon_key": "status_poison"
+  },
+  "rules": {
+    "stats": {
+      "damage_per_turn": 2,
+      "duration_turns": 2,
+      "max_stacks": 1
+    }
+  }
+}

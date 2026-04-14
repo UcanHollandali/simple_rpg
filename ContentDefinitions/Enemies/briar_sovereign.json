@@ -1,0 +1,311 @@
+{
+  "schema_version": 1,
+  "definition_id": "briar_sovereign",
+  "authoring_order": 200,
+  "family": "Enemies",
+  "encounter_tier": "elite",
+  "design_intent_question": "Can the player survive a final boss loop where heavy damage, poison, bleed, and weakened all matter at once, choosing the single turn where Brace or healing actually saves the run?",
+  "tags": [
+    "enemy",
+    "boss",
+    "stage_3",
+    "final_boss",
+    "multi_threat"
+  ],
+  "display": {
+    "name": "Briar Sovereign",
+    "short_description": "The last ruler of the ashwood, layering every late-run threat into a punishing closing pattern.",
+    "icon_key": "enemy_briar_sovereign"
+  },
+  "rules": {
+    "stats": {
+      "base_hp": 42,
+      "base_damage": 6
+    },
+    "intent_pool": [
+      {
+        "intent_id": "crown_cleave",
+        "action_family": "attack",
+        "threat_level": "high",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 8,
+              "damage_kind": "physical"
+            }
+          }
+        ]
+      },
+      {
+        "intent_id": "thorn_edict",
+        "action_family": "attack",
+        "threat_level": "medium",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 5,
+              "damage_kind": "physical"
+            }
+          },
+          {
+            "type": "apply_status",
+            "params": {
+              "definition_id": "bleed"
+            }
+          }
+        ]
+      },
+      {
+        "intent_id": "spite_spore",
+        "action_family": "attack",
+        "threat_level": "medium",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 4,
+              "damage_kind": "arcane"
+            }
+          },
+          {
+            "type": "apply_status",
+            "params": {
+              "definition_id": "poison"
+            }
+          }
+        ]
+      },
+      {
+        "intent_id": "ruin_call",
+        "action_family": "attack",
+        "threat_level": "medium",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 5,
+              "damage_kind": "arcane"
+            }
+          },
+          {
+            "type": "apply_status",
+            "params": {
+              "definition_id": "weakened"
+            }
+          }
+        ]
+      }
+    ],
+    "boss_phases": [
+      {
+        "phase_id": "thorn_crown",
+        "display_name": "Thorn Crown",
+        "intent_pool": [
+          {
+            "intent_id": "thorn_edict",
+            "action_family": "attack",
+            "threat_level": "medium",
+            "effects": [
+              {
+                "type": "deal_damage",
+                "params": {
+                  "base": 5,
+                  "damage_kind": "physical"
+                }
+              },
+              {
+                "type": "apply_status",
+                "params": {
+                  "definition_id": "bleed"
+                }
+              }
+            ]
+          },
+          {
+            "intent_id": "spite_spore",
+            "action_family": "attack",
+            "threat_level": "medium",
+            "effects": [
+              {
+                "type": "deal_damage",
+                "params": {
+                  "base": 4,
+                  "damage_kind": "arcane"
+                }
+              },
+              {
+                "type": "apply_status",
+                "params": {
+                  "definition_id": "poison"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "phase_id": "poison_canopy",
+        "display_name": "Poison Canopy",
+        "enter_at_or_below_percent": 75,
+        "intent_pool": [
+          {
+            "intent_id": "spite_spore",
+            "action_family": "attack",
+            "threat_level": "medium",
+            "effects": [
+              {
+                "type": "deal_damage",
+                "params": {
+                  "base": 4,
+                  "damage_kind": "arcane"
+                }
+              },
+              {
+                "type": "apply_status",
+                "params": {
+                  "definition_id": "poison"
+                }
+              }
+            ]
+          },
+          {
+            "intent_id": "ruin_call",
+            "action_family": "attack",
+            "threat_level": "medium",
+            "effects": [
+              {
+                "type": "deal_damage",
+                "params": {
+                  "base": 5,
+                  "damage_kind": "arcane"
+                }
+              },
+              {
+                "type": "apply_status",
+                "params": {
+                  "definition_id": "weakened"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "phase_id": "blood_roots",
+        "display_name": "Blood Roots",
+        "enter_at_or_below_percent": 50,
+        "intent_pool": [
+          {
+            "intent_id": "crown_cleave",
+            "action_family": "attack",
+            "threat_level": "high",
+            "effects": [
+              {
+                "type": "deal_damage",
+                "params": {
+                  "base": 8,
+                  "damage_kind": "physical"
+                }
+              }
+            ]
+          },
+          {
+            "intent_id": "thorn_edict",
+            "action_family": "attack",
+            "threat_level": "high",
+            "effects": [
+              {
+                "type": "deal_damage",
+                "params": {
+                  "base": 5,
+                  "damage_kind": "physical"
+                }
+              },
+              {
+                "type": "apply_status",
+                "params": {
+                  "definition_id": "bleed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "phase_id": "ruin_harvest",
+        "display_name": "Ruin Harvest",
+        "enter_at_or_below_percent": 25,
+        "intent_pool": [
+          {
+            "intent_id": "sovereign_harvest",
+            "action_family": "attack",
+            "threat_level": "high",
+            "effects": [
+              {
+                "type": "deal_damage",
+                "params": {
+                  "base": 7,
+                  "damage_kind": "physical"
+                }
+              },
+              {
+                "type": "apply_status",
+                "params": {
+                  "definition_id": "bleed"
+                }
+              },
+              {
+                "type": "apply_status",
+                "params": {
+                  "definition_id": "poison"
+                }
+              }
+            ]
+          },
+          {
+            "intent_id": "ruin_call",
+            "action_family": "attack",
+            "threat_level": "high",
+            "effects": [
+              {
+                "type": "deal_damage",
+                "params": {
+                  "base": 5,
+                  "damage_kind": "arcane"
+                }
+              },
+              {
+                "type": "apply_status",
+                "params": {
+                  "definition_id": "weakened"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "behaviors": [
+      {
+        "trigger": "passive",
+        "condition": {
+          "op": "lte",
+          "stat": "hp",
+          "value": 20
+        },
+        "target": "self",
+        "effects": [
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "attack_power_bonus",
+              "amount": 2
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

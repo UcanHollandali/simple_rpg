@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "definition_id": "salvager_rivet",
+  "authoring_order": 75,
+  "family": "PassiveItems",
+  "tags": [
+    "passive",
+    "combat",
+    "durability",
+    "scrap_keeper"
+  ],
+  "display": {
+    "name": "Salvager Rivet",
+    "short_description": "A spare forge rivet that cuts durability cost by 3, but shaves 1 attack power off every hit.",
+    "icon_key": "passive_salvager_rivet"
+  },
+  "rules": {
+    "behaviors": [
+      {
+        "trigger": "passive",
+        "condition": {
+          "op": "always"
+        },
+        "target": "self",
+        "effects": [
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "durability_cost_flat_reduction",
+              "amount": 3
+            }
+          },
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "attack_power_bonus",
+              "amount": -1
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

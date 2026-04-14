@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "definition_id": "enraged",
+  "family": "Statuses",
+  "tags": [
+    "status",
+    "buff",
+    "debuff",
+    "attack_up",
+    "reckless"
+  ],
+  "display": {
+    "name": "Enraged",
+    "short_description": "Hits harder, but takes harsher blows in return.",
+    "icon_key": "status_enraged"
+  },
+  "rules": {
+    "stats": {
+      "duration_turns": 2,
+      "max_stacks": 1,
+      "stat_modifiers": {
+        "attack_power_bonus": 2,
+        "incoming_damage_flat_reduction": -1
+      }
+    }
+  }
+}

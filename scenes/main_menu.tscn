@@ -1,0 +1,167 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/main_menu.gd" id="1"]
+[ext_resource type="Texture2D" path="res://Assets/Backgrounds/bg_menu_far.png" id="2"]
+[ext_resource type="Texture2D" path="res://Assets/Backgrounds/bg_menu_mid.png" id="3"]
+[ext_resource type="Texture2D" path="res://Assets/Backgrounds/bg_menu_overlay.png" id="4"]
+[ext_resource type="Texture2D" path="res://Assets/Icons/icon_confirm.svg" id="5"]
+
+[node name="MainMenu" type="Control"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="BackgroundRect" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.0862745, 0.0980392, 0.113725, 1)
+
+[node name="UiConfirmSfxPlayer" type="AudioStreamPlayer" parent="."]
+volume_db = -7.0
+
+[node name="PanelOpenSfxPlayer" type="AudioStreamPlayer" parent="."]
+volume_db = -10.0
+
+[node name="MainMenuMusicPlayer" type="AudioStreamPlayer" parent="."]
+volume_db = -18.0
+
+[node name="BackgroundFar" type="TextureRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+modulate = Color(1, 1, 1, 0.26)
+texture = ExtResource("2")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="BackgroundMid" type="TextureRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+modulate = Color(1, 1, 1, 0.08)
+texture = ExtResource("3")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="BackgroundOverlay" type="TextureRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+modulate = Color(1, 1, 1, 0.05)
+texture = ExtResource("4")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="BackdropScrim" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.0509804, 0.0627451, 0.0745098, 0.78)
+
+[node name="Margin" type="MarginContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 28
+
+[node name="VBox" type="VBoxContainer" parent="Margin"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 14
+
+[node name="TopSpacer" type="Control" parent="Margin/VBox"]
+size_flags_vertical = 3
+
+[node name="HeroPanel" type="PanelContainer" parent="Margin/VBox"]
+size_flags_horizontal = 3
+
+[node name="HeroVBox" type="VBoxContainer" parent="Margin/VBox/HeroPanel"]
+theme_override_constants/separation = 8
+
+[node name="ChipRow" type="VBoxContainer" parent="Margin/VBox/HeroPanel/HeroVBox"]
+visible = false
+theme_override_constants/separation = 8
+
+[node name="PlaytestChipCard" type="PanelContainer" parent="Margin/VBox/HeroPanel/HeroVBox/ChipRow"]
+
+[node name="PlaytestChipLabel" type="Label" parent="Margin/VBox/HeroPanel/HeroVBox/ChipRow/PlaytestChipCard"]
+text = "ASHWOOD ROAD"
+
+[node name="SaveChipCard" type="PanelContainer" parent="Margin/VBox/HeroPanel/HeroVBox/ChipRow"]
+
+[node name="SaveChipLabel" type="Label" parent="Margin/VBox/HeroPanel/HeroVBox/ChipRow/SaveChipCard"]
+text = "LOAD READY"
+
+[node name="TitleLabel" type="Label" parent="Margin/VBox/HeroPanel/HeroVBox"]
+text = "Simple RPG"
+autowrap_mode = 3
+
+[node name="SubtitleLabel" type="Label" parent="Margin/VBox/HeroPanel/HeroVBox"]
+text = "Ashwood Descent"
+autowrap_mode = 3
+
+[node name="MoodLabel" type="Label" parent="Margin/VBox/HeroPanel/HeroVBox"]
+text = "Choose a road. Survive the stops. Reach the gate."
+autowrap_mode = 3
+
+[node name="FlowReadLabel" type="Label" parent="Margin/VBox/HeroPanel/HeroVBox"]
+visible = false
+text = ""
+autowrap_mode = 3
+
+[node name="Fill" type="Control" parent="Margin/VBox/HeroPanel/HeroVBox"]
+visible = false
+
+[node name="ActionPanel" type="PanelContainer" parent="Margin/VBox"]
+custom_minimum_size = Vector2(0, 0)
+size_flags_horizontal = 3
+
+[node name="ActionVBox" type="VBoxContainer" parent="Margin/VBox/ActionPanel"]
+theme_override_constants/separation = 12
+
+[node name="PlaytestReadLabel" type="Label" parent="Margin/VBox/ActionPanel/ActionVBox"]
+text = "Begin a run. Your first road waits on the map."
+autowrap_mode = 3
+
+[node name="StartRunButton" type="Button" parent="Margin/VBox/ActionPanel/ActionVBox"]
+text = "Start Run"
+icon = ExtResource("5")
+custom_minimum_size = Vector2(0, 56)
+
+[node name="LoadRunButton" type="Button" parent="Margin/VBox/ActionPanel/ActionVBox"]
+text = "Load Run"
+icon = ExtResource("5")
+custom_minimum_size = Vector2(0, 56)
+
+[node name="StatusLabel" type="Label" parent="Margin/VBox/ActionPanel/ActionVBox"]
+text = "Load appears after your first save."
+autowrap_mode = 3
+
+[node name="BottomSpacer" type="Control" parent="Margin/VBox"]
+size_flags_vertical = 3

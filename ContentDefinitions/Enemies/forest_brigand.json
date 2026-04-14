@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "definition_id": "forest_brigand",
+  "authoring_order": 60,
+  "family": "Enemies",
+  "encounter_tier": "minor",
+  "design_intent_question": "Can the player recover tempo after an ambusher weakens their next swing and keeps the pressure on with light follow-up cuts?",
+  "tags": [
+    "enemy",
+    "brigand",
+    "forest",
+    "ambusher"
+  ],
+  "display": {
+    "name": "Forest Brigand",
+    "short_description": "A hooded path-robber who opens with a sapping club blow before pressing the fight with rough steel.",
+    "icon_key": "enemy_forest_brigand"
+  },
+  "rules": {
+    "stats": {
+      "base_hp": 22,
+      "base_damage": 3,
+      "dodge_chance": 10
+    },
+    "intent_pool": [
+      {
+        "intent_id": "sap_strike",
+        "action_family": "attack",
+        "threat_level": "medium",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 3,
+              "damage_kind": "physical"
+            }
+          },
+          {
+            "type": "apply_status",
+            "params": {
+              "definition_id": "weakened"
+            }
+          }
+        ]
+      },
+      {
+        "intent_id": "hedge_thrust",
+        "action_family": "attack",
+        "threat_level": "medium",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 4,
+              "damage_kind": "physical"
+            }
+          }
+        ]
+      },
+      {
+        "intent_id": "parting_cut",
+        "action_family": "attack",
+        "threat_level": "low",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 2,
+              "damage_kind": "physical"
+            }
+          }
+        ]
+      }
+    ],
+    "behaviors": []
+  }
+}

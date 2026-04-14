@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "definition_id": "combat_victory",
+  "family": "Rewards",
+  "tags": [
+    "reward",
+    "combat_victory",
+    "prototype"
+  ],
+  "display": {
+    "name": "What You Salvage",
+    "short_description": "The fight is over. You only have room to carry one useful spoil."
+  },
+  "rules": {
+    "selection_mode": "seeded_reward_rng",
+    "present_count": 3,
+    "offer_pool": [
+      {
+        "offer_id": "gain_gold_8",
+        "label": "Strip the Purse",
+        "effect_type": "grant_gold",
+        "amount": 8
+      },
+      {
+        "offer_id": "heal_10",
+        "label": "Bind the Cut",
+        "effect_type": "heal",
+        "amount": 10
+      },
+      {
+        "offer_id": "gain_xp_3",
+        "label": "Read the Opening",
+        "effect_type": "grant_xp",
+        "amount": 3
+      },
+      {
+        "offer_id": "repair_weapon",
+        "label": "Set the Edge Straight",
+        "effect_type": "repair_weapon"
+      },
+      {
+        "offer_id": "gain_gold_12",
+        "label": "Lift the Hidden Stash",
+        "effect_type": "grant_gold",
+        "amount": 12
+      },
+      {
+        "offer_id": "heal_6",
+        "label": "Catch Your Breath",
+        "effect_type": "heal",
+        "amount": 6
+      },
+      {
+        "offer_id": "gain_xp_5",
+        "label": "Read the Mistake",
+        "effect_type": "grant_xp",
+        "amount": 5
+      },
+      {
+        "offer_id": "repair_weapon_patch",
+        "label": "Hammer the Blade True",
+        "effect_type": "repair_weapon"
+      },
+      {
+        "offer_id": "gain_gold_15",
+        "label": "Take the Wages",
+        "effect_type": "grant_gold",
+        "amount": 15
+      },
+      {
+        "offer_id": "heal_12",
+        "label": "Patch Up Properly",
+        "effect_type": "heal",
+        "amount": 12
+      },
+      {
+        "offer_id": "gain_xp_7",
+        "label": "Take the Hard Lesson",
+        "effect_type": "grant_xp",
+        "amount": 7
+      },
+      {
+        "offer_id": "gain_gold_16",
+        "label": "Empty the Strongbox",
+        "effect_type": "grant_gold",
+        "amount": 16
+      }
+    ]
+  }
+}

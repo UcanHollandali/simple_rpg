@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="slotFrame" x1="32" y1="0" x2="32" y2="64" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#A38757"/>
+      <stop offset="1" stop-color="#6A5337"/>
+    </linearGradient>
+    <linearGradient id="slotCore" x1="32" y1="6" x2="32" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1F2A2E"/>
+      <stop offset="1" stop-color="#12181C"/>
+    </linearGradient>
+  </defs>
+  <rect x="1.5" y="1.5" width="61" height="61" rx="13.5" fill="#0F1418" stroke="url(#slotFrame)" stroke-width="3"/>
+  <rect x="7" y="7" width="50" height="50" rx="10" fill="url(#slotCore)"/>
+  <rect x="12" y="12" width="40" height="40" rx="8" fill="#152026" stroke="#2E4549" stroke-opacity="0.55"/>
+  <path d="M21 21 17 17M43 21 47 17M21 43 17 47M43 43 47 47" stroke="#D4BC82" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M28 32H36M32 28V36" stroke="#E6DFC9" stroke-opacity="0.82" stroke-width="2.5" stroke-linecap="round"/>
+  <circle cx="32" cy="32" r="5" fill="#223436"/>
+</svg>

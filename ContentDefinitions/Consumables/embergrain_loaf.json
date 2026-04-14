@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "definition_id": "embergrain_loaf",
+  "family": "Consumables",
+  "tags": [
+    "consumable",
+    "food",
+    "route",
+    "sustain"
+  ],
+  "display": {
+    "name": "Embergrain Loaf",
+    "short_description": "A dense waybread loaf for resetting a bad road beat with one large bite and a brief rest.",
+    "icon_key": "consumable_embergrain_loaf"
+  },
+  "rules": {
+    "stats": {
+      "max_stack": 1,
+      "restore_hp": 8
+    },
+    "use_effect": {
+      "trigger": "on_use",
+      "condition": {
+        "op": "always"
+      },
+      "target": "self",
+      "effects": [
+        {
+          "type": "heal",
+          "params": {
+            "base": 8
+          }
+        },
+        {
+          "type": "modify_hunger",
+          "params": {
+            "amount": -3
+          }
+        }
+      ]
+    }
+  }
+}

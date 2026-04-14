@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "definition_id": "iron_sword",
+  "family": "Weapons",
+  "tags": [
+    "weapon",
+    "melee",
+    "sword",
+    "physical",
+    "starter"
+  ],
+  "display": {
+    "name": "Iron Sword",
+    "short_description": "Reliable starter sword with steady damage and durability.",
+    "icon_key": "weapon_iron_sword"
+  },
+  "rules": {
+    "stats": {
+      "weapon_type": "sword",
+      "base_damage": 6,
+      "max_durability": 20,
+      "durability_cost_per_attack": 1
+    }
+  }
+}

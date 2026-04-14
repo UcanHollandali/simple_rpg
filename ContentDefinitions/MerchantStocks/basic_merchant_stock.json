@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "definition_id": "basic_merchant_stock",
+  "family": "MerchantStocks",
+  "tags": [
+    "merchant_stock",
+    "support",
+    "prototype"
+  ],
+  "display": {
+    "name": "Basic Merchant Stock",
+    "short_description": "Current fixed merchant stock for the prototype support-node slice."
+  },
+  "rules": {
+    "stock": [
+      {
+        "offer_id": "buy_traveler_bread_x1",
+        "definition_id": "traveler_bread",
+        "effect_type": "buy_consumable",
+        "amount": 1,
+        "cost_gold": 5
+      },
+      {
+        "offer_id": "buy_quick_clot_poultice_x1",
+        "definition_id": "quick_clot_poultice",
+        "effect_type": "buy_consumable",
+        "amount": 1,
+        "cost_gold": 8
+      },
+      {
+        "offer_id": "buy_splitter_axe",
+        "definition_id": "splitter_axe",
+        "effect_type": "buy_weapon",
+        "cost_gold": 15
+      }
+    ]
+  }
+}

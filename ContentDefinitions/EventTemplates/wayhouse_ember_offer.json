@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "definition_id": "wayhouse_ember_offer",
+  "family": "EventTemplates",
+  "tags": [
+    "event",
+    "stage_3",
+    "ruin",
+    "wayhouse",
+    "prototype"
+  ],
+  "display": {
+    "name": "Wayhouse Ember Offer",
+    "short_description": "A collapsed wayhouse still shelters one emberstone in its cracked brazier. It can warm flesh or be broken for the lesson inside."
+  },
+  "rules": {
+    "choices": [
+      {
+        "choice_id": "warm_yourself_by_the_ember",
+        "label": "Warm yourself by the ember",
+        "summary": "Hold still long enough for the stone's last heat to soak through your ribs.",
+        "effect_type": "heal",
+        "amount": 10
+      },
+      {
+        "choice_id": "pocket_the_ember_shard",
+        "label": "Pocket the ember shard",
+        "summary": "Split the emberstone and keep the lesson it leaves in your hands.",
+        "effect_type": "grant_xp",
+        "amount": 10
+      }
+    ]
+  }
+}

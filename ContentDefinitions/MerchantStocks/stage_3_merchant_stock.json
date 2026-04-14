@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "definition_id": "stage_3_merchant_stock",
+  "family": "MerchantStocks",
+  "tags": [
+    "merchant_stock",
+    "support",
+    "stage_3",
+    "prototype"
+  ],
+  "display": {
+    "name": "Stage 3 Merchant Stock",
+    "short_description": "A late-run stock of expensive route stabilizers and sharper weapon pivots."
+  },
+  "rules": {
+    "stock": [
+      {
+        "offer_id": "buy_hunter_stew_x1",
+        "definition_id": "hunter_stew",
+        "effect_type": "buy_consumable",
+        "amount": 1,
+        "cost_gold": 11
+      },
+      {
+        "offer_id": "buy_salvage_cleaver",
+        "definition_id": "salvage_cleaver",
+        "effect_type": "buy_weapon",
+        "cost_gold": 22
+      },
+      {
+        "offer_id": "buy_thorn_rapier",
+        "definition_id": "thorn_rapier",
+        "effect_type": "buy_weapon",
+        "cost_gold": 24
+      }
+    ]
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "definition_id": "trickster_stump_feast",
+  "family": "EventTemplates",
+  "tags": [
+    "event",
+    "trickster",
+    "forest",
+    "prototype"
+  ],
+  "display": {
+    "name": "Table Set by Nothing",
+    "short_description": "A stump is laid like a tiny supper table. One bowl smells warm and impossible. A wrapped bundle beside it looks real enough to steal."
+  },
+  "rules": {
+    "choices": [
+      {
+        "choice_id": "eat_the_false_meal",
+        "label": "Eat the sweet-smelling stew",
+        "summary": "The first mouthful tastes like home. The second leaves your stomach emptier than before.",
+        "effect_type": "modify_hunger",
+        "amount": 4
+      },
+      {
+        "choice_id": "pry_free_the_blade",
+        "label": "Claim the wrapped bundle",
+        "summary": "There is no food in the cloth, only a sound edge and a whetstone strip you can use right now.",
+        "effect_type": "repair_weapon"
+      }
+    ]
+  }
+}

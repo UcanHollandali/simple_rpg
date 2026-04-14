@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "definition_id": "wolfspur_ring",
+  "authoring_order": 65,
+  "family": "PassiveItems",
+  "tags": [
+    "passive",
+    "combat",
+    "attack",
+    "glass_edge"
+  ],
+  "display": {
+    "name": "Wolfspur Ring",
+    "short_description": "A cruel spur-ring that grants 3 attack power, but you take 1 more damage and each swing costs 1 extra durability.",
+    "icon_key": "passive_wolfspur_ring"
+  },
+  "rules": {
+    "behaviors": [
+      {
+        "trigger": "passive",
+        "condition": {
+          "op": "always"
+        },
+        "target": "self",
+        "effects": [
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "attack_power_bonus",
+              "amount": 3
+            }
+          },
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "incoming_damage_flat_reduction",
+              "amount": -1
+            }
+          },
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "durability_cost_flat_reduction",
+              "amount": -1
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

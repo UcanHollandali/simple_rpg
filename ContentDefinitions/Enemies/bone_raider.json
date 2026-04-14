@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "definition_id": "bone_raider",
+  "authoring_order": 20,
+  "family": "Enemies",
+  "encounter_tier": "minor",
+  "design_intent_question": "Can the player survive bleed buildup without burning a heal early?",
+  "tags": [
+    "enemy",
+    "undead",
+    "raider",
+    "physical"
+  ],
+  "display": {
+    "name": "Bone Raider",
+    "short_description": "An aggressive skeleton that alternates between heavy cuts and quick jabs.",
+    "icon_key": "enemy_bone_raider"
+  },
+  "rules": {
+    "stats": {
+      "base_hp": 24,
+      "base_damage": 5,
+      "dodge_chance": 10
+    },
+    "traits": [
+      "armored"
+    ],
+    "intent_pool": [
+      {
+        "intent_id": "bone_cleave",
+        "action_family": "attack",
+        "threat_level": "medium",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 5,
+              "damage_kind": "physical"
+            }
+          }
+        ]
+      },
+      {
+        "intent_id": "rattling_jab",
+        "action_family": "attack",
+        "threat_level": "low",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 3,
+              "damage_kind": "physical"
+            }
+          }
+        ]
+      }
+    ],
+    "behaviors": [
+      {
+        "trigger": "passive",
+        "condition": {
+          "op": "always"
+        },
+        "target": "self",
+        "effects": [
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "incoming_damage_flat_reduction",
+              "amount": 1
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

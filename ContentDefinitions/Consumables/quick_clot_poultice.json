@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "definition_id": "quick_clot_poultice",
+  "family": "Consumables",
+  "tags": [
+    "consumable",
+    "healing",
+    "combat",
+    "tactical"
+  ],
+  "display": {
+    "name": "Quick-Clot Poultice",
+    "short_description": "A compact field wrap that patches a mid-fight wound without needing a full tonic.",
+    "icon_key": "consumable_quick_clot_poultice"
+  },
+  "rules": {
+    "stats": {
+      "max_stack": 4,
+      "restore_hp": 10
+    },
+    "use_effect": {
+      "trigger": "on_use",
+      "condition": {
+        "op": "always"
+      },
+      "target": "self",
+      "effects": [
+        {
+          "type": "heal",
+          "params": {
+            "base": 10
+          }
+        }
+      ]
+    }
+  }
+}

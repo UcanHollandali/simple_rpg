@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "definition_id": "forest_shrine_echo",
+  "family": "EventTemplates",
+  "tags": [
+    "event",
+    "forest",
+    "shrine",
+    "prototype"
+  ],
+  "display": {
+    "name": "The Shrine in the Moss",
+    "short_description": "Rain beads on a half-sunken shrine at the side of the trail. The basin still runs clear, but the offering bowl seems to watch your hands."
+  },
+  "rules": {
+    "choices": [
+      {
+        "choice_id": "drink_from_the_basin",
+        "label": "Wash the road dust away",
+        "summary": "Kneel, rinse the blood from your hands, and drink until your breathing steadies.",
+        "effect_type": "heal",
+        "amount": 10
+      },
+      {
+        "choice_id": "pocket_the_offerings",
+        "label": "Turn over the offering bowl",
+        "summary": "Greed is faster than prayer. The shrine answers by driving a cold shock through your fingers.",
+        "effect_type": "damage_player",
+        "amount": 4
+      }
+    ]
+  }
+}

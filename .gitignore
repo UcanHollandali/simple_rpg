@@ -1,3 +1,33 @@
-# Godot 4+ specific ignores
+# Godot
 .godot/
+_godot_profile/
+_godot_profile_test/
 /android/
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*~
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Export
+/export/
+*.import.bak
+
+# Python (validation scripts)
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Temp
+*.tmp
+*.bak
+Tests/_tmp_*.gd
+Tests/_tmp_*.gd.uid

@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "definition_id": "rushnail_loop",
+  "authoring_order": 80,
+  "family": "PassiveItems",
+  "tags": [
+    "passive",
+    "combat",
+    "attack",
+    "glass_edge",
+    "scrap_keeper"
+  ],
+  "display": {
+    "name": "Rushnail Loop",
+    "short_description": "A hurried repair loop that grants 2 attack power and cuts durability cost by 1, but leaves you taking 1 more damage.",
+    "icon_key": "passive_rushnail_loop"
+  },
+  "rules": {
+    "behaviors": [
+      {
+        "trigger": "passive",
+        "condition": {
+          "op": "always"
+        },
+        "target": "self",
+        "effects": [
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "attack_power_bonus",
+              "amount": 2
+            }
+          },
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "durability_cost_flat_reduction",
+              "amount": 1
+            }
+          },
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "incoming_damage_flat_reduction",
+              "amount": -1
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "definition_id": "trailhook_bandolier",
+  "family": "Belts",
+  "tags": [
+    "belt",
+    "combat",
+    "utility",
+    "durability"
+  ],
+  "display": {
+    "name": "Trailhook Bandolier",
+    "short_description": "A practical belt rig that reduces attack durability cost by 1.",
+    "icon_key": "belt_trailhook_bandolier"
+  },
+  "rules": {
+    "behaviors": [
+      {
+        "trigger": "passive",
+        "condition": {
+          "op": "always"
+        },
+        "target": "self",
+        "effects": [
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "durability_cost_flat_reduction",
+              "amount": 1
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

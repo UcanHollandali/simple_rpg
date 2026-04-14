@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "definition_id": "mossback_ram",
+  "authoring_order": 120,
+  "family": "Enemies",
+  "encounter_tier": "minor",
+  "design_intent_question": "Can the player recognize that a slow armored body still creates a real Brace turn when its heavier slam is telegraphed cleanly enough?",
+  "tags": [
+    "enemy",
+    "beast",
+    "stage_1",
+    "armored",
+    "brace_test"
+  ],
+  "display": {
+    "name": "Mossback Ram",
+    "short_description": "A thick-skulled forest brute that shrugs off light swings and teaches respect for a slow heavy hit.",
+    "icon_key": "enemy_mossback_ram"
+  },
+  "rules": {
+    "stats": {
+      "base_hp": 20,
+      "base_damage": 2
+    },
+    "traits": [
+      "armored"
+    ],
+    "intent_pool": [
+      {
+        "intent_id": "brow_bump",
+        "action_family": "attack",
+        "threat_level": "low",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 2,
+              "damage_kind": "physical"
+            }
+          }
+        ]
+      },
+      {
+        "intent_id": "digging_stamp",
+        "action_family": "attack",
+        "threat_level": "low",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 1,
+              "damage_kind": "physical"
+            }
+          }
+        ]
+      },
+      {
+        "intent_id": "antler_crash",
+        "action_family": "attack",
+        "threat_level": "medium",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 4,
+              "damage_kind": "physical"
+            }
+          }
+        ]
+      }
+    ],
+    "behaviors": [
+      {
+        "trigger": "passive",
+        "condition": {
+          "op": "always"
+        },
+        "target": "self",
+        "effects": [
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "incoming_damage_flat_reduction",
+              "amount": 1
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

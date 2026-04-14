@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "definition_id": "moonspur_pike",
+  "family": "Weapons",
+  "tags": [
+    "weapon",
+    "quest_reward",
+    "melee",
+    "polearm"
+  ],
+  "display": {
+    "name": "Moonspur Pike",
+    "short_description": "Long contract pike with clean reach and durable hafting.",
+    "icon_key": "weapon_moonspur_pike"
+  },
+  "rules": {
+    "stats": {
+      "weapon_type": "polearm",
+      "base_damage": 7,
+      "max_durability": 22,
+      "durability_cost_per_attack": 1
+    }
+  }
+}

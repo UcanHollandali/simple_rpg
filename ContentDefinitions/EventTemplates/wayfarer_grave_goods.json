@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "definition_id": "wayfarer_grave_goods",
+  "family": "EventTemplates",
+  "tags": [
+    "event",
+    "stage_3",
+    "grave",
+    "forest",
+    "prototype"
+  ],
+  "display": {
+    "name": "Wayfarer Grave Goods",
+    "short_description": "A lone cairn slumps beside the path. Burial nails pin the marker down, and a weather-swollen satchel hangs untouched beneath it."
+  },
+  "rules": {
+    "choices": [
+      {
+        "choice_id": "take_the_burial_nails",
+        "label": "Take the burial nails",
+        "summary": "Pull the iron nails free and hammer their last use back into your weapon.",
+        "effect_type": "repair_weapon"
+      },
+      {
+        "choice_id": "open_the_satchel",
+        "label": "Open the satchel",
+        "summary": "Break the grave cord and claim the coin weight the dead no longer need.",
+        "effect_type": "grant_gold",
+        "amount": 18
+      }
+    ]
+  }
+}

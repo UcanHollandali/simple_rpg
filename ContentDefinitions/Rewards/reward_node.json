@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "definition_id": "reward_node",
+  "family": "Rewards",
+  "tags": [
+    "reward",
+    "reward_node",
+    "prototype"
+  ],
+  "display": {
+    "name": "Cracked Trail Cache",
+    "short_description": "The cache is falling apart. Keep one thing before the road swallows the rest."
+  },
+  "rules": {
+    "selection_mode": "seeded_reward_rng",
+    "present_count": 2,
+    "offer_pool": [
+      {
+        "offer_id": "gain_xp_2",
+        "label": "Read the Trail Marks",
+        "effect_type": "grant_xp",
+        "amount": 3
+      },
+      {
+        "offer_id": "gain_gold_8",
+        "label": "Lift the Loose Coins",
+        "effect_type": "grant_gold",
+        "amount": 6
+      },
+      {
+        "offer_id": "heal_4",
+        "label": "Bind the Bruise",
+        "effect_type": "heal",
+        "amount": 6
+      },
+      {
+        "offer_id": "heal_7",
+        "label": "Catch Your Breath",
+        "effect_type": "heal",
+        "amount": 8
+      },
+      {
+        "offer_id": "heal_5",
+        "label": "Patch Up Fast",
+        "effect_type": "heal",
+        "amount": 7
+      },
+      {
+        "offer_id": "gain_gold_10",
+        "label": "Unwrap the Stash",
+        "effect_type": "grant_gold",
+        "amount": 8
+      },
+      {
+        "offer_id": "repair_weapon",
+        "label": "Set the Edge Straight",
+        "effect_type": "repair_weapon"
+      },
+      {
+        "offer_id": "gain_xp_4",
+        "label": "Study the Route",
+        "effect_type": "grant_xp",
+        "amount": 4
+      },
+      {
+        "offer_id": "gain_gold_12",
+        "label": "Pocket the Tithe",
+        "effect_type": "grant_gold",
+        "amount": 10
+      },
+      {
+        "offer_id": "heal_8",
+        "label": "Settle the Nerves",
+        "effect_type": "heal",
+        "amount": 10
+      },
+      {
+        "offer_id": "gain_xp_5_late",
+        "label": "Learn from the Cache",
+        "effect_type": "grant_xp",
+        "amount": 5
+      },
+      {
+        "offer_id": "gain_gold_14",
+        "label": "Crack the Lockbox",
+        "effect_type": "grant_gold",
+        "amount": 12
+      }
+    ]
+  }
+}

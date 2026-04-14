@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "definition_id": "trailwarden_cloak",
+  "family": "Armors",
+  "tags": [
+    "armor",
+    "quest_reward",
+    "defense",
+    "utility"
+  ],
+  "display": {
+    "name": "Trailwarden Cloak",
+    "short_description": "Contract cloak that softens hits and spares weapon wear.",
+    "icon_key": "armor_trailwarden_cloak"
+  },
+  "rules": {
+    "behaviors": [
+      {
+        "trigger": "passive",
+        "condition": {
+          "op": "always"
+        },
+        "target": "self",
+        "effects": [
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "incoming_damage_flat_reduction",
+              "amount": 1
+            }
+          },
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "durability_cost_flat_reduction",
+              "amount": 1
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

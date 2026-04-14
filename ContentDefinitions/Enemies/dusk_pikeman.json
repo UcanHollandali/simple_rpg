@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "definition_id": "dusk_pikeman",
+  "authoring_order": 160,
+  "family": "Enemies",
+  "encounter_tier": "minor",
+  "design_intent_question": "Can the player save Brace for the clearly telegraphed impale turn instead of spending it on safer chip hits that only set up the real punish?",
+  "tags": [
+    "enemy",
+    "soldier",
+    "stage_3",
+    "brace_test",
+    "high_threat"
+  ],
+  "display": {
+    "name": "Dusk Pikeman",
+    "short_description": "A disciplined line-fighter who pokes for space before driving in with a long punishing impale.",
+    "icon_key": "enemy_dusk_pikeman"
+  },
+  "rules": {
+    "stats": {
+      "base_hp": 28,
+      "base_damage": 5
+    },
+    "intent_pool": [
+      {
+        "intent_id": "shield_jab",
+        "action_family": "attack",
+        "threat_level": "low",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 3,
+              "damage_kind": "physical"
+            }
+          }
+        ]
+      },
+      {
+        "intent_id": "shaft_hook",
+        "action_family": "attack",
+        "threat_level": "medium",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 4,
+              "damage_kind": "physical"
+            }
+          },
+          {
+            "type": "apply_status",
+            "params": {
+              "definition_id": "weakened"
+            }
+          }
+        ]
+      },
+      {
+        "intent_id": "impaling_drive",
+        "action_family": "attack",
+        "threat_level": "high",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 7,
+              "damage_kind": "physical"
+            }
+          }
+        ]
+      }
+    ],
+    "behaviors": []
+  }
+}

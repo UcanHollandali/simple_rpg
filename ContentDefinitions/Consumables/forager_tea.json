@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "definition_id": "forager_tea",
+  "family": "Consumables",
+  "tags": [
+    "consumable",
+    "food",
+    "route",
+    "hunger"
+  ],
+  "display": {
+    "name": "Forager Tea",
+    "short_description": "A bitter leaf brew that exists almost entirely to push hunger back before the next branch.",
+    "icon_key": "consumable_forager_tea"
+  },
+  "rules": {
+    "stats": {
+      "max_stack": 2
+    },
+    "use_effect": {
+      "trigger": "on_use",
+      "condition": {
+        "op": "always"
+      },
+      "target": "self",
+      "effects": [
+        {
+          "type": "modify_hunger",
+          "params": {
+            "amount": -4
+          }
+        }
+      ]
+    }
+  }
+}

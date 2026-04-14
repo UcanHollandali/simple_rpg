@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "definition_id": "roadside_stew_jar",
+  "family": "Consumables",
+  "tags": [
+    "consumable",
+    "food",
+    "combat",
+    "tactical"
+  ],
+  "display": {
+    "name": "Roadside Stew Jar",
+    "short_description": "A thick camp jar that trades peak healing for a little HP and a little hunger relief at once.",
+    "icon_key": "consumable_roadside_stew_jar"
+  },
+  "rules": {
+    "stats": {
+      "max_stack": 2,
+      "restore_hp": 6
+    },
+    "use_effect": {
+      "trigger": "on_use",
+      "condition": {
+        "op": "always"
+      },
+      "target": "self",
+      "effects": [
+        {
+          "type": "heal",
+          "params": {
+            "base": 6
+          }
+        },
+        {
+          "type": "modify_hunger",
+          "params": {
+            "amount": -2
+          }
+        }
+      ]
+    }
+  }
+}

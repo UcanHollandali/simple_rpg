@@ -1,0 +1,149 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/support_interaction.gd" id="1"]
+[ext_resource type="Texture2D" path="res://Assets/Backgrounds/bg_choice_far.png" id="2"]
+[ext_resource type="Texture2D" path="res://Assets/Backgrounds/bg_choice_mid.png" id="3"]
+[ext_resource type="Texture2D" path="res://Assets/Backgrounds/bg_choice_overlay.png" id="4"]
+[node name="SupportInteraction" type="Control"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="UiConfirmSfxPlayer" type="AudioStreamPlayer" parent="."]
+volume_db = -8.0
+
+[node name="PanelOpenSfxPlayer" type="AudioStreamPlayer" parent="."]
+volume_db = -10.0
+
+[node name="PanelCloseSfxPlayer" type="AudioStreamPlayer" parent="."]
+volume_db = -11.0
+
+[node name="SupportMusicPlayer" type="AudioStreamPlayer" parent="."]
+volume_db = -19.0
+
+[node name="BackgroundFar" type="TextureRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("2")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="BackgroundMid" type="TextureRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("3")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="BackgroundOverlay" type="TextureRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("4")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="Scrim" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Margin" type="MarginContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 18
+
+[node name="VBox" type="VBoxContainer" parent="Margin"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="HeaderRow" type="VBoxContainer" parent="Margin/VBox"]
+theme_override_constants/separation = 8
+
+[node name="HeaderStack" type="VBoxContainer" parent="Margin/VBox/HeaderRow"]
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="ChipCard" type="PanelContainer" parent="Margin/VBox/HeaderRow/HeaderStack"]
+size_flags_horizontal = 0
+
+[node name="ChipLabel" type="Label" parent="Margin/VBox/HeaderRow/HeaderStack/ChipCard"]
+text = "SUPPORT"
+
+[node name="TitleLabel" type="Label" parent="Margin/VBox/HeaderRow/HeaderStack"]
+text = "Support Interaction"
+autowrap_mode = 3
+
+[node name="SummaryLabel" type="Label" parent="Margin/VBox/HeaderRow/HeaderStack"]
+text = "Summary"
+autowrap_mode = 3
+
+[node name="HintLabel" type="Label" parent="Margin/VBox/HeaderRow/HeaderStack"]
+text = "Choose one support action, then return to the road."
+autowrap_mode = 3
+
+[node name="RunStatusCard" type="PanelContainer" parent="Margin/VBox/HeaderRow"]
+size_flags_horizontal = 3
+
+[node name="StatusLabel" type="Label" parent="Margin/VBox/HeaderRow/RunStatusCard"]
+text = "HP 0 | Hunger 0 | Gold 0 | Durability 0"
+autowrap_mode = 3
+
+[node name="ActionsRow" type="VBoxContainer" parent="Margin/VBox"]
+size_flags_vertical = 1
+theme_override_constants/separation = 8
+
+[node name="ActionAButton" type="Button" parent="Margin/VBox/ActionsRow"]
+text = "Action A"
+size_flags_horizontal = 3
+size_flags_vertical = 1
+custom_minimum_size = Vector2(0, 58)
+
+[node name="ActionBButton" type="Button" parent="Margin/VBox/ActionsRow"]
+text = "Action B"
+size_flags_horizontal = 3
+size_flags_vertical = 1
+custom_minimum_size = Vector2(0, 58)
+
+[node name="ActionCButton" type="Button" parent="Margin/VBox/ActionsRow"]
+text = "Action C"
+size_flags_horizontal = 3
+size_flags_vertical = 1
+custom_minimum_size = Vector2(0, 58)
+
+[node name="FooterRow" type="VBoxContainer" parent="Margin/VBox"]
+theme_override_constants/separation = 6
+
+[node name="FooterSpacer" type="Control" parent="Margin/VBox/FooterRow"]
+visible = false
+
+[node name="LeaveButton" type="Button" parent="Margin/VBox/FooterRow"]
+text = "Back to the Road"
+size_flags_horizontal = 3

@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "definition_id": "scavenger_straps",
+  "authoring_order": 25,
+  "family": "PassiveItems",
+  "tags": [
+    "passive",
+    "combat",
+    "defense",
+    "durability"
+  ],
+  "display": {
+    "name": "Trail Scavenger Straps",
+    "short_description": "Weathered field straps that reduce incoming combat damage by 1 and weapon durability cost per attack by 1.",
+    "icon_key": "passive_scavenger_straps"
+  },
+  "rules": {
+    "behaviors": [
+      {
+        "trigger": "passive",
+        "condition": {
+          "op": "always"
+        },
+        "target": "self",
+        "effects": [
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "incoming_damage_flat_reduction",
+              "amount": 1
+            }
+          },
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "durability_cost_flat_reduction",
+              "amount": 1
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

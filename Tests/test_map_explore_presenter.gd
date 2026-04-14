@@ -19,7 +19,7 @@ func test_map_presenter_builds_runtime_graph_labels() -> void:
 	run_state.player_hp = 48
 	run_state.hunger = 11
 	run_state.gold = 17
-	run_state.weapon_instance["current_durability"] = 9
+	run_state.inventory_state.weapon_instance["current_durability"] = 9
 	run_state.map_runtime_state.move_to_node(1)
 	run_state.map_runtime_state.mark_node_resolved(1)
 
@@ -28,48 +28,65 @@ func test_map_presenter_builds_runtime_graph_labels() -> void:
 		"Expected map presenter title to reflect the current stage."
 	)
 	assert(
-		String(presenter.call("build_progress_text", run_state)).contains("Node 1"),
-		"Expected map presenter progress text to reflect the stable current node id."
+		String(presenter.call("build_progress_text", run_state)).contains("open"),
+		"Expected map presenter progress text to foreground reachable roads."
 	)
 	assert(
 		presenter.call("build_run_status_text", run_state) == "HP 48 | Hunger 11 | Gold 17 | Iron Sword (9)",
 		"Expected map presenter to summarize the active run snapshot."
 	)
 	assert(
-		String(presenter.call("build_node_family_text")).contains("key"),
-		"Expected map presenter to expose the full node family list including the stage key."
+		presenter.call("build_hp_status_text", run_state) == "HP 48",
+		"Expected map presenter to expose a compact HP status row read."
 	)
 	assert(
-		String(presenter.call("build_node_family_text")).contains("event"),
-		"Expected map presenter to expose the event node family in the route legend."
+		presenter.call("build_hunger_status_text", run_state) == "Hunger 11",
+		"Expected map presenter to expose a compact hunger status row read."
 	)
 	assert(
-		String(presenter.call("build_map_shell_note_text")).contains("cluster"),
-		"Expected map presenter to acknowledge the runtime-owned key and boss-gate slice."
+		presenter.call("build_durability_status_text", run_state) == "Durability 9",
+		"Expected map presenter to expose a compact durability status row read."
 	)
 	assert(
-		String(presenter.call("build_state_legend_text")).contains("SPENT"),
-		"Expected the state legend read to stay presenter-owned."
+		presenter.call("build_hp_icon_texture_path") == "res://Assets/Icons/icon_hp.svg",
+		"Expected map HP reads to resolve through the dedicated HP icon slot."
 	)
 	assert(
-		String(presenter.call("build_cluster_read_text", run_state)).contains("Seen ahead: Reward"),
-		"Expected the map presenter to summarize discovered pockets beyond the immediate adjacent shell."
+		presenter.call("build_hunger_icon_texture_path") == "res://Assets/Icons/icon_hunger.svg",
+		"Expected map hunger reads to resolve through the dedicated hunger icon slot."
 	)
 	assert(
-		presenter.call("build_current_anchor_text", run_state) == "Combat\nNode 1",
-		"Expected map presenter to build the current-focus anchor text from the runtime-owned current node."
+		presenter.call("build_durability_icon_texture_path") == "res://Assets/Icons/icon_durability.svg",
+		"Expected map durability reads to resolve through the dedicated durability icon slot."
 	)
 	assert(
-		String(presenter.call("build_current_anchor_detail_text", run_state)).contains("Key: no"),
-		"Expected current-anchor detail text to reflect adjacency runtime truth."
+		String(presenter.call("build_cluster_read_text", run_state)).contains("Ahead:")
+		and String(presenter.call("build_cluster_read_text", run_state)).contains("Reward"),
+		"Expected the map presenter to summarize discovered pockets beyond the immediate adjacent shell, including the off-path reward pocket."
 	)
 	assert(
-		presenter.call("build_key_marker_text", run_state) == "KEY\nAHEAD",
-		"Expected unresolved stage keys to keep the default key marker text."
+		presenter.call("build_current_anchor_text", run_state) == "At Combat",
+		"Expected map presenter to build a short current-position read from the runtime-owned current node."
+	)
+	assert(
+		String(presenter.call("build_current_anchor_detail_text", run_state)).contains("Key ahead"),
+		"Expected current-anchor detail text to reflect runtime-owned key progress."
+	)
+	assert(
+		String(presenter.call("build_current_anchor_detail_text", run_state)).contains("Boss locked"),
+		"Expected current-anchor detail text to surface boss-gate legibility before the key is secured."
 	)
 	assert(
 		presenter.call("build_node_family_display_name", "boss") == "Boss Gate",
 		"Expected node-family display names to stay presenter-owned for the route board."
+	)
+	assert(
+		presenter.call("build_node_family_display_name", "event") == "Roadside Encounter",
+		"Expected event routes to render through the player-facing roadside-encounter label."
+	)
+	assert(
+		presenter.call("build_node_family_display_name", "side_mission") == "Village Request",
+		"Expected side-mission routes to expose the player-facing request label."
 	)
 	assert(
 		presenter.call("build_route_icon_texture_path", "combat") == "res://Assets/Icons/icon_attack.svg",
@@ -96,6 +113,10 @@ func test_map_presenter_builds_runtime_graph_labels() -> void:
 		"Expected event routes to reuse the narrow event marker icon floor."
 	)
 	assert(
+		presenter.call("build_route_icon_texture_path", "side_mission") == "res://Assets/Icons/icon_map_side_mission.svg",
+		"Expected side-mission routes to use the dedicated contract icon floor."
+	)
+	assert(
 		presenter.call("build_route_icon_texture_path", "key") == "res://Assets/Icons/icon_confirm.svg",
 		"Expected key routes to use the dedicated key marker icon treatment."
 	)
@@ -103,12 +124,12 @@ func test_map_presenter_builds_runtime_graph_labels() -> void:
 		presenter.call("build_route_icon_texture_path", "boss") == "res://Assets/Icons/icon_enemy_intent_heavy.svg",
 		"Expected boss routes to use the dedicated boss marker icon treatment."
 	)
-	var fog_preview_texts: PackedStringArray = presenter.call("build_fog_preview_texts", run_state, 3)
-	assert(
-		fog_preview_texts[0] == "",
-		"Expected placeholder fog labels to stay hidden until a real fog presentation exists."
-	)
 	var route_models: Array[Dictionary] = presenter.call("build_route_view_models", run_state, 6)
+	var visible_route_models: Array[Dictionary] = []
+	for route_model in route_models:
+		if bool(route_model.get("visible", false)):
+			visible_route_models.append(route_model)
+
 	assert(
 		String(route_models[0].get("text", "")) == "Combat\nReachable",
 		"Expected unresolved adjacent combat nodes to sort ahead of revisit-only traversal nodes."
@@ -121,44 +142,78 @@ func test_map_presenter_builds_runtime_graph_labels() -> void:
 		String(route_models[0].get("state_chip_text", "")) == "OPEN",
 		"Expected route view models to expose compact state-chip text for the shell overlay."
 	)
+	var spent_start_found: bool = false
+	for route_model in visible_route_models:
+		if String(route_model.get("text", "")) != "Start\nSpent Path":
+			continue
+		spent_start_found = true
+		assert(
+			String(route_model.get("state_chip_text", "")) == "SPENT",
+			"Expected resolved start-node traversal to expose the spent-state chip text."
+		)
+		assert(
+			not bool(route_model.get("disabled", true)),
+			"Expected spent adjacent routes to remain traversable for revisit positioning."
+		)
+	assert(spent_start_found, "Expected one visible spent start-path route model after moving off the center anchor.")
+
 	assert(
-		String(route_models[1].get("state_chip_text", "")) == "SPENT",
-		"Expected resolved route view models to expose the spent-state chip text."
+		visible_route_models.size() == run_state.map_runtime_state.get_adjacent_node_ids().size(),
+		"Expected the board to show every adjacent traversal option and only adjacent traversal options."
 	)
-	assert(
-		String(route_models[1].get("text", "")) == "Start\nSpent Path",
-		"Expected resolved start-node traversal to stay readable as a revisit option."
-	)
-	assert(
-		not bool(route_models[1].get("disabled", true)),
-		"Expected spent adjacent routes to remain traversable for revisit positioning."
-	)
-	var visible_route_count: int = 0
-	for route_model in route_models:
-		if bool(route_model.get("visible", false)):
-			visible_route_count += 1
-	assert(
-		visible_route_count >= 4,
-		"Expected the presenter to keep nearby discovered context visible beyond the immediate adjacent shell."
-	)
-	assert(
-		String(route_models[2].get("text", "")) == "Reward\nSeen",
-		"Expected discovered non-adjacent nodes to remain visible as preview context."
-	)
-	assert(
-		bool(route_models[2].get("disabled", false)),
-		"Expected discovered non-adjacent context nodes to stay non-clickable."
-	)
-	assert(
-		not bool(route_models[2].get("show_road", true)),
-		"Expected only adjacent routes to draw direct road lines from the current node."
-	)
-	assert(
-		String(route_models[2].get("state_chip_text", "")) == "",
-		"Expected preview-only context nodes to avoid adjacency-state chips."
-	)
+
+	var hidden_route_model_index: int = visible_route_models.size()
+	if hidden_route_model_index < route_models.size():
+		assert(
+			not bool(route_models[hidden_route_model_index].get("visible", true)),
+			"Expected board slots beyond the adjacent traversal set to stay hidden."
+		)
+		assert(
+			String(route_models[hidden_route_model_index].get("text", "")) == "",
+			"Expected hidden board slots to stay empty."
+		)
 	run_state.map_runtime_state.resolve_stage_key()
 	assert(
-		presenter.call("build_key_marker_text", run_state) == "KEY\nTAKEN",
-		"Expected resolved stage keys to update the key marker read."
+		String(presenter.call("build_current_anchor_detail_text", run_state)).contains("Key taken"),
+		"Expected current-anchor detail text to update once the stage key is resolved."
 	)
+	assert(
+		String(presenter.call("build_current_anchor_detail_text", run_state)).contains("Boss open"),
+		"Expected current-anchor detail text to expose boss-gate readiness after key resolution."
+	)
+
+	var side_mission_node_id: int = _find_node_id_by_family(run_state.map_runtime_state, "side_mission")
+	var target_node_id: int = _find_node_id_by_family(run_state.map_runtime_state, "combat")
+	assert(side_mission_node_id >= 0, "Expected one side-mission node in the runtime-owned map.")
+	assert(target_node_id >= 0, "Expected at least one combat node for target-readability coverage.")
+	run_state.map_runtime_state.save_side_mission_node_runtime_state(side_mission_node_id, {
+		"support_type": "side_mission",
+		"mission_definition_id": "trail_contract_hunt",
+		"mission_status": "accepted",
+		"target_node_id": target_node_id,
+		"target_enemy_definition_id": "barbed_hunter",
+		"reward_offers": [],
+	})
+	assert(
+		String(presenter.call("build_current_anchor_detail_text", run_state)).contains("Marked target"),
+		"Expected current-anchor detail text to surface accepted side-mission target readability."
+	)
+	run_state.map_runtime_state.save_side_mission_node_runtime_state(side_mission_node_id, {
+		"support_type": "side_mission",
+		"mission_definition_id": "trail_contract_hunt",
+		"mission_status": "completed",
+		"target_node_id": target_node_id,
+		"target_enemy_definition_id": "barbed_hunter",
+		"reward_offers": [],
+	})
+	assert(
+		String(presenter.call("build_current_anchor_detail_text", run_state)).contains("Return marked"),
+		"Expected current-anchor detail text to surface completed side-mission return readability."
+	)
+
+
+func _find_node_id_by_family(map_runtime_state: RefCounted, node_family: String) -> int:
+	for node_snapshot in map_runtime_state.build_node_snapshots():
+		if String(node_snapshot.get("node_family", "")) == node_family:
+			return int(node_snapshot.get("node_id", -1))
+	return -1

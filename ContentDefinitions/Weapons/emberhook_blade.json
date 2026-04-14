@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "definition_id": "emberhook_blade",
+  "family": "Weapons",
+  "tags": [
+    "weapon",
+    "quest_reward",
+    "melee",
+    "blade"
+  ],
+  "display": {
+    "name": "Emberhook Blade",
+    "short_description": "Contract-forged hook blade that hits harder than starter steel.",
+    "icon_key": "weapon_emberhook_blade"
+  },
+  "rules": {
+    "stats": {
+      "weapon_type": "blade",
+      "base_damage": 8,
+      "max_durability": 18,
+      "durability_cost_per_attack": 1
+    }
+  }
+}

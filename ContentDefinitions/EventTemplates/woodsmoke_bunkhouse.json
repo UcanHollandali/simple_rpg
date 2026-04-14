@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "definition_id": "woodsmoke_bunkhouse",
+  "family": "EventTemplates",
+  "tags": [
+    "event",
+    "stage_1",
+    "forest",
+    "abandoned_structure",
+    "prototype"
+  ],
+  "display": {
+    "name": "Woodsmoke Bunkhouse",
+    "short_description": "A squat bunkhouse sags beside the road. The hearth is dead, but a whetstone and a half-stuck pay locker still remain."
+  },
+  "rules": {
+    "choices": [
+      {
+        "choice_id": "work_the_whetstone",
+        "label": "Work the whetstone",
+        "summary": "Take a careful minute with the old stone and bring your edge back into line.",
+        "effect_type": "repair_weapon"
+      },
+      {
+        "choice_id": "lift_the_locker_scrip",
+        "label": "Lift the locker scrip",
+        "summary": "Pry the locker open and take the stamped road scrip before the roof gives way.",
+        "effect_type": "grant_gold",
+        "amount": 7
+      }
+    ]
+  }
+}

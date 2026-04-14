@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "definition_id": "wardenless_gate_toll",
+  "family": "EventTemplates",
+  "tags": [
+    "event",
+    "stage_2",
+    "ruin",
+    "gate",
+    "prototype"
+  ],
+  "display": {
+    "name": "Wardenless Gate Toll",
+    "short_description": "A ruined toll gate leans across the path. Its iron box still hangs shut, and the stripped hinges are just good enough to matter."
+  },
+  "rules": {
+    "choices": [
+      {
+        "choice_id": "strip_the_hinge_pins",
+        "label": "Strip the hinge pins",
+        "summary": "Work the heavy pins loose and fold the iron back into your weapon.",
+        "effect_type": "repair_weapon"
+      },
+      {
+        "choice_id": "crack_the_toll_box",
+        "label": "Crack the toll box",
+        "summary": "Force the rotted lock and claim the silver no warden came back for.",
+        "effect_type": "grant_gold",
+        "amount": 12
+      }
+    ]
+  }
+}

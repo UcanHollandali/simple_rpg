@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "definition_id": "barbed_hunter",
+  "authoring_order": 10,
+  "family": "Enemies",
+  "encounter_tier": "minor",
+  "design_intent_question": "Can the player absorb a longer bleed clock without overreacting to small follow-up hits?",
+  "tags": [
+    "enemy",
+    "hunter",
+    "bleed",
+    "skirmisher"
+  ],
+  "display": {
+    "name": "Barbed Hunter",
+    "short_description": "A patient stalker that opens with bleed, then pecks at the player while the clock runs.",
+    "icon_key": "enemy_barbed_hunter"
+  },
+  "rules": {
+    "stats": {
+      "base_hp": 20,
+      "base_damage": 3
+    },
+    "intent_pool": [
+      {
+        "intent_id": "hooked_slash",
+        "action_family": "attack",
+        "threat_level": "medium",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 3,
+              "damage_kind": "physical"
+            }
+          },
+          {
+            "type": "apply_status",
+            "params": {
+              "definition_id": "bleed"
+            }
+          }
+        ]
+      },
+      {
+        "intent_id": "circling_feint",
+        "action_family": "attack",
+        "threat_level": "low",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 1,
+              "damage_kind": "physical"
+            }
+          }
+        ]
+      },
+      {
+        "intent_id": "needling_step",
+        "action_family": "attack",
+        "threat_level": "low",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 1,
+              "damage_kind": "physical"
+            }
+          }
+        ]
+      }
+    ],
+    "behaviors": []
+  }
+}

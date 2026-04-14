@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "definition_id": "sturdy_wraps",
+  "authoring_order": 20,
+  "family": "PassiveItems",
+  "tags": [
+    "passive",
+    "combat",
+    "defense"
+  ],
+  "display": {
+    "name": "Mossbound Wraps",
+    "short_description": "Layered forest wraps that reduce incoming combat damage by 1.",
+    "icon_key": "passive_sturdy_wraps"
+  },
+  "rules": {
+    "behaviors": [
+      {
+        "trigger": "passive",
+        "condition": {
+          "op": "always"
+        },
+        "target": "self",
+        "effects": [
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "incoming_damage_flat_reduction",
+              "amount": 1
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

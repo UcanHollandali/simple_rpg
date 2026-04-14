@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "definition_id": "razor_relic",
+  "authoring_order": 40,
+  "family": "PassiveItems",
+  "tags": [
+    "passive",
+    "combat",
+    "attack",
+    "glass_edge"
+  ],
+  "display": {
+    "name": "Razor Relic",
+    "short_description": "A keen-edged token that grants +2 attack power, but leaves you taking 1 more damage from every hit.",
+    "icon_key": "passive_razor_relic"
+  },
+  "rules": {
+    "behaviors": [
+      {
+        "trigger": "passive",
+        "condition": {
+          "op": "always"
+        },
+        "target": "self",
+        "effects": [
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "attack_power_bonus",
+              "amount": 2
+            }
+          },
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "incoming_damage_flat_reduction",
+              "amount": -1
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

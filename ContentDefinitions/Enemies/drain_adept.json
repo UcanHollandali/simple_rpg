@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "definition_id": "drain_adept",
+  "authoring_order": 30,
+  "family": "Enemies",
+  "encounter_tier": "minor",
+  "design_intent_question": "Can the player continue making clean combat decisions after a temporary attack debuff lands?",
+  "tags": [
+    "enemy",
+    "cultist",
+    "weakened",
+    "debuffer"
+  ],
+  "display": {
+    "name": "Drain Adept",
+    "short_description": "A hex-caster that softens the player before trading light staff hits.",
+    "icon_key": "enemy_drain_adept"
+  },
+  "rules": {
+    "stats": {
+      "base_hp": 18,
+      "base_damage": 2
+    },
+    "intent_pool": [
+      {
+        "intent_id": "sapping_hex",
+        "action_family": "attack",
+        "threat_level": "medium",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 2,
+              "damage_kind": "arcane"
+            }
+          },
+          {
+            "type": "apply_status",
+            "params": {
+              "definition_id": "weakened"
+            }
+          }
+        ]
+      },
+      {
+        "intent_id": "staff_tap",
+        "action_family": "attack",
+        "threat_level": "low",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 2,
+              "damage_kind": "physical"
+            }
+          }
+        ]
+      }
+    ],
+    "behaviors": []
+  }
+}

@@ -1,0 +1,335 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/combat.gd" id="1"]
+[ext_resource type="Texture2D" path="res://Assets/Icons/icon_attack.svg" id="2"]
+[ext_resource type="Texture2D" path="res://Assets/Icons/icon_brace.svg" id="3"]
+[ext_resource type="Texture2D" path="res://Assets/Icons/icon_use_item.svg" id="4"]
+[ext_resource type="Texture2D" path="res://Assets/Backgrounds/bg_combat_far.png" id="6"]
+[ext_resource type="Texture2D" path="res://Assets/Backgrounds/bg_combat_mid.png" id="7"]
+[ext_resource type="Texture2D" path="res://Assets/Backgrounds/bg_combat_overlay.png" id="8"]
+[ext_resource type="Texture2D" path="res://Assets/Icons/icon_enemy_intent_attack.svg" id="11"]
+[ext_resource type="Texture2D" path="res://Assets/Icons/icon_enemy_intent_heavy.svg" id="12"]
+
+[node name="Combat" type="Control"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="BackgroundFar" type="TextureRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("6")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="BackgroundMid" type="TextureRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("7")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="BackgroundOverlay" type="TextureRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("8")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="AttackResolveSfxPlayer" type="AudioStreamPlayer" parent="."]
+volume_db = -6.0
+
+[node name="BraceSfxPlayer" type="AudioStreamPlayer" parent="."]
+volume_db = -7.5
+
+[node name="ItemUseSfxPlayer" type="AudioStreamPlayer" parent="."]
+volume_db = -6.5
+
+[node name="CombatMusicPlayer" type="AudioStreamPlayer" parent="."]
+volume_db = -12.5
+
+[node name="Margin" type="MarginContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="VBox" type="VBoxContainer" parent="Margin"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 6
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="HeaderStack" type="VBoxContainer" parent="Margin/VBox"]
+alignment = 1
+theme_override_constants/separation = 2
+size_flags_horizontal = 3
+size_flags_vertical = 0
+
+[node name="ScreenTitleLabel" type="Label" parent="Margin/VBox/HeaderStack"]
+text = "COMBAT"
+horizontal_alignment = 1
+theme_override_colors/font_color = Color(0.94902, 0.937255, 0.85098, 1)
+
+[node name="TurnLabel" type="Label" parent="Margin/VBox/HeaderStack"]
+text = "Turn 1"
+horizontal_alignment = 1
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+
+[node name="BattleCardsRow" type="VBoxContainer" parent="Margin/VBox"]
+theme_override_constants/separation = 6
+size_flags_horizontal = 3
+size_flags_vertical = 1
+
+[node name="EnemyCard" type="PanelContainer" parent="Margin/VBox/BattleCardsRow"]
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 118)
+
+[node name="HBox" type="HBoxContainer" parent="Margin/VBox/BattleCardsRow/EnemyCard"]
+theme_override_constants/separation = 6
+
+[node name="EnemyBustFrame" type="PanelContainer" parent="Margin/VBox/BattleCardsRow/EnemyCard/HBox"]
+custom_minimum_size = Vector2(76, 104)
+size_flags_vertical = 4
+visible = false
+
+[node name="BustTexture" type="TextureRect" parent="Margin/VBox/BattleCardsRow/EnemyCard/HBox/EnemyBustFrame"]
+custom_minimum_size = Vector2(76, 104)
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 6
+
+[node name="InfoVBox" type="VBoxContainer" parent="Margin/VBox/BattleCardsRow/EnemyCard/HBox"]
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="EnemyNameLabel" type="Label" parent="Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox"]
+text = "Enemy"
+horizontal_alignment = 1
+
+[node name="EnemyTypeLabel" type="Label" parent="Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox"]
+text = "Type: Unknown"
+horizontal_alignment = 1
+
+[node name="EnemyHpLabel" type="Label" parent="Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox"]
+text = "Enemy HP: 0/0"
+horizontal_alignment = 1
+
+[node name="BossTokenFrame" type="PanelContainer" parent="Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox"]
+custom_minimum_size = Vector2(44, 44)
+size_flags_horizontal = 4
+visible = false
+
+[node name="BossTokenTexture" type="TextureRect" parent="Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/BossTokenFrame"]
+custom_minimum_size = Vector2(44, 44)
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 6
+
+[node name="IntentRow" type="HBoxContainer" parent="Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox"]
+alignment = 1
+theme_override_constants/separation = 4
+
+[node name="IntentIcon" type="TextureRect" parent="Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentRow"]
+visible = false
+custom_minimum_size = Vector2(18, 18)
+mouse_filter = 2
+texture = ExtResource("11")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="IntentLabel" type="Label" parent="Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentRow"]
+text = "Intent: Unknown"
+horizontal_alignment = 1
+
+[node name="PlayerCard" type="PanelContainer" parent="Margin/VBox/BattleCardsRow"]
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 124)
+
+[node name="HBox" type="HBoxContainer" parent="Margin/VBox/BattleCardsRow/PlayerCard"]
+theme_override_constants/separation = 6
+
+[node name="PlayerBustFrame" type="PanelContainer" parent="Margin/VBox/BattleCardsRow/PlayerCard/HBox"]
+custom_minimum_size = Vector2(78, 108)
+size_flags_vertical = 4
+
+[node name="BustTexture" type="TextureRect" parent="Margin/VBox/BattleCardsRow/PlayerCard/HBox/PlayerBustFrame"]
+custom_minimum_size = Vector2(78, 108)
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 6
+
+[node name="Buttons" type="VBoxContainer" parent="Margin/VBox"]
+theme_override_constants/separation = 4
+size_flags_horizontal = 3
+size_flags_vertical = 0
+
+[node name="AttackButton" type="Button" parent="Margin/VBox/Buttons"]
+text = "Attack"
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 46)
+icon = ExtResource("2")
+
+[node name="BraceButton" type="Button" parent="Margin/VBox/Buttons"]
+text = "Brace"
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 46)
+icon = ExtResource("3")
+
+[node name="UseItemButton" type="Button" parent="Margin/VBox/Buttons"]
+text = "Use Item"
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 46)
+icon = ExtResource("4")
+
+[node name="ActionHintPanel" type="PanelContainer" parent="Margin/VBox/Buttons"]
+visible = false
+size_flags_horizontal = 3
+size_flags_vertical = 0
+
+[node name="ActionHintVBox" type="VBoxContainer" parent="Margin/VBox/Buttons/ActionHintPanel"]
+theme_override_constants/separation = 3
+
+[node name="ActionContextLabel" type="Label" parent="Margin/VBox/Buttons/ActionHintVBox"]
+text = ""
+autowrap_mode = 3
+clip_text = false
+
+[node name="InfoVBox" type="VBoxContainer" parent="Margin/VBox/BattleCardsRow/PlayerCard/HBox"]
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="PlayerHpRow" type="HBoxContainer" parent="Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox"]
+alignment = 1
+theme_override_constants/separation = 6
+
+[node name="PlayerHpIcon" type="TextureRect" parent="Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/PlayerHpRow"]
+custom_minimum_size = Vector2(18, 18)
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="PlayerHpValueLabel" type="Label" parent="Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/PlayerHpRow"]
+text = "HP: 0/60"
+
+[node name="PlayerHpBar" type="ProgressBar" parent="Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox"]
+max_value = 60.0
+value = 0.0
+
+[node name="HungerRow" type="HBoxContainer" parent="Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox"]
+alignment = 1
+theme_override_constants/separation = 6
+
+[node name="HungerIcon" type="TextureRect" parent="Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/HungerRow"]
+custom_minimum_size = Vector2(18, 18)
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="HungerValueLabel" type="Label" parent="Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/HungerRow"]
+text = "Hunger: 0/20"
+
+[node name="HungerBar" type="ProgressBar" parent="Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox"]
+max_value = 20.0
+value = 0.0
+
+[node name="ActiveWeaponLabel" type="Label" parent="Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox"]
+text = "Active Weapon: None"
+
+[node name="DurabilityRow" type="HBoxContainer" parent="Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox"]
+alignment = 1
+theme_override_constants/separation = 6
+
+[node name="DurabilityIcon" type="TextureRect" parent="Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/DurabilityRow"]
+custom_minimum_size = Vector2(18, 18)
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="DurabilityValueLabel" type="Label" parent="Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/DurabilityRow"]
+text = "Durability: 0/0"
+
+[node name="DurabilityBar" type="ProgressBar" parent="Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox"]
+max_value = 1.0
+value = 0.0
+
+[node name="SecondaryScroll" type="ScrollContainer" parent="Margin/VBox"]
+size_flags_horizontal = 3
+size_flags_vertical = 3
+custom_minimum_size = Vector2(0, 210)
+
+[node name="SecondaryScrollContent" type="VBoxContainer" parent="Margin/VBox/SecondaryScroll"]
+size_flags_horizontal = 3
+size_flags_vertical = 1
+mouse_filter = 2
+theme_override_constants/separation = 4
+
+[node name="StatusSection" type="VBoxContainer" parent="Margin/VBox/SecondaryScroll/SecondaryScrollContent"]
+theme_override_constants/separation = 2
+size_flags_vertical = 0
+
+[node name="PlayerStatusTitleLabel" type="Label" parent="Margin/VBox/SecondaryScroll/SecondaryScrollContent/StatusSection"]
+text = "Player Statuses"
+
+[node name="PlayerStatusRow" type="HFlowContainer" parent="Margin/VBox/SecondaryScroll/SecondaryScrollContent/StatusSection"]
+theme_override_constants/separation = 0
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 4
+theme_override_constants/v_separation = 4
+
+[node name="EnemyStatusTitleLabel" type="Label" parent="Margin/VBox/SecondaryScroll/SecondaryScrollContent/StatusSection"]
+text = "Enemy Statuses"
+
+[node name="EnemyStatusRow" type="HFlowContainer" parent="Margin/VBox/SecondaryScroll/SecondaryScrollContent/StatusSection"]
+theme_override_constants/separation = 0
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 6
+
+[node name="QuickItemSection" type="VBoxContainer" parent="Margin/VBox/SecondaryScroll/SecondaryScrollContent"]
+theme_override_constants/separation = 4
+size_flags_vertical = 0
+
+[node name="InventoryTitleLabel" type="Label" parent="Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection"]
+text = "Inventory"
+
+[node name="InventoryCard" type="PanelContainer" parent="Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection"]
+size_flags_horizontal = 3
+size_flags_vertical = 1
+
+[node name="InventoryCardsFlow" type="HFlowContainer" parent="Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryCard"]
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 6
+
+[node name="CombatLogCard" type="PanelContainer" parent="Margin/VBox/SecondaryScroll/SecondaryScrollContent"]
+custom_minimum_size = Vector2(0, 46)
+size_flags_vertical = 0
+
+[node name="CombatLogLabel" type="Label" parent="Margin/VBox/SecondaryScroll/SecondaryScrollContent/CombatLogCard"]
+text = "Combat log"
+autowrap_mode = 3
+vertical_alignment = 1

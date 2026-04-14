@@ -6,13 +6,13 @@ const ContentLoaderScript = preload("res://Game/Infrastructure/content_loader.gd
 const MapRuntimeStateScript = preload("res://Game/RuntimeState/map_runtime_state.gd")
 const UiAssetPathsScript = preload("res://Game/UI/ui_asset_paths.gd")
 const DEFAULT_ROUTE_BUTTON_COUNT: int = 6
-const DEFAULT_FOG_PREVIEW_COUNT: int = 3
 
 const FAMILY_DISPLAY_NAMES: Dictionary = {
 	"start": "Start",
 	"combat": "Combat",
-	"event": "Event",
+	"event": "Roadside Encounter",
 	"reward": "Reward",
+	"side_mission": "Village Request",
 	"rest": "Rest",
 	"merchant": "Merchant",
 	"blacksmith": "Blacksmith",
@@ -25,11 +25,12 @@ const FAMILY_SORT_ORDER: Dictionary = {
 	"combat": 1,
 	"event": 2,
 	"reward": 3,
-	"rest": 4,
-	"merchant": 5,
-	"blacksmith": 6,
-	"key": 7,
-	"boss": 8,
+	"side_mission": 4,
+	"rest": 5,
+	"merchant": 6,
+	"blacksmith": 7,
+	"key": 8,
+	"boss": 9,
 }
 
 var _loader: ContentLoader = ContentLoaderScript.new()
@@ -45,10 +46,9 @@ func build_progress_text(run_state: RunState) -> String:
 	if run_state == null:
 		return ""
 	var map_runtime_state: RefCounted = run_state.map_runtime_state
-	return "Node %d | Seen %d/%d | Cleared %d" % [
-		map_runtime_state.current_node_id,
+	return "Open %d | Seen %d | Cleared %d" % [
+		map_runtime_state.get_discovered_adjacent_node_ids().size(),
 		map_runtime_state.get_discovered_node_count(),
-		map_runtime_state.get_node_count(),
 		map_runtime_state.get_resolved_node_count(),
 	]
 
@@ -57,38 +57,62 @@ func build_run_status_text(run_state: RunState) -> String:
 	if run_state == null:
 		return ""
 
-	var weapon_name: String = _build_weapon_display_name(run_state.weapon_instance)
+	var inventory_state: RefCounted = run_state.inventory_state
+	var weapon_name: String = _build_weapon_display_name(inventory_state.weapon_instance)
 	return "HP %d | Hunger %d | Gold %d | %s (%d)" % [
 		run_state.player_hp,
 		run_state.hunger,
 		run_state.gold,
 		weapon_name,
-		int(run_state.weapon_instance.get("current_durability", 0)),
+		int(inventory_state.weapon_instance.get("current_durability", 0)),
 	]
 
 
-func build_node_family_text() -> String:
-	return "Families: start, combat, event, reward, rest, merchant, blacksmith, key, boss"
+func build_gold_status_text(run_state: RunState) -> String:
+	if run_state == null:
+		return "0"
+	return "%d" % run_state.gold
 
 
-func build_map_shell_note_text() -> String:
-	return "Bounded cluster shell. Move only to adjacent revealed nodes while key, gate, and revisit truth stay runtime-owned."
+func build_hp_status_text(run_state: RunState) -> String:
+	if run_state == null:
+		return "HP 0"
+	return "HP %d" % run_state.player_hp
 
 
-func build_state_legend_text() -> String:
-	return "State read: OPEN ready | SPENT traversable | LOCKED gate"
+func build_hunger_status_text(run_state: RunState) -> String:
+	if run_state == null:
+		return "Hunger 0"
+	return "Hunger %d" % run_state.hunger
 
 
-func build_key_legend_text() -> String:
-	return "Key marker updates from runtime truth."
+func build_durability_status_text(run_state: RunState) -> String:
+	if run_state == null:
+		return "Durability 0"
+	return "Durability %d" % int(run_state.inventory_state.weapon_instance.get("current_durability", 0))
 
 
-func build_boss_gate_legend_text() -> String:
-	return "Boss gate stays locked until the key is claimed."
+func build_hp_icon_texture_path() -> String:
+	return UiAssetPathsScript.HP_ICON_TEXTURE_PATH
 
 
-func build_current_anchor_chip_text() -> String:
-	return "YOU ARE HERE"
+func build_hunger_icon_texture_path() -> String:
+	return UiAssetPathsScript.HUNGER_ICON_TEXTURE_PATH
+
+
+func build_durability_icon_texture_path() -> String:
+	return UiAssetPathsScript.DURABILITY_ICON_TEXTURE_PATH
+
+
+func build_gold_icon_texture_path() -> String:
+	return UiAssetPathsScript.GOLD_ICON_TEXTURE_PATH
+
+
+func get_level_up_threshold(run_state: RunState) -> int:
+	if run_state == null:
+		return 20
+	# Current prototype baseline: 20 XP to level up
+	return 20
 
 
 func build_node_family_display_name(node_family: String) -> String:
@@ -97,23 +121,25 @@ func build_node_family_display_name(node_family: String) -> String:
 
 func build_current_anchor_text(run_state: RunState) -> String:
 	if run_state == null:
-		return "Center-start graph"
+		return "At the trailhead"
 	var map_runtime_state: RefCounted = run_state.map_runtime_state
-	return "%s\nNode %d" % [
-		_display_name_for_family(map_runtime_state.get_current_node_family()),
-		map_runtime_state.current_node_id,
-	]
+	return "At %s" % _display_name_for_family(map_runtime_state.get_current_node_family())
 
 
 func build_current_anchor_detail_text(run_state: RunState) -> String:
 	if run_state == null:
 		return ""
 	var map_runtime_state: RefCounted = run_state.map_runtime_state
-	return "Cleared: %s | Key: %s | Reachable: %d" % [
-		"yes" if map_runtime_state.is_node_resolved(map_runtime_state.current_node_id) else "no",
-		"yes" if map_runtime_state.is_stage_key_resolved() else "no",
-		map_runtime_state.get_discovered_adjacent_node_ids().size(),
-	]
+	var detail_parts := PackedStringArray([
+		"Node %d" % int(map_runtime_state.current_node_id),
+		"Key %s" % ("taken" if map_runtime_state.is_stage_key_resolved() else "ahead"),
+		"Boss %s" % ("open" if map_runtime_state.is_stage_key_resolved() else "locked"),
+	])
+	var side_mission_read: String = _build_side_mission_highlight_read_text(map_runtime_state)
+	if not side_mission_read.is_empty():
+		detail_parts.append(side_mission_read)
+	detail_parts.append("%d open" % map_runtime_state.get_discovered_adjacent_node_ids().size())
+	return " | ".join(detail_parts)
 
 
 func build_cluster_read_text(run_state: RunState) -> String:
@@ -142,28 +168,26 @@ func build_cluster_read_text(run_state: RunState) -> String:
 			MapRuntimeStateScript.NODE_STATE_LOCKED:
 				locked_labels.append(_display_name_for_family(String(node_snapshot.get("node_family", ""))))
 
-	return "Reachable: %s\nSeen ahead: %s\nLocked: %s" % [
-		", ".join(reachable_labels) if not reachable_labels.is_empty() else "none yet",
-		", ".join(seen_beyond_reach) if not seen_beyond_reach.is_empty() else "none yet",
-		", ".join(locked_labels) if not locked_labels.is_empty() else "none visible",
-	]
+	var lines: PackedStringArray = []
+	lines.append("Next: %s" % (", ".join(reachable_labels) if not reachable_labels.is_empty() else "none"))
+	if not seen_beyond_reach.is_empty():
+		lines.append("Ahead: %s" % ", ".join(seen_beyond_reach))
+	if not locked_labels.is_empty():
+		lines.append("Locked: %s" % ", ".join(locked_labels))
+	return " | ".join(lines)
 
 
-func build_fog_preview_texts(run_state: RunState, preview_count: int = DEFAULT_FOG_PREVIEW_COUNT) -> PackedStringArray:
-	var preview_texts: PackedStringArray = []
-	for index in range(preview_count):
-		preview_texts.append("")
-	return preview_texts
+func build_status_log_text(status_lines: PackedStringArray, run_state: RunState = null) -> String:
+	var helper_line: String = ""
+	if run_state != null:
+		helper_line = build_cluster_read_text(run_state)
+	if status_lines.is_empty():
+		return helper_line
 
-
-func build_key_marker_text(run_state: RunState) -> String:
-	if run_state != null and run_state.map_runtime_state.is_stage_key_resolved():
-		return "KEY\nTAKEN"
-	return "KEY\nAHEAD"
-
-
-func build_status_log_text(status_lines: PackedStringArray) -> String:
-	return "\n".join(status_lines)
+	var last_status: String = String(status_lines[status_lines.size() - 1])
+	if helper_line.is_empty():
+		return "Last: %s" % last_status
+	return "%s | Last: %s" % [helper_line, last_status]
 
 
 func build_route_icon_texture_path(node_family: String) -> String:
@@ -178,6 +202,8 @@ func build_route_icon_texture_path(node_family: String) -> String:
 			return UiAssetPathsScript.EVENT_ICON_TEXTURE_PATH
 		"reward":
 			return UiAssetPathsScript.REWARD_ICON_TEXTURE_PATH
+		"side_mission":
+			return UiAssetPathsScript.SIDE_MISSION_ICON_TEXTURE_PATH
 		"rest":
 			return UiAssetPathsScript.REST_ICON_TEXTURE_PATH
 		"merchant":
@@ -197,7 +223,7 @@ func build_route_view_models(run_state: RunState, button_count: int = DEFAULT_RO
 	var models: Array[Dictionary] = []
 	var visible_nodes: Array[Dictionary] = []
 	if run_state != null:
-		visible_nodes = _build_visible_route_snapshots(run_state, button_count)
+		visible_nodes = _build_visible_route_snapshots(run_state)
 
 	for index in range(button_count):
 		if index < visible_nodes.size():
@@ -233,38 +259,13 @@ func build_route_view_models(run_state: RunState, button_count: int = DEFAULT_RO
 	return models
 
 
-func _build_visible_route_snapshots(run_state: RunState, button_count: int) -> Array[Dictionary]:
+func _build_visible_route_snapshots(run_state: RunState) -> Array[Dictionary]:
 	var visible_nodes: Array[Dictionary] = []
 	var adjacent_nodes: Array[Dictionary] = run_state.map_runtime_state.build_adjacent_node_snapshots()
 	adjacent_nodes.sort_custom(Callable(self, "_sort_adjacent_node_snapshots"))
 	for node_snapshot in adjacent_nodes:
 		visible_nodes.append(_with_route_visibility_meta(node_snapshot, true))
-
-	if visible_nodes.size() >= button_count:
-		return visible_nodes
-
-	var discovered_nodes: Array[Dictionary] = _build_discovered_context_snapshots(run_state)
-	discovered_nodes.sort_custom(Callable(self, "_sort_adjacent_node_snapshots"))
-	for node_snapshot in discovered_nodes:
-		if visible_nodes.size() >= button_count:
-			break
-		visible_nodes.append(_with_route_visibility_meta(node_snapshot, false))
 	return visible_nodes
-
-
-func _build_discovered_context_snapshots(run_state: RunState) -> Array[Dictionary]:
-	var context_nodes: Array[Dictionary] = []
-	var map_runtime_state: RefCounted = run_state.map_runtime_state
-	var adjacent_node_ids: PackedInt32Array = map_runtime_state.get_adjacent_node_ids()
-	for node_snapshot in map_runtime_state.build_node_snapshots():
-		var node_id: int = int(node_snapshot.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
-		if node_id == map_runtime_state.current_node_id or adjacent_node_ids.has(node_id):
-			continue
-		var node_state: String = String(node_snapshot.get("node_state", MapRuntimeStateScript.NODE_STATE_UNDISCOVERED))
-		if node_state == MapRuntimeStateScript.NODE_STATE_UNDISCOVERED:
-			continue
-		context_nodes.append(node_snapshot)
-	return context_nodes
 
 
 func _with_route_visibility_meta(node_snapshot: Dictionary, is_adjacent: bool) -> Dictionary:
@@ -323,7 +324,11 @@ func _build_route_state_semantic(node_snapshot: Dictionary) -> String:
 
 
 func _sort_adjacent_node_snapshots(left: Dictionary, right: Dictionary) -> bool:
-	return _node_sort_weight(left) < _node_sort_weight(right)
+	var left_weight: int = _node_sort_weight(left)
+	var right_weight: int = _node_sort_weight(right)
+	if left_weight == right_weight:
+		return int(left.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID)) < int(right.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
+	return left_weight < right_weight
 
 
 func _node_sort_weight(node_snapshot: Dictionary) -> int:
@@ -353,7 +358,11 @@ func _build_weapon_display_name(weapon_instance: Dictionary) -> String:
 
 	var weapon_definition: Dictionary = _loader.load_definition("Weapons", definition_id)
 	var display: Dictionary = weapon_definition.get("display", {})
-	return String(display.get("name", definition_id))
+	var display_name: String = String(display.get("name", definition_id))
+	var upgrade_level: int = max(0, int(weapon_instance.get("upgrade_level", 0)))
+	if upgrade_level <= 0:
+		return display_name
+	return "%s +%d" % [display_name, upgrade_level]
 
 
 func _format_cluster_node_label(node_snapshot: Dictionary) -> String:
@@ -365,3 +374,16 @@ func _format_cluster_node_label(node_snapshot: Dictionary) -> String:
 	if node_state == MapRuntimeStateScript.NODE_STATE_LOCKED:
 		return "%s locked" % family_name
 	return family_name
+
+
+func _build_side_mission_highlight_read_text(map_runtime_state: RefCounted) -> String:
+	if map_runtime_state == null or not map_runtime_state.has_method("build_side_mission_highlight_snapshot"):
+		return ""
+	var highlight_snapshot: Dictionary = map_runtime_state.build_side_mission_highlight_snapshot()
+	match String(highlight_snapshot.get("highlight_state", "")):
+		"target":
+			return "Marked target"
+		"return":
+			return "Return marked"
+		_:
+			return ""

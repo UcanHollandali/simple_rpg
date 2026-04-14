@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "definition_id": "bleed",
+  "family": "Statuses",
+  "tags": [
+    "status",
+    "damage_over_time",
+    "debuff",
+    "bleed"
+  ],
+  "display": {
+    "name": "Bleed",
+    "short_description": "Deals lighter damage over a longer combat window.",
+    "icon_key": "status_bleed"
+  },
+  "rules": {
+    "stats": {
+      "damage_per_turn": 1,
+      "duration_turns": 3,
+      "max_stacks": 1
+    }
+  }
+}
