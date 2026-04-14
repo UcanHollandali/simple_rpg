@@ -331,9 +331,9 @@ func _refresh_ui() -> void:
 		var level_up_threshold: int = _presenter.get_level_up_threshold(run_state)
 		if xp_progress_bar != null:
 			xp_progress_bar.max_value = float(level_up_threshold)
-			xp_progress_bar.value = float(run_state.experience)
+			xp_progress_bar.value = float(run_state.xp)
 		if xp_label != null:
-			xp_label.text = "XP %d/%d" % [run_state.experience, level_up_threshold]
+			xp_label.text = "XP %d/%d" % [run_state.xp, level_up_threshold]
 
 	var current_anchor_label: Label = get_node_or_null("Margin/VBox/BottomRow/CurrentAnchorCard/VBox/CurrentAnchorLabel") as Label
 	if current_anchor_label != null:

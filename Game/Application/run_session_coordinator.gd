@@ -325,8 +325,10 @@ func choose_move_to_node(node_reference: Variant) -> Dictionary:
 				event_state = null
 			target_state = FlowStateScript.Type.MAP_EXPLORE
 	elif map_runtime_state.node_requires_resolution(target_node_id):
-		map_runtime_state.mark_node_resolved(target_node_id)
-		if DIRECT_SUPPORT_NODE_FAMILIES.has(target_node_type):
+		if target_node_type == "key":
+			map_runtime_state.mark_node_resolved(target_node_id)
+			map_runtime_state.resolve_stage_key()
+		elif DIRECT_SUPPORT_NODE_FAMILIES.has(target_node_type):
 			_open_support_interaction_state(target_node_type, target_node_id)
 			target_state = FlowStateScript.Type.SUPPORT_INTERACTION
 			_request_transition(target_state)

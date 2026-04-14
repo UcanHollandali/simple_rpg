@@ -150,8 +150,7 @@ static func apply_temp_theme(root: Control) -> void:
 		"Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HpRow/HpStatusLabel",
 		"Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HungerRow/HungerStatusLabel",
 		"Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/DurabilityRow/DurabilityStatusLabel",
-		"Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/GoldRow/GoldStatusLabel",
-		"Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/GoldRow/GoldStatusValueLabel",
+		"Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HpRow/GoldStatusValueLabel",
 	]:
 		TempScreenThemeScript.apply_label(root.get_node_or_null(label_path) as Label)
 	TempScreenThemeScript.apply_label(root.get_node_or_null("Margin/VBox/InventorySection/InventoryTitleLabel") as Label, "reward")
@@ -188,8 +187,6 @@ static func apply_temp_theme(root: Control) -> void:
 	var status_row_nodes: Array[Container] = [
 		root.get_node_or_null("Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HpRow") as Container,
 		root.get_node_or_null("Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HungerRow") as Container,
-		root.get_node_or_null("Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/DurabilityRow") as Container,
-		root.get_node_or_null("Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/GoldRow") as Container,
 	]
 	for status_row in status_row_nodes:
 		if status_row != null:
@@ -199,13 +196,15 @@ static func apply_temp_theme(root: Control) -> void:
 		"Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HpRow/HpStatusLabel",
 		"Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HungerRow/HungerStatusLabel",
 		"Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/DurabilityRow/DurabilityStatusLabel",
-		"Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/GoldRow/GoldStatusLabel",
-		"Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/GoldRow/GoldStatusValueLabel",
+		"Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HpRow/GoldStatusValueLabel",
+		"Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/XpRow/XpLabel",
 	]:
 		var status_label: Label = root.get_node_or_null(status_label_path) as Label
 		if status_label != null:
 			status_label.add_theme_font_size_override("font_size", 16)
 			if status_label.name == "GoldStatusValueLabel":
+				status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+			elif status_label.name == "XpLabel":
 				status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 			else:
 				status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -214,7 +213,7 @@ static func apply_temp_theme(root: Control) -> void:
 		"Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HpRow/HpStatusIcon",
 		"Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HungerRow/HungerStatusIcon",
 		"Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/DurabilityRow/DurabilityStatusIcon",
-		"Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/GoldRow/GoldStatusIcon",
+		"Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HpRow/GoldStatusIcon",
 	]:
 		var icon_rect: TextureRect = root.get_node_or_null(icon_path) as TextureRect
 		if icon_rect != null:

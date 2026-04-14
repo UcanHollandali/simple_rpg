@@ -125,6 +125,7 @@ func _handle_overlay_state_transition(current_scene: Node, new_state: int, _old_
 
 	# If already on MapExplore, open overlay directly
 	if String(current_scene.scene_file_path) == MAP_EXPLORE_SCENE_PATH:
+		_close_all_map_overlays(current_scene, true)
 		if current_scene.has_method(open_method):
 			current_scene.call_deferred(open_method)
 			return true
@@ -163,7 +164,7 @@ func _open_overlay_on_map_explore(target_state: int) -> void:
 	active_scene.call_deferred(open_method)
 
 
-func _close_all_map_overlays(current_scene: Node) -> void:
+func _close_all_map_overlays(current_scene: Node, immediate: bool = false) -> void:
 	if current_scene == null:
 		return
 	if String(current_scene.scene_file_path) != MAP_EXPLORE_SCENE_PATH:
@@ -171,7 +172,7 @@ func _close_all_map_overlays(current_scene: Node) -> void:
 	for close_method in OVERLAY_CLOSE_METHODS.values():
 		var method_name: String = String(close_method)
 		if current_scene.has_method(method_name):
-			current_scene.call_deferred(method_name, true)
+			current_scene.call_deferred(method_name, immediate)
 
 
 func _cleanup_stale_combat_status_hud(reference_scene: Node = null) -> void:
@@ -208,7 +209,10 @@ func _is_stale_run_summary_card(node: Node) -> bool:
 	return (
 		node.get_node_or_null("StatsStack/StatusRows/HpRow/HpStatusLabel") != null
 		and node.get_node_or_null("StatsStack/StatusRows/HungerRow/HungerStatusLabel") != null
-		and node.get_node_or_null("StatsStack/StatusRows/DurabilityRow/DurabilityStatusLabel") != null
+		and (
+			node.get_node_or_null("StatsStack/StatusRows/HungerRow/DurabilityStatusLabel") != null
+			or node.get_node_or_null("StatsStack/StatusRows/DurabilityRow/DurabilityStatusLabel") != null
+		)
 	)
 
 

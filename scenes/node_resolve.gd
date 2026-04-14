@@ -9,6 +9,7 @@ const PANEL_OPEN_SFX_PATH := "res://Assets/Audio/SFX/sfx_panel_open_01.ogg"
 const TRANSITION_HOLD_SECONDS := 0.14
 const PORTRAIT_SAFE_MAX_WIDTH := 780
 const PORTRAIT_SAFE_MIN_SIDE_MARGIN := 28
+const SILENT_RESOLVE_NODE_TYPES: PackedStringArray = ["key", "reward"]
 const AUDIO_PLAYER_NODE_NAMES: Array[String] = ["PanelOpenSfxPlayer"]
 
 var _bootstrap
@@ -19,11 +20,16 @@ func _ready() -> void:
 	_bootstrap = get_node_or_null("/root/AppBootstrap")
 	_presenter = TransitionShellPresenterScript.new()
 	_configure_audio_players()
-	_refresh_ui()
-	_connect_viewport_layout_updates()
-	_apply_portrait_safe_layout()
-	SceneAudioPlayersScript.play(self, "PanelOpenSfxPlayer")
-	Callable(self, "_resolve_node").call_deferred()
+	var pending_node_type: String = _get_pending_node_type()
+	if _should_skip_resolve_overlay(pending_node_type):
+		visible = false
+		Callable(self, "_resolve_node").call_deferred()
+	else:
+		_refresh_ui()
+		_connect_viewport_layout_updates()
+		_apply_portrait_safe_layout()
+		SceneAudioPlayersScript.play(self, "PanelOpenSfxPlayer")
+		Callable(self, "_resolve_node").call_deferred()
 
 
 func _exit_tree() -> void:
@@ -35,8 +41,16 @@ func _resolve_node() -> void:
 	if _bootstrap == null:
 		return
 
+	if _should_skip_resolve_overlay(_get_pending_node_type()):
+		_bootstrap.resolve_pending_node()
+		return
+
 	await get_tree().create_timer(TRANSITION_HOLD_SECONDS).timeout
 	_bootstrap.resolve_pending_node()
+
+
+func _should_skip_resolve_overlay(pending_node_type: String) -> bool:
+	return pending_node_type in SILENT_RESOLVE_NODE_TYPES
 
 
 func _refresh_ui() -> void:

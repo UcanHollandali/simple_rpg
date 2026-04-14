@@ -71,8 +71,8 @@ func build_run_status_text(run_state: RunState) -> String:
 
 func build_gold_status_text(run_state: RunState) -> String:
 	if run_state == null:
-		return "0"
-	return "%d" % run_state.gold
+		return "Gold 0"
+	return "Gold %d" % run_state.gold
 
 
 func build_hp_status_text(run_state: RunState) -> String:
@@ -113,7 +113,7 @@ func get_level_up_threshold(run_state: RunState) -> int:
 	if run_state == null:
 		# Fallback: level 2 threshold (10 XP)
 		return LevelUpStateScript.threshold_for_level(2)
-	var next_level: int = run_state.level + 1
+	var next_level: int = int(run_state.current_level) + 1
 	var threshold: int = LevelUpStateScript.threshold_for_level(next_level)
 	if threshold < 0:
 		# If next level doesn't exist, return current level's highest XP

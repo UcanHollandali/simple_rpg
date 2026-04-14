@@ -40,7 +40,7 @@ static func play(owner: Node, node_path: String) -> void:
 		player.play()
 
 
-static func start_looping(owner: Node, node_path: String) -> void:
+static func start_looping(owner: Node, node_path: String, retry_count: int = 0) -> void:
 	var player: AudioStreamPlayer = owner.get_node_or_null(node_path) as AudioStreamPlayer
 	if player == null or player.stream == null:
 		return
@@ -50,6 +50,11 @@ static func start_looping(owner: Node, node_path: String) -> void:
 		return
 	var shared_player: AudioStreamPlayer = get_shared_music_player(tree.root)
 	if shared_player == null:
+		return
+	if not shared_player.is_inside_tree():
+		if retry_count >= 8:
+			return
+		_defer_start_looping_retry(owner, node_path, retry_count + 1)
 		return
 
 	AudioPreferencesScript.prepare_music_player(shared_player)
@@ -67,6 +72,17 @@ static func start_looping(owner: Node, node_path: String) -> void:
 		shared_player.stream = player.stream
 	if not shared_player.playing:
 		shared_player.play(_resume_position_for_track(track_key))
+
+
+static func _defer_start_looping_retry(owner: Node, node_path: String, retry_count: int) -> void:
+	var owner_tree: SceneTree = owner.get_tree()
+	if owner_tree == null:
+		return
+	var retry_timer: SceneTreeTimer = owner_tree.create_timer(0.016)
+	retry_timer.timeout.connect(func() -> void:
+		if is_instance_valid(owner) and owner.is_inside_tree():
+			start_looping(owner, node_path, retry_count)
+	)
 
 
 static func wait_for_lead_in(owner: Node, node_path: String, lead_in_seconds: float) -> void:
@@ -97,7 +113,7 @@ static func get_shared_music_player(root: Node) -> AudioStreamPlayer:
 
 	var shared_player := AudioStreamPlayer.new()
 	shared_player.name = SHARED_MUSIC_PLAYER_NAME
-	root.add_child(shared_player)
+	root.call_deferred("add_child", shared_player)
 	AudioPreferencesScript.prepare_music_player(shared_player)
 	return shared_player
 
