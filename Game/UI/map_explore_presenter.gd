@@ -4,6 +4,7 @@ class_name MapExplorePresenter
 
 const ContentLoaderScript = preload("res://Game/Infrastructure/content_loader.gd")
 const MapRuntimeStateScript = preload("res://Game/RuntimeState/map_runtime_state.gd")
+const LevelUpStateScript = preload("res://Game/RuntimeState/level_up_state.gd")
 const UiAssetPathsScript = preload("res://Game/UI/ui_asset_paths.gd")
 const DEFAULT_ROUTE_BUTTON_COUNT: int = 6
 
@@ -110,9 +111,14 @@ func build_gold_icon_texture_path() -> String:
 
 func get_level_up_threshold(run_state: RunState) -> int:
 	if run_state == null:
-		return 20
-	# Current prototype baseline: 20 XP to level up
-	return 20
+		# Fallback: level 2 threshold (10 XP)
+		return LevelUpStateScript.threshold_for_level(2)
+	var next_level: int = run_state.level + 1
+	var threshold: int = LevelUpStateScript.threshold_for_level(next_level)
+	if threshold < 0:
+		# If next level doesn't exist, return current level's highest XP
+		return 70  # Fallback to max threshold
+	return threshold
 
 
 func build_node_family_display_name(node_family: String) -> String:
