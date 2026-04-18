@@ -22,10 +22,10 @@ func _init() -> void:
 	test_level_up_presenter_builds_text_first_view_models()
 	test_main_menu_presenter_builds_playtest_shell_text()
 	test_support_interaction_presenter_builds_non_combat_view_models()
-	test_support_interaction_presenter_builds_side_mission_contract_models()
+	test_support_interaction_presenter_builds_hamlet_contract_models()
 	test_support_interaction_state_roundtrips_blacksmith_target_selection_state()
 	test_stage_transition_presenter_builds_interstitial_text()
-	test_transition_shell_presenter_builds_setup_and_node_resolve_text()
+	test_transition_shell_presenter_builds_node_resolve_text()
 	print("test_non_combat_presenters: all assertions passed")
 	quit()
 
@@ -54,6 +54,8 @@ func test_event_presenter_builds_two_choice_event_models() -> void:
 	var presenter: RefCounted = EventPresenterScript.new()
 	var event_state: EventState = EventStateScript.new()
 	event_state.setup_for_node(10, 1)
+	var roadside_event_state: EventState = EventStateScript.new()
+	roadside_event_state.setup_for_node(10, 1, EventStateScript.SOURCE_CONTEXT_ROADSIDE_ENCOUNTER)
 
 	var run_state: RunState = RunState.new()
 	run_state.reset_for_new_run()
@@ -63,8 +65,12 @@ func test_event_presenter_builds_two_choice_event_models() -> void:
 	run_state.inventory_state.weapon_instance["current_durability"] = 7
 
 	assert(
-		presenter.call("build_chip_text") == "ROADSIDE ENCOUNTER",
-		"Expected event presenter to expose the player-facing roadside encounter chip."
+		presenter.call("build_chip_text", event_state) == "TRAIL EVENT",
+		"Expected planned event nodes to expose the dedicated trail-event chip."
+	)
+	assert(
+		presenter.call("build_chip_text", roadside_event_state) == "ROADSIDE ENCOUNTER",
+		"Expected movement-triggered interruptions to keep the roadside encounter chip."
 	)
 	assert(
 		presenter.call("build_title_text", event_state) == "The Shrine in the Moss",
@@ -75,12 +81,48 @@ func test_event_presenter_builds_two_choice_event_models() -> void:
 		"Expected event presenter to use runtime-backed event summary text."
 	)
 	assert(
-		String(presenter.call("build_hint_text")).contains("Detail text shows the exact outcome"),
+		String(presenter.call("build_context_text", event_state)).contains("planned stop on the map"),
+		"Expected planned event nodes to explain that they are authored map stops."
+	)
+	assert(
+		String(presenter.call("build_context_text", roadside_event_state)).contains("movement interruption"),
+		"Expected roadside encounters to explain that they interrupt travel before the destination continues."
+	)
+	assert(
+		String(presenter.call("build_hint_text")).contains("detail line"),
 		"Expected event presenter to explain the new badge-plus-detail read."
 	)
 	assert(
-		presenter.call("build_run_status_text", run_state) == "HP 36 | Hunger 14 | Gold 9 | Durability 7",
-		"Expected event presenter to summarize attrition-sensitive run state."
+		String(presenter.call("build_choice_failure_text", event_state, "missing_choice")) == "Event failed: missing_choice",
+		"Expected planned event failures to avoid reusing the roadside-only label."
+	)
+	assert(
+		String(presenter.call("build_choice_failure_text", roadside_event_state, "missing_choice")) == "Roadside encounter failed: missing_choice",
+		"Expected movement-triggered interruptions to keep the roadside-specific failure prefix."
+	)
+	assert(
+		String(presenter.call("build_choice_icon_texture_path", event_state)) == "res://Assets/Icons/icon_map_trail_event.svg",
+		"Expected planned event nodes to expose the dedicated trail-event icon path."
+	)
+	assert(
+		String(presenter.call("build_choice_icon_texture_path", roadside_event_state)) == "res://Assets/Icons/icon_node_marker.svg",
+		"Expected roadside interruptions to keep the generic route marker icon path."
+	)
+	var event_status_model: Dictionary = presenter.call("build_run_status_model", run_state)
+	var event_primary_items: Array = event_status_model.get("primary_items", [])
+	var event_secondary_items: Array = event_status_model.get("secondary_items", [])
+	assert(
+		String(event_status_model.get("variant", "")) == "compact",
+		"Expected event presenter to expose the compact shared run-status variant."
+	)
+	assert(event_primary_items.size() == 4, "Expected event presenter to expose the four core run-status chips.")
+	assert(
+		event_secondary_items.size() == 1 and String((event_secondary_items[0] as Dictionary).get("value_text", "")).contains("Iron Sword"),
+		"Expected event presenter to expose the active weapon summary in the shared run-status strip."
+	)
+	assert(
+		String(event_status_model.get("fallback_text", "")) == "HP 36 | Hunger 14 | Gold 9 | Durability 7",
+		"Expected event presenter to keep the compact fallback string inside the shared run-status model."
 	)
 
 	var models: Array = presenter.call("build_choice_view_models", event_state, 2)
@@ -100,20 +142,34 @@ func test_level_up_presenter_builds_text_first_view_models() -> void:
 	var level_up_state: LevelUpState = LevelUpStateScript.new()
 	level_up_state.setup_for_level("test_level_up", 2, [
 		{
-			"offer_id": "passive_iron_skin",
+			"offer_id": "iron_skin",
 			"label": "Iron Skin",
 			"summary": "Gain +2 armor.",
+			"perk_family_label": "Defense",
 		},
 		{
-			"offer_id": "passive_quick_step",
+			"offer_id": "quick_step",
 			"label": "Quick Step",
 			"summary": "Draw faster next turn.",
+			"perk_family_label": "Offense",
 		},
-	], true)
+	])
 
+	assert(
+		presenter.call("build_chip_text") == "LEVEL UP",
+		"Expected level-up presenter to expose the unified overlay chip."
+	)
 	assert(
 		presenter.call("build_title_text", null) == "Level Up unavailable.",
 		"Expected level-up presenter to keep the text-first placeholder shell title."
+	)
+	assert(
+		presenter.call("build_context_text", level_up_state) == "Choose 1 character perk for the rest of this run.",
+		"Expected level-up presenter to explain the immediate choice context."
+	)
+	assert(
+		String(presenter.call("build_hint_text", level_up_state)).contains("do not use backpack space"),
+		"Expected level-up presenter to explain that perks are separate from carried inventory."
 	)
 	assert(
 		presenter.call("build_note_text", null) == "",
@@ -124,28 +180,28 @@ func test_level_up_presenter_builds_text_first_view_models() -> void:
 		"Expected level-up presenter to build title text from runtime-owned level state."
 	)
 	assert(
-		String(presenter.call("build_note_text", level_up_state)).contains("oldest unequipped"),
-		"Expected level-up presenter to warn about shared-inventory displacement when the bag is full."
+		String(presenter.call("build_note_text", level_up_state)).contains("Passive items stay separate"),
+		"Expected level-up presenter to explain the perk-vs-passive distinction."
 	)
 
 	var button_models: Array = presenter.call("build_offer_view_models", level_up_state, 3)
 	assert(button_models.size() == 3, "Expected level-up presenter to return one model per choice button.")
 	assert(
-		String((button_models[0] as Dictionary).get("text", "")) == "Iron Skin\nGain +2 armor.",
-		"Expected first level-up offer text to stay label-first with summary detail."
+		String((button_models[0] as Dictionary).get("text", "")) == "Iron Skin\nDefense perk. Gain +2 armor.",
+		"Expected first level-up offer text to expose the perk family before the numeric detail."
 	)
 	assert(
 		String((button_models[0] as Dictionary).get("title_text", "")) == "Iron Skin",
 		"Expected first level-up offer title copy to be exposed separately for card layout."
 	)
 	assert(
-		String((button_models[0] as Dictionary).get("detail_text", "")) == "Gain +2 armor.",
+		String((button_models[0] as Dictionary).get("detail_text", "")) == "Defense perk. Gain +2 armor.",
 		"Expected first level-up offer detail copy to be exposed separately for wrapped body text."
 	)
 	assert(bool((button_models[0] as Dictionary).get("visible", false)), "Expected first level-up offer to remain visible.")
 	assert(not bool((button_models[0] as Dictionary).get("disabled", true)), "Expected first level-up offer to stay enabled.")
 	assert(
-		String((button_models[1] as Dictionary).get("text", "")) == "Quick Step\nDraw faster next turn.",
+		String((button_models[1] as Dictionary).get("text", "")) == "Quick Step\nOffense perk. Draw faster next turn.",
 		"Expected second level-up offer text to stay label-first with summary detail."
 	)
 	assert(
@@ -153,7 +209,7 @@ func test_level_up_presenter_builds_text_first_view_models() -> void:
 		"Expected second level-up offer title copy to be exposed separately."
 	)
 	assert(
-		String((button_models[1] as Dictionary).get("detail_text", "")) == "Draw faster next turn.",
+		String((button_models[1] as Dictionary).get("detail_text", "")) == "Offense perk. Draw faster next turn.",
 		"Expected second level-up offer detail copy to be exposed separately."
 	)
 	assert(not bool((button_models[2] as Dictionary).get("visible", true)), "Expected missing level-up offers to remain hidden.")
@@ -166,9 +222,33 @@ func test_level_up_presenter_builds_text_first_view_models() -> void:
 		String((button_models[2] as Dictionary).get("detail_text", "")).is_empty(),
 		"Expected missing level-up offers to keep detail copy empty."
 	)
+	var level_up_run_state: RunState = RunState.new()
+	level_up_run_state.reset_for_new_run()
+	level_up_run_state.player_hp = 28
+	level_up_run_state.hunger = 9
+	level_up_run_state.gold = 22
+	level_up_run_state.xp = 8
+	level_up_run_state.current_level = 1
+	level_up_run_state.inventory_state.weapon_instance["upgrade_level"] = 1
+	var level_up_status_model: Dictionary = presenter.call("build_run_status_model", level_up_run_state)
+	var level_up_progress_items: Array = level_up_status_model.get("progress_items", [])
+	var level_up_secondary_items: Array = level_up_status_model.get("secondary_items", [])
 	assert(
-		presenter.call("build_initial_status_text") == "",
-		"Expected level-up presenter to keep initial status text empty."
+		String(level_up_status_model.get("variant", "")) == "standard",
+		"Expected level-up presenter to opt into the richer shared run-status variant."
+	)
+	assert(level_up_progress_items.size() == 1, "Expected level-up presenter to expose the XP progress row.")
+	assert(
+		String((level_up_progress_items[0] as Dictionary).get("value_text", "")) == "8/10",
+		"Expected level-up presenter to expose current XP against the next-level threshold."
+	)
+	assert(
+		level_up_secondary_items.size() == 1 and String((level_up_secondary_items[0] as Dictionary).get("value_text", "")).contains("Iron Sword +1"),
+		"Expected level-up presenter to carry the active weapon summary into the shared status strip."
+	)
+	assert(
+		String(level_up_status_model.get("fallback_text", "")) == "HP 28 | Hunger 9 | Gold 22 | Durability 20",
+		"Expected level-up presenter to preserve the compact fallback string inside the shared run-status model."
 	)
 	assert(
 		presenter.call("build_save_status_text", {"ok": true}) == "Run saved.",
@@ -195,24 +275,36 @@ func test_level_up_presenter_builds_text_first_view_models() -> void:
 func test_main_menu_presenter_builds_playtest_shell_text() -> void:
 	var presenter: RefCounted = MainMenuPresenterScript.new()
 	assert(
-		presenter.call("build_title_text") == "Simple RPG",
+		presenter.call("build_title_text") == "Ashwood Descent",
 		"Expected main menu presenter title to stay stable."
 	)
 	assert(
-		presenter.call("build_mood_text") == "Choose a road. Survive the stops. Reach the gate.",
+		presenter.call("build_mood_text") == "Choose a road through the ashwood. Keep your gear alive. Reach the gate.",
 		"Expected main menu presenter to keep the first-run guidance line."
 	)
 	assert(
-		String(presenter.call("build_playtest_read_text", false)).contains("first road"),
+		String(presenter.call("build_playtest_read_text", false)).contains("fresh road"),
 		"Expected main menu presenter to keep the first-run call to action short and direct."
 	)
 	assert(
-		String(presenter.call("build_status_text", true)).contains("last save"),
+		String(presenter.call("build_status_text", true)).contains("last safe stop"),
 		"Expected main menu presenter to explain save-safe resume behavior."
 	)
 	assert(
 		String(presenter.call("build_flow_read_text")).contains("Map"),
 		"Expected main menu presenter to expose a short run-flow read for first-time orientation."
+	)
+	assert(
+		String(presenter.call("build_flow_read_text")).contains("Trail Event"),
+		"Expected main menu presenter flow read to reflect the planned event-node label."
+	)
+	assert(
+		String(presenter.call("build_flow_read_text")).contains("Roadside Encounter"),
+		"Expected main menu presenter flow read to keep the travel interruption label."
+	)
+	assert(
+		not String(presenter.call("build_flow_read_text")).contains("Shelter"),
+		"Expected main menu presenter flow read to stop using the stale shelter shorthand."
 	)
 
 
@@ -233,7 +325,7 @@ func test_support_interaction_presenter_builds_non_combat_view_models() -> void:
 	run_state.inventory_state.weapon_instance["current_durability"] = 4
 
 	assert(
-		presenter.call("build_chip_text", support_state) == "ROAD TRADE",
+		presenter.call("build_chip_text", support_state) == "MERCHANT",
 		"Expected support presenter to expose a player-facing merchant chip."
 	)
 	assert(
@@ -245,12 +337,31 @@ func test_support_interaction_presenter_builds_non_combat_view_models() -> void:
 		"Expected support presenter to keep the merchant summary shorter and more player-facing."
 	)
 	assert(
-		String(presenter.call("build_hint_text", support_state)).contains("Buy as many valid offers"),
-		"Expected support presenter to explain the merchant multi-buy rule."
+		String(presenter.call("build_context_text", support_state)).contains("Fixed stock"),
+		"Expected support presenter to explain the merchant stop as a fixed-stock choice screen."
 	)
 	assert(
-		presenter.call("build_run_status_text", run_state) == "HP 17 | Hunger 5 | Gold 9 | Durability 4",
-		"Expected support presenter to summarize run-side non-combat state."
+		String(presenter.call("build_hint_text", support_state)).contains("buy multiple offers"),
+		"Expected support presenter to explain the merchant multi-buy rule."
+	)
+	var support_status_model: Dictionary = presenter.call("build_run_status_model", run_state)
+	var support_secondary_items: Array = support_status_model.get("secondary_items", [])
+	var support_progress_items: Array = support_status_model.get("progress_items", [])
+	assert(
+		String(support_status_model.get("variant", "")) == "compact",
+		"Expected support presenter to expose the compact shared run-status variant."
+	)
+	assert(
+		support_secondary_items.is_empty(),
+		"Expected support presenter to keep the support-action status strip on the core attrition chips only."
+	)
+	assert(
+		support_progress_items.is_empty(),
+		"Expected support presenter to keep the compact support strip free of XP progress by default."
+	)
+	assert(
+		String(support_status_model.get("fallback_text", "")) == "HP 17 | Hunger 5 | Gold 9 | Durability 4",
+		"Expected support presenter to keep the compact fallback string inside the shared run-status model."
 	)
 
 	var button_models: Array = presenter.call("build_action_view_models", support_state, 3)
@@ -273,12 +384,12 @@ func test_support_interaction_presenter_builds_non_combat_view_models() -> void:
 	assert(bool((button_models[1] as Dictionary).get("visible", false)), "Expected second merchant offer to remain visible.")
 	assert(not bool((button_models[1] as Dictionary).get("disabled", true)), "Expected available merchant offer to stay enabled.")
 	assert(
-		String((button_models[1] as Dictionary).get("text", "")).contains("Quick-Clot Poultice"),
-		"Expected the second merchant offer to surface the refreshed authored consumable."
+		String((button_models[1] as Dictionary).get("text", "")).contains("Binding Resin"),
+		"Expected the second merchant offer to surface the tuned repair consumable."
 	)
 	assert(
-		String((button_models[2] as Dictionary).get("text", "")).contains("Splitter Axe"),
-		"Expected weapon offer labels to derive from the widened authored merchant weapon content."
+		String((button_models[2] as Dictionary).get("text", "")).contains("Watchman Shield"),
+		"Expected shield offer labels to derive from the tuned tutorial merchant stock."
 	)
 
 	var blacksmith_state: RefCounted = SupportInteractionStateScript.new()
@@ -309,22 +420,26 @@ func test_support_interaction_presenter_builds_non_combat_view_models() -> void:
 		String(presenter.call("build_hint_text", blacksmith_state)).contains("Pick one service"),
 		"Expected support presenter to explain blacksmith one-service resolution."
 	)
+	assert(
+		String(presenter.call("build_context_text", blacksmith_state)).contains("One forge service"),
+		"Expected support presenter to explain the blacksmith service-selection context."
+	)
 
 
-func test_support_interaction_presenter_builds_side_mission_contract_models() -> void:
+func test_support_interaction_presenter_builds_hamlet_contract_models() -> void:
 	var presenter: RefCounted = SupportInteractionPresenterScript.new()
 	var run_state: RunState = RunState.new()
 	run_state.reset_for_new_run()
 	var side_mission_node_id: int = -1
 	for node_snapshot in run_state.map_runtime_state.build_node_snapshots():
-		if String(node_snapshot.get("node_family", "")) != "side_mission":
+		if String(node_snapshot.get("node_family", "")) != "hamlet":
 			continue
 		side_mission_node_id = int(node_snapshot.get("node_id", -1))
 		break
-	assert(side_mission_node_id >= 0, "Expected one side-mission node in the runtime-authored map.")
+	assert(side_mission_node_id >= 0, "Expected one hamlet node in the runtime-authored map.")
 
 	var side_mission_state: SupportInteractionState = SupportInteractionStateScript.new()
-	side_mission_state.setup_for_type("side_mission", side_mission_node_id, {
+	side_mission_state.setup_for_type("hamlet", side_mission_node_id, {
 		"mission_definition_id": "trail_contract_hunt",
 		"mission_status": "completed",
 		"target_node_id": 1,
@@ -346,34 +461,49 @@ func test_support_interaction_presenter_builds_side_mission_contract_models() ->
 	}, 1, run_state.inventory_state, run_state.map_runtime_state)
 
 	assert(
-		presenter.call("build_chip_text", side_mission_state) == "VILLAGE REQUEST",
-		"Expected support presenter to expose a dedicated contract chip."
+		presenter.call("build_chip_text", side_mission_state) == "HAMLET",
+		"Expected support presenter to expose the canonical hamlet chip."
 	)
 	assert(
-		presenter.call("build_title_text", side_mission_state) == "Village Request",
-		"Expected support presenter to surface the authored side-mission title."
+		presenter.call("build_title_text", side_mission_state) == "Hunt Marked Brigand",
+		"Expected support presenter to surface the authored hamlet request title."
 	)
 	assert(
-		String(presenter.call("build_summary_text", side_mission_state)).contains("Choose one aid reward"),
-		"Expected support presenter to surface the completed side-mission summary."
+		String(presenter.call("build_summary_text", side_mission_state)).contains("Choose one hamlet reward"),
+		"Expected support presenter to surface the authored completed hamlet-request summary."
 	)
 	assert(
 		String(presenter.call("build_hint_text", side_mission_state)).contains("Choose 1 aid reward"),
-		"Expected support presenter to explain the completed contract payout rule."
+		"Expected support presenter to explain the completed hamlet payout rule."
+	)
+	var accepted_side_mission_state: SupportInteractionState = SupportInteractionStateScript.new()
+	accepted_side_mission_state.setup_for_type("hamlet", side_mission_node_id, {
+		"mission_definition_id": "trail_contract_hunt",
+		"mission_status": "accepted",
+		"target_node_id": 1,
+		"target_enemy_definition_id": "barbed_hunter",
+	}, 1, run_state.inventory_state, run_state.map_runtime_state)
+	assert(
+		String(presenter.call("build_context_text", accepted_side_mission_state)).contains("request is live"),
+		"Expected accepted hamlet states to explain that the request remains active."
+	)
+	assert(
+		String(presenter.call("build_hint_text", accepted_side_mission_state)).contains("marked objective"),
+		"Expected hamlet hint text to describe the generalized marked-objective wording."
 	)
 	var models: Array = presenter.call("build_action_view_models", side_mission_state, 3)
-	assert(models.size() == 3, "Expected support presenter to keep side-mission rewards inside the standard 3-button layout.")
+	assert(models.size() == 3, "Expected support presenter to keep hamlet rewards inside the standard 3-button layout.")
 	assert(
 		String((models[0] as Dictionary).get("text", "")).contains("Claim Emberhook Blade"),
-		"Expected the first side-mission claim button to derive from the referenced weapon definition."
+		"Expected the first hamlet claim button to derive from the referenced weapon definition."
 	)
 	assert(
 		String((models[1] as Dictionary).get("text", "")).contains("Claim Gravehide Plates"),
-		"Expected the second side-mission claim button to derive from the referenced armor definition."
+		"Expected the second hamlet claim button to derive from the referenced armor definition."
 	)
-	assert(not bool((models[0] as Dictionary).get("disabled", true)), "Expected completed side-mission claim buttons to stay enabled.")
-	assert(not bool((models[1] as Dictionary).get("disabled", true)), "Expected completed side-mission claim buttons to stay enabled.")
-	assert(not bool((models[2] as Dictionary).get("visible", true)), "Expected unused support buttons to stay hidden on the side-mission reward read.")
+	assert(not bool((models[0] as Dictionary).get("disabled", true)), "Expected completed hamlet claim buttons to stay enabled.")
+	assert(not bool((models[1] as Dictionary).get("disabled", true)), "Expected completed hamlet claim buttons to stay enabled.")
+	assert(not bool((models[2] as Dictionary).get("visible", true)), "Expected unused support buttons to stay hidden on the hamlet reward read.")
 
 
 func test_support_interaction_state_roundtrips_blacksmith_target_selection_state() -> void:
@@ -399,40 +529,60 @@ func test_support_interaction_state_roundtrips_blacksmith_target_selection_state
 	restored_state.load_from_save_dict(save_data)
 	assert(restored_state.is_blacksmith_target_selection_active(), "Expected blacksmith restore to preserve target-selection mode.")
 	assert(String(restored_state.title_text) == "Temper Weapon", "Expected blacksmith restore to preserve the target-selection title.")
-	assert(restored_state.offers.size() == 2, "Expected blacksmith restore to preserve the visible weapon target offers on the current page.")
+	assert(restored_state.offers.size() == 1, "Expected blacksmith restore to preserve the visible carried weapon target offers on the current page.")
 	assert(String(restored_state.offers[0].get("label", "")).contains("Iron Sword"), "Expected blacksmith restore to keep the carried weapon target label.")
 
 
 func test_stage_transition_presenter_builds_interstitial_text() -> void:
 	var presenter: RefCounted = StageTransitionPresenterScript.new()
+	var run_state: RunState = RunState.new()
+	run_state.reset_for_new_run()
+	run_state.player_hp = 31
+	run_state.hunger = 8
+	run_state.gold = 13
+	run_state.xp = 6
+	run_state.current_level = 1
+	run_state.inventory_state.weapon_instance["upgrade_level"] = 2
 	assert(
-		presenter.call("build_title_text") == "The Next Road",
-		"Expected stage transition presenter title to stay stable."
+		presenter.call("build_title_text", 3, "trade") == "Stage 3 — Trade Lanes",
+		"Expected stage transition presenter to surface the incoming stage number and personality in the title."
 	)
 	assert(
-		presenter.call("build_summary_text", 4) == "Stage 4 waits beyond the trees.\nStep forward when ready.\nOpen Settings if you need save or load.",
-		"Expected stage transition presenter to build the interstitial summary text."
+		presenter.call("build_chip_text", 3) == "STAGE 2 CLEAR",
+		"Expected stage transition presenter to expose the completed-stage chip."
+	)
+	assert(
+		presenter.call("build_summary_text", "trade") == "Trade roads. Practical contracts and utility pay.",
+		"Expected stage transition presenter to build the stage-personality summary text."
+	)
+	assert(
+		String(presenter.call("build_hint_text")).contains("Find the key") and String(presenter.call("build_hint_text")).contains("boss"),
+		"Expected stage transition presenter to keep the objective line explicit on the interstitial card."
+	)
+	var status_model: Dictionary = presenter.call("build_run_status_model", run_state)
+	var progress_items: Array = status_model.get("progress_items", [])
+	var secondary_items: Array = status_model.get("secondary_items", [])
+	assert(
+		String(status_model.get("variant", "")) == "standard",
+		"Expected stage transition presenter to opt into the richer shared run-status variant."
+	)
+	assert(progress_items.size() == 1, "Expected stage transition presenter to expose the XP progress row.")
+	assert(
+		String((progress_items[0] as Dictionary).get("value_text", "")) == "6/10",
+		"Expected stage transition presenter to expose current XP against the next-level threshold."
+	)
+	assert(
+		secondary_items.size() == 1 and String((secondary_items[0] as Dictionary).get("value_text", "")).contains("Iron Sword +2"),
+		"Expected stage transition presenter to carry the active weapon summary into the shared status strip."
+	)
+	assert(
+		String(status_model.get("fallback_text", "")) == "HP 31 | Hunger 8 | Gold 13 | Durability 20",
+		"Expected stage transition presenter to preserve the compact fallback string inside the shared run-status model."
 	)
 
 
-func test_transition_shell_presenter_builds_setup_and_node_resolve_text() -> void:
+func test_transition_shell_presenter_builds_node_resolve_text() -> void:
 	var presenter: RefCounted = TransitionShellPresenterScript.new()
-	assert(
-		presenter.call("build_run_setup_title_text") == "Setting Out",
-		"Expected transition shell presenter to build the run setup title."
-	)
-	assert(
-		presenter.call("build_run_setup_chip_text") == "FIRST ROAD",
-		"Expected transition shell presenter to expose the run setup chip."
-	)
-	assert(
-		String(presenter.call("build_run_setup_detail_text")).contains("straight to the map"),
-		"Expected transition shell presenter to keep run setup as a short map handoff."
-	)
-	assert(
-		String(presenter.call("build_run_setup_hint_text")).contains("map"),
-		"Expected transition shell presenter to keep the run setup handoff explicit."
-	)
 	assert(
 		presenter.call("build_node_resolve_title_text", "boss") == "Resolving Boss Gate",
 		"Expected node resolve title to use the node-family display name."
@@ -442,16 +592,16 @@ func test_transition_shell_presenter_builds_setup_and_node_resolve_text() -> voi
 		"Expected key resolution copy to stay aligned with runtime-owned gate truth."
 	)
 	assert(
-		String(presenter.call("build_node_resolve_summary_text", "event")).contains("two-choice roadside"),
-		"Expected event resolution copy to keep the roadside handoff explicit."
+		String(presenter.call("build_node_resolve_summary_text", "event")).contains("trail event"),
+		"Expected event resolution copy to reflect the planned trail-event handoff."
 	)
 	assert(
 		String(presenter.call("build_node_resolve_detail_text", "reward", 7)).contains("Node 7"),
 		"Expected node resolve detail text to retain the pending node read."
 	)
 	assert(
-		String(presenter.call("build_node_resolve_hint_text", "event")).contains("two-choice story flow"),
-		"Expected node resolve hint text to keep the roadside handoff explicit."
+		String(presenter.call("build_node_resolve_hint_text", "event")).contains("planned trail event"),
+		"Expected node resolve hint text to reflect the planned-event handoff rather than the roadside interruption label."
 	)
 	assert(
 		String(presenter.call("build_node_resolve_hint_text", "reward")).contains("runtime-owned screen"),
@@ -462,8 +612,8 @@ func test_transition_shell_presenter_builds_setup_and_node_resolve_text() -> voi
 		"Expected combat node resolve shell to reuse the attack icon."
 	)
 	assert(
-		String(presenter.call("build_node_icon_texture_path", "event")) == "res://Assets/Icons/icon_node_marker.svg",
-		"Expected event node resolve shell to reuse the event marker icon floor."
+		String(presenter.call("build_node_icon_texture_path", "event")) == "res://Assets/Icons/icon_map_trail_event.svg",
+		"Expected event node resolve shell to expose the dedicated trail-event icon."
 	)
 	assert(
 		String(presenter.call("build_node_icon_texture_path", "reward")) == "res://Assets/Icons/icon_reward.svg",

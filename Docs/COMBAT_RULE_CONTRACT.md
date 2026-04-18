@@ -16,13 +16,13 @@ This file defines the official combat rules and timing.
 
 Top-level action buttons:
 - `Attack`
-- `Brace`
+- `Defend`
 - `Use Item`
 
-Contextual shared-inventory actions:
-- click carried `weapon`, `armor`, or `belt` card to equip or unequip it
-- click carried `consumable` card to use it directly
-- drag carried inventory cards to reorder them without spending the turn
+Current player-facing combat inventory rules:
+- direct consumable card click is allowed and consumes the turn when the item would change HP or hunger
+- gear swaps are locked during combat
+- backpack reorder is locked during combat
 
 ## Turn Order
 
@@ -39,6 +39,16 @@ Contextual shared-inventory actions:
 11. Next Intent Preparation
 
 Combat hunger officially resolves at `turn_end`.
+
+## Damage Order
+
+Current canonical damage order for enemy hits:
+1. calculate raw damage from intent plus attacker bonuses
+2. apply flat armor reduction
+3. absorb the remainder with current `Guard`
+4. apply the remaining damage to `HP`
+
+This order is the only truthful live baseline.
 
 ## Hunger Rules
 
@@ -68,7 +78,7 @@ Combat hunger officially resolves at `turn_end`.
 
 ## Marked Contract Target Rule
 
-- An accepted `side_mission` may bind one specific combat node to one specific enemy definition.
+- An accepted `hamlet` contract may bind one specific combat node to one specific enemy definition.
 - When the player enters that marked combat node, combat setup must use the contract-bound enemy instead of the default stage-rotation enemy selection.
 - Defeating that marked enemy completes the contract, but it does not change combat exit flow:
   - non-boss marked victory still routes through the normal `Combat -> Reward` path
@@ -94,90 +104,99 @@ Combat hunger officially resolves at `turn_end`.
 - a valid attack attempt that starts resolving consumes durability
 - dodge or miss does not refund durability
 - durability behavior must be deterministic
+- weapon durability spend comes from `Weapons.rules.stats.durability_cost_per_attack` plus `Weapons.rules.stats.durability_profile`
+- current live durability profiles:
+  - `sturdy` = `0.5x`
+  - `standard` = `1x`
+  - `fragile` = `1.5x`
+  - `heavy` = `2x`
+- profile scaling resolves before flat durability modifiers such as `corroded`
+- `Defend` and `Use Item` do not consume weapon durability
 
-## Equipped Armor And Belt Rule
+## Equipment Rule
 
-- Current equipped combat lanes now include:
-  - `weapon`
-  - `armor`
-  - `belt`
-  - carried passive items from shared inventory
-- `armor` and `belt` resolve through the same narrow authored behavior slice already used by passive items:
-  - `trigger = passive`
-  - `target = self`
-  - `effect.type = modify_stat`
-- Current truthful supported combat stats for equipped armor and belts are:
-  - `incoming_damage_flat_reduction`
-  - `attack_power_bonus`
-  - `durability_cost_flat_reduction`
-- Armor is the dedicated defense lane:
-  - the intended baseline use is flat incoming damage reduction
-  - that reduction applies before `Brace` halves the remaining hit
-- Current live forge integration:
-  - weapon `upgrade_level` adds `+1` attack power per level
-  - armor `upgrade_level` adds `+1` flat incoming-damage reduction per level
-  - those upgrade tiers live on the carried inventory slot instance, not on content definitions
-- Belt is the narrow utility lane:
-  - the current truthful baseline is passive combat utility such as attack-power adjustment or durability-cost reduction
-  - equipped belts also add `+2` shared carried-inventory capacity outside combat
-- Equipped armor and belt are active combat truth when their inventory instances are non-empty.
-- Starter loadout still begins with both lanes empty.
+Current combat lanes:
+- `right_hand`
+- `left_hand`
+- `armor`
+- `belt`
+- carried passive items from the backpack
 
-## Equipment Swap Rules
+Current truthful combat semantics:
+- `right_hand` determines the main attack profile
+- `left_hand` may be:
+  - a `shield`
+  - an offhand-capable `weapon`
+- `armor` provides flat incoming-damage reduction before guard
+- `belt` remains the narrow utility lane
+- carried passive items still apply while the item remains in the backpack
 
-- The shared inventory strip may swap or unequip carried `weapon`, `armor`, or `belt` items during combat.
-- The interaction surface is direct card click on the shared inventory strip, not a hidden scene-only command.
-- Swapping equipment resolves in the same player-action window as `Attack`, `Brace`, and `Use Item`.
-- Swapping equipment consumes the turn:
-  - enemy defeat is checked after the swap resolves
-  - enemy action still resolves if combat is not already over
-  - turn-end hunger and intent prep still happen normally
-- Swapping equipment does not consume weapon durability by itself.
-- The newly chosen carried slot becomes the active combat-local equipped slot immediately for preview, enemy-hit mitigation, and the next attack.
-- Clicking the currently equipped `weapon`, `armor`, or `belt` card is an unequip action for that family.
-- Unequipping the active belt must fail instead of silently overflowing carried capacity when current used slots would exceed the post-belt limit.
-- During active combat, equipped weapon / armor / belt slot selection is combat-local truth on `CombatState`; the chosen slot ids are committed back to `InventoryState` when combat ends.
+Current live stat support from equipped or carried gear remains narrow:
+- `incoming_damage_flat_reduction`
+- `attack_power_bonus`
+- `durability_cost_flat_reduction`
 
-## Inventory Reorder Rule
+Current live forge integration:
+- weapon `upgrade_level` adds `+1` attack power per level
+- armor `upgrade_level` adds `+1` flat incoming-damage reduction per level
+- those upgrade tiers live on the runtime inventory slot instance, not on content definitions
 
-- Dragging a carried inventory card to another shared slot lane reorders `inventory_slots` truth.
-- Combat-time reorder is UI/inventory management only:
-  - it does not consume the player turn
-  - it does not trigger enemy action
-  - it does not change hunger by itself
-- If combat later commits back into `RunState`, the reordered shared inventory order is committed too.
+## Defend / Guard Rules
 
-## Brace Rules
+- Everyone can `Defend`.
+- `Defend` raises temporary `Guard`.
+- Current live config-driven baseline:
+  - base defend guard: `2`
+  - shield defend bonus: `+2`
+  - dual-wield defend penalty: `-1`
+  - guard decay rate: `0.75`
+- `Guard` is combat-local only.
+- `Guard` is consumed by incoming damage after armor reduction and before HP loss.
+- `Defend` adds new guard on top of any carried remainder from the previous turn.
+- `Guard` decays during the normal turn-end pass instead of clearing outright.
+- current live turn-end carryover keeps roughly `25%` of the remaining guard; fractional carryover rounds to the nearest whole guard.
+- `Guard` is not a content-authored status and does not require a `Statuses` definition.
 
-- `Brace` reduces incoming damage by `50%` for the current turn.
-- Current prototype rounds the reduced damage up, so `Brace` does not turn a positive hit into zero damage by itself.
-- In the baseline turn order, that protection matters against the enemy action that resolves later in the same turn.
-- `Brace` does not deal damage, reflect damage, counterattack, or grant dodge.
-- `Brace` does not consume weapon durability.
-- `Brace` does not prevent Hunger Tick or any other normal turn-end resolution.
-- `Brace` is resolved inline as an explicit combat rule, not as a content-defined status.
-- The baseline brace behavior does not require a `Statuses` definition under `ContentDefinitions/Statuses/`.
-- Repeated `Brace` on consecutive turns is allowed, but the effect is always the same and does not stack across turns.
-- If the enemy does not threaten meaningful damage on that turn, `Brace` should usually be weaker than `Attack` or `Use Item`. This is intentional.
+## Left-Hand Rules
+
+- If the left hand holds a `shield`:
+  - `Defend` gains the shield guard bonus
+- If the left hand holds an offhand-capable `weapon`:
+  - the player gains a dual-wield attack bonus
+  - the player suffers the dual-wield defend penalty
+- Dual wield is currently a loadout modifier only:
+  - not a second independent attack
+  - not an extra hit packet
+  - not a separate durability-spending engine
+
+Current live config-driven dual-wield baseline:
+- `+1` attack power on player attacks
+- `-1` guard generated by `Defend`
+
+## Equipment Lock Rule
+
+- Combat-time gear swapping is no longer part of the canonical combat loop.
+- Combat-time backpack reorder is no longer part of the canonical combat loop.
+- Scenes may still show the equipment and backpack strips as live read surfaces, but not as combat-time gear-management actions.
+
+## Attack Rules
+
+- Attack uses the current right-hand weapon when it is functional.
+- If the right-hand weapon is broken or missing, the player falls back to a weak default attack.
+- Current fallback hit is `1` damage before enemy mitigation.
 
 ## Use Item Rules
 
 - Current prototype support is intentionally narrow:
-  - one starter consumable stack
-  - self-target food/consumable effects limited to `heal` and `modify_hunger`
+  - self-target consumables only
+  - combat use limited to `heal` and `modify_hunger`
   - content-driven through `Consumables/<stable_id>.json`
-- `Use Item` resolves in the same player-action window as `Attack` or `Brace`.
+- `Use Item` resolves in the same player-action window as `Attack` or `Defend`.
 - After `Use Item` resolves:
   - enemy defeat is checked
   - enemy action still resolves if combat is not already over
   - turn-end hunger and intent prep still happen normally
-- `Use Item` does not consume weapon durability.
-- Clicking a combat consumable card is the primary current interaction:
-  - if that consumable would heal HP or restore hunger, it resolves immediately and consumes the turn
-  - if it would not change HP or hunger right now, it fails without spending the turn
-- The `Use Item` button remains a fallback action surface for the current ready consumable, but direct card click is the clearer primary path.
-- `Use Item` skips instead of spending the item when no ready self-target consumable would change HP or restore hunger.
-- Generic item effects beyond self-target `heal` / `modify_hunger`, ally targets, enemy targets, and status-driven consumables remain reserved for later runtime support.
+- `Use Item` skips instead of spending the turn when no ready consumable would change HP or hunger.
 
 ## Status Rules
 
@@ -215,34 +234,17 @@ Combat hunger officially resolves at `turn_end`.
 - `stunned` currently:
   - skips the next player action that would resolve while the status is active
   - consumes the turn; enemy action, turn-end status tick, and hunger tick still continue normally
-  - is authored with normal status duration semantics, so enemy-applied stun must survive the same-turn end pass to matter on the next player choice
   - does not persist into `RunState`
 - `corroded` currently:
   - increases weapon durability loss on valid attack attempts while active
   - lasts `3` turn-end ticks by default
   - does not persist into `RunState`
-- Status application currently resolves from enemy intent effects, not from a generic effect router.
-- Status ticking currently resolves during the combat turn-end pass, before hunger tick.
-- Status cleanup removes expired entries in the same turn-end pass after the tick is applied.
-- Current truthful status modifier support includes:
-  - `attack_power_bonus`
-  - `incoming_damage_flat_reduction`
-  - `durability_cost_flat_reduction`
-  - `skip_player_action`
-- Status-driven consumables, enemy-side status ownership, and broad target routing remain reserved for later runtime support.
 
 ## Dodge Rule
 
 - dodge must be telegraphed
 - dodge must be explainable to the player
 - dodge does not cancel the fact that the attack attempt happened
-
-## Fallback Attack Rule
-
-If the active weapon breaks:
-- the player does not become unable to act
-- the player falls back to a weak default attack
-- fallback is intentionally inferior to a proper weapon
 
 ## Simultaneous Death Priority
 
@@ -258,108 +260,3 @@ If edge cases produce simultaneous lethal outcomes:
 - invalid target damage application
 - duplicate authoritative intent
 - negative status duration
-
-## Combat Information Model
-
-### Purpose
-
-This section defines what the player should know during combat.
-
-### Main Rule
-
-Combat should be hard because of decision pressure, not hidden information.
-
-The intended player reaction after a loss is:
-"I made the wrong call,"
-not
-"the game hid something important."
-
-### Minimum Visible Information
-
-The first playable version must show:
-- player HP
-- player hunger
-- active weapon
-- critical durability state
-- player statuses
-- enemy name or type
-- enemy HP
-- enemy current intent
-- enemy important statuses
-- three core player actions
-
-### Intent Visibility
-
-- the first enemy intent is shown before the player's first turn
-- intent shows action family
-- intent shows relative threat strength
-- optional short side hint is allowed
-- full future scripting is not shown
-
-### Trait and Tendency Hints
-
-Short trait hints are allowed when they improve readability.
-
-Examples:
-- armored
-- heal-prone
-- dodge-prone
-- crit-resistant
-
-These hints should answer:
-"What kind of enemy is this?"
-They should not answer:
-"What exactly will it do three turns from now?"
-
-### Information Layers
-
-#### Primary
-
-Always visible:
-- HP
-- intent
-- actions
-- critical statuses
-- critical durability warning
-
-#### Secondary
-
-Easy-access helper:
-- short trait hints
-- short item explanations
-- short status explanations
-- compact combat log
-
-#### Tertiary
-
-Optional deeper explanation:
-- expanded log
-- extra enemy notes
-
-### Combat Log Role
-
-The combat log is a support layer, not the main information channel.
-
-It should help answer:
-- what just happened
-- why damage or status changed
-- why durability dropped
-
-It should not replace:
-- intent display
-- HP display
-- action availability
-
-### Hidden By Default
-
-Do not show by default:
-- full resolver internals
-- full RNG tables
-- full future enemy script
-- technical IDs
-- hidden weighting tables
-
-### Boss Clarity Rule
-
-Bosses may show clearer threat telegraphs than normal enemies.
-They still should not reveal full script order or phase internals by default.

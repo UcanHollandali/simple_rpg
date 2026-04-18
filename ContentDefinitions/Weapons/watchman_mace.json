@@ -15,13 +15,19 @@
     "short_description": "Steady defensive mace with low damage and forgiving durability.",
     "icon_key": "weapon_watchman_mace"
   },
-  "design_intent_question": "Can a low-risk mace keep the Iron Wall line distinct by trading kill speed for enough durability to support brace-first, mistake-light play?",
+  "design_intent_question": "Can a low-risk mace keep the Iron Wall line distinct by trading kill speed for enough durability to support defend-first, mistake-light play?",
   "rules": {
+    "slot_compatibility": {
+      "right_hand": true,
+      "left_hand": false,
+      "offhand_capable": false
+    },
     "stats": {
       "weapon_type": "mace",
       "base_damage": 5,
       "max_durability": 28,
-      "durability_cost_per_attack": 1
+      "durability_cost_per_attack": 2,
+      "durability_profile": "sturdy"
     }
   }
 }

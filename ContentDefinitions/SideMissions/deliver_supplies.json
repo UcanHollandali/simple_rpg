@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "definition_id": "deliver_supplies",
+  "family": "SideMissions",
+  "tags": [
+    "hamlet",
+    "side_quest",
+    "delivery",
+    "prototype"
+  ],
+  "display": {
+    "name": "Deliver Supplies",
+    "short_description": "A worried quartermaster needs a live bundle carried through the stage to a safer pocket of the road."
+  },
+  "rules": {
+    "mission_type": "deliver_supplies",
+    "quest_item_definition_id": "supply_bundle",
+    "target_families": [
+      "event",
+      "reward",
+      "rest",
+      "merchant",
+      "blacksmith"
+    ],
+    "briefing_text": "Carry the supply bundle to the marked safe stop. It takes backpack space the whole way, but the hamlet will pay for the trouble.",
+    "accept_label": "Take the bundle",
+    "accepted_text": "The marked stop can take the bundle now. Reach it intact, then return here for payment.",
+    "reminder_label": "Bundle in transit",
+    "completed_text": "The supplies made it through. Choose one hamlet reward before you move on.",
+    "claimed_text": "The quartermaster has already marked this delivery complete.",
+    "claimed_label": "Delivery settled",
+    "reward_pool": [
+      {
+        "offer_id": "claim_provisioner_belt",
+        "effect_type": "grant_item",
+        "inventory_family": "belt",
+        "definition_id": "provisioner_belt"
+      },
+      {
+        "offer_id": "claim_pilgrim_seal",
+        "effect_type": "grant_item",
+        "inventory_family": "shield_attachment",
+        "definition_id": "pilgrim_seal"
+      },
+      {
+        "offer_id": "claim_hunter_stew",
+        "effect_type": "grant_item",
+        "inventory_family": "consumable",
+        "definition_id": "hunter_stew",
+        "amount": 1
+      }
+    ]
+  }
+}

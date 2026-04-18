@@ -4,25 +4,46 @@
   "authoring_order": 130,
   "family": "Enemies",
   "encounter_tier": "minor",
-  "design_intent_question": "Can the player react to a poison setup without panicking, then punish the softer follow-up window before the attrition clock matters?",
+  "design_intent_question": "Can the player read an attrition alchemist as a slow suffocation threat, defending the sharp follow-up turn instead of wasting tempo into every little sting?",
   "tags": [
     "enemy",
     "cultist",
     "stage_2",
     "poison",
+    "corroded",
     "combo"
   ],
   "display": {
     "name": "Briar Alchemist",
-    "short_description": "A hedge chemist who starts a poison clock, then leans on steady midrange damage while the timer works.",
+    "short_description": "A hedge chemist who layers poison and ruined steel, then steps in once the attrition clock has already started eating the player alive.",
     "icon_key": "enemy_briar_alchemist"
   },
   "rules": {
     "stats": {
-      "base_hp": 20,
+      "base_hp": 22,
       "base_damage": 3
     },
     "intent_pool": [
+      {
+        "intent_id": "acid_phial",
+        "action_family": "attack",
+        "threat_level": "low",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 2,
+              "damage_kind": "acid"
+            }
+          },
+          {
+            "type": "apply_status",
+            "params": {
+              "definition_id": "corroded"
+            }
+          }
+        ]
+      },
       {
         "intent_id": "toxin_flask",
         "action_family": "attack",
@@ -31,7 +52,7 @@
           {
             "type": "deal_damage",
             "params": {
-              "base": 3,
+              "base": 2,
               "damage_kind": "arcane"
             }
           },
@@ -44,29 +65,21 @@
         ]
       },
       {
-        "intent_id": "thorn_prod",
+        "intent_id": "thorn_dose",
         "action_family": "attack",
-        "threat_level": "medium",
+        "threat_level": "high",
         "effects": [
           {
             "type": "deal_damage",
             "params": {
-              "base": 4,
+              "base": 5,
               "damage_kind": "physical"
             }
-          }
-        ]
-      },
-      {
-        "intent_id": "smoke_snap",
-        "action_family": "attack",
-        "threat_level": "low",
-        "effects": [
+          },
           {
-            "type": "deal_damage",
+            "type": "apply_status",
             "params": {
-              "base": 2,
-              "damage_kind": "physical"
+              "definition_id": "weakened"
             }
           }
         ]

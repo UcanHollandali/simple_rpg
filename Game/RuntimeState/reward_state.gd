@@ -56,6 +56,8 @@ func _build_offer_list(rules: Dictionary) -> Array[Dictionary]:
 	if offer_pool.is_empty():
 		return _extract_offer_array(rules.get("offers", []))
 
+	offer_pool = _filter_offer_pool_for_generation_context(offer_pool, present_count)
+
 	if present_count <= 0:
 		present_count = offer_pool.size()
 	present_count = min(present_count, offer_pool.size())
@@ -90,6 +92,10 @@ func _extract_generation_context(context: Dictionary) -> Dictionary:
 	for key in ["stage_index", "current_level", "reward_rng_seed", "reward_rng_draw_index"]:
 		if context.has(key):
 			result[key] = int(context.get(key, 0))
+	if context.has("enemy_definition_id"):
+		result["enemy_definition_id"] = String(context.get("enemy_definition_id", "")).strip_edges()
+	if context.has("enemy_tags"):
+		result["enemy_tags"] = _extract_string_array(context.get("enemy_tags", []))
 	return result
 
 
@@ -133,3 +139,84 @@ func _derive_seeded_start_index(pool_size: int) -> int:
 	if reward_rng_seed <= 0:
 		return 0
 	return posmod(reward_rng_seed, pool_size)
+
+
+func _filter_offer_pool_for_generation_context(offer_pool: Array[Dictionary], present_count: int) -> Array[Dictionary]:
+	var stage_filtered_pool: Array[Dictionary] = _filter_offer_pool_by_stage(offer_pool)
+	var preferred_pool: Array[Dictionary] = _prioritize_offer_pool_for_enemy_tags(stage_filtered_pool, present_count)
+	return preferred_pool if not preferred_pool.is_empty() else stage_filtered_pool
+
+
+func _filter_offer_pool_by_stage(offer_pool: Array[Dictionary]) -> Array[Dictionary]:
+	var stage_index: int = int(generation_context.get("stage_index", 0))
+	if stage_index <= 0:
+		return offer_pool
+
+	var stage_filtered_pool: Array[Dictionary] = []
+	for offer in offer_pool:
+		if _reward_offer_matches_stage(offer, stage_index):
+			stage_filtered_pool.append(offer.duplicate(true))
+	if stage_filtered_pool.is_empty():
+		return offer_pool
+	return stage_filtered_pool
+
+
+func _prioritize_offer_pool_for_enemy_tags(offer_pool: Array[Dictionary], present_count: int) -> Array[Dictionary]:
+	if source_context != SOURCE_COMBAT_VICTORY:
+		return offer_pool
+
+	var enemy_tags: PackedStringArray = _extract_string_array(generation_context.get("enemy_tags", []))
+	if enemy_tags.is_empty():
+		return offer_pool
+
+	var matched_pool: Array[Dictionary] = []
+	var generic_pool: Array[Dictionary] = []
+	var unmatched_pool: Array[Dictionary] = []
+	for offer in offer_pool:
+		var preferred_tags: PackedStringArray = _extract_string_array(offer.get("preferred_enemy_tags_any", []))
+		if preferred_tags.is_empty():
+			generic_pool.append(offer.duplicate(true))
+			continue
+		if _string_arrays_intersect(preferred_tags, enemy_tags):
+			matched_pool.append(offer.duplicate(true))
+		else:
+			unmatched_pool.append(offer.duplicate(true))
+
+	if matched_pool.is_empty():
+		return offer_pool
+
+	var prioritized_pool: Array[Dictionary] = []
+	prioritized_pool.append_array(matched_pool)
+	prioritized_pool.append_array(generic_pool)
+	if prioritized_pool.size() < max(1, present_count):
+		prioritized_pool.append_array(unmatched_pool)
+	return prioritized_pool
+
+
+func _reward_offer_matches_stage(offer: Dictionary, stage_index: int) -> bool:
+	var min_stage: int = int(offer.get("stage_min", 0))
+	var max_stage: int = int(offer.get("stage_max", 0))
+	if min_stage > 0 and stage_index < min_stage:
+		return false
+	if max_stage > 0 and stage_index > max_stage:
+		return false
+	return true
+
+
+func _extract_string_array(value: Variant) -> PackedStringArray:
+	var result: PackedStringArray = PackedStringArray()
+	if typeof(value) != TYPE_ARRAY:
+		return result
+	for entry in value:
+		var text: String = String(entry).strip_edges()
+		if text.is_empty() or result.has(text):
+			continue
+		result.append(text)
+	return result
+
+
+func _string_arrays_intersect(left_values: PackedStringArray, right_values: PackedStringArray) -> bool:
+	for left_value in left_values:
+		if right_values.has(left_value):
+			return true
+	return false

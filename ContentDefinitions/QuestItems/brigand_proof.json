@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "definition_id": "brigand_proof",
+  "family": "QuestItems",
+  "tags": [
+    "quest_item",
+    "hamlet",
+    "proof",
+    "brigand"
+  ],
+  "display": {
+    "name": "Brigand Proof",
+    "short_description": "A grim scrap of proof carried back to the hamlet to settle a dangerous request.",
+    "icon_key": "quest_brigand_proof"
+  },
+  "rules": {}
+}

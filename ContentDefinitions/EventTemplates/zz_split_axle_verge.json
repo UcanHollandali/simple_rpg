@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "definition_id": "zz_split_axle_verge",
+  "family": "EventTemplates",
+  "tags": [
+    "event",
+    "roadside",
+    "wagon",
+    "prototype"
+  ],
+  "display": {
+    "name": "Split Axle on the Verge",
+    "short_description": "A wagon sits dead on the verge with one axle split through and the wheel rolled halfway into the ditch."
+  },
+  "rules": {
+    "choices": [
+      {
+        "choice_id": "pry_out_the_hoop_iron",
+        "label": "Pry the hoop iron loose",
+        "summary": "The rim comes off in one useful length if you lean your weight on it hard enough.",
+        "effect_type": "repair_weapon"
+      },
+      {
+        "choice_id": "tear_open_the_food_chest",
+        "label": "Tear open the food chest and move",
+        "summary": "Most of it has spoiled, but a few salted scraps are still worth carrying.",
+        "effect_type": "grant_item",
+        "inventory_family": "consumable",
+        "definition_id": "salted_crumbs",
+        "amount": 1
+      }
+    ]
+  }
+}

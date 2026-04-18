@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "definition_id": "stage_3_merchant_stock_bulwark",
+  "family": "MerchantStocks",
+  "tags": [
+    "merchant_stock",
+    "support",
+    "stage_3",
+    "prototype"
+  ],
+  "display": {
+    "name": "Stage 3 Bulwark Stock",
+    "short_description": "A late-run wagon loaded with expensive route stabilizers and heavier protection."
+  },
+  "rules": {
+    "stock": [
+      {
+        "offer_id": "buy_hunter_stew_x1",
+        "definition_id": "hunter_stew",
+        "effect_type": "buy_consumable",
+        "amount": 1,
+        "cost_gold": 11
+      },
+      {
+        "offer_id": "buy_warden_spear",
+        "definition_id": "warden_spear",
+        "effect_type": "buy_weapon",
+        "cost_gold": 24
+      },
+      {
+        "offer_id": "buy_watcher_mail",
+        "definition_id": "watcher_mail",
+        "effect_type": "buy_armor",
+        "cost_gold": 25
+      }
+    ]
+  }
+}

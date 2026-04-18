@@ -1,0 +1,45 @@
+{
+    "schema_version":  1,
+    "definition_id":  "ledger_method",
+    "authoring_order":  50,
+    "family":  "CharacterPerks",
+    "tags":  [
+                 "perk",
+                 "economy_route",
+                 "economy"
+             ],
+    "display":  {
+                    "name":  "Ledger Method",
+                    "short_description":  "A route-planning perk that cuts durability cost by 2, but shaves 1 attack power off each swing.",
+                    "icon_key":  "passive_scrap_ledger_clasp"
+                },
+    "rules":  {
+                  "behaviors":  [
+                                    {
+                                        "trigger":  "passive",
+                                        "condition":  {
+                                                          "op":  "always"
+                                                      },
+                                        "target":  "self",
+                                        "effects":  [
+                                                        {
+                                                            "type":  "modify_stat",
+                                                            "params":  {
+                                                                           "stat":  "durability_cost_flat_reduction",
+                                                                           "amount":  2
+                                                                       }
+                                                        },
+                                                        {
+                                                            "type":  "modify_stat",
+                                                            "params":  {
+                                                                           "stat":  "attack_power_bonus",
+                                                                           "amount":  -1
+                                                                       }
+                                                        }
+                                                    ]
+                                    }
+                                ],
+                  "perk_family":  "economy_route"
+              }
+}
+

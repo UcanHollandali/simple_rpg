@@ -5,13 +5,15 @@ class_name UiAssetPaths
 const PLAYER_BUST_TEXTURE_PATH := "res://Assets/Characters/player_bust.png"
 const START_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_map_start.svg"
 const ROUTE_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_node_marker.svg"
-const EVENT_ICON_TEXTURE_PATH := ROUTE_ICON_TEXTURE_PATH
+const TRAIL_EVENT_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_map_trail_event.svg"
+const EVENT_ICON_TEXTURE_PATH := TRAIL_EVENT_ICON_TEXTURE_PATH
 const ATTACK_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_attack.svg"
 const REWARD_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_reward.svg"
 const REST_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_map_rest.svg"
 const MERCHANT_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_map_merchant.svg"
 const BLACKSMITH_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_map_blacksmith.svg"
 const SIDE_MISSION_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_map_side_mission.svg"
+const HAMLET_ICON_TEXTURE_PATH := SIDE_MISSION_ICON_TEXTURE_PATH
 const HP_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_hp.svg"
 const HUNGER_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_hunger.svg"
 const DURABILITY_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_durability.svg"
@@ -19,15 +21,47 @@ const GOLD_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_gold.svg"
 const KEY_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_confirm.svg"
 const BOSS_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_enemy_intent_heavy.svg"
 const WEAPON_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_weapon.svg"
-const ARMOR_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_brace.svg"
-const BELT_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_settings.svg"
+const SHIELD_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_shield.svg"
+const ARMOR_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_armor.svg"
+const BELT_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_belt.svg"
 const CONSUMABLE_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_consumable.svg"
-const PASSIVE_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_reward.svg"
+const PASSIVE_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_passive.svg"
+const QUEST_ITEM_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_quest_item.svg"
+const SHIELD_ATTACHMENT_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_shield_attachment.svg"
 const ENEMY_INTENT_ATTACK_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_enemy_intent_attack.svg"
 const ENEMY_INTENT_HEAVY_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_enemy_intent_heavy.svg"
 const MAP_WALKER_IDLE_TEXTURE_PATH := "res://Assets/UI/Map/Walker/ui_map_walker_idle.svg"
 const MAP_WALKER_WALK_A_TEXTURE_PATH := "res://Assets/UI/Map/Walker/ui_map_walker_walk_a.svg"
 const MAP_WALKER_WALK_B_TEXTURE_PATH := "res://Assets/UI/Map/Walker/ui_map_walker_walk_b.svg"
+const MAP_CANOPY_TEXTURE_PATHS := [
+	"res://Assets/UI/Map/Canopy/ui_map_v2_canopy_clump_a.svg",
+	"res://Assets/UI/Map/Canopy/ui_map_v2_canopy_clump_b.svg",
+	"res://Assets/UI/Map/Canopy/ui_map_v2_canopy_clump_c.svg",
+]
+const MAP_CLEARING_DECAL_NEUTRAL_TEXTURE_PATH := "res://Assets/UI/Map/Clearings/ui_map_v2_clearing_decal_neutral.svg"
+const MAP_CLEARING_DECAL_BOSS_TEXTURE_PATH := "res://Assets/UI/Map/Clearings/ui_map_v2_clearing_decal_boss.svg"
+const MAP_NODE_PLATE_REACHABLE_TEXTURE_PATH := "res://Assets/UI/Map/NodePlates/ui_map_v2_node_plate_reachable.svg"
+const MAP_NODE_PLATE_RESOLVED_TEXTURE_PATH := "res://Assets/UI/Map/NodePlates/ui_map_v2_node_plate_resolved.svg"
+const MAP_NODE_PLATE_LOCKED_TEXTURE_PATH := "res://Assets/UI/Map/NodePlates/ui_map_v2_node_plate_locked.svg"
+const ENEMY_BUST_FALLBACK_TEXTURE_PATHS := {
+	# The prototype only guarantees a small bust set; keep live enemies readable with
+	# the closest available family silhouette instead of showing a blank combat frame.
+	"ashen_sapper": "res://Assets/Enemies/enemy_chain_trapper_bust.png",
+	"carrion_runner": "res://Assets/Enemies/enemy_venom_scavenger_bust.png",
+	"cutpurse_duelist": "res://Assets/Enemies/enemy_lantern_cutpurse_bust.png",
+	"gatebreaker_brute": "res://Assets/Enemies/enemy_bone_raider_bust.png",
+	"thornwood_warder": "res://Assets/Enemies/enemy_dusk_pikeman_bust.png",
+	"tollhouse_captain": "res://Assets/Enemies/enemy_gate_warden_bust.png",
+}
+const ENEMY_TOKEN_FALLBACK_TEXTURE_PATHS := {
+	"enemy_tollhouse_captain": "res://Assets/Enemies/enemy_gate_warden_token.png",
+}
+const MAP_TRAIL_TEXTURE_PATHS_BY_FAMILY := {
+	"short_straight": "res://Assets/UI/Map/Trails/ui_map_v2_trail_short_straight.svg",
+	"gentle_curve": "res://Assets/UI/Map/Trails/ui_map_v2_trail_gentle_curve.svg",
+	"wider_curve": "res://Assets/UI/Map/Trails/ui_map_v2_trail_wider_curve.svg",
+	"outward_reconnecting_arc": "res://Assets/UI/Map/Trails/ui_map_v2_trail_outward_reconnecting_arc.svg",
+}
 
 
 static func build_enemy_bust_texture_path(definition_id: String) -> String:
@@ -35,9 +69,11 @@ static func build_enemy_bust_texture_path(definition_id: String) -> String:
 		return ""
 
 	var texture_path := "res://Assets/Enemies/enemy_%s_bust.png" % definition_id
-	var absolute_texture_path: String = ProjectSettings.globalize_path(texture_path)
-	if ResourceLoader.exists(texture_path) or FileAccess.file_exists(absolute_texture_path):
+	if _texture_path_exists(texture_path):
 		return texture_path
+	var fallback_path: String = String(ENEMY_BUST_FALLBACK_TEXTURE_PATHS.get(definition_id, ""))
+	if _texture_path_exists(fallback_path):
+		return fallback_path
 
 	return ""
 
@@ -50,8 +86,17 @@ static func build_enemy_token_texture_path(icon_key: String, definition_id: Stri
 		return ""
 
 	var texture_path := "res://Assets/Enemies/%s_token.png" % token_stem
-	var absolute_texture_path: String = ProjectSettings.globalize_path(texture_path)
-	if ResourceLoader.exists(texture_path) or FileAccess.file_exists(absolute_texture_path):
+	if _texture_path_exists(texture_path):
 		return texture_path
+	var fallback_path: String = String(ENEMY_TOKEN_FALLBACK_TEXTURE_PATHS.get(token_stem, ""))
+	if _texture_path_exists(fallback_path):
+		return fallback_path
 
 	return ""
+
+
+static func _texture_path_exists(texture_path: String) -> bool:
+	if texture_path.is_empty():
+		return false
+	var absolute_texture_path: String = ProjectSettings.globalize_path(texture_path)
+	return ResourceLoader.exists(texture_path) or FileAccess.file_exists(absolute_texture_path)

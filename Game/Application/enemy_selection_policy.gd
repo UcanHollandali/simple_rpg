@@ -20,7 +20,8 @@ func resolve_combat_enemy_definition_id(loader: ContentLoader, active_run_state:
 
 	var current_node_id: int = active_run_state.map_runtime_state.current_node_id
 	var encounter_index: int = max(0, current_node_id - 1)
-	return enemy_definition_ids[encounter_index % enemy_definition_ids.size()]
+	var stage_offset: int = _build_stage_rotation_offset(active_run_state.run_seed, stage_index, enemy_definition_ids.size())
+	return enemy_definition_ids[posmod(encounter_index + stage_offset, enemy_definition_ids.size())]
 
 
 func list_combat_enemy_definition_ids(loader: ContentLoader, stage_index: int = 1) -> Array[String]:
@@ -104,3 +105,20 @@ func _enemy_definition_has_tag(enemy_definition: Dictionary, tag_name: String) -
 		if String(tag_value) == tag_name:
 			return true
 	return false
+
+
+func _build_stage_rotation_offset(run_seed: int, stage_index: int, pool_size: int) -> int:
+	if pool_size <= 0 or run_seed <= 1:
+		return 0
+	var seed_text: String = "%d|minor_enemy_stage|%d" % [abs(run_seed), max(1, stage_index)]
+	return posmod(_hash_seed_string(seed_text), pool_size)
+
+
+func _hash_seed_string(value: String) -> int:
+	var accumulator: int = 216613626
+	var bytes: PackedByteArray = value.to_utf8_buffer()
+	for byte in bytes:
+		accumulator = abs(int((accumulator ^ int(byte)) * 16777619))
+	if accumulator == 0:
+		return 1
+	return accumulator

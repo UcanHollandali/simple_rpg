@@ -15,11 +15,17 @@
     "icon_key": "weapon_iron_sword"
   },
   "rules": {
+    "slot_compatibility": {
+      "right_hand": true,
+      "left_hand": false,
+      "offhand_capable": false
+    },
     "stats": {
       "weapon_type": "sword",
       "base_damage": 6,
       "max_durability": 20,
-      "durability_cost_per_attack": 1
+      "durability_cost_per_attack": 2,
+      "durability_profile": "sturdy"
     }
   }
 }

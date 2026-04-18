@@ -8,7 +8,6 @@ This file defines the high-level flow states and allowed transitions.
 
 - `Boot`
 - `MainMenu`
-- `RunSetup`
 - `MapExplore`
 - `NodeResolve`
 - `Combat`
@@ -29,7 +28,8 @@ Only one main flow state is active at a time.
 - reward does not resolve inside combat
 - pending choices are real runtime states, not just open popups
 - current `Event` flow is backed by explicit `EventState` data, not by fixed scene button assumptions
-- current player-facing event read is presented as a `Roadside Encounter`, but the technical flow state and node family remain `Event` / `event`
+- planned map `event` nodes are currently presented to the player as `Trail Event`
+- `Roadside Encounter` is reserved for the movement-triggered interruption, while the technical flow state and node family remain `Event` / `event`
 - current `Reward` flow is backed by explicit `RewardState` data, not by fixed scene button assumptions
 - current `LevelUp` flow is backed by explicit `LevelUpState` data, not by fixed scene button assumptions
 - current `SupportInteraction` flow is backed by explicit `SupportInteractionState` data, not by immediate scene return behavior
@@ -37,31 +37,37 @@ Only one main flow state is active at a time.
 ## Core Transitions
 
 - `Boot -> MainMenu`
-- `MainMenu -> RunSetup`
-- `RunSetup -> MapExplore`
-- `MapExplore -> NodeResolve | Combat | SupportInteraction | RunEnd`
+- `MainMenu -> MapExplore`
+- `MapExplore -> Combat | Event | Reward | SupportInteraction | RunEnd | MainMenu`
 - `NodeResolve -> Event | Reward | LevelUp | SupportInteraction | StageTransition | MapExplore | RunEnd`
 - `Event -> LevelUp | MapExplore | RunEnd`
 - `Combat -> Reward | StageTransition | RunEnd`
-- `Reward -> LevelUp | MapExplore | RunEnd`
-- `LevelUp -> MapExplore`
-- `SupportInteraction -> MapExplore`
-- `StageTransition -> MapExplore | RunEnd`
-- `RunEnd -> MainMenu | RunSetup`
+- `Reward -> LevelUp | MapExplore | RunEnd | MainMenu`
+- `LevelUp -> MapExplore | MainMenu`
+- `SupportInteraction -> MapExplore | MainMenu`
+- `StageTransition -> MapExplore | RunEnd | MainMenu`
+- `RunEnd -> MainMenu`
 
 ## Transition Rules
 
 - `MapExplore` owns adjacency-based movement, local reveal updates, lock checks, and revisit decisions.
+- `MapExplore -> Event` now happens directly for:
+  - the dedicated `event` node family
+  - low-probability roadside encounters triggered during movement
+- `MapExplore -> Reward` now happens directly for the dedicated `reward` node family.
 - `MapExplore -> Combat` now happens directly for combat and boss nodes without passing through `NodeResolve`.
-- `MapExplore -> NodeResolve` happens when the destination node has unresolved gameplay value or gating logic (event, reward, key).
 - Current combat and support-node exception:
   - `combat` and `boss` now open `Combat` directly from `MapExplore`
-  - `rest`, `merchant`, `blacksmith`, and `side_mission` now open `SupportInteraction` directly from `MapExplore`
+  - `rest`, `merchant`, `blacksmith`, and `hamlet` now open `SupportInteraction` directly from `MapExplore`
+  - they no longer show a separate `NodeResolve` bridge screen first
+- Current reward and event-node exception:
+  - `event` now opens `Event` directly from `MapExplore`
+  - `reward` now opens `Reward` directly from `MapExplore`
   - they no longer show a separate `NodeResolve` bridge screen first
 - A low-probability roadside pass is also allowed from `MapExplore` movement:
   - `choose_move_to_node` may route directly to `Event` with `source_context = roadside_encounter`
   - it reuses the dedicated `Event` state and does not create a new flow state
-  - routing uses named RNG stream `roadside_encounter_rng` and is blocked by per-stage quota
+  - routing uses named RNG stream `roadside_encounter_rng`, is blocked by per-stage quota, and may skip roadside-tagged templates whose optional trigger condition does not match the current run state
 - Pure traversal across already resolved space may stay inside `MapExplore`; it does not require a new main flow state.
 - Current zero-hunger starvation on map movement may route `MapExplore -> RunEnd` without passing through `NodeResolve`.
 - `Combat` must not jump directly back into free map exploration in the current prototype.
@@ -72,31 +78,42 @@ Only one main flow state is active at a time.
 - If an inline-drop victory path is added later, it must land with explicit state-machine, application, and test support; it is not part of the current allowed transition set.
 - `Reward` must not appear before combat officially ends.
 - `Event`, `LevelUp`, `Reward`, and `SupportInteraction` are separate flow states even if they use modal-style UI.
+- Current save-safe screens may return directly to `MainMenu` through the in-run safe menu:
+  - `MapExplore`
+  - `Reward`
+  - `LevelUp`
+  - `SupportInteraction`
+  - `StageTransition`
+- This safe-menu exit path does not add a new flow state and does not change save ownership; it only routes the active save-safe state back to the menu shell.
 - `RunEnd` is terminal for the active run, even if the app later returns to `MainMenu`.
-- Current `NodeResolve` runtime opens `Event` for the dedicated `event` node family.
-- The dedicated `event` node family now reads as a two-choice roadside encounter/story encounter in player-facing UI without renaming the technical flow state.
+- `NodeResolve` remains implemented as a legacy transition-shell state, but the current live map traversal does not route into it.
+- The dedicated `event` node family now reads as `Trail Event` in player-facing UI, while `Roadside Encounter` is reserved for the movement-triggered interruption.
 - Current `MapExplore` runtime opens `Combat` directly for:
   - `combat`
   - `boss`
+- Current `MapExplore` runtime opens `Event` directly for:
+  - `event`
+- Current `MapExplore` runtime opens `Reward` directly for:
+  - `reward`
 - Current `MapExplore` runtime opens `SupportInteraction` directly for:
   - `rest`
   - `merchant`
   - `blacksmith`
-  - `side_mission`
+  - `hamlet`
 - Resolved event nodes must stay traversable without reopening `Event` or minting a second primary outcome.
 - Re-entering a resolved node must not create repeat payout just because the player revisited it.
 - Resolved reward nodes and cleared combat nodes must not produce repeat primary value on revisit.
 - Resolved support nodes must stay traversable on revisit without reopening `SupportInteraction`.
-- Resolved side-mission nodes are the current exception:
-  - accepted and completed contracts may reopen `SupportInteraction`
-  - claimed contracts must fall back to pure traversal
-- Boss-gate lock and stage-key checks belong at the `MapExplore` / `NodeResolve` boundary; they do not require a new main flow state.
-- Current `NodeResolve` runtime also resolves the stage key back into `MapExplore` while updating runtime-owned key / boss-gate truth.
+- Resolved hamlet nodes are the current exception:
+  - accepted and completed side quests may reopen `SupportInteraction`
+  - claimed side quests must fall back to pure traversal
+- Boss-gate lock and stage-key checks belong at the `MapExplore` movement boundary; they do not require a new main flow state.
+- Current key-node runtime resolves the stage key in-place on `MapExplore` while updating runtime-owned key / boss-gate truth.
 - Current `Event` runtime applies exactly one authored outcome from the active `EventState` offer and then routes to:
   - `RunEnd` if the applied event outcome defeats the player
   - `LevelUp` if the applied event outcome grants enough XP to cross the current threshold
   - `MapExplore` otherwise
-- Current side-mission loop keeps combat cadence unchanged:
+- Current hamlet side-quest loop keeps combat cadence unchanged:
   - marked target victory still routes `Combat -> Reward`
   - later returning to the contract node routes `MapExplore -> SupportInteraction` for claim
 
@@ -120,7 +137,6 @@ Current implemented safe-state baseline is intentionally the same list today:
 
 Initial non-save-safe states:
 - `Boot`
-- `RunSetup`
 - `NodeResolve`
 - `Combat`
 - `Event`

@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "definition_id": "gatebreaker_club",
+  "family": "Weapons",
+  "tags": [
+    "weapon",
+    "melee",
+    "club",
+    "physical",
+    "heavy",
+    "breaker"
+  ],
+  "display": {
+    "name": "Gatebreaker Club",
+    "short_description": "A heavy timber cudgel that hits hard and chews durability like a breaching tool.",
+    "icon_key": "weapon_gatebreaker_club"
+  },
+  "design_intent_question": "Can a brutal heavy club offer a clear high-hit, high-wear choice for players who want to break pace instead of preserving tempo?",
+  "rules": {
+    "slot_compatibility": {
+      "right_hand": true,
+      "left_hand": false,
+      "offhand_capable": false
+    },
+    "stats": {
+      "weapon_type": "club",
+      "base_damage": 7,
+      "max_durability": 20,
+      "durability_cost_per_attack": 2,
+      "durability_profile": "heavy"
+    }
+  }
+}

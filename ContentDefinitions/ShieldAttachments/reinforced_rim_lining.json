@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "definition_id": "reinforced_rim_lining",
+  "family": "ShieldAttachments",
+  "tags": [
+    "shield_attachment",
+    "defense",
+    "utility"
+  ],
+  "display": {
+    "name": "Reinforced Rim Lining",
+    "short_description": "A fitted shield rim lining that adds 1 flat damage reduction while attached.",
+    "icon_key": "shield_attachment_reinforced_rim_lining"
+  },
+  "rules": {
+    "attachment_target": "shield",
+    "max_per_shield": 1,
+    "behaviors": [
+      {
+        "trigger": "passive",
+        "condition": {
+          "op": "always"
+        },
+        "target": "self",
+        "effects": [
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "incoming_damage_flat_reduction",
+              "amount": 1
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

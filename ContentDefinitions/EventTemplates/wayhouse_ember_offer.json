@@ -23,11 +23,12 @@
         "amount": 10
       },
       {
-        "choice_id": "pocket_the_ember_shard",
-        "label": "Pocket the ember shard",
-        "summary": "Split the emberstone and keep the lesson it leaves in your hands.",
-        "effect_type": "grant_xp",
-        "amount": 10
+        "choice_id": "salvage_the_quartermaster_strap",
+        "label": "Salvage the quartermaster strap",
+        "summary": "Dig a soot-dark belt rig out from under the fallen bench and keep it for the long march ahead.",
+        "effect_type": "grant_item",
+        "inventory_family": "belt",
+        "definition_id": "scavenger_strap"
       }
     ]
   }

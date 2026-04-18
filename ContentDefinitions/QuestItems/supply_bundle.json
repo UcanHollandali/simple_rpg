@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "definition_id": "supply_bundle",
+  "family": "QuestItems",
+  "tags": [
+    "quest_item",
+    "hamlet",
+    "cargo",
+    "supplies"
+  ],
+  "display": {
+    "name": "Supply Bundle",
+    "short_description": "A wrapped hamlet bundle that must survive the trail intact until it reaches its marked destination.",
+    "icon_key": "quest_supply_bundle"
+  },
+  "rules": {}
+}

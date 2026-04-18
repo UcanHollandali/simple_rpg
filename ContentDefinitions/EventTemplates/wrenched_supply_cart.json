@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "definition_id": "wrenched_supply_cart",
+  "family": "EventTemplates",
+  "tags": [
+    "event",
+    "stage_3",
+    "roadside",
+    "supply",
+    "prototype"
+  ],
+  "display": {
+    "name": "Lost Supply Cart",
+    "short_description": "A supply cart has jackknifed into the ditch, its last dry goods pinned under a bent iron rail and a wheel that still creaks in the mud."
+  },
+  "rules": {
+    "trigger_condition": {
+      "op": "eq",
+      "stat": "has_empty_backpack_slot",
+      "value": true
+    },
+    "choices": [
+      {
+        "choice_id": "pocket_the_war_biscuit",
+        "label": "Pull free the ration crate",
+        "summary": "Wrench one dry biscuit loose before the frame sinks another inch into the ditch.",
+        "effect_type": "grant_item",
+        "inventory_family": "consumable",
+        "definition_id": "war_biscuit",
+        "amount": 1
+      },
+      {
+        "choice_id": "pry_out_the_resin_tin",
+        "label": "Pry out the resin tin",
+        "summary": "Dig a cracked repair tin out from under the axle and keep it for the next broken edge.",
+        "effect_type": "grant_item",
+        "inventory_family": "consumable",
+        "definition_id": "binding_resin",
+        "amount": 1
+      }
+    ]
+  }
+}

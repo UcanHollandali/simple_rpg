@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "definition_id": "provisioner_belt",
+  "family": "Belts",
+  "tags": [
+    "belt",
+    "utility",
+    "food",
+    "pack"
+  ],
+  "display": {
+    "name": "Provisioner Belt",
+    "short_description": "A wide ration belt that opens 3 extra backpack slots for food, tools, and route cargo.",
+    "icon_key": "belt_provisioner_belt"
+  },
+  "rules": {
+    "backpack_capacity_bonus": 3
+  }
+}

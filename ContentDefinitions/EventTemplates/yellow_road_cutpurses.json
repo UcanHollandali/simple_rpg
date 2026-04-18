@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "definition_id": "yellow_road_cutpurses",
+  "family": "EventTemplates",
+  "tags": [
+    "event",
+    "roadside",
+    "bandits",
+    "stage_2",
+    "prototype"
+  ],
+  "display": {
+    "name": "Roadside Cutpurses",
+    "short_description": "Three road-cutters drift out of the brush with palms up and knives low. They want something easy before the next patrolless mile."
+  },
+  "rules": {
+    "trigger_condition": {
+      "op": "gt",
+      "stat": "gold",
+      "value": 4
+    },
+    "choices": [
+      {
+        "choice_id": "throw_them_a_ration",
+        "label": "Throw them a ration and back away",
+        "summary": "Let them tear into your trail food while you keep your skin and your pace.",
+        "effect_type": "modify_hunger",
+        "amount": 3
+      },
+      {
+        "choice_id": "rush_the_knife_hand",
+        "label": "Rush the knife hand",
+        "summary": "Break their nerve fast or take a cut for getting too close.",
+        "effect_type": "damage_player",
+        "amount": 5
+      }
+    ]
+  }
+}

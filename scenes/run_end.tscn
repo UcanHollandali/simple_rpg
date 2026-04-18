@@ -88,21 +88,29 @@ theme_override_constants/separation = 14
 size_flags_horizontal = 4
 
 [node name="ChipLabel" type="Label" parent="Margin/Center/ContentCard/VBox/ChipCard"]
-text = "RUN CLOSED"
+text = "ROAD CLOSED"
 horizontal_alignment = 1
 
 [node name="TitleLabel" type="Label" parent="Margin/Center/ContentCard/VBox"]
-text = "Run Over"
+text = "Journey's End"
 horizontal_alignment = 1
 autowrap_mode = 3
 
 [node name="ResultLabel" type="Label" parent="Margin/Center/ContentCard/VBox"]
-text = "Result:"
+text = "The ashwood has gone still."
 horizontal_alignment = 1
 autowrap_mode = 3
 
 [node name="HintLabel" type="Label" parent="Margin/Center/ContentCard/VBox"]
-text = "Return to the main menu when ready. Save and load stay in Settings here."
+text = "Take a breath, then return to the main menu. Settings still keeps save and load here."
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="RunStatusCard" type="PanelContainer" parent="Margin/Center/ContentCard/VBox"]
+size_flags_horizontal = 3
+
+[node name="RunStatusLabel" type="Label" parent="Margin/Center/ContentCard/VBox/RunStatusCard"]
+text = "HP 0 | Hunger 0 | Gold 0 | Durability 0"
 horizontal_alignment = 1
 autowrap_mode = 3
 
@@ -111,7 +119,7 @@ autowrap_mode = 3
 horizontal_alignment = 1
 
 [node name="ReturnButton" type="Button" parent="Margin/Center/ContentCard/VBox"]
-text = "Return to Menu"
+text = "Return to Main Menu"
 icon = ExtResource("5")
 custom_minimum_size = Vector2(0, 58)
 size_flags_horizontal = 3

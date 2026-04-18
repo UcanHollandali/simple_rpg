@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "definition_id": "cutpurse_duelist",
+  "authoring_order": 145,
+  "family": "Enemies",
+  "encounter_tier": "minor",
+  "design_intent_question": "Can the player read a dual-wield bandit as a chip-pressure foe, defending the dirty spike turn instead of treating every nick as equal?",
+  "tags": [
+    "enemy",
+    "brigand",
+    "stage_2",
+    "dual_wield",
+    "bleed"
+  ],
+  "display": {
+    "name": "Cutpurse Duelist",
+    "short_description": "A nimble road thief with a hatchet and knife, leaning on dirty cuts until one committed cross-swing opens the player up.",
+    "icon_key": "enemy_cutpurse_duelist"
+  },
+  "rules": {
+    "stats": {
+      "base_hp": 22,
+      "base_damage": 4,
+      "dodge_chance": 15
+    },
+    "intent_pool": [
+      {
+        "intent_id": "probing_flick",
+        "action_family": "attack",
+        "threat_level": "low",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 2,
+              "damage_kind": "physical"
+            }
+          }
+        ]
+      },
+      {
+        "intent_id": "offhand_hook",
+        "action_family": "attack",
+        "threat_level": "medium",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 2,
+              "damage_kind": "physical"
+            }
+          },
+          {
+            "type": "apply_status",
+            "params": {
+              "definition_id": "weakened"
+            }
+          }
+        ]
+      },
+      {
+        "intent_id": "hatchet_cross",
+        "action_family": "attack",
+        "threat_level": "high",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 5,
+              "damage_kind": "physical"
+            }
+          },
+          {
+            "type": "apply_status",
+            "params": {
+              "definition_id": "bleed"
+            }
+          }
+        ]
+      }
+    ],
+    "behaviors": []
+  }
+}

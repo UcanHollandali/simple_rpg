@@ -4,7 +4,7 @@
   "authoring_order": 200,
   "family": "Enemies",
   "encounter_tier": "elite",
-  "design_intent_question": "Can the player survive a final boss loop where heavy damage, poison, bleed, and weakened all matter at once, choosing the single turn where Brace or healing actually saves the run?",
+  "design_intent_question": "Can the player survive a final boss loop where heavy damage, poison, bleed, and weakened all matter at once, choosing the single turn where Defend or healing actually saves the run?",
   "tags": [
     "enemy",
     "boss",
@@ -19,7 +19,7 @@
   },
   "rules": {
     "stats": {
-      "base_hp": 42,
+      "base_hp": 46,
       "base_damage": 6
     },
     "intent_pool": [

@@ -3,18 +3,17 @@ extends RefCounted
 class_name FlowState
 
 enum Type {
-	BOOT,
-	MAIN_MENU,
-	RUN_SETUP,
-	MAP_EXPLORE,
-	NODE_RESOLVE,
-	COMBAT,
-	EVENT,
-	REWARD,
-	LEVEL_UP,
-	SUPPORT_INTERACTION,
-	STAGE_TRANSITION,
-	RUN_END,
+	BOOT = 0,
+	MAIN_MENU = 1,
+	MAP_EXPLORE = 3,
+	NODE_RESOLVE = 4,
+	COMBAT = 5,
+	EVENT = 6,
+	REWARD = 7,
+	LEVEL_UP = 8,
+	SUPPORT_INTERACTION = 9,
+	STAGE_TRANSITION = 10,
+	RUN_END = 11,
 }
 
 
@@ -42,8 +41,6 @@ static func name_of(state: int) -> String:
 			return "BOOT"
 		Type.MAIN_MENU:
 			return "MAIN_MENU"
-		Type.RUN_SETUP:
-			return "RUN_SETUP"
 		Type.MAP_EXPLORE:
 			return "MAP_EXPLORE"
 		Type.NODE_RESOLVE:

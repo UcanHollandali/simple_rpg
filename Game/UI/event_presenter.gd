@@ -2,18 +2,33 @@
 extends RefCounted
 class_name EventPresenter
 
+const ContentLoaderScript = preload("res://Game/Infrastructure/content_loader.gd")
+const InventoryStateScript = preload("res://Game/RuntimeState/inventory_state.gd")
 const RunStatusPresenterScript = preload("res://Game/UI/run_status_presenter.gd")
+const UiAssetPathsScript = preload("res://Game/UI/ui_asset_paths.gd")
 const DEFAULT_CARD_COUNT: int = 2
+const PLANNED_EVENT_CHIP_TEXT: String = "TRAIL EVENT"
+const ROADSIDE_EVENT_CHIP_TEXT: String = "ROADSIDE ENCOUNTER"
+
+var _loader: ContentLoader = ContentLoaderScript.new()
 
 
-func build_chip_text() -> String:
-	return "ROADSIDE ENCOUNTER"
+func build_chip_text(event_state: EventState = null) -> String:
+	if event_state != null and String(event_state.source_context) == EventState.SOURCE_CONTEXT_ROADSIDE_ENCOUNTER:
+		return ROADSIDE_EVENT_CHIP_TEXT
+	return PLANNED_EVENT_CHIP_TEXT
 
 
 func build_title_text(event_state: EventState) -> String:
 	if event_state == null:
-		return "Roadside Encounter unavailable."
+		return "Event unavailable."
 	return String(event_state.title_text)
+
+
+func build_context_text(event_state: EventState) -> String:
+	if event_state != null and String(event_state.source_context) == EventState.SOURCE_CONTEXT_ROADSIDE_ENCOUNTER:
+		return "A movement interruption cuts across the road. Resolve one outcome, then continue the trip."
+	return "A planned stop on the map offers two authored outcomes. Choose one and keep moving."
 
 
 func build_summary_text(event_state: EventState) -> String:
@@ -23,11 +38,27 @@ func build_summary_text(event_state: EventState) -> String:
 
 
 func build_hint_text() -> String:
-	return "Badges signal the likely tone. Detail text shows the exact outcome. Mid-roadside-save is not part of the current v1 slice."
+	return "Read the badge for tone, the title for the approach, and the detail line for the exact outcome."
 
 
-func build_run_status_text(run_state: RunState) -> String:
-	return RunStatusPresenterScript.build_compact_status_text(run_state)
+func build_choice_failure_text(event_state: EventState, error_text: String) -> String:
+	var prefix: String = "Event"
+	if event_state != null and String(event_state.source_context) == EventState.SOURCE_CONTEXT_ROADSIDE_ENCOUNTER:
+		prefix = "Roadside encounter"
+	return "%s failed: %s" % [prefix, error_text]
+
+
+func build_choice_icon_texture_path(event_state: EventState = null) -> String:
+	if event_state != null and String(event_state.source_context) == EventState.SOURCE_CONTEXT_ROADSIDE_ENCOUNTER:
+		return UiAssetPathsScript.ROUTE_ICON_TEXTURE_PATH
+	return UiAssetPathsScript.EVENT_ICON_TEXTURE_PATH
+
+
+func build_run_status_model(run_state: RunState) -> Dictionary:
+	return RunStatusPresenterScript.build_status_model(run_state, {
+		"variant": RunStatusPresenterScript.VARIANT_COMPACT,
+		"include_weapon": true,
+	})
 
 
 func build_choice_view_models(event_state: EventState, card_count: int = DEFAULT_CARD_COUNT) -> Array[Dictionary]:
@@ -76,6 +107,8 @@ func _build_badge_text(choice: Dictionary) -> String:
 			return "Salvage"
 		"damage_player":
 			return "Risk"
+		"grant_item":
+			return "Find"
 		_:
 			return "Road"
 
@@ -83,7 +116,7 @@ func _build_badge_text(choice: Dictionary) -> String:
 func _build_detail_text(choice: Dictionary) -> String:
 	var effect_type: String = String(choice.get("effect_type", ""))
 	var summary_text: String = String(choice.get("summary", ""))
-	var outcome_text: String = _build_outcome_text(effect_type, int(choice.get("amount", 0)))
+	var outcome_text: String = _build_outcome_text(effect_type, int(choice.get("amount", 0)), choice)
 	if outcome_text.is_empty():
 		return summary_text
 	if summary_text.is_empty():
@@ -91,7 +124,7 @@ func _build_detail_text(choice: Dictionary) -> String:
 	return "%s\n%s" % [outcome_text, summary_text]
 
 
-func _build_outcome_text(effect_type: String, amount: int) -> String:
+func _build_outcome_text(effect_type: String, amount: int, choice: Dictionary = {}) -> String:
 	match effect_type:
 		"heal":
 			return "Recover %d HP." % amount
@@ -105,6 +138,19 @@ func _build_outcome_text(effect_type: String, amount: int) -> String:
 			return "Restore your active weapon to full durability."
 		"damage_player":
 			return "Take %d damage." % amount
+		"grant_item":
+			var inventory_family: String = String(choice.get("inventory_family", "")).strip_edges()
+			var definition_id: String = String(choice.get("definition_id", "")).strip_edges()
+			var item_name: String = _load_inventory_display_name(inventory_family, definition_id)
+			if inventory_family == InventoryStateScript.INVENTORY_FAMILY_CONSUMABLE:
+				return "Pack %s x%d." % [item_name, max(1, amount)]
+			if inventory_family == InventoryStateScript.INVENTORY_FAMILY_PASSIVE:
+				return "Carry %s for its backpack-only passive bonus." % item_name
+			if inventory_family == InventoryStateScript.INVENTORY_FAMILY_BELT:
+				return "Take %s for more backpack utility." % item_name
+			if inventory_family == InventoryStateScript.INVENTORY_FAMILY_SHIELD_ATTACHMENT:
+				return "Stash %s as a shield mod." % item_name
+			return "Take %s." % item_name
 		_:
 			return ""
 
@@ -123,5 +169,37 @@ func _build_button_text(choice: Dictionary) -> String:
 			return "Take the Salvage"
 		"Risk":
 			return "Risk the Encounter"
+		"Find":
+			return "Pack the Find"
 		_:
 			return "Choose This Encounter"
+
+
+func _load_inventory_display_name(inventory_family: String, definition_id: String) -> String:
+	var family_name: String = _definition_family_for_inventory_family(inventory_family)
+	if family_name.is_empty() or definition_id.is_empty():
+		return definition_id
+	var definition: Dictionary = _loader.load_definition(family_name, definition_id)
+	return String(definition.get("display", {}).get("name", definition_id))
+
+
+func _definition_family_for_inventory_family(inventory_family: String) -> String:
+	match inventory_family:
+		InventoryStateScript.INVENTORY_FAMILY_WEAPON:
+			return "Weapons"
+		InventoryStateScript.INVENTORY_FAMILY_SHIELD:
+			return "Shields"
+		InventoryStateScript.INVENTORY_FAMILY_ARMOR:
+			return "Armors"
+		InventoryStateScript.INVENTORY_FAMILY_BELT:
+			return "Belts"
+		InventoryStateScript.INVENTORY_FAMILY_CONSUMABLE:
+			return "Consumables"
+		InventoryStateScript.INVENTORY_FAMILY_PASSIVE:
+			return "PassiveItems"
+		InventoryStateScript.INVENTORY_FAMILY_SHIELD_ATTACHMENT:
+			return "ShieldAttachments"
+		InventoryStateScript.INVENTORY_FAMILY_QUEST_ITEM:
+			return "QuestItems"
+		_:
+			return ""

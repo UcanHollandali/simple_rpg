@@ -87,25 +87,32 @@ theme_override_constants/separation = 8
 [node name="HeaderRow" type="VBoxContainer" parent="Margin/VBox"]
 theme_override_constants/separation = 8
 
-[node name="HeaderStack" type="VBoxContainer" parent="Margin/VBox/HeaderRow"]
+[node name="HeaderCard" type="PanelContainer" parent="Margin/VBox/HeaderRow"]
+size_flags_horizontal = 3
+
+[node name="HeaderStack" type="VBoxContainer" parent="Margin/VBox/HeaderRow/HeaderCard"]
 size_flags_horizontal = 3
 theme_override_constants/separation = 4
 
-[node name="ChipCard" type="PanelContainer" parent="Margin/VBox/HeaderRow/HeaderStack"]
+[node name="ChipCard" type="PanelContainer" parent="Margin/VBox/HeaderRow/HeaderCard/HeaderStack"]
 size_flags_horizontal = 0
 
-[node name="ChipLabel" type="Label" parent="Margin/VBox/HeaderRow/HeaderStack/ChipCard"]
+[node name="ChipLabel" type="Label" parent="Margin/VBox/HeaderRow/HeaderCard/HeaderStack/ChipCard"]
 text = "SUPPORT"
 
-[node name="TitleLabel" type="Label" parent="Margin/VBox/HeaderRow/HeaderStack"]
+[node name="TitleLabel" type="Label" parent="Margin/VBox/HeaderRow/HeaderCard/HeaderStack"]
 text = "Support Interaction"
 autowrap_mode = 3
 
-[node name="SummaryLabel" type="Label" parent="Margin/VBox/HeaderRow/HeaderStack"]
+[node name="ContextLabel" type="Label" parent="Margin/VBox/HeaderRow/HeaderCard/HeaderStack"]
+text = "Take one stop action, then return to the road."
+autowrap_mode = 3
+
+[node name="SummaryLabel" type="Label" parent="Margin/VBox/HeaderRow/HeaderCard/HeaderStack"]
 text = "Summary"
 autowrap_mode = 3
 
-[node name="HintLabel" type="Label" parent="Margin/VBox/HeaderRow/HeaderStack"]
+[node name="HintLabel" type="Label" parent="Margin/VBox/HeaderRow/HeaderCard/HeaderStack"]
 text = "Choose one support action, then return to the road."
 autowrap_mode = 3
 

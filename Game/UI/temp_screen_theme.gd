@@ -108,6 +108,100 @@ static func apply_chip(panel: PanelContainer, label: Label, accent: Color = TEAL
 	label.add_theme_color_override("font_color", TEXT_PRIMARY_COLOR)
 
 
+static func apply_compact_status_area(panel: PanelContainer, accent: Color = PANEL_BORDER_COLOR) -> void:
+	if panel == null:
+		return
+	apply_panel(panel, accent, 16, 0.88)
+	intensify_panel(panel, accent, 3, 18, 0.03, 0.18, 16, 12)
+
+
+static func apply_choice_card_shell(panel: PanelContainer, accent: Color = PANEL_BORDER_COLOR) -> void:
+	if panel == null:
+		return
+	apply_panel(panel, accent, 18, 0.9)
+	intensify_panel(panel, accent, 3, 20, 0.04, 0.24, 18, 16)
+
+
+static func apply_status_chip_shell(panel: PanelContainer, accent: Color = TEAL_ACCENT_COLOR, density: String = "compact") -> void:
+	if panel == null:
+		return
+
+	var style: StyleBoxFlat = StyleBoxFlat.new()
+	style.bg_color = PANEL_SOFT_FILL_COLOR.lerp(accent.darkened(0.78), 0.18)
+	style.border_color = accent.lightened(0.08)
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	style.corner_radius_top_left = 12
+	style.corner_radius_top_right = 12
+	style.corner_radius_bottom_right = 12
+	style.corner_radius_bottom_left = 12
+	style.shadow_color = Color(accent.r, accent.g, accent.b, 0.16)
+	style.shadow_size = 8
+	match density:
+		"minimal":
+			style.content_margin_left = 10
+			style.content_margin_top = 6
+			style.content_margin_right = 10
+			style.content_margin_bottom = 6
+		"standard":
+			style.content_margin_left = 14
+			style.content_margin_top = 8
+			style.content_margin_right = 14
+			style.content_margin_bottom = 8
+		_:
+			style.content_margin_left = 12
+			style.content_margin_top = 7
+			style.content_margin_right = 12
+			style.content_margin_bottom = 7
+	panel.add_theme_stylebox_override("panel", style)
+
+
+static func apply_status_progress_bar(bar: ProgressBar, accent: Color = TEAL_ACCENT_COLOR) -> void:
+	if bar == null:
+		return
+
+	var background_style: StyleBoxFlat = StyleBoxFlat.new()
+	background_style.bg_color = PANEL_SOFT_FILL_COLOR.darkened(0.2)
+	background_style.corner_radius_top_left = 6
+	background_style.corner_radius_top_right = 6
+	background_style.corner_radius_bottom_right = 6
+	background_style.corner_radius_bottom_left = 6
+	background_style.content_margin_left = 0
+	background_style.content_margin_top = 0
+	background_style.content_margin_right = 0
+	background_style.content_margin_bottom = 0
+
+	var fill_style: StyleBoxFlat = StyleBoxFlat.new()
+	fill_style.bg_color = accent
+	fill_style.corner_radius_top_left = 6
+	fill_style.corner_radius_top_right = 6
+	fill_style.corner_radius_bottom_right = 6
+	fill_style.corner_radius_bottom_left = 6
+
+	bar.add_theme_stylebox_override("background", background_style)
+	bar.add_theme_stylebox_override("fill", fill_style)
+
+
+static func resolve_status_accent(semantic: String, fallback: Color = PANEL_BORDER_COLOR) -> Color:
+	match semantic:
+		"health", "danger":
+			return RUST_ACCENT_COLOR
+		"hunger", "sustain":
+			return REWARD_ACCENT_COLOR.darkened(0.12)
+		"gold", "wealth", "reward":
+			return REWARD_ACCENT_COLOR
+		"durability", "equipment", "weapon", "shield", "offhand", "guard":
+			return PANEL_BORDER_COLOR
+		"xp", "progress", "perk":
+			return TEAL_ACCENT_COLOR
+		"muted":
+			return TEXT_MUTED_COLOR
+		_:
+			return fallback
+
+
 static func apply_button(button: Button, accent: Color = PANEL_BORDER_COLOR, is_secondary: bool = false) -> void:
 	if button == null:
 		return

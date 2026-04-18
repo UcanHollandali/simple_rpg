@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "definition_id": "recover_bell_scout",
+  "family": "SideMissions",
+  "tags": [
+    "hamlet",
+    "side_quest",
+    "rescue",
+    "prototype"
+  ],
+  "display": {
+    "name": "Recover the Bell Scout",
+    "short_description": "A bell-runner vanished near a dead tower pocket. The hamlet needs them found before dark closes the road."
+  },
+  "rules": {
+    "mission_type": "rescue_missing_scout",
+    "target_families": [
+      "combat",
+      "event",
+      "reward"
+    ],
+    "briefing_text": "The bell scout vanished near the marked pocket. Reach the mark, pull them clear, and the hamlet will open another reward chest.",
+    "accept_label": "Go find the scout",
+    "accepted_text": "The marked pocket is live now. Reach it, resolve the danger, then return here for aid.",
+    "reminder_label": "Bell scout missing",
+    "completed_text": "The bell scout made it back. Choose one gratitude reward before you leave.",
+    "claimed_text": "The bell scout is already home. This request is settled.",
+    "claimed_label": "Scout returned",
+    "reward_pool": [
+      {
+        "offer_id": "claim_watcher_mail",
+        "effect_type": "grant_item",
+        "inventory_family": "armor",
+        "definition_id": "watcher_mail"
+      },
+      {
+        "offer_id": "claim_sturdy_wraps",
+        "effect_type": "grant_item",
+        "inventory_family": "passive",
+        "definition_id": "sturdy_wraps"
+      },
+      {
+        "offer_id": "claim_field_broth",
+        "effect_type": "grant_item",
+        "inventory_family": "consumable",
+        "definition_id": "field_broth",
+        "amount": 1
+      },
+      {
+        "offer_id": "claim_bell_fee",
+        "effect_type": "grant_gold",
+        "amount": 12
+      }
+    ]
+  }
+}

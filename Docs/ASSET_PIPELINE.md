@@ -44,7 +44,7 @@ Examples:
 - `enemy_bone_raider_bust.png`
 - `enemy_bone_raider_token.png`
 - `sfx_ui_confirm_01.ogg`
-- `music_ui_hub_loop_temp_01.ogg`
+- `music_ui_hub_loop_proto_01.ogg`
 
 ## Promotion Model
 

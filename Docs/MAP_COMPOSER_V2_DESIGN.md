@@ -22,21 +22,21 @@ These points are based on the current repo state, not on proposal:
 - Save validation currently requires `active_map_template_id` plus `map_realized_graph`.
 - The realized graph currently stores `node_id`, `node_family`, `node_state`, and `adjacent_node_ids`.
 - The current save payload does not store board coordinates, spline points, clearing masks, or decor placements.
-- `scenes/map_explore.gd` currently renders only the adjacent reachable shell through six fixed slot positions plus a current-node marker.
-- The current board roads are straight `Line2D` segments between the current marker and each visible adjacent marker.
-- The current stage graph truth is scaffold-based and compact, with one start anchor and bounded portrait readability.
+- `MapBoardComposerV2` currently derives world positions, visible edge trails, forest shapes, and focus offset from runtime graph truth plus board seed.
+- `scenes/map_explore.gd` keeps only a narrow emergency fixed-slot fallback when composer world positions are missing; live board presentation is composer-driven.
+- The current stage graph truth is controlled-scatter and compact, with one start anchor and bounded portrait readability.
 - Dedicated fog cards are currently suspended by contract; undiscovered nodes remain runtime-hidden instead.
 
 ## Problem Statement
 
-The current board is readable, but it is visibly slot-driven:
+The current board is graph-native, but some legacy shell residue remains:
 
-- node placement is tied to a small fixed slot set instead of the actual graph shape
-- path presentation is a straight line overlay instead of an authored-looking trail
-- the board reads as UI chrome over a backdrop, not as a local forest pocket
-- graph identity is stronger in runtime truth than in player-facing composition
+- the scene still carries an emergency slot fallback path for missing composer positions
+- route markers and buttons still live inside an older scene shell even though their placement now follows composer output
+- forest pocket tuning and occlusion safety are still heuristic rather than final-production polished
+- graph identity is much stronger in presentation now, but the remaining work is polish/tuning rather than a composer-vs-slot rewrite
 
-Map Composer V2 should keep the existing gameplay truth and stage contract, but replace the board presentation with:
+Map Composer V2 should keep the existing gameplay truth and stage contract while continuing to refine:
 
 - graph-driven node placement
 - path-mask-driven trail composition
@@ -109,7 +109,7 @@ The composer should only read:
 The composer may derive:
 
 - node center positions in board space
-- ring index / branch sector assignment
+- depth-band / branch-group metadata
 - spline control points for edges
 - clearing masks
 - pocket masks
@@ -156,11 +156,11 @@ This preserves save/load visual stability without changing save shape.
 ## Placement Steps (Proposed)
 
 1. Treat node `0` / `start` as the stage origin in normalized board space.
-2. Compute each node's ring depth from the start node using shortest-path distance.
-3. Assign each node to an angular sector based on its first-hop ancestry from the start node.
-4. For reconnection nodes, place them between the sectors of their contributing branches, then clamp to avoid line crossings.
-5. Apply deterministic jitter inside each node's sector/ring envelope.
-6. Resolve collisions by reducing jitter first, then nudging within-sector before allowing cross-sector drift.
+2. Compute each node's shortest-path depth plus first-hop branch lineage from the start node.
+3. Use opening branch vectors only as soft grouping hints, not as hard ring/arc slots.
+4. Grow deeper nodes outward from their primary parent, with deterministic within-branch jitter and sibling spread.
+5. Place reconnect nodes between their contributing parent pockets, then push them slightly outward so the trail reads as a detour.
+6. Resolve collisions by shrinking local drift first, then nudging inside the branch corridor before allowing broader cross-branch movement.
 
 ## Ring Baseline (Proposed)
 
@@ -200,8 +200,8 @@ This is a proposed composition baseline, not a map-rule contract:
 
 - Control points should be derived from:
   - start-to-end direction
-  - ring tangent bias
-  - sector bias
+  - branch corridor bias
+  - outward pocket bias
   - deterministic curvature sign for sibling/reconnection edges
 - Control-point distance should scale from edge length, then clamp to avoid over-bending on short edges.
 - Reconnection edges should bias outward first, then return inward, so the path reads as a trail detour rather than a UI chord.
@@ -313,6 +313,8 @@ See `Docs/MAP_COMPOSER_V2_ASSET_REQUIREMENTS.md` for the production-facing asset
 
 ## Migration Strategy
 
+Phases `1-4` below are substantially live in the checked-out repo. The main remaining migration work is polish plus eventual retirement of the emergency slot fallback.
+
 ## Phase 0 - Freeze Truth Boundary
 
 - Keep `MapRuntimeState` as the only map gameplay owner.
@@ -345,8 +347,8 @@ See `Docs/MAP_COMPOSER_V2_ASSET_REQUIREMENTS.md` for the production-facing asset
 
 ## Phase 5 - Retire Slot Scaffolding
 
-- Remove the fixed slot constants and slot-first route layout once parity and fallback confidence are complete.
-- Keep a temporary fallback path only until v2 acceptance criteria are met.
+- Remove the remaining emergency fixed-slot fallback once parity and fallback confidence are complete.
+- Keep that fallback path only until v2 acceptance criteria are met.
 
 ## Save / Flow / Ownership Impact
 

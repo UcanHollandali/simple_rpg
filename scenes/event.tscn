@@ -78,96 +78,117 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 alignment = 1
-theme_override_constants/separation = 14
+theme_override_constants/separation = 10
 
-[node name="HeaderStack" type="VBoxContainer" parent="Margin/VBox"]
+[node name="OffersShell" type="PanelContainer" parent="Margin/VBox"]
+size_flags_horizontal = 3
+size_flags_vertical = 1
+
+[node name="VBox" type="VBoxContainer" parent="Margin/VBox/OffersShell"]
+theme_override_constants/separation = 10
+
+[node name="HeaderRow" type="VBoxContainer" parent="Margin/VBox/OffersShell/VBox"]
+theme_override_constants/separation = 8
+
+[node name="HeaderCard" type="PanelContainer" parent="Margin/VBox/OffersShell/VBox/HeaderRow"]
+size_flags_horizontal = 3
+
+[node name="HeaderStack" type="VBoxContainer" parent="Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard"]
 alignment = 0
 size_flags_horizontal = 3
 theme_override_constants/separation = 4
 
-[node name="ChipCard" type="PanelContainer" parent="Margin/VBox/HeaderStack"]
+[node name="ChipCard" type="PanelContainer" parent="Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard/HeaderStack"]
 
-[node name="ChipLabel" type="Label" parent="Margin/VBox/HeaderStack/ChipCard"]
-text = "ROADSIDE ENCOUNTER"
+[node name="ChipLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard/HeaderStack/ChipCard"]
+text = "EVENT"
 horizontal_alignment = 0
 size_flags_horizontal = 3
 
-[node name="TitleLabel" type="Label" parent="Margin/VBox/HeaderStack"]
-text = "Roadside Encounter"
+[node name="TitleLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard/HeaderStack"]
+text = "Event"
 horizontal_alignment = 0
 size_flags_horizontal = 3
 
-[node name="SummaryLabel" type="Label" parent="Margin/VBox/HeaderStack"]
+[node name="ContextLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard/HeaderStack"]
+text = "Choose one authored outcome and continue."
+horizontal_alignment = 0
+autowrap_mode = 3
+size_flags_horizontal = 3
+
+[node name="SummaryLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard/HeaderStack"]
 text = "Summary"
 horizontal_alignment = 0
 autowrap_mode = 3
 size_flags_horizontal = 3
 
-[node name="HintLabel" type="Label" parent="Margin/VBox/HeaderStack"]
-text = "Choose one of two roadside outcomes."
+[node name="HintLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard/HeaderStack"]
+text = "Choose one of two outcomes."
 horizontal_alignment = 0
 autowrap_mode = 3
 size_flags_horizontal = 3
 
-[node name="RunStatusCard" type="PanelContainer" parent="Margin/VBox"]
+[node name="RunStatusCard" type="PanelContainer" parent="Margin/VBox/OffersShell/VBox/HeaderRow"]
 size_flags_horizontal = 3
 
-[node name="RunStatusLabel" type="Label" parent="Margin/VBox/RunStatusCard"]
+[node name="RunStatusLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/HeaderRow/RunStatusCard"]
 text = "HP 0 | Hunger 0 | Gold 0 | Durability 0"
 horizontal_alignment = 0
 autowrap_mode = 0
 size_flags_horizontal = 3
 
-[node name="CardsRow" type="VBoxContainer" parent="Margin/VBox"]
+[node name="CardsRow" type="VBoxContainer" parent="Margin/VBox/OffersShell/VBox"]
 theme_override_constants/separation = 12
 
-[node name="ChoiceACard" type="PanelContainer" parent="Margin/VBox/CardsRow"]
+[node name="ChoiceACard" type="PanelContainer" parent="Margin/VBox/OffersShell/VBox/CardsRow"]
 size_flags_horizontal = 4
+size_flags_vertical = 1
 custom_minimum_size = Vector2(0, 100)
 
-[node name="VBox" type="VBoxContainer" parent="Margin/VBox/CardsRow/ChoiceACard"]
+[node name="VBox" type="VBoxContainer" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard"]
 theme_override_constants/separation = 6
 
-[node name="BadgeLabel" type="Label" parent="Margin/VBox/CardsRow/ChoiceACard/VBox"]
-text = "Road"
+[node name="BadgeLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard/VBox"]
+text = "Choice"
 horizontal_alignment = 1
 
-[node name="ChoiceTitleLabel" type="Label" parent="Margin/VBox/CardsRow/ChoiceACard/VBox"]
+[node name="ChoiceTitleLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard/VBox"]
 text = "Choice A"
 horizontal_alignment = 1
 
-[node name="ChoiceDetailLabel" type="Label" parent="Margin/VBox/CardsRow/ChoiceACard/VBox"]
+[node name="ChoiceDetailLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard/VBox"]
 text = "Detail"
 autowrap_mode = 3
 horizontal_alignment = 1
 
-[node name="ChoiceAButton" type="Button" parent="Margin/VBox/CardsRow/ChoiceACard/VBox"]
-text = "Take This Road"
+[node name="ChoiceAButton" type="Button" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard/VBox"]
+text = "Choose This"
 size_flags_horizontal = 3
 icon = ExtResource("5")
 
-[node name="ChoiceBCard" type="PanelContainer" parent="Margin/VBox/CardsRow"]
+[node name="ChoiceBCard" type="PanelContainer" parent="Margin/VBox/OffersShell/VBox/CardsRow"]
 size_flags_horizontal = 4
+size_flags_vertical = 1
 custom_minimum_size = Vector2(0, 100)
 
-[node name="VBox" type="VBoxContainer" parent="Margin/VBox/CardsRow/ChoiceBCard"]
+[node name="VBox" type="VBoxContainer" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard"]
 theme_override_constants/separation = 6
 
-[node name="BadgeLabel" type="Label" parent="Margin/VBox/CardsRow/ChoiceBCard/VBox"]
-text = "Road"
+[node name="BadgeLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard/VBox"]
+text = "Choice"
 horizontal_alignment = 1
 
-[node name="ChoiceTitleLabel" type="Label" parent="Margin/VBox/CardsRow/ChoiceBCard/VBox"]
+[node name="ChoiceTitleLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard/VBox"]
 text = "Choice B"
 horizontal_alignment = 1
 
-[node name="ChoiceDetailLabel" type="Label" parent="Margin/VBox/CardsRow/ChoiceBCard/VBox"]
+[node name="ChoiceDetailLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard/VBox"]
 text = "Detail"
 autowrap_mode = 3
 horizontal_alignment = 1
 
-[node name="ChoiceBButton" type="Button" parent="Margin/VBox/CardsRow/ChoiceBCard/VBox"]
-text = "Take This Road"
+[node name="ChoiceBButton" type="Button" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard/VBox"]
+text = "Choose This"
 size_flags_horizontal = 3
 icon = ExtResource("5")
 

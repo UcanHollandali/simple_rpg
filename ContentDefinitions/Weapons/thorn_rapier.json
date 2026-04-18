@@ -17,11 +17,17 @@
   },
   "design_intent_question": "Can a fragile rapier make the Glass Edge line feel clearly tempo-first by paying the player for fast intent reads and punishing stalled turns through durability pressure?",
   "rules": {
+    "slot_compatibility": {
+      "right_hand": true,
+      "left_hand": false,
+      "offhand_capable": false
+    },
     "stats": {
       "weapon_type": "rapier",
       "base_damage": 10,
       "max_durability": 10,
-      "durability_cost_per_attack": 2
+      "durability_cost_per_attack": 2,
+      "durability_profile": "fragile"
     }
   }
 }

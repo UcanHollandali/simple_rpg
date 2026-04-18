@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "definition_id": "lantern_scout_recovery",
+  "family": "SideMissions",
+  "tags": [
+    "hamlet",
+    "side_quest",
+    "rescue",
+    "prototype"
+  ],
+  "display": {
+    "name": "Recover the Lantern Scout",
+    "short_description": "A lamp-runner vanished between the hedges and the old shrine pockets. The hamlet needs them pulled back before dark sets the road wrong."
+  },
+  "rules": {
+    "mission_type": "rescue_missing_scout",
+    "target_families": [
+      "combat",
+      "event",
+      "reward"
+    ],
+    "briefing_text": "The lantern scout vanished near the marked pocket. Reach the mark, pull them clear, and the hamlet will answer with better kit.",
+    "accept_label": "Go after the lantern scout",
+    "accepted_text": "The marked pocket is live now. Reach it, resolve the danger, then return here for gratitude.",
+    "reminder_label": "Lantern scout missing",
+    "completed_text": "The lantern scout made it back. Choose one gratitude reward before you move on.",
+    "claimed_text": "The lantern scout is already home. This request is settled.",
+    "claimed_label": "Lantern scout returned",
+    "reward_pool": [
+      {
+        "offer_id": "claim_patched_buffcoat",
+        "effect_type": "grant_item",
+        "inventory_family": "armor",
+        "definition_id": "patched_buffcoat"
+      },
+      {
+        "offer_id": "claim_packrat_clasp",
+        "effect_type": "grant_item",
+        "inventory_family": "passive",
+        "definition_id": "packrat_clasp"
+      },
+      {
+        "offer_id": "claim_binding_resin",
+        "effect_type": "grant_item",
+        "inventory_family": "consumable",
+        "definition_id": "binding_resin",
+        "amount": 1
+      },
+      {
+        "offer_id": "claim_lantern_fee",
+        "effect_type": "grant_gold",
+        "amount": 10
+      }
+    ]
+  }
+}

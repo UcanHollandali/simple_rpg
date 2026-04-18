@@ -4,38 +4,38 @@ class_name MainMenuPresenter
 
 
 func build_title_text() -> String:
-	return "Simple RPG"
-
-
-func build_subtitle_text() -> String:
 	return "Ashwood Descent"
 
 
+func build_subtitle_text() -> String:
+	return "Roadbound Survival"
+
+
 func build_mood_text() -> String:
-	return "Choose a road. Survive the stops. Reach the gate."
+	return "Choose a road through the ashwood. Keep your gear alive. Reach the gate."
 
 
 func build_playtest_chip_text() -> String:
-	return "ASHWOOD ROAD"
+	return "WAYFINDER RUN"
 
 
 func build_save_chip_text(has_save: bool) -> String:
 	if has_save:
-		return "LOAD READY"
-	return "NEW RUN"
+		return "SAFE SAVE READY"
+	return "FRESH ROAD"
 
 
 func build_playtest_read_text(has_save: bool) -> String:
 	if has_save:
-		return "Start fresh or wake at your last safe screen."
-	return "Start a new run. Your first road waits on the map."
+		return "Start fresh or return to your last safe stop."
+	return "Step onto a fresh road. The first branches teach fast."
 
 
 func build_flow_read_text() -> String:
-	return "Map -> Roadside Encounter / Combat / Shelter -> Reward / Level Up -> Gate"
+	return "Map -> Trail Event / Roadside Encounter / Combat / Support -> Reward / Level Up -> Gate"
 
 
 func build_status_text(has_save: bool) -> String:
 	if has_save:
-		return "Load returns you to your last save on a safe screen."
-	return "Load unlocks after your first safe-screen save."
+		return "Resume returns you to your last safe stop."
+	return "Resume unlocks after your first safe-stop save."

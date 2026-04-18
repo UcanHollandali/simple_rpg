@@ -17,11 +17,17 @@
   },
   "design_intent_question": "Can a modest but long-lasting cleaver make the Scrap Keeper line care about route length, repairs, and shared gold without collapsing into pure bookkeeping?",
   "rules": {
+    "slot_compatibility": {
+      "right_hand": true,
+      "left_hand": false,
+      "offhand_capable": false
+    },
     "stats": {
       "weapon_type": "cleaver",
       "base_damage": 5,
       "max_durability": 40,
-      "durability_cost_per_attack": 1
+      "durability_cost_per_attack": 2,
+      "durability_profile": "sturdy"
     }
   }
 }

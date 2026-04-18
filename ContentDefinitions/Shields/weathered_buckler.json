@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "definition_id": "weathered_buckler",
+  "family": "Shields",
+  "tags": [
+    "shield",
+    "combat",
+    "defense",
+    "starter_ready"
+  ],
+  "display": {
+    "name": "Weathered Buckler",
+    "short_description": "A light buckler that turns Defend into a sturdier guard wall.",
+    "icon_key": "shield_weathered_buckler"
+  },
+  "rules": {
+    "behaviors": []
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "definition_id": "stage_3_merchant_stock_convoy",
+  "family": "MerchantStocks",
+  "tags": [
+    "merchant_stock",
+    "support",
+    "stage_3",
+    "prototype"
+  ],
+  "display": {
+    "name": "Stage 3 Convoy Stock",
+    "short_description": "A late-run convoy stock with heavy plate, hard route tea, and freight-grade carry gear."
+  },
+  "rules": {
+    "stock": [
+      {
+        "offer_id": "buy_lantern_tea_x1",
+        "definition_id": "lantern_tea",
+        "effect_type": "buy_consumable",
+        "amount": 1,
+        "cost_gold": 12
+      },
+      {
+        "offer_id": "buy_bastion_plate",
+        "definition_id": "bastion_plate",
+        "effect_type": "buy_armor",
+        "cost_gold": 26
+      },
+      {
+        "offer_id": "buy_caravan_harness",
+        "definition_id": "caravan_harness",
+        "effect_type": "buy_belt",
+        "cost_gold": 23
+      }
+    ]
+  }
+}

@@ -19,7 +19,7 @@
   },
   "rules": {
     "stats": {
-      "base_hp": 22,
+      "base_hp": 24,
       "base_damage": 3
     },
     "intent_pool": [

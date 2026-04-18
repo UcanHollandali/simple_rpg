@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "definition_id": "zz_suspicious_merchant",
+  "family": "EventTemplates",
+  "tags": [
+    "event",
+    "roadside",
+    "merchant",
+    "stage_2",
+    "prototype"
+  ],
+  "display": {
+    "name": "Suspicious Merchant",
+    "short_description": "A hooded peddler has set a handcart half off the road. His wares stay under wax cloth, and the smile he offers never reaches his eyes."
+  },
+  "rules": {
+    "choices": [
+      {
+        "choice_id": "take_the_quiet_trade",
+        "label": "Take the quiet trade",
+        "summary": "Accept the stoppered flask he slides under the cloth and move on before he thinks better of the bargain.",
+        "effect_type": "grant_item",
+        "inventory_family": "consumable",
+        "definition_id": "stout_tonic",
+        "amount": 1
+      },
+      {
+        "choice_id": "call_out_the_false_weights",
+        "label": "Call out the false weights",
+        "summary": "Catch the trick in his scale, lean in hard, and come away with the road coins he was hiding in his sleeve.",
+        "effect_type": "grant_gold",
+        "amount": 7
+      }
+    ]
+  }
+}

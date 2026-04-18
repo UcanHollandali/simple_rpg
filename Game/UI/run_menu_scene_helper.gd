@@ -5,7 +5,7 @@ class_name RunMenuSceneHelper
 const SafeMenuOverlayScript = preload("res://Game/UI/safe_menu_overlay.gd")
 
 
-static func ensure_safe_menu(owner: Node, existing_menu: SafeMenuOverlay, title_text: String, subtitle_text: String, launcher_text: String, save_handler: Callable, load_handler: Callable) -> SafeMenuOverlay:
+static func ensure_safe_menu(owner: Node, existing_menu: SafeMenuOverlay, title_text: String, subtitle_text: String, launcher_text: String, save_handler: Callable, load_handler: Callable, main_menu_handler: Callable = Callable()) -> SafeMenuOverlay:
 	if existing_menu != null or owner == null:
 		return existing_menu
 
@@ -17,6 +17,8 @@ static func ensure_safe_menu(owner: Node, existing_menu: SafeMenuOverlay, title_
 		safe_menu.save_requested.connect(save_handler)
 	if load_handler.is_valid() and not safe_menu.is_connected("load_requested", load_handler):
 		safe_menu.load_requested.connect(load_handler)
+	if main_menu_handler.is_valid() and not safe_menu.is_connected("return_to_main_menu_requested", main_menu_handler):
+		safe_menu.return_to_main_menu_requested.connect(main_menu_handler)
 	return safe_menu
 
 

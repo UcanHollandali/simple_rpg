@@ -16,7 +16,7 @@ Simple RPG is a:
 The player should win or lose mainly because of:
 - exploration route choice
 - resource management
-- shared inventory pressure
+- backpack pressure
 - durability planning
 - timing of item use
 
@@ -53,16 +53,17 @@ This game is not:
 - hard but fair
 - readable combat
 - meaningful attrition
-- compact shared-bag tension
+- compact backpack tension
 
-Inventory pressure uses a small shared carried-inventory pool where weapons, armor, belts, consumables, and passives all compete for the same limited space.
-Local consumable hold-vs-use decisions still matter, but they now sit inside that shared-capacity pressure rather than inside separate lane caps.
+Inventory pressure uses a compact backpack plus explicit equipment slots.
+Consumables, passive items, spare gear, and quest items compete for backpack space, while right hand, left hand, armor, and belt stay in dedicated equipment lanes.
 
 ## Hard Locks
 
 - combat is not the star; it stays the visible decision layer of preparation
 - combat stays short, readable, single-target, and intent-visible
-- the top-level combat buttons stay `Attack`, `Brace`, `Use Item`; any allowed combat-time equipment swap must route through the shared inventory strip and still spend the turn
+- the top-level combat buttons stay `Attack`, `Defend`, `Use Item`
+- combat-time gear swapping and backpack reorder are not part of the canonical combat loop
 - support visits and stage interstitials must remain real runtime-backed non-combat states, not immediate-return placeholders
 - content growth should mostly arrive through data, not new special-case code
 - if a new idea improves combat depth but weakens preparation pressure or readability, reject it by default
@@ -80,7 +81,7 @@ Local consumable hold-vs-use decisions still matter, but they now sit inside tha
 - traversal is adjacency-based between neighboring nodes
 - revisit is allowed inside a stage
 - movement drains a `20`-point hunger reserve toward `0`
-- each stage may contain one optional side-mission contract detour that marks a later combat target and pays out one gear choice on return
+- each stage may contain one optional hamlet-backed side-quest detour that marks a later objective and pays out a small special reward on return
 - each stage contains exactly one stage-local `key` and one boss gate
 - boss access requires the stage key
 - clearing the boss ends the stage
@@ -90,9 +91,9 @@ Local consumable hold-vs-use decisions still matter, but they now sit inside tha
   - `durability`
   - `shared gold`
 - build shaping stays intentionally compact:
-  - base shared inventory: `5`
-  - equipped belt bonus: `+2`
-  - small linear synergies
+  - base backpack: `5`
+  - equipped belt bonus: narrow authored utility bonus
+  - small linear synergies from gear, passive items, and character perks
   - no combo explosion
 
 ## Replayability Model
@@ -145,7 +146,7 @@ The project wants:
 Lock early:
 - preparation-first identity
 - hard-but-fair principle
-- shared inventory pressure as the inventory model
+- backpack pressure plus explicit equipment slots as the inventory model
 - hunger and durability as real attrition
 - minimal combat action set
 - visible enemy intent
@@ -197,7 +198,7 @@ v1:
 ## Decision Filter
 
 Every new feature should justify itself against these checks:
-1. does it strengthen preparation, exploration pressure, or shared inventory pressure
+1. does it strengthen preparation, exploration pressure, or backpack pressure
 2. does it keep combat readable and compact
 3. can it be expressed as content data instead of new special-case code
 4. does it stay understandable on a mobile portrait screen

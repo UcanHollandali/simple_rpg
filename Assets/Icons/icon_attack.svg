@@ -1,9 +1,26 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
-  <g stroke-linejoin="round" stroke-linecap="round">
-  <path d="M94 18 108 32 70 70 58 58Z" fill="#f0e3b2"/>
-  <path d="M54 54 78 78 40 116 20 116 20 96Z" fill="#9d8557"/>
-  <path d="M76 22 98 44 90 52 68 30Z" fill="#6f8653"/>
-  <path d="M30 92 48 110" stroke="#22311f" stroke-width="8" stroke-linecap="round"/>
+  <defs>
+    <linearGradient id="blade_fill" x1="36" y1="92" x2="94" y2="34" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#EADFC2"/>
+      <stop offset="0.52" stop-color="#CDB98A"/>
+      <stop offset="1" stop-color="#8C7A5B"/>
+    </linearGradient>
+    <linearGradient id="guard_fill" x1="44" y1="78" x2="68" y2="54" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#52716B"/>
+      <stop offset="1" stop-color="#294240"/>
+    </linearGradient>
+    <linearGradient id="grip_fill" x1="24" y1="114" x2="52" y2="86" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6E4C33"/>
+      <stop offset="1" stop-color="#B6543C"/>
+    </linearGradient>
+  </defs>
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <path d="M97 18 110 31 76 65 63 52Z" fill="#203032" stroke="#E6DFC9" stroke-width="4"/>
+    <path d="M76 20 108 52 69 91 37 59Z" fill="url(#blade_fill)" stroke="#F4ECD8" stroke-width="4"/>
+    <path d="M54 58 70 74" stroke="#395856" stroke-width="10"/>
+    <path d="M41 66 62 45" fill="none" stroke="#1A2328" stroke-width="6"/>
+    <path d="M33 77 51 95 35 111 18 110 17 93Z" fill="url(#grip_fill)" stroke="#E6DFC9" stroke-width="4"/>
+    <path d="M24 95 33 104" fill="none" stroke="#F3E8CB" stroke-width="5"/>
+    <path d="M58 58 72 72" fill="none" stroke="url(#guard_fill)" stroke-width="14"/>
   </g>
 </svg>
-

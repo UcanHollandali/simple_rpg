@@ -4,7 +4,7 @@
   "authoring_order": 110,
   "family": "Enemies",
   "encounter_tier": "minor",
-  "design_intent_question": "Can the player keep tempo against a low-damage evasive foe instead of overvaluing Brace when the real lesson is clean attack sequencing?",
+  "design_intent_question": "Can the player keep tempo against a low-damage evasive foe instead of overvaluing Defend when the real lesson is clean attack sequencing?",
   "tags": [
     "enemy",
     "brigand",

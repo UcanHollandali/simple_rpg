@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "definition_id": "war_biscuit",
+  "family": "Consumables",
+  "tags": [
+    "consumable",
+    "food",
+    "combat",
+    "road"
+  ],
+  "display": {
+    "name": "War Biscuit",
+    "short_description": "A hard travel biscuit that settles the gut and gives a small steadiness bump before the next exchange.",
+    "icon_key": "consumable_war_biscuit"
+  },
+  "rules": {
+    "stats": {
+      "max_stack": 3,
+      "restore_hp": 4
+    },
+    "use_effect": {
+      "trigger": "on_use",
+      "condition": {
+        "op": "always"
+      },
+      "target": "self",
+      "effects": [
+        {
+          "type": "heal",
+          "params": {
+            "base": 4
+          }
+        },
+        {
+          "type": "modify_hunger",
+          "params": {
+            "amount": -2
+          }
+        }
+      ]
+    }
+  }
+}

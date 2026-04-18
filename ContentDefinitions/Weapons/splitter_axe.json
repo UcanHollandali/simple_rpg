@@ -15,11 +15,17 @@
     "icon_key": "weapon_splitter_axe"
   },
   "rules": {
+    "slot_compatibility": {
+      "right_hand": true,
+      "left_hand": false,
+      "offhand_capable": false
+    },
     "stats": {
       "weapon_type": "axe",
       "base_damage": 8,
       "max_durability": 14,
-      "durability_cost_per_attack": 1
+      "durability_cost_per_attack": 1,
+      "durability_profile": "heavy"
     }
   }
 }

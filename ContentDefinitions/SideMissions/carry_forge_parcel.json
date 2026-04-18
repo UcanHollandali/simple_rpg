@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "definition_id": "carry_forge_parcel",
+  "family": "SideMissions",
+  "tags": [
+    "hamlet",
+    "side_quest",
+    "delivery",
+    "prototype"
+  ],
+  "display": {
+    "name": "Carry the Forge Parcel",
+    "short_description": "A wrapped parcel of forge parts needs a careful hand through the stage before the wagon road closes."
+  },
+  "rules": {
+    "mission_type": "deliver_supplies",
+    "quest_item_definition_id": "supply_bundle",
+    "target_families": [
+      "event",
+      "reward",
+      "rest",
+      "merchant",
+      "blacksmith"
+    ],
+    "briefing_text": "Carry the forge parcel to the marked stop. It crowds the backpack until delivery, but the hamlet will pay for the trouble.",
+    "accept_label": "Carry the parcel",
+    "accepted_text": "The marked stop can take the parcel now. Deliver it intact, then return here for payment.",
+    "reminder_label": "Parcel in transit",
+    "completed_text": "The forge parcel made it through. Choose one hamlet reward before you move on.",
+    "claimed_text": "The forge parcel is already delivered. This request is settled.",
+    "claimed_label": "Parcel delivered",
+    "reward_pool": [
+      {
+        "offer_id": "claim_packrat_clasp",
+        "effect_type": "grant_item",
+        "inventory_family": "passive",
+        "definition_id": "packrat_clasp"
+      },
+      {
+        "offer_id": "claim_binding_resin",
+        "effect_type": "grant_item",
+        "inventory_family": "consumable",
+        "definition_id": "binding_resin",
+        "amount": 1
+      },
+      {
+        "offer_id": "claim_parcel_fee",
+        "effect_type": "grant_gold",
+        "amount": 9
+      }
+    ]
+  }
+}

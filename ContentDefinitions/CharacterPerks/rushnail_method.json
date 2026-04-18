@@ -1,0 +1,52 @@
+{
+    "schema_version":  1,
+    "definition_id":  "rushnail_method",
+    "authoring_order":  80,
+    "family":  "CharacterPerks",
+    "tags":  [
+                 "perk",
+                 "offense",
+                 "tempo"
+             ],
+    "display":  {
+                    "name":  "Rushnail Method",
+                    "short_description":  "A high-tempo perk that grants 2 attack power and cuts durability cost by 1, but leaves you taking 1 more damage.",
+                    "icon_key":  "passive_rushnail_loop"
+                },
+    "rules":  {
+                  "behaviors":  [
+                                    {
+                                        "trigger":  "passive",
+                                        "condition":  {
+                                                          "op":  "always"
+                                                      },
+                                        "target":  "self",
+                                        "effects":  [
+                                                        {
+                                                            "type":  "modify_stat",
+                                                            "params":  {
+                                                                           "stat":  "attack_power_bonus",
+                                                                           "amount":  2
+                                                                       }
+                                                        },
+                                                        {
+                                                            "type":  "modify_stat",
+                                                            "params":  {
+                                                                           "stat":  "durability_cost_flat_reduction",
+                                                                           "amount":  1
+                                                                       }
+                                                        },
+                                                        {
+                                                            "type":  "modify_stat",
+                                                            "params":  {
+                                                                           "stat":  "incoming_damage_flat_reduction",
+                                                                           "amount":  -1
+                                                                       }
+                                                        }
+                                                    ]
+                                    }
+                                ],
+                  "perk_family":  "offense"
+              }
+}
+

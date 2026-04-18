@@ -26,9 +26,15 @@ static func icon_modulate_for_semantic(node_family: String, state_semantic: Stri
 		return Color(0.90, 0.86, 0.76, 0.90)
 	match state_semantic:
 		"resolved":
-			return Color(0.54, 0.58, 0.52, 0.34)
+			var resolved_color: Color = _family_icon_color(node_family).lerp(Color(0.70, 0.72, 0.68, 1.0), 0.42)
+			resolved_color.a = 0.62
+			return resolved_color
 		"locked":
 			return Color(0.96, 0.83, 0.74, 0.90)
+		"current":
+			var current_color: Color = _family_icon_color(node_family).lightened(0.08)
+			current_color.a = 0.96
+			return current_color
 		_:
 			return _family_icon_color(node_family).lightened(0.22)
 
@@ -136,7 +142,7 @@ static func road_base_color(state_semantic: String, emphasis_level: int = 0) -> 
 		"locked":
 			base_color = Color(0.54, 0.28, 0.18, 0.84)
 		_:
-			base_color = Color(0.70, 0.56, 0.24, 0.94)
+			base_color = Color(0.66, 0.56, 0.30, 0.92)
 	if emphasis_level >= 2:
 		return _apply_color_emphasis(base_color, 0.12, 0.08)
 	if emphasis_level == 1:
@@ -152,7 +158,7 @@ static func road_highlight_color(state_semantic: String, emphasis_level: int = 0
 		"locked":
 			highlight_color = Color(0.94, 0.72, 0.48, 0.88)
 		_:
-			highlight_color = Color(0.98, 0.95, 0.84, 0.94)
+			highlight_color = Color(0.96, 0.92, 0.80, 0.92)
 	if emphasis_level >= 2:
 		return _apply_color_emphasis(highlight_color, 0.08, 0.06)
 	if emphasis_level == 1:
@@ -175,23 +181,23 @@ static func _accent_color_for_semantic(state_semantic: String) -> Color:
 static func _family_plate_fill_color(node_family: String) -> Color:
 	match node_family:
 		"combat":
-			return Color(0.46, 0.22, 0.18, 0.98)
+			return Color(0.42, 0.22, 0.18, 0.98)
 		"reward":
-			return Color(0.42, 0.34, 0.12, 0.98)
-		"side_mission":
-			return Color(0.24, 0.19, 0.38, 0.98)
+			return Color(0.40, 0.34, 0.14, 0.98)
+		"hamlet":
+			return Color(0.26, 0.20, 0.36, 0.98)
 		"rest":
-			return Color(0.18, 0.36, 0.28, 0.98)
+			return Color(0.18, 0.34, 0.28, 0.98)
 		"merchant":
-			return Color(0.26, 0.23, 0.42, 0.98)
+			return Color(0.24, 0.22, 0.40, 0.98)
 		"blacksmith":
-			return Color(0.38, 0.24, 0.14, 0.98)
+			return Color(0.36, 0.24, 0.16, 0.98)
 		"key":
-			return Color(0.46, 0.40, 0.14, 0.98)
+			return Color(0.44, 0.38, 0.14, 0.98)
 		"boss":
-			return Color(0.42, 0.16, 0.18, 0.98)
+			return Color(0.40, 0.16, 0.18, 0.98)
 		"event":
-			return Color(0.18, 0.30, 0.42, 0.98)
+			return Color(0.18, 0.28, 0.40, 0.98)
 		_:
 			return Color(0.30, 0.40, 0.18, 1.0)
 
@@ -202,7 +208,7 @@ static func _family_border_color(node_family: String) -> Color:
 			return Color(0.98, 0.64, 0.48, 1.0)
 		"reward":
 			return Color(1.0, 0.90, 0.56, 1.0)
-		"side_mission":
+		"hamlet":
 			return Color(0.88, 0.76, 1.0, 1.0)
 		"rest":
 			return Color(0.68, 1.0, 0.82, 1.0)
@@ -226,7 +232,7 @@ static func _family_icon_color(node_family: String) -> Color:
 			return Color(1.0, 0.86, 0.78, 1.0)
 		"reward":
 			return Color(1.0, 0.97, 0.68, 1.0)
-		"side_mission":
+		"hamlet":
 			return Color(0.96, 0.90, 1.0, 1.0)
 		"rest":
 			return Color(0.88, 1.0, 0.92, 1.0)
@@ -244,7 +250,7 @@ static func _family_icon_color(node_family: String) -> Color:
 			return Color(1.0, 0.99, 0.90, 1.0)
 
 
-static func side_mission_highlight_color(highlight_state: String) -> Color:
+static func side_quest_highlight_color(highlight_state: String) -> Color:
 	match highlight_state:
 		"target":
 			return Color(0.96, 0.58, 0.36, 0.94)

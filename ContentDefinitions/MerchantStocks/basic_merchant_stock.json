@@ -18,20 +18,20 @@
         "definition_id": "traveler_bread",
         "effect_type": "buy_consumable",
         "amount": 1,
-        "cost_gold": 5
+        "cost_gold": 6
       },
       {
-        "offer_id": "buy_quick_clot_poultice_x1",
-        "definition_id": "quick_clot_poultice",
+        "offer_id": "buy_binding_resin_x1",
+        "definition_id": "binding_resin",
         "effect_type": "buy_consumable",
         "amount": 1,
         "cost_gold": 8
       },
       {
-        "offer_id": "buy_splitter_axe",
-        "definition_id": "splitter_axe",
-        "effect_type": "buy_weapon",
-        "cost_gold": 15
+        "offer_id": "buy_watchman_shield",
+        "definition_id": "watchman_shield",
+        "effect_type": "buy_shield",
+        "cost_gold": 13
       }
     ]
   }

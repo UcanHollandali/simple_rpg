@@ -7,31 +7,10 @@ const UiAssetPathsScript = preload("res://Game/UI/ui_asset_paths.gd")
 const NODE_DISPLAY_NAMES: Dictionary = {
 	"combat": "Combat Encounter",
 	"boss": "Boss Gate",
-	"event": "Roadside Encounter",
+	"event": "Trail Event",
 	"reward": "Reward Cache",
 	"key": "Stage Key",
 }
-
-
-func build_run_setup_title_text() -> String:
-	return "Setting Out"
-
-
-func build_run_setup_chip_text() -> String:
-	return "FIRST ROAD"
-
-
-func build_run_setup_summary_text() -> String:
-	return "Steel, rations, and the first road fall into place."
-
-
-func build_run_setup_detail_text() -> String:
-	return "This brief handoff opens the run and sends you straight to the map."
-
-
-func build_run_setup_hint_text() -> String:
-	return "The map opens automatically."
-
 
 func build_node_resolve_chip_text(node_type: String) -> String:
 	match node_type:
@@ -60,7 +39,7 @@ func build_node_resolve_summary_text(node_type: String) -> String:
 		"boss":
 			return "The path hardens. The stage boss encounter is opening."
 		"event":
-			return "Something on the road wants an answer. A two-choice roadside encounter is opening."
+			return "A marked trail event lies ahead. The dedicated two-choice event flow is opening."
 		"reward":
 			return "A cache glints ahead. The current reward choice is opening."
 		"key":
@@ -84,7 +63,7 @@ func build_node_resolve_hint_text(node_type: String) -> String:
 		"key":
 			return "Automatic bridge only. Key truth updates first, then flow hands back to the map."
 		"event":
-			return "Automatic bridge only. The shell reads the roadside encounter and hands off to the dedicated two-choice story flow."
+			return "Automatic bridge only. The shell reads the planned trail event and hands off to the dedicated two-choice story flow."
 		"combat", "boss", "reward":
 			return "Automatic bridge only. The shell reads the node and hands off to the next runtime-owned screen."
 		_:

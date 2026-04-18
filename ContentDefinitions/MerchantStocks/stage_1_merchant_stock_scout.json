@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "definition_id": "stage_1_merchant_stock_scout",
+  "family": "MerchantStocks",
+  "tags": [
+    "merchant_stock",
+    "support",
+    "stage_1",
+    "prototype"
+  ],
+  "display": {
+    "name": "Stage 1 Scout Stock",
+    "short_description": "An early-run wagon mix built around efficient road steel, light rations, and a little extra carrying room."
+  },
+  "rules": {
+    "stock": [
+      {
+        "offer_id": "buy_embersalt_ration_x1",
+        "definition_id": "embersalt_ration",
+        "effect_type": "buy_consumable",
+        "amount": 1,
+        "cost_gold": 7
+      },
+      {
+        "offer_id": "buy_hedge_sabre",
+        "definition_id": "hedge_sabre",
+        "effect_type": "buy_weapon",
+        "cost_gold": 12
+      },
+      {
+        "offer_id": "buy_wayfarer_frame",
+        "definition_id": "wayfarer_frame",
+        "effect_type": "buy_belt",
+        "cost_gold": 10
+      }
+    ]
+  }
+}

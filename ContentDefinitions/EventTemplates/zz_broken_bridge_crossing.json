@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "definition_id": "zz_broken_bridge_crossing",
+  "family": "EventTemplates",
+  "tags": [
+    "event",
+    "roadside",
+    "bridge",
+    "stage_2",
+    "prototype"
+  ],
+  "display": {
+    "name": "Broken Bridge Crossing",
+    "short_description": "A timber bridge hangs open over a narrow wash. One side still holds, and a line of repair spikes glints where the span snapped free."
+  },
+  "rules": {
+    "choices": [
+      {
+        "choice_id": "test_the_hanging_span",
+        "label": "Test the hanging span",
+        "summary": "Cross on the surviving planks and accept the bruising if one of them gives under your weight.",
+        "effect_type": "damage_player",
+        "amount": 4
+      },
+      {
+        "choice_id": "salvage_the_repair_spikes",
+        "label": "Salvage the repair spikes",
+        "summary": "Leave the crossing for another fool, pull the iron spikes out of the struts, and turn them back into useful edgework.",
+        "effect_type": "repair_weapon"
+      }
+    ]
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "definition_id": "thornwood_warder",
+  "authoring_order": 155,
+  "family": "Enemies",
+  "encounter_tier": "minor",
+  "design_intent_question": "Can the player stay patient against a shield-bearing foe that shrugs off light hits and punishes greed with one clean spear thrust?",
+  "tags": [
+    "enemy",
+    "soldier",
+    "stage_2",
+    "shielded",
+    "defensive"
+  ],
+  "display": {
+    "name": "Thornwood Warder",
+    "short_description": "A hedge-watcher posted behind a thornwood shield, content to grind the fight down until a guarded thrust lands clean.",
+    "icon_key": "enemy_thornwood_warder"
+  },
+  "rules": {
+    "stats": {
+      "base_hp": 26,
+      "base_damage": 3
+    },
+    "intent_pool": [
+      {
+        "intent_id": "shield_tap",
+        "action_family": "attack",
+        "threat_level": "low",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 2,
+              "damage_kind": "physical"
+            }
+          }
+        ]
+      },
+      {
+        "intent_id": "thorn_hook",
+        "action_family": "attack",
+        "threat_level": "medium",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 2,
+              "damage_kind": "physical"
+            }
+          },
+          {
+            "type": "apply_status",
+            "params": {
+              "definition_id": "weakened"
+            }
+          }
+        ]
+      },
+      {
+        "intent_id": "warder_thrust",
+        "action_family": "attack",
+        "threat_level": "high",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 5,
+              "damage_kind": "physical"
+            }
+          }
+        ]
+      }
+    ],
+    "behaviors": [
+      {
+        "trigger": "passive",
+        "condition": {
+          "op": "always"
+        },
+        "target": "self",
+        "effects": [
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "incoming_damage_flat_reduction",
+              "amount": 2
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -10,34 +10,40 @@ const RewardStateScript = preload("res://Game/RuntimeState/reward_state.gd")
 const LevelUpStateScript = preload("res://Game/RuntimeState/level_up_state.gd")
 const SupportInteractionStateScript = preload("res://Game/RuntimeState/support_interaction_state.gd")
 const SaveServiceScript = preload("res://Game/Infrastructure/save_service.gd")
+const PlaytestLoggerScript = preload("res://Game/Infrastructure/playtest_logger.gd")
 const RunSessionCoordinatorScript = preload("res://Game/Application/run_session_coordinator.gd")
 const SaveRuntimeBridgeScript = preload("res://Game/Application/save_runtime_bridge.gd")
 
 const BASE_UI_REFERENCE_RESOLUTION := Vector2i(1080, 1920)
+const WINDOWED_PREVIEW_OVERRIDE_RESOLUTION := Vector2i(540, 960)
+const WINDOWED_DISPLAY_SAFE_FRAME_PERCENT_X := 90
+const WINDOWED_DISPLAY_SAFE_FRAME_PERCENT_Y := 90
+const PLAYTEST_LOG_CMDLINE_ARG := "--playtest-log"
 
 var game_flow_manager: GameFlowManager
 var run_state: RunState
 var save_service: SaveService
 var run_session_coordinator: RunSessionCoordinator
 var save_runtime_bridge: SaveRuntimeBridge
+var playtest_logger: PlaytestLogger
 var _coordinator_bound_flow_manager: GameFlowManager
 var _coordinator_bound_run_state: RunState
 var _save_bridge_bound_flow_manager: GameFlowManager
 var _save_bridge_bound_run_state: RunState
 var _save_bridge_bound_run_session_coordinator: RunSessionCoordinator
 var _save_bridge_bound_save_service: SaveService
-var _is_fullscreen: bool = false
 
 
 func _ready() -> void:
-	_apply_startup_resolution()
-	_apply_startup_window_mode()
+	apply_resolution_by_index(0)
+	apply_fullscreen_mode(false)
 	call_deferred("apply_ui_scale_to_active_scene")
 	game_flow_manager = _ensure_flow_manager()
 	run_state = _ensure_run_state()
 	save_service = _ensure_save_service()
 	run_session_coordinator = _ensure_run_session_coordinator()
 	save_runtime_bridge = _ensure_save_runtime_bridge()
+	_initialize_playtest_logger()
 
 
 func get_flow_manager() -> GameFlowManager:
@@ -99,28 +105,11 @@ func restore_from_snapshot(snapshot: Dictionary) -> Dictionary:
 	return restore_result
 
 
-func get_supported_resolution_options() -> Array[String]:
-	return []
-
-
-func get_active_resolution_index() -> int:
-	return 0
-
-
-func is_fullscreen_enabled() -> bool:
-	return _is_fullscreen
-
-
-func get_ui_scale_factor() -> float:
-	return 1.0
-
-
-func apply_fullscreen_mode(enabled: bool) -> Dictionary:
+func apply_fullscreen_mode(_enabled: bool) -> Dictionary:
 	var applied: bool = _apply_fullscreen_mode(false)
 	if not applied:
 		return {"ok": false, "error": "window_unavailable", "fullscreen": false}
 
-	_is_fullscreen = false
 	apply_ui_scale_to_active_scene()
 	_save_fullscreen_setting(false)
 	return {"ok": true, "fullscreen": false}
@@ -185,7 +174,15 @@ func get_last_run_result() -> String:
 
 func choose_move_to_node(node_reference: Variant) -> Dictionary:
 	ensure_run_state_initialized()
-	return _ensure_run_session_coordinator().choose_move_to_node(node_reference)
+	var active_run_state: RunState = get_run_state()
+	var map_runtime_state: MapRuntimeState = active_run_state.map_runtime_state as MapRuntimeState if active_run_state != null else null
+	var from_node_id: int = map_runtime_state.current_node_id if map_runtime_state != null else MapRuntimeStateScript.DEFAULT_NODE_INDEX
+	var result: Dictionary = _ensure_run_session_coordinator().choose_move_to_node(node_reference)
+	if bool(result.get("ok", false)):
+		var current_node_id: int = int(result.get("current_node_id", from_node_id))
+		if current_node_id != from_node_id:
+			_log_playtest_event("node_transition", {"selected_id": current_node_id})
+	return result
 
 
 func toggle_inventory_equipment(slot_id: int) -> Dictionary:
@@ -207,29 +204,39 @@ func resolve_pending_node() -> Dictionary:
 	return _ensure_run_session_coordinator().resolve_pending_node()
 
 
-func choose_reward_option(option_id: String) -> Dictionary:
+func choose_reward_option(option_id: String, discard_slot_id: int = -1, leave_item: bool = false) -> Dictionary:
 	ensure_run_state_initialized()
-	return _ensure_run_session_coordinator().choose_reward_option(option_id)
+	var result: Dictionary = _ensure_run_session_coordinator().choose_reward_option(option_id, discard_slot_id, leave_item)
+	if bool(result.get("ok", false)):
+		_log_playtest_event("reward_choice", {"selected_id": option_id})
+	return result
 
 
-func choose_event_option(option_id: String) -> Dictionary:
+func choose_event_option(option_id: String, discard_slot_id: int = -1, leave_item: bool = false) -> Dictionary:
 	ensure_run_state_initialized()
-	return _ensure_run_session_coordinator().choose_event_option(option_id)
+	return _ensure_run_session_coordinator().choose_event_option(option_id, discard_slot_id, leave_item)
 
 
 func resolve_combat_result(result: String) -> Dictionary:
 	ensure_run_state_initialized()
-	return _ensure_run_session_coordinator().resolve_combat_result(result)
+	var resolve_result: Dictionary = _ensure_run_session_coordinator().resolve_combat_result(result)
+	if bool(resolve_result.get("ok", false)):
+		_log_playtest_event("combat_result", {"selected_id": result})
+	return resolve_result
 
 
 func choose_level_up_option(option_id: String) -> Dictionary:
 	ensure_run_state_initialized()
-	return _ensure_run_session_coordinator().choose_level_up_option(option_id)
+	var result: Dictionary = _ensure_run_session_coordinator().choose_level_up_option(option_id)
+	if bool(result.get("ok", false)):
+		var selected_perk_id: String = String(result.get("learned_perk_id", option_id)).strip_edges()
+		_log_playtest_event("perk_choice", {"selected_id": selected_perk_id})
+	return result
 
 
-func choose_support_action(action_id: String) -> Dictionary:
+func choose_support_action(action_id: String, discard_slot_id: int = -1) -> Dictionary:
 	ensure_run_state_initialized()
-	return _ensure_run_session_coordinator().choose_support_action(action_id)
+	return _ensure_run_session_coordinator().choose_support_action(action_id, discard_slot_id)
 
 
 func finish_boot_to_main_menu() -> void:
@@ -327,14 +334,6 @@ func _request_transition(target_state: int) -> void:
 	game_flow_manager.request_transition(target_state)
 
 
-func _apply_startup_resolution() -> void:
-	apply_resolution_by_index(0)
-
-
-func _apply_startup_window_mode() -> void:
-	apply_fullscreen_mode(false)
-
-
 func _apply_window_size(size: Vector2i) -> bool:
 	var root_window: Window = get_window()
 	if root_window == null:
@@ -346,18 +345,42 @@ func _apply_window_size(size: Vector2i) -> bool:
 
 func _resolve_windowed_size_for_display(requested_size: Vector2i) -> Vector2i:
 	if requested_size.x <= 0 or requested_size.y <= 0:
-		return BASE_UI_REFERENCE_RESOLUTION
+		return WINDOWED_PREVIEW_OVERRIDE_RESOLUTION
 	var display_size: Vector2i = _get_primary_display_size()
 	if display_size.x <= 0 or display_size.y <= 0:
 		return requested_size
-	if requested_size.x <= display_size.x and requested_size.y <= display_size.y:
+	var safe_display_size: Vector2i = _build_windowed_safe_display_size(display_size)
+	if safe_display_size.x <= 0 or safe_display_size.y <= 0:
 		return requested_size
-	var scale_x: float = float(display_size.x) / float(requested_size.x)
-	var scale_y: float = float(display_size.y) / float(requested_size.y)
-	var scale: float = min(scale_x, scale_y)
+	return _resolve_windowed_size_to_available_area(requested_size, safe_display_size)
+
+
+func _build_windowed_safe_display_size(display_size: Vector2i) -> Vector2i:
+	if display_size.x <= 0 or display_size.y <= 0:
+		return Vector2i.ZERO
 	return Vector2i(
-		max(1, int(floor(float(requested_size.x) * scale))),
-		max(1, int(floor(float(requested_size.y) * scale)))
+		max(1, int((display_size.x * WINDOWED_DISPLAY_SAFE_FRAME_PERCENT_X) / 100)),
+		max(1, int((display_size.y * WINDOWED_DISPLAY_SAFE_FRAME_PERCENT_Y) / 100))
+	)
+
+
+func _resolve_windowed_size_to_available_area(requested_size: Vector2i, available_size: Vector2i) -> Vector2i:
+	if requested_size.x <= 0 or requested_size.y <= 0:
+		return WINDOWED_PREVIEW_OVERRIDE_RESOLUTION
+	if available_size.x <= 0 or available_size.y <= 0:
+		return requested_size
+	if requested_size.x <= available_size.x and requested_size.y <= available_size.y:
+		return requested_size
+
+	var width_bound: bool = available_size.x * requested_size.y <= available_size.y * requested_size.x
+	if width_bound:
+		return Vector2i(
+			available_size.x,
+			max(1, int((requested_size.y * available_size.x) / requested_size.x))
+		)
+	return Vector2i(
+		max(1, int((requested_size.x * available_size.y) / requested_size.y)),
+		available_size.y
 	)
 
 
@@ -371,13 +394,6 @@ func _center_window(root_window: Window, window_size: Vector2i) -> void:
 	)
 
 
-func _get_current_window_size() -> Vector2i:
-	var root_window: Window = get_window()
-	if root_window == null:
-		return Vector2i.ZERO
-	return root_window.size
-
-
 func _get_primary_display_size() -> Vector2i:
 	var screen_size: Vector2i = DisplayServer.screen_get_size()
 	if screen_size.x <= 0 or screen_size.y <= 0:
@@ -385,7 +401,7 @@ func _get_primary_display_size() -> Vector2i:
 	return screen_size
 
 
-func _apply_fullscreen_mode(enabled: bool) -> bool:
+func _apply_fullscreen_mode(_enabled: bool) -> bool:
 	var root_window: Window = get_window()
 	if root_window == null:
 		return false
@@ -394,16 +410,11 @@ func _apply_fullscreen_mode(enabled: bool) -> bool:
 	var restored_window_size: Vector2i = _resolve_windowed_size_for_display(BASE_UI_REFERENCE_RESOLUTION)
 	root_window.size = restored_window_size
 	_center_window(root_window, restored_window_size)
-	_is_fullscreen = false
 	return true
 
 
-func _load_fullscreen_setting() -> bool:
-	return false
-
-
-func _save_fullscreen_setting(enabled: bool) -> void:
-	_is_fullscreen = false
+func _save_fullscreen_setting(_enabled: bool) -> void:
+	pass
 
 
 func _route_restore_state(active_flow_state: int) -> void:
@@ -411,3 +422,62 @@ func _route_restore_state(active_flow_state: int) -> void:
 	if scene_router != null:
 		scene_router.route_to_state_for_restore(active_flow_state)
 
+
+func _initialize_playtest_logger() -> void:
+	playtest_logger = PlaytestLoggerScript.new()
+	playtest_logger.setup(_is_playtest_logging_enabled())
+	if playtest_logger == null or not playtest_logger.is_enabled():
+		return
+	if game_flow_manager == null:
+		return
+
+	var state_changed_callable: Callable = Callable(self, "_on_playtest_flow_state_changed")
+	if not game_flow_manager.flow_state_changed.is_connected(state_changed_callable):
+		game_flow_manager.flow_state_changed.connect(state_changed_callable)
+
+
+func _is_playtest_logging_enabled() -> bool:
+	return OS.is_debug_build() or OS.get_cmdline_args().has(PLAYTEST_LOG_CMDLINE_ARG)
+
+
+func _on_playtest_flow_state_changed(_old_state: int, new_state: int) -> void:
+	if new_state != FlowStateScript.Type.RUN_END:
+		return
+
+	var selected_id: String = get_last_run_result().strip_edges()
+	var event_data: Dictionary = {}
+	if not selected_id.is_empty():
+		event_data["selected_id"] = selected_id
+	_log_playtest_event("run_end", event_data)
+
+
+func _log_playtest_event(event_type: String, extra_data: Dictionary = {}) -> void:
+	if playtest_logger == null or not playtest_logger.is_enabled():
+		return
+	playtest_logger.log_event(_build_playtest_log_payload(event_type, extra_data))
+
+
+func _build_playtest_log_payload(event_type: String, extra_data: Dictionary = {}) -> Dictionary:
+	var payload: Dictionary = {
+		"event_type": event_type,
+		"stage_index": 0,
+		"hunger": 0,
+		"gold": 0,
+		"hp": 0,
+		"current_node_id": MapRuntimeStateScript.DEFAULT_NODE_INDEX,
+	}
+
+	var active_run_state: RunState = get_run_state()
+	if active_run_state != null:
+		payload["stage_index"] = active_run_state.stage_index
+		payload["hunger"] = active_run_state.hunger
+		payload["gold"] = active_run_state.gold
+		payload["hp"] = active_run_state.player_hp
+		var map_runtime_state: MapRuntimeState = active_run_state.map_runtime_state as MapRuntimeState
+		if map_runtime_state != null:
+			payload["current_node_id"] = map_runtime_state.current_node_id
+
+	payload["event_type"] = event_type
+	for key in extra_data.keys():
+		payload[key] = extra_data[key]
+	return payload

@@ -14,12 +14,12 @@ func test_weakened_reduces_player_attack_and_expires_in_combat_state() -> void:
 	var flow: CombatFlow = context["flow"]
 	var run_state: RunState = context["run_state"]
 
-	var brace_result: Dictionary = flow.process_brace()
-	assert(not bool(brace_result.get("skipped", true)), "Expected brace to resolve before the first weaken hit.")
+	var defend_result: Dictionary = flow.process_defend()
+	assert(not bool(defend_result.get("skipped", true)), "Expected defend to resolve before the first weaken hit.")
 
 	var first_enemy_result: Dictionary = flow.process_enemy_action()
-	assert(int(first_enemy_result.get("damage_applied", -1)) == 1, "Expected brace to reduce the first weaken hit from 2 to 1.")
-	assert(flow.combat_state.player_hp == 59, "Expected player HP to drop from 60 to 59 after the first weaken hit.")
+	assert(int(first_enemy_result.get("damage_applied", -1)) == 0, "Expected defend guard to reduce the first weaken hit from 2 to 0.")
+	assert(flow.combat_state.player_hp == 60, "Expected player HP to stay full after the first weaken hit is fully guarded.")
 	assert(flow.combat_state.player_statuses.size() == 1, "Expected weakened status to be applied to the player.")
 	assert(
 		String(flow.combat_state.player_statuses[0].get("definition_id", "")) == "weakened",

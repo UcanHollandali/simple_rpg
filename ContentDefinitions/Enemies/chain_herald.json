@@ -4,7 +4,7 @@
   "authoring_order": 190,
   "family": "Enemies",
   "encounter_tier": "elite",
-  "design_intent_question": "Can the player learn a boss pattern that clearly alternates setup and payoff turns, saving Brace and healing for the execution swing instead of the softer setup beat?",
+  "design_intent_question": "Can the player learn a boss pattern that clearly alternates setup and payoff turns, saving Defend and healing for the execution swing instead of the softer setup beat?",
   "tags": [
     "enemy",
     "boss",
@@ -19,7 +19,7 @@
   },
   "rules": {
     "stats": {
-      "base_hp": 36,
+      "base_hp": 40,
       "base_damage": 5
     },
     "intent_pool": [

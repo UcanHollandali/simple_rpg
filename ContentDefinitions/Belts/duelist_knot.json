@@ -4,33 +4,16 @@
   "family": "Belts",
   "tags": [
     "belt",
-    "combat",
-    "tempo",
-    "attack"
+    "utility",
+    "compact",
+    "pack"
   ],
   "display": {
     "name": "Duelist Knot",
-    "short_description": "A cinched war-belt that grants +1 attack power in combat.",
+    "short_description": "A cinched war-belt that opens 2 extra backpack slots.",
     "icon_key": "belt_duelist_knot"
   },
   "rules": {
-    "behaviors": [
-      {
-        "trigger": "passive",
-        "condition": {
-          "op": "always"
-        },
-        "target": "self",
-        "effects": [
-          {
-            "type": "modify_stat",
-            "params": {
-              "stat": "attack_power_bonus",
-              "amount": 1
-            }
-          }
-        ]
-      }
-    ]
+    "backpack_capacity_bonus": 2
   }
 }

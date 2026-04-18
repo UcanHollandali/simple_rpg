@@ -4,13 +4,13 @@
   "authoring_order": 120,
   "family": "Enemies",
   "encounter_tier": "minor",
-  "design_intent_question": "Can the player recognize that a slow armored body still creates a real Brace turn when its heavier slam is telegraphed cleanly enough?",
+  "design_intent_question": "Can the player recognize that a slow armored body still creates a real Defend turn when its heavier slam is telegraphed cleanly enough?",
   "tags": [
     "enemy",
     "beast",
     "stage_1",
     "armored",
-    "brace_test"
+    "guard_test"
   ],
   "display": {
     "name": "Mossback Ram",

@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "definition_id": "stage_2_merchant_stock_kit",
+  "family": "MerchantStocks",
+  "tags": [
+    "merchant_stock",
+    "support",
+    "stage_2",
+    "prototype"
+  ],
+  "display": {
+    "name": "Stage 2 Kit Stock",
+    "short_description": "A mid-run cart with sharper sidearms and steadier trail prep for established builds."
+  },
+  "rules": {
+    "stock": [
+      {
+        "offer_id": "buy_forager_tea_x1",
+        "definition_id": "forager_tea",
+        "effect_type": "buy_consumable",
+        "amount": 1,
+        "cost_gold": 9
+      },
+      {
+        "offer_id": "buy_briar_knife",
+        "definition_id": "briar_knife",
+        "effect_type": "buy_weapon",
+        "cost_gold": 19
+      },
+      {
+        "offer_id": "buy_sturdy_wraps",
+        "definition_id": "sturdy_wraps",
+        "effect_type": "buy_passive_item",
+        "cost_gold": 20
+      }
+    ]
+  }
+}

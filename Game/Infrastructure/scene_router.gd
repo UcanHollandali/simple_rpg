@@ -29,7 +29,6 @@ const OVERLAY_CLOSE_METHODS: Dictionary = {
 
 var scene_map: Dictionary = {
 	FlowStateScript.Type.MAIN_MENU: "res://scenes/main_menu.tscn",
-	FlowStateScript.Type.RUN_SETUP: "res://scenes/run_setup.tscn",
 	FlowStateScript.Type.MAP_EXPLORE: "res://scenes/map_explore.tscn",
 	FlowStateScript.Type.NODE_RESOLVE: "res://scenes/node_resolve.tscn",
 	FlowStateScript.Type.COMBAT: "res://scenes/combat.tscn",
@@ -74,14 +73,14 @@ func _on_flow_state_changed(_old_state: int, new_state: int) -> void:
 
 
 func route_to_state_for_restore(new_state: int) -> void:
-	Callable(self, "_route_to_state").call_deferred(new_state, true)
+	Callable(self, "_route_to_state").call_deferred(new_state, -1, true)
 
 
 func _route_to_state(new_state: int, old_state: int = -1, force_reload: bool = false) -> void:
 	var current_scene: Node = get_tree().current_scene
-	if new_state == FlowStateScript.Type.COMBAT:
-		_cleanup_stale_combat_status_hud(current_scene)
-		Callable(self, "_cleanup_stale_combat_status_hud").call_deferred()
+	if current_scene != null and current_scene.has_method("begin_deferred_scene_transition"):
+		if bool(current_scene.call("begin_deferred_scene_transition", new_state, old_state)):
+			return
 
 	# Handle overlay states (event, support, reward, level_up) as popups on MapExplore
 	if _is_overlay_state(new_state):
@@ -136,33 +135,7 @@ func _handle_overlay_state_transition(current_scene: Node, new_state: int, _old_
 	if error_code != OK:
 		push_error("Failed to route to MapExplore for %s overlay (error %d)." % [open_method, error_code])
 		return false
-	Callable(self, "_open_overlay_on_map_explore").call_deferred(new_state)
 	return true
-
-
-func _open_overlay_on_map_explore(target_state: int) -> void:
-	var active_scene: Node = get_tree().current_scene
-	if active_scene == null:
-		return
-	if String(active_scene.scene_file_path) != MAP_EXPLORE_SCENE_PATH:
-		return
-
-	var bootstrap = get_node_or_null("/root/AppBootstrap")
-	if bootstrap == null:
-		return
-	var flow_manager = bootstrap.get_flow_manager()
-	if flow_manager == null:
-		return
-	if flow_manager.get_current_state() != target_state:
-		return
-
-	var open_method: String = String(OVERLAY_OPEN_METHODS.get(target_state, ""))
-	if open_method.is_empty():
-		return
-	if not active_scene.has_method(open_method):
-		return
-	active_scene.call_deferred(open_method)
-
 
 func _close_all_map_overlays(current_scene: Node, immediate: bool = false) -> void:
 	if current_scene == null:
@@ -173,47 +146,6 @@ func _close_all_map_overlays(current_scene: Node, immediate: bool = false) -> vo
 		var method_name: String = String(close_method)
 		if current_scene.has_method(method_name):
 			current_scene.call_deferred(method_name, immediate)
-
-
-func _cleanup_stale_combat_status_hud(reference_scene: Node = null) -> void:
-	var scan_roots: Array[Node] = []
-	if reference_scene != null and is_instance_valid(reference_scene):
-		scan_roots.append(reference_scene)
-	var current_scene: Node = get_tree().current_scene
-	if current_scene != null and current_scene != reference_scene and is_instance_valid(current_scene):
-		scan_roots.append(current_scene)
-	var tree_root: Node = get_tree().get_root()
-	if tree_root != null and is_instance_valid(tree_root):
-		scan_roots.append(tree_root)
-
-	var seen_nodes: Dictionary = {}
-	for scan_root in scan_roots:
-		var stale_cards: Array[Node] = scan_root.find_children("RunSummaryCard", "Node", true, false)
-		for stale_card in stale_cards:
-			if stale_card == null or not is_instance_valid(stale_card):
-				continue
-			if not _is_stale_run_summary_card(stale_card):
-				continue
-			var instance_id: int = stale_card.get_instance_id()
-			if seen_nodes.has(instance_id):
-				continue
-			seen_nodes[instance_id] = true
-			stale_card.queue_free()
-
-
-func _is_stale_run_summary_card(node: Node) -> bool:
-	if node == null or not is_instance_valid(node):
-		return false
-	if String(node.name) != "RunSummaryCard":
-		return false
-	return (
-		node.get_node_or_null("StatsStack/StatusRows/HpRow/HpStatusLabel") != null
-		and node.get_node_or_null("StatsStack/StatusRows/HungerRow/HungerStatusLabel") != null
-		and (
-			node.get_node_or_null("StatsStack/StatusRows/HungerRow/DurabilityStatusLabel") != null
-			or node.get_node_or_null("StatsStack/StatusRows/DurabilityRow/DurabilityStatusLabel") != null
-		)
-	)
 
 
 func _apply_overlay_scene_scale_if_needed() -> void:

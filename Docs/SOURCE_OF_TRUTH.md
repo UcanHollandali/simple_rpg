@@ -25,14 +25,15 @@ Derived data, cached data, facade reads, and UI view state do not replace that o
 |---|---|---|
 | active flow state | `GameFlowManager` | reached through `AppBootstrap` only as a facade |
 | run result, stage index, hunger, XP, gold, outside-combat HP, run seed, named RNG stream cursors | `RunState` | stable run-level scalars plus live deterministic stream continuity |
-| current node id, discovery state, resolved state, locked state, pending node context, stage key state, boss-gate state, support-node revisit state, side-mission contract state | `MapRuntimeState` | runtime graph materialized from stage-scaffold rotation `procedural_stage_corridor_v1.json` / `procedural_stage_openfield_v1.json` / `procedural_stage_loop_v1.json`; legacy fixed templates remain load-compat only |
-| shared carried inventory slots, carried-slot order, plus out-of-combat active equipped weapon / armor / belt slot ids | `InventoryState` | starter recipe comes from `ContentDefinitions/RunLoadouts/starter_loadout.json`; all carried item families now live in one shared inventory pool |
-| combat turn state, enemy HP, revealed intent, boss phase tracking, combat-only statuses, combat-local hunger/HP/durability mutation, combat-local equipped weapon / armor / belt slot selection | `CombatState` | committed back to `RunState` at combat end; boss phase truth stays combat-local only |
+| current node id, discovery state, resolved state, locked state, pending node context, stage key state, boss-gate state, support-node revisit state, hamlet side-quest state | `MapRuntimeState` | runtime graph materialized from the active procedural stage-profile ids using center-start frontier growth plus controlled reconnect; legacy fixed templates remain load-compat only |
+| backpack slots and order, plus explicit equipment slots for right hand / left hand / armor / belt | `InventoryState` | starter recipe comes from `ContentDefinitions/RunLoadouts/starter_loadout.json`; equipped gear no longer consumes backpack capacity |
+| combat turn state, enemy HP, revealed intent, boss phase tracking, combat-only statuses, combat-local hunger/HP/durability mutation, combat-local guard, and combat-local interpretation of right-hand / left-hand / armor / belt loadout | `CombatState` | committed back to `RunState` at combat end; left-hand shield/offhand behavior and guard truth now live here; boss phase truth stays combat-local only |
 | combat setup selection and post-combat/post-node progression routing | `RunSessionCoordinator` | orchestration owner, not long-lived state owner |
 | pending event choice state | `EventState` | created, applied, and cleared by `RunSessionCoordinator`; current authored choices come from `ContentDefinitions/EventTemplates/*.json` |
 | pending reward offer list | `RewardState` | created, applied, and cleared by `RunSessionCoordinator` |
-| pending level-up offer list | `LevelUpState` | passive offer window currently follows explicit top-level `authoring_order` on `PassiveItems` |
-| pending support visit offer list | `SupportInteractionState` | merchant stock reads the deterministic stage-indexed authored stock table (`basic_merchant_stock.json`, `stage_2_merchant_stock.json`, `stage_3_merchant_stock.json`); rest offers remain narrow runtime-owned slices; blacksmith offers are runtime-owned service and target-selection slices over carried weapon / armor items plus active-weapon repair; side-mission offer state carries the current contract status, marked target, and claim offers while `SupportInteraction` is open |
+| owned character perks | `CharacterPerkState` serialized through `RunState` | run-local progression bonuses loaded from `CharacterPerks`; not inventory items |
+| pending level-up offer list | `LevelUpState` | perk offer window currently follows explicit top-level `authoring_order` on `CharacterPerks` |
+| pending support visit offer list | `SupportInteractionState` | merchant stock reads deterministic run-seeded stage-local authored stock pools (`basic_merchant_stock.json`, `stage_1_merchant_stock_roadpack.json`, `stage_1_merchant_stock_scout.json`, `stage_2_merchant_stock.json`, `stage_2_merchant_stock_kit.json`, `stage_2_merchant_stock_forgegear.json`, `stage_3_merchant_stock.json`, `stage_3_merchant_stock_bulwark.json`, `stage_3_merchant_stock_convoy.json`); rest offers remain narrow runtime-owned slices; blacksmith offers are runtime-owned service and target-selection slices over carried weapon / armor items plus active-weapon repair; hamlet offer state carries the current stage-local authored request definition, side-quest status, marked target, optional quest-item hook, and claim offers while `SupportInteraction` is open |
 | content metadata and rule blocks | `ContentDefinitions/*` | definitions are logic input, never runtime owner replacement |
 | save snapshot assembly and restore orchestration | `SaveRuntimeBridge` | delegates file IO and schema validation to `SaveService` |
 | file IO and save-path policy | `SaveService` | infrastructure owner only |
@@ -56,47 +57,52 @@ Derived data, cached data, facade reads, and UI view state do not replace that o
 ### Inventory
 
 - `InventoryState` owns:
-  - `inventory_slots`
-  - carried slot order inside `inventory_slots`
-  - `active_weapon_slot_id`
-  - `active_armor_slot_id`
-  - `active_belt_slot_id`
-- `weapon_instance`, `armor_instance`, `belt_instance`, `consumable_slots`, and `passive_slots` remain compatibility views over that shared owner.
-- `armor_instance` and `belt_instance` are still active equipped lanes.
-- Current truthful active-lane behavior:
-  - `armor_instance` supplies passive combat-defense modifiers
-  - `belt_instance` supplies passive combat-utility modifiers
-  - equipped belt also adds `+2` shared inventory capacity
-  - starter runs still begin with both empty
-- Shared carried-inventory baseline:
-  - base capacity: `5`
-  - equipped belt bonus: `+2`
-  - carried families share the same pool:
+  - `inventory_slots` as backpack truth
+  - backpack slot order inside `inventory_slots`
+  - `equipped_right_hand_slot`
+  - `equipped_left_hand_slot`
+  - `equipped_armor_slot`
+  - `equipped_belt_slot`
+- Current canonical inventory model:
+  - equipment slots do not consume backpack capacity
+  - base backpack capacity: `5`
+  - equipped belt bonus comes from authored `Belts.rules.backpack_capacity_bonus`
+  - backpack may carry:
     - `weapon`
+    - `shield`
     - `armor`
     - `belt`
     - `consumable`
     - `passive`
+    - `quest_item`
+    - `shield_attachment`
+- Shield attachments are stored as backpack items when detached and as `attachment_definition_id` on shield slot state when attached.
+- Passive items are backpack-carried truth, not equipped-slot truth.
+- Character perks are not inventory truth and do not consume backpack capacity.
+- `weapon_instance`, `right_hand_instance`, `left_hand_instance`, `armor_instance`, `belt_instance`, `consumable_slots`, `passive_slots`, `active_weapon_slot_id`, `active_left_hand_slot_id`, `active_armor_slot_id`, and `active_belt_slot_id` remain compatibility views over the canonical backpack/equipment owner.
 - Current schema-compatible instance fields stay narrow:
   - `definition_id`
   - `current_durability` on weapon slots
   - `upgrade_level` on weapon and armor slots
   - `current_stack` on consumable slots
-- Do not treat the compatibility accessors as a second owner; the shared `inventory_slots` array is the actual runtime truth.
+- Do not treat the compatibility accessors as a second owner; canonical truth is the backpack array plus explicit equipment-slot dictionaries.
 - `InventoryActions` is the mutation surface, not a competing owner.
 - Current narrow mutation surface over that owner includes:
-  - equip / unequip toggle for carried `weapon`, `armor`, and `belt`
-  - carried-slot reorder
+  - move carried gear between backpack and explicit equipment slots
+  - backpack reorder
+  - attach/detach one shield attachment on the equipped left-hand shield outside combat
   - direct out-of-combat consumable use
 - `RunState` still exposes compatibility accessors for limited compatibility-focused tests and save/load compatibility lanes.
-- During active combat, `CombatState` temporarily owns the active equipped weapon / armor / belt slot ids so combat-time gear swaps can stay combat-local until the combat result is committed.
+- During active combat, `CombatState` temporarily owns combat-local guard plus the interpreted equipped loadout snapshot used for attack/defend resolution.
+- Combat-time gear swaps and backpack reorder are no longer part of the canonical combat loop.
 
 ### Map
 
 - `MapRuntimeState` owns the stage-local exploration graph and all per-node runtime state.
-- The current graph is scaffold-based and procedurally filled, but that does not make the content template the runtime owner.
+- The current graph is realized from the active controlled-scatter stage profiles, but that does not make the content template the runtime owner.
 - `RunSessionCoordinator` may:
   - validate adjacency-limited movement
+  - trigger a travel-scoped roadside interruption during valid movement, then continue the preserved destination flow
   - consume pending node context
   - reopen support nodes on revisit
   - route to the next flow state
@@ -109,15 +115,15 @@ Derived data, cached data, facade reads, and UI view state do not replace that o
 - Current deterministic authored inputs:
   - event choices: `EventTemplates/*`
   - reward offers: `Rewards/<source_context>.json`
-  - level-up ordering: `PassiveItems` `authoring_order`
-  - merchant stock: stage-indexed `MerchantStocks/basic_merchant_stock.json`, `MerchantStocks/stage_2_merchant_stock.json`, `MerchantStocks/stage_3_merchant_stock.json`
+  - level-up ordering: `CharacterPerks` `authoring_order`
+  - merchant stock: deterministic run-seeded stage-local `MerchantStocks` pools
 
 ### Combat
 
 - `CombatState` owns combat-local truth.
 - `CombatFlow` drives combat-local resolution and presentation signals.
 - `RunState.commit_combat_result()` is the handoff path back to long-lived run truth.
-- Combat-time equipment swaps use shared carried inventory as input, but the selected active weapon / armor / belt slot ids remain combat-local until `RunState.commit_combat_result()` writes them back.
+- Combat-time combat math still reads the canonical backpack-plus-equipment owner as setup input, but the live turn-by-turn combat truth stays inside `CombatState`.
 - Combat-only statuses do not survive combat unless a closer rule contract explicitly changes that.
 
 ## Save Rule
@@ -128,7 +134,7 @@ Current implemented baseline:
 - flow state from `GameFlowManager`
 - run truth from `RunState`
 - map truth from `MapRuntimeState`, serialized through `RunState.to_save_dict()`
-- side-mission node truth from `MapRuntimeState`, serialized through `RunState.to_save_dict()`
+- hamlet side-quest node truth from `MapRuntimeState`, serialized through `RunState.to_save_dict()`
 - inventory truth from `InventoryState`, serialized through `RunState.to_save_dict()`
 - pending event truth from `EventState` when `Event` is active, but current save-safe baseline intentionally excludes `Event`
 - pending reward truth from `RewardState` when `Reward` is active

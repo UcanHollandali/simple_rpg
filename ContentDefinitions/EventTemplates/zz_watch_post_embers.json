@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "definition_id": "zz_watch_post_embers",
+  "family": "EventTemplates",
+  "tags": [
+    "event",
+    "watch_post",
+    "prototype"
+  ],
+  "display": {
+    "name": "Embers in the Watch Post",
+    "short_description": "The watch post should be dead cold, yet one clay brazier still holds a patient orange heart under the ash."
+  },
+  "rules": {
+    "choices": [
+      {
+        "choice_id": "wait_by_the_coals",
+        "label": "Wait by the coals until your hands steady",
+        "summary": "The heat is small but honest. It gives your breathing a minute to fall back into rhythm.",
+        "effect_type": "heal",
+        "amount": 8
+      },
+      {
+        "choice_id": "rake_the_brazier_tray",
+        "label": "Rake through the tray for what was hidden there",
+        "summary": "A stamped metal crest drops free from the ash, still warm enough to sting your fingertips.",
+        "effect_type": "grant_item",
+        "inventory_family": "shield_attachment",
+        "definition_id": "lantern_crest"
+      }
+    ]
+  }
+}

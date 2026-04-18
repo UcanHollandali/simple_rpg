@@ -14,11 +14,17 @@
     "icon_key": "weapon_moonspur_pike"
   },
   "rules": {
+    "slot_compatibility": {
+      "right_hand": true,
+      "left_hand": false,
+      "offhand_capable": false
+    },
     "stats": {
       "weapon_type": "polearm",
       "base_damage": 7,
       "max_durability": 22,
-      "durability_cost_per_attack": 1
+      "durability_cost_per_attack": 2,
+      "durability_profile": "sturdy"
     }
   }
 }

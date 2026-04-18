@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "definition_id": "zz_ash_tree_ledger",
+  "family": "EventTemplates",
+  "tags": [
+    "event",
+    "ledger",
+    "prototype"
+  ],
+  "display": {
+    "name": "Ledger Beneath the Ash Tree",
+    "short_description": "A waxed ledger hangs from a nail in the ash bark. Someone kept careful count here, then left in a hurry."
+  },
+  "rules": {
+    "choices": [
+      {
+        "choice_id": "break_the_seal",
+        "label": "Break the seal and check the purse",
+        "summary": "A small payment was tucked into the ledger fold for someone who never came back.",
+        "effect_type": "grant_gold",
+        "amount": 6
+      },
+      {
+        "choice_id": "copy_the_tally_marks",
+        "label": "Copy the tally marks and route notes",
+        "summary": "The careful handwriting sketches a few safe habits the road keeps rewarding.",
+        "effect_type": "grant_xp",
+        "amount": 4
+      }
+    ]
+  }
+}

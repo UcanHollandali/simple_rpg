@@ -5,6 +5,7 @@ class_name TestEventNode
 const AppBootstrapScript = preload("res://Game/Application/app_bootstrap.gd")
 const SceneRouterScript = preload("res://Game/Infrastructure/scene_router.gd")
 const FlowStateScript = preload("res://Game/Application/flow_state.gd")
+const TestExitCleanupHelperScript = preload("res://Tests/_exit_cleanup_helper.gd")
 const ROUTE_BUTTON_NODE_NAMES: PackedStringArray = [
 	"CombatNodeButton",
 	"RewardNodeButton",
@@ -13,10 +14,12 @@ const ROUTE_BUTTON_NODE_NAMES: PackedStringArray = [
 	"BlacksmithNodeButton",
 	"BossNodeButton",
 ]
-const EVENT_ICON_PATH := "res://Assets/Icons/icon_node_marker.svg"
+const EVENT_ICON_PATH := "res://Assets/Icons/icon_map_trail_event.svg"
+const PHASE_TIMEOUT_FRAMES := 240
 
 var _phase: int = 0
 var _phase_frame_count: int = 0
+var _is_finishing: bool = false
 
 
 func _init() -> void:
@@ -39,12 +42,13 @@ func _on_process_frame() -> void:
 			if _is_scene("MapExplore"):
 				var run_state: RunState = _get_run_state()
 				_require(run_state != null, "Expected RunState on MapExplore.")
+				run_state.configure_run_seed(1)
 				run_state.player_hp = 40
 				var event_node_id: int = _find_node_id_by_family(run_state.map_runtime_state, "event")
 				_require(event_node_id >= 0, "Expected one event node on the procedural stage.")
 				_prepare_current_node_adjacent_to_target(run_state.map_runtime_state, event_node_id)
 				current_scene.call("_refresh_ui")
-				_press_map_route_containing("Roadside Encounter")
+				_press_map_route_containing("Trail Event")
 				_advance_phase(2)
 		2:
 			if _is_scene("Event"):
@@ -55,20 +59,24 @@ func _on_process_frame() -> void:
 				_require_audio_player_stream("EventMusicPlayer")
 				var event_state: RefCounted = _get_event_state()
 				_require(event_state != null, "Expected EventState on the dedicated Event scene.")
+				_require(String(event_state.source_context) == "node_event", "Expected planned event nodes to keep the dedicated node-event source context.")
 				_require(String(event_state.template_definition_id) == "forest_shrine_echo", "Expected deterministic stage-1 event template selection.")
 				_require(event_state.choices.size() == 2, "Expected EventState to expose exactly 2 choices.")
+				var event_root: Node = _get_scene_root("Event")
 
-				var title_label: Label = current_scene.get_node("Margin/VBox/HeaderStack/TitleLabel") as Label
-				var hint_label: Label = current_scene.get_node("Margin/VBox/HeaderStack/HintLabel") as Label
-				var choice_a_card: Control = current_scene.get_node("Margin/VBox/CardsRow/ChoiceACard") as Control
-				var choice_b_card: Control = current_scene.get_node("Margin/VBox/CardsRow/ChoiceBCard") as Control
-				var choice_a_button: Button = current_scene.get_node("Margin/VBox/CardsRow/ChoiceACard/VBox/ChoiceAButton") as Button
-				var choice_b_button: Button = current_scene.get_node("Margin/VBox/CardsRow/ChoiceBCard/VBox/ChoiceBButton") as Button
-				var choice_a_title: Label = current_scene.get_node("Margin/VBox/CardsRow/ChoiceACard/VBox/ChoiceTitleLabel") as Label
-				var choice_b_title: Label = current_scene.get_node("Margin/VBox/CardsRow/ChoiceBCard/VBox/ChoiceTitleLabel") as Label
+				var title_label: Label = event_root.get_node("Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard/HeaderStack/TitleLabel") as Label
+				var context_label: Label = event_root.get_node("Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard/HeaderStack/ContextLabel") as Label
+				var hint_label: Label = event_root.get_node("Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard/HeaderStack/HintLabel") as Label
+				var choice_a_card: Control = event_root.get_node("Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard") as Control
+				var choice_b_card: Control = event_root.get_node("Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard") as Control
+				var choice_a_button: Button = event_root.get_node("Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard/VBox/ChoiceAButton") as Button
+				var choice_b_button: Button = event_root.get_node("Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard/VBox/ChoiceBButton") as Button
+				var choice_a_title: Label = event_root.get_node("Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard/VBox/ChoiceTitleLabel") as Label
+				var choice_b_title: Label = event_root.get_node("Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard/VBox/ChoiceTitleLabel") as Label
 
 				_require(title_label.text == "The Shrine in the Moss", "Expected event title to render from EventState.")
-				_require(String(hint_label.text).contains("Mid-roadside-save"), "Expected roadside-save policy hint to stay explicit in the scene shell.")
+				_require(String(context_label.text).contains("planned stop on the map"), "Expected planned event nodes to explain their authored map-stop context in the scene shell.")
+				_require(String(hint_label.text).contains("detail line"), "Expected event scene hint text to explain the badge-plus-detail read.")
 				_require(choice_a_card.visible and not choice_a_button.disabled, "Expected first event card to stay active.")
 				_require(choice_b_card.visible and not choice_b_button.disabled, "Expected second event card to stay active.")
 				_require(choice_a_title.text == "Wash the road dust away", "Expected first roadside-encounter choice title from content.")
@@ -84,8 +92,7 @@ func _on_process_frame() -> void:
 				_require(_current_state() == FlowStateScript.Type.MAP_EXPLORE, "Expected event resolution to return to MapExplore.")
 				_require(_get_event_state() == null, "Expected EventState to clear after claiming an event outcome.")
 				_require(run_state_after_event.player_hp == 50, "Expected the healing event choice to persist on RunState.")
-				print("test_event_node: all assertions passed")
-				quit()
+				await _finish_success("test_event_node")
 
 	_assert_phase_timeout()
 
@@ -138,7 +145,11 @@ func _current_state() -> int:
 
 
 func _is_scene(expected_name: String) -> bool:
-	return current_scene != null and current_scene.name == expected_name
+	if current_scene == null:
+		return false
+	if expected_name == "MapExplore":
+		return current_scene.name == "MapExplore" and _get_visible_overlay_root() == null
+	return _get_scene_root(expected_name) != null
 
 
 func _press_map_route_containing(label_fragment: String) -> void:
@@ -198,30 +209,38 @@ func _advance_phase(new_phase: int) -> void:
 
 
 func _require_texture_rect_present(node_name: String) -> void:
-	var texture_rect: TextureRect = current_scene.get_node_or_null(node_name) as TextureRect
-	_require(texture_rect != null, "Expected TextureRect %s to exist on %s." % [node_name, current_scene.name])
-	_require(texture_rect.visible, "Expected TextureRect %s to stay visible on %s." % [node_name, current_scene.name])
-	_require(texture_rect.texture != null, "Expected TextureRect %s to have a texture on %s." % [node_name, current_scene.name])
+	var scene_root: Node = _get_scene_root()
+	var texture_rect: TextureRect = scene_root.get_node_or_null(node_name) as TextureRect
+	_require(texture_rect != null, "Expected TextureRect %s to exist on %s." % [node_name, scene_root.name])
+	_require(texture_rect.visible, "Expected TextureRect %s to stay visible on %s." % [node_name, scene_root.name])
+	_require(texture_rect.texture != null, "Expected TextureRect %s to have a texture on %s." % [node_name, scene_root.name])
 
 
 func _require_modal_popup_shell() -> void:
-	var scrim: ColorRect = current_scene.get_node_or_null("Scrim") as ColorRect
-	_require(scrim != null, "Expected Scrim to exist on %s." % current_scene.name)
-	_require(scrim.visible, "Expected Scrim to stay visible on %s." % current_scene.name)
-	var shell: PanelContainer = current_scene.get_node_or_null("Margin/ContentShell") as PanelContainer
-	_require(shell != null, "Expected ContentShell popup to exist on %s." % current_scene.name)
-	_require(shell.visible, "Expected ContentShell popup to stay visible on %s." % current_scene.name)
+	var scene_root: Node = _get_scene_root()
+	var scrim: ColorRect = scene_root.get_node_or_null("Scrim") as ColorRect
+	_require(scrim != null, "Expected Scrim to exist on %s." % scene_root.name)
+	_require(scrim.visible, "Expected Scrim to stay visible on %s." % scene_root.name)
+	var margin: Control = scene_root.get_node_or_null("Margin") as Control
+	_require(margin != null, "Expected Margin popup root to exist on %s." % scene_root.name)
+	_require(margin.visible, "Expected Margin popup root to stay visible on %s." % scene_root.name)
+	var shell: PanelContainer = scene_root.get_node_or_null("Margin/ContentShell") as PanelContainer
+	var uses_full_scene_shell: bool = shell != null and shell.visible
 	for node_name in ["BackgroundFar", "BackgroundMid", "BackgroundOverlay"]:
-		var texture_rect: TextureRect = current_scene.get_node_or_null(node_name) as TextureRect
+		var texture_rect: TextureRect = scene_root.get_node_or_null(node_name) as TextureRect
 		if texture_rect != null:
-			_require(texture_rect.visible, "Expected %s to stay visible on %s." % [node_name, current_scene.name])
-			_require(texture_rect.texture != null, "Expected %s to keep a texture on %s." % [node_name, current_scene.name])
+			if uses_full_scene_shell:
+				_require(texture_rect.visible, "Expected %s to stay visible on full-scene %s." % [node_name, scene_root.name])
+			else:
+				_require(not texture_rect.visible, "Expected %s to stay hidden behind overlay cards on %s." % [node_name, scene_root.name])
+			_require(texture_rect.texture != null, "Expected %s to keep a texture on %s." % [node_name, scene_root.name])
 
 
 func _require_audio_player_stream(node_name: String) -> void:
-	var player: AudioStreamPlayer = current_scene.get_node_or_null(node_name) as AudioStreamPlayer
-	_require(player != null, "Expected AudioStreamPlayer %s to exist on %s." % [node_name, current_scene.name])
-	_require(player.stream != null, "Expected AudioStreamPlayer %s to have a stream on %s." % [node_name, current_scene.name])
+	var scene_root: Node = _get_scene_root()
+	var player: AudioStreamPlayer = scene_root.get_node_or_null(node_name) as AudioStreamPlayer
+	_require(player != null, "Expected AudioStreamPlayer %s to exist on %s." % [node_name, scene_root.name])
+	_require(player.stream != null, "Expected AudioStreamPlayer %s to have a stream on %s." % [node_name, scene_root.name])
 
 
 func _require_button_icon(button: Button, expected_path: String, message: String) -> void:
@@ -231,7 +250,7 @@ func _require_button_icon(button: Button, expected_path: String, message: String
 
 
 func _assert_phase_timeout() -> void:
-	if _phase_frame_count < 120:
+	if _phase_frame_count < PHASE_TIMEOUT_FRAMES:
 		return
 	_fail("Phase %d timed out on scene %s." % [_phase, _stringify_current_scene()])
 
@@ -239,7 +258,76 @@ func _assert_phase_timeout() -> void:
 func _stringify_current_scene() -> String:
 	if current_scene == null:
 		return "<null>"
+	var overlay_root: Node = _get_visible_overlay_root()
+	if overlay_root != null:
+		return "%s (%s) + %s" % [current_scene.name, current_scene.scene_file_path, overlay_root.name]
 	return "%s (%s)" % [current_scene.name, current_scene.scene_file_path]
+
+
+func _get_scene_root(expected_name: String = "") -> Node:
+	if current_scene == null:
+		return null
+	if expected_name.is_empty():
+		var overlay_root: Node = _get_visible_overlay_root()
+		return overlay_root if overlay_root != null else current_scene
+	if current_scene.name == expected_name:
+		return current_scene
+	if current_scene.name != "MapExplore":
+		return null
+	var overlay_root_name: String = _overlay_root_name(expected_name)
+	if overlay_root_name.is_empty():
+		return null
+	return _find_visible_overlay_root(overlay_root_name)
+
+
+func _get_visible_overlay_root() -> Node:
+	if current_scene == null or current_scene.name != "MapExplore":
+		return null
+	for overlay_root_name in ["EventOverlay", "RewardOverlay", "SupportOverlay", "LevelUpOverlay"]:
+		var overlay_root: Control = _find_visible_overlay_root(overlay_root_name)
+		if overlay_root != null:
+			return overlay_root
+	return null
+
+
+func _find_visible_overlay_root(overlay_root_name: String) -> Control:
+	if current_scene == null:
+		return null
+	var exact_match: Control = current_scene.get_node_or_null(overlay_root_name) as Control
+	if exact_match != null and exact_match.visible:
+		return exact_match
+	for child in current_scene.get_children():
+		var overlay_root: Control = child as Control
+		if overlay_root == null or not overlay_root.visible:
+			continue
+		if String(overlay_root.name).begins_with(overlay_root_name):
+			return overlay_root
+	return null
+
+
+func _overlay_root_name(expected_name: String) -> String:
+	match expected_name:
+		"Event":
+			return "EventOverlay"
+		"Reward":
+			return "RewardOverlay"
+		"SupportInteraction":
+			return "SupportOverlay"
+		"LevelUp":
+			return "LevelUpOverlay"
+		_:
+			return ""
+
+
+func _finish_success(test_name: String) -> void:
+	if _is_finishing:
+		return
+	_is_finishing = true
+	var process_frame_handler := Callable(self, "_on_process_frame")
+	if process_frame.is_connected(process_frame_handler):
+		process_frame.disconnect(process_frame_handler)
+	print("%s: all assertions passed" % test_name)
+	await TestExitCleanupHelperScript.cleanup_and_quit(self)
 
 
 func _require(condition: bool, message: String) -> void:

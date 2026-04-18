@@ -66,7 +66,7 @@ Do not do in this pass:
 - Combat is a visible decision layer, not the game's main identity.
 - Visible combat actions remain:
   - `Attack`
-  - `Brace`
+  - `Defend`
   - `Use Item`
 - The combat screen must expose:
   - player HP
@@ -92,6 +92,7 @@ Do not do in this pass:
   - `repair_weapon`
   - `grant_xp`
   - `grant_gold`
+  - `grant_item`
 
 ### Map Floor
 
@@ -100,6 +101,7 @@ Do not do in this pass:
   - `combat`
   - `event`
   - `reward`
+  - `hamlet`
   - `rest`
   - `merchant`
   - `blacksmith`
@@ -122,6 +124,7 @@ Do not do in this pass:
   - `rest`
   - `merchant`
   - `blacksmith`
+  - `hamlet`
 - `rest` and `blacksmith` are one-shot interactions.
 - `merchant` is a repeated-buy visit until the player leaves or offers are exhausted.
 

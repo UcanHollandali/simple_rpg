@@ -1,0 +1,38 @@
+{
+    "schema_version":  1,
+    "definition_id":  "thorn_grip_training",
+    "authoring_order":  10,
+    "family":  "CharacterPerks",
+    "tags":  [
+                 "perk",
+                 "offense",
+                 "combat"
+             ],
+    "display":  {
+                    "name":  "Thorn Grip Training",
+                    "short_description":  "Combat training that grants +1 attack power.",
+                    "icon_key":  "passive_iron_grip_charm"
+                },
+    "rules":  {
+                  "behaviors":  [
+                                    {
+                                        "trigger":  "passive",
+                                        "condition":  {
+                                                          "op":  "always"
+                                                      },
+                                        "target":  "self",
+                                        "effects":  [
+                                                        {
+                                                            "type":  "modify_stat",
+                                                            "params":  {
+                                                                           "stat":  "attack_power_bonus",
+                                                                           "amount":  1
+                                                                       }
+                                                        }
+                                                    ]
+                                    }
+                                ],
+                  "perk_family":  "offense"
+              }
+}
+

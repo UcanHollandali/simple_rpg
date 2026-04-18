@@ -49,6 +49,7 @@ Do not infer ownership from convenience accessors exposed on `RunState` or `AppB
 - [PRODUCTION_RISK_REGISTER.md](PRODUCTION_RISK_REGISTER.md): reference-only continuation guardrails for growth risks; non-authoritative
 - [COMMAND_EVENT_CATALOG.md](COMMAND_EVENT_CATALOG.md): implemented command/event name reference plus reserved naming registry; non-authoritative
 - [FIGMA_TRUTH_ALIGNMENT_PASS.md](FIGMA_TRUTH_ALIGNMENT_PASS.md): reference-only Figma sync bridge for the placeholder shell; non-authoritative and subordinate to the relevant design/technical/production docs
+- [CONTENT_BALANCE_TRACKER.md](CONTENT_BALANCE_TRACKER.md): reference-only current content inventory and balance-reading snapshot; subordinate to authority docs and live definitions
 - [DECISION_LOG.md](DECISION_LOG.md)
 - [DEFERRED_DECISIONS.md](DEFERRED_DECISIONS.md)
 - [EXPERIMENT_BANK.md](EXPERIMENT_BANK.md)

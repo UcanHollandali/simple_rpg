@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "definition_id": "zz_sunken_toll_fire",
+  "family": "EventTemplates",
+  "tags": [
+    "event",
+    "roadside",
+    "fire",
+    "prototype"
+  ],
+  "display": {
+    "name": "Sunken Toll Fire",
+    "short_description": "A toll ring has sunk into the mud until only the blackened stones show above the track. Someone banked the coals before they left."
+  },
+  "rules": {
+    "trigger_condition": {
+      "op": "lt",
+      "stat": "hp_percent",
+      "value": 70
+    },
+    "choices": [
+      {
+        "choice_id": "warm_yourself_by_the_coals",
+        "label": "Warm yourself by the coals",
+        "summary": "The heat is mean and smoky, but it still puts a little strength back into your shoulders.",
+        "effect_type": "heal",
+        "amount": 6
+      },
+      {
+        "choice_id": "sweep_the_ring_for_nails",
+        "label": "Sweep the ring for salvage",
+        "summary": "A fitted rim lining turns up under the ash where the toll keeper hid it against damp.",
+        "effect_type": "grant_item",
+        "inventory_family": "shield_attachment",
+        "definition_id": "reinforced_rim_lining"
+      }
+    ]
+  }
+}

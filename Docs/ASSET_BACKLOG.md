@@ -40,7 +40,7 @@ Target size:
 
 Minimum set:
 - `attack`
-- `brace`
+- `defend`
 - `use_item`
 - `weapon`
 - `armor`
@@ -86,7 +86,7 @@ Minimum set:
 - `ui_confirm`
 - `ui_cancel`
 - `combat_hit_light`
-- `brace`
+- `defend`
 - `item_use`
 - `reward_pickup`
 - `node_select`
@@ -140,7 +140,7 @@ Minimum set:
 ### Combat
 
 - attack resolved -> `combat_hit_light`
-- brace resolved -> `brace`
+- defend resolved -> `defend`
 - item used -> `item_use`
 - intent reveal -> short `intent_reveal` cue if needed
 

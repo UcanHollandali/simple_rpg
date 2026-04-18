@@ -13,13 +13,13 @@ func build_chip_text(support_state: RefCounted) -> String:
 		"rest":
 			return "SAFE REST"
 		"merchant":
-			return "ROAD TRADE"
+			return "MERCHANT"
 		"blacksmith":
 			if bool(support_state.call("is_blacksmith_target_selection_active")):
 				return "FORGE TARGET"
 			return "FORGE SERVICE"
-		"side_mission":
-			return "VILLAGE REQUEST"
+		"hamlet":
+			return "HAMLET"
 		_:
 			return "SUPPORT"
 
@@ -31,6 +31,34 @@ func build_title_text(support_state: RefCounted) -> String:
 	if not title_text.is_empty():
 		return title_text
 	return "Support"
+
+
+func build_context_text(support_state: RefCounted) -> String:
+	if support_state == null:
+		return ""
+
+	match String(support_state.support_type):
+		"rest":
+			return "Safe shelter. Take one recovery action or leave with your current supplies."
+		"merchant":
+			return "Fixed stock. Buy any offers you can afford and still carry."
+		"blacksmith":
+			if bool(support_state.call("is_blacksmith_target_selection_active")):
+				return "Choose the carried target for this one service."
+			return "One forge service resolves this stop. Pick the service that matters most."
+		"hamlet":
+			var mission_status: String = String(support_state.get("mission_status"))
+			match mission_status:
+				"offered":
+					return "Accept one hamlet request to mark a stage objective."
+				"accepted":
+					return "The hamlet request is live. Finish the marked objective, then return here to claim aid."
+				"completed":
+					return "The hamlet request is done. Claim one aid reward now before you leave."
+				_:
+					return "This hamlet board is settled. Leave when ready."
+		_:
+			return ""
 
 
 func build_summary_text(support_state: RefCounted) -> String:
@@ -45,30 +73,33 @@ func build_hint_text(support_state: RefCounted) -> String:
 
 	match String(support_state.support_type):
 		"rest":
-			return "Single use. Rest heals 8 HP and spends 4 hunger."
+			return "Single use. Rest heals 10 HP and spends 3 hunger."
 		"merchant":
-			return "Buy as many valid offers as you can afford, then leave when ready."
+			return "You can buy multiple offers here. Leave when your pack or gold says stop."
 		"blacksmith":
 			if bool(support_state.call("is_blacksmith_target_selection_active")):
 				return "Pick one carried target. Applying an upgrade ends this stop."
 			return "Pick one service. Repair or upgrade resolves the stop immediately."
-		"side_mission":
+		"hamlet":
 			var mission_status: String = String(support_state.get("mission_status"))
 			match mission_status:
 				"offered":
-					return "Accept the request, hunt the marked avcı, then return here for a reward."
+					return "Accept the request, finish the marked objective, then return here to claim aid."
 				"accepted":
-					return "The marked avcı is now on the map. Defeat it, then return."
+					return "The marked objective is now on the map. Complete it, then return here."
 				"completed":
-					return "Choose 1 aid reward. Taking it closes this request."
+					return "Choose 1 aid reward. Claiming it closes this request."
 				_:
-					return "This request board is settled. Leave when ready."
+					return "This hamlet board is settled. Leave when ready."
 		_:
 			return ""
 
 
-func build_run_status_text(run_state: RunState) -> String:
-	return RunStatusPresenterScript.build_compact_status_text(run_state)
+func build_run_status_model(run_state: RunState) -> Dictionary:
+	return RunStatusPresenterScript.build_status_model(run_state, {
+		"variant": RunStatusPresenterScript.VARIANT_COMPACT,
+		"include_weapon": false,
+	})
 
 
 func build_action_view_models(support_state: RefCounted, button_count: int = DEFAULT_BUTTON_COUNT) -> Array[Dictionary]:

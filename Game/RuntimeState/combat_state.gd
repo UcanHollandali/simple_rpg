@@ -25,18 +25,21 @@ var boss_phase_id: String = ""
 var boss_phase_display_name: String = ""
 var inventory_slot_order: Array[int] = []
 var active_weapon_slot_id: int = -1
+var active_left_hand_slot_id: int = -1
 var active_armor_slot_id: int = -1
 var active_belt_slot_id: int = -1
 var weapon_instance: Dictionary = {}
+var left_hand_instance: Dictionary = {}
 var armor_instance: Dictionary = {}
 var belt_instance: Dictionary = {}
 var consumable_slots: Array[Dictionary] = []
 var player_statuses: Array[Dictionary] = []
 var enemy_statuses: Array[Dictionary] = []
-var brace_active: bool = false
+var current_guard: int = 0
 var enemy_definition: Dictionary = {}
 var encounter_node_family: String = ""
 var is_boss_combat: bool = false
+var owned_character_perk_ids: Array[String] = []
 var player_state: Dictionary = {}
 var enemy_state: Dictionary = {}
 var event_log: Array[Dictionary] = []
@@ -53,15 +56,18 @@ func setup_from_run_state(run_state: RunState, enemy_def: Dictionary, combat_set
 	player_hunger = clamp(int(run_state.hunger), 0, RunState.DEFAULT_HUNGER)
 	inventory_slot_order = _extract_inventory_slot_order(inventory_state)
 	active_weapon_slot_id = int(inventory_state.active_weapon_slot_id)
+	active_left_hand_slot_id = int(inventory_state.active_left_hand_slot_id)
 	active_armor_slot_id = int(inventory_state.active_armor_slot_id)
 	active_belt_slot_id = int(inventory_state.active_belt_slot_id)
 	weapon_instance = inventory_state.weapon_instance.duplicate(true)
+	left_hand_instance = inventory_state.left_hand_instance.duplicate(true)
 	armor_instance = inventory_state.armor_instance.duplicate(true)
 	belt_instance = inventory_state.belt_instance.duplicate(true)
 	consumable_slots = inventory_state.consumable_slots.duplicate(true)
+	owned_character_perk_ids = run_state.character_perk_state.get_owned_perk_ids()
 	player_statuses = []
 	enemy_statuses = []
-	brace_active = false
+	current_guard = 0
 	enemy_hp = int(_extract_enemy_stats(enemy_definition).get("base_hp", 0))
 	enemy_max_hp = enemy_hp
 	boss_phase_definitions = _extract_enemy_boss_phases(enemy_definition)
@@ -92,31 +98,41 @@ func build_inventory_projection(inventory_state: InventoryState) -> InventorySta
 	var projected_inventory: InventoryState = InventoryStateScript.new()
 	projected_inventory.load_from_flat_save_dict(inventory_state.to_save_dict())
 	_apply_inventory_slot_order(projected_inventory)
-
-	if _slot_matches_family(projected_inventory, active_weapon_slot_id, InventoryStateScript.INVENTORY_FAMILY_WEAPON):
-		projected_inventory.active_weapon_slot_id = active_weapon_slot_id
-	if _slot_matches_family(projected_inventory, active_armor_slot_id, InventoryStateScript.INVENTORY_FAMILY_ARMOR):
-		projected_inventory.active_armor_slot_id = active_armor_slot_id
-	if _slot_matches_family(projected_inventory, active_belt_slot_id, InventoryStateScript.INVENTORY_FAMILY_BELT):
-		projected_inventory.active_belt_slot_id = active_belt_slot_id
-
-	_overlay_active_slot_instance(
-		projected_inventory,
-		projected_inventory.active_weapon_slot_id,
-		InventoryStateScript.INVENTORY_FAMILY_WEAPON,
-		weapon_instance
+	projected_inventory.set_weapon_instance(
+		_build_projected_equipment_slot(
+			projected_inventory,
+			InventoryStateScript.EQUIPMENT_SLOT_RIGHT_HAND,
+			weapon_instance,
+			active_weapon_slot_id,
+			InventoryStateScript.INVENTORY_FAMILY_WEAPON
+		)
 	)
-	_overlay_active_slot_instance(
-		projected_inventory,
-		projected_inventory.active_armor_slot_id,
-		InventoryStateScript.INVENTORY_FAMILY_ARMOR,
-		armor_instance
+	projected_inventory.set_left_hand_instance(
+		_build_projected_equipment_slot(
+			projected_inventory,
+			InventoryStateScript.EQUIPMENT_SLOT_LEFT_HAND,
+			left_hand_instance,
+			active_left_hand_slot_id,
+			_resolve_left_hand_inventory_family()
+		)
 	)
-	_overlay_active_slot_instance(
-		projected_inventory,
-		projected_inventory.active_belt_slot_id,
-		InventoryStateScript.INVENTORY_FAMILY_BELT,
-		belt_instance
+	projected_inventory.set_armor_instance(
+		_build_projected_equipment_slot(
+			projected_inventory,
+			InventoryStateScript.EQUIPMENT_SLOT_ARMOR,
+			armor_instance,
+			active_armor_slot_id,
+			InventoryStateScript.INVENTORY_FAMILY_ARMOR
+		)
+	)
+	projected_inventory.set_belt_instance(
+		_build_projected_equipment_slot(
+			projected_inventory,
+			InventoryStateScript.EQUIPMENT_SLOT_BELT,
+			belt_instance,
+			active_belt_slot_id,
+			InventoryStateScript.INVENTORY_FAMILY_BELT
+		)
 	)
 	_overlay_consumable_slots(projected_inventory)
 	return projected_inventory
@@ -127,10 +143,12 @@ func apply_inventory_projection(projected_inventory: InventoryState) -> void:
 		return
 
 	active_weapon_slot_id = int(projected_inventory.active_weapon_slot_id)
+	active_left_hand_slot_id = int(projected_inventory.active_left_hand_slot_id)
 	active_armor_slot_id = int(projected_inventory.active_armor_slot_id)
 	active_belt_slot_id = int(projected_inventory.active_belt_slot_id)
 	inventory_slot_order = _extract_inventory_slot_order(projected_inventory)
 	weapon_instance = projected_inventory.weapon_instance.duplicate(true)
+	left_hand_instance = projected_inventory.left_hand_instance.duplicate(true)
 	armor_instance = projected_inventory.armor_instance.duplicate(true)
 	belt_instance = projected_inventory.belt_instance.duplicate(true)
 	consumable_slots = projected_inventory.consumable_slots.duplicate(true)
@@ -332,49 +350,52 @@ func _rebuild_player_runtime_state(passive_slot_list: Array[Dictionary]) -> void
 		"hp": player_hp,
 		"hunger": player_hunger,
 		"weapon_instance": weapon_instance.duplicate(true),
+		"left_hand_instance": left_hand_instance.duplicate(true),
 		"armor_instance": armor_instance.duplicate(true),
 		"belt_instance": belt_instance.duplicate(true),
 		"consumable_slots": consumable_slots.duplicate(true),
-		"brace_active": brace_active,
+		"guard_points": current_guard,
 		"random_roll_percent": random_roll_percent,
 	}
+	if String(left_hand_instance.get("inventory_family", "")) == InventoryStateScript.INVENTORY_FAMILY_SHIELD:
+		_apply_equipped_item_effect("Shields", left_hand_instance)
+		_apply_equipped_shield_attachment_effect(left_hand_instance)
 	_apply_equipped_item_effect("Armors", armor_instance)
-	_apply_equipped_item_effect("Belts", belt_instance)
 	_apply_equipped_upgrade_bonus("weapon", weapon_instance)
 	_apply_equipped_upgrade_bonus("armor", armor_instance)
 	_apply_passive_item_effects(passive_slot_list)
+	_apply_character_perk_effects()
 
 
-func _slot_matches_family(inventory_state: InventoryState, slot_id: int, inventory_family: String) -> bool:
-	if inventory_state == null or slot_id <= 0:
-		return false
-	var slot_index: int = inventory_state.find_slot_index_by_id(slot_id)
-	if slot_index < 0:
-		return false
-	return String(inventory_state.inventory_slots[slot_index].get("inventory_family", "")) == inventory_family
+func _resolve_left_hand_inventory_family() -> String:
+	var inventory_family: String = String(left_hand_instance.get("inventory_family", ""))
+	if inventory_family in [
+		InventoryStateScript.INVENTORY_FAMILY_WEAPON,
+		InventoryStateScript.INVENTORY_FAMILY_SHIELD,
+	]:
+		return inventory_family
+	return InventoryStateScript.INVENTORY_FAMILY_WEAPON
 
 
-func _overlay_active_slot_instance(
+func _build_projected_equipment_slot(
 	inventory_state: InventoryState,
+	equipment_slot_name: String,
+	slot_instance: Dictionary,
 	slot_id: int,
-	inventory_family: String,
-	slot_instance: Dictionary
-) -> void:
-	if inventory_state == null or slot_instance.is_empty():
-		return
-	if not _slot_matches_family(inventory_state, slot_id, inventory_family):
-		return
+	inventory_family: String
+) -> Dictionary:
+	if slot_instance.is_empty():
+		return {}
 
-	var slot_index: int = inventory_state.find_slot_index_by_id(slot_id)
-	if slot_index < 0:
-		return
-
-	var merged_slot: Dictionary = inventory_state.inventory_slots[slot_index].duplicate(true)
-	for key in slot_instance.keys():
-		if String(key) == "slot_id" or String(key) == "inventory_family":
-			continue
-		merged_slot[key] = slot_instance.get(key)
-	inventory_state.inventory_slots[slot_index] = merged_slot
+	var projected_slot: Dictionary = slot_instance.duplicate(true)
+	projected_slot["inventory_family"] = inventory_family
+	if slot_id > 0:
+		projected_slot["slot_id"] = slot_id
+	else:
+		var existing_slot: Dictionary = inventory_state.build_equipment_slot_snapshot(equipment_slot_name)
+		if not existing_slot.is_empty():
+			projected_slot["slot_id"] = int(existing_slot.get("slot_id", -1))
+	return projected_slot
 
 
 func _overlay_consumable_slots(inventory_state: InventoryState) -> void:
@@ -447,6 +468,18 @@ func _apply_passive_item_effects(passive_slot_list: Array[Dictionary]) -> void:
 		_apply_passive_definition_to_player_state(definition)
 
 
+func _apply_character_perk_effects() -> void:
+	if owned_character_perk_ids.is_empty():
+		return
+
+	var loader: ContentLoader = ContentLoaderScript.new()
+	for definition_id in owned_character_perk_ids:
+		if definition_id.is_empty():
+			continue
+		var definition: Dictionary = loader.load_definition("CharacterPerks", definition_id)
+		_apply_passive_definition_to_player_state(definition)
+
+
 func _apply_equipped_item_effect(family: String, item_instance: Dictionary) -> void:
 	var definition_id: String = String(item_instance.get("definition_id", ""))
 	if definition_id.is_empty():
@@ -457,6 +490,19 @@ func _apply_equipped_item_effect(family: String, item_instance: Dictionary) -> v
 	if definition.is_empty():
 		return
 	_apply_passive_definition_to_player_state(definition)
+
+
+func _apply_equipped_shield_attachment_effect(shield_instance: Dictionary) -> void:
+	if shield_instance.is_empty():
+		return
+	var attachment_definition_id: String = String(shield_instance.get(InventoryStateScript.SHIELD_ATTACHMENT_ID_KEY, "")).strip_edges()
+	if attachment_definition_id.is_empty():
+		return
+	var loader: ContentLoader = ContentLoaderScript.new()
+	var attachment_definition: Dictionary = loader.load_definition("ShieldAttachments", attachment_definition_id)
+	if attachment_definition.is_empty():
+		return
+	_apply_passive_definition_to_player_state(attachment_definition)
 
 
 func _apply_equipped_upgrade_bonus(item_family: String, item_instance: Dictionary) -> void:

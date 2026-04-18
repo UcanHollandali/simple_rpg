@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "definition_id": "zz_barrow_crows",
+  "family": "EventTemplates",
+  "tags": [
+    "event",
+    "roadside",
+    "crows",
+    "prototype"
+  ],
+  "display": {
+    "name": "Crows at the Barrow Stones",
+    "short_description": "The crows have found a satchel under the barrow markers and are taking turns tearing at the straps."
+  },
+  "rules": {
+    "choices": [
+      {
+        "choice_id": "scatter_them_from_the_satchel",
+        "label": "Scatter them off and grab the coin roll",
+        "summary": "The birds lift in a black wave and leave just enough time to snatch the purse before they settle again.",
+        "effect_type": "grant_gold",
+        "amount": 5
+      },
+      {
+        "choice_id": "pull_the_waxed_packet_free",
+        "label": "Pull the waxed packet out instead",
+        "summary": "The packet stayed dry under the satchel and still smells like trail herbs when you break the cord.",
+        "effect_type": "grant_item",
+        "inventory_family": "consumable",
+        "definition_id": "forager_tea",
+        "amount": 1
+      }
+    ]
+  }
+}

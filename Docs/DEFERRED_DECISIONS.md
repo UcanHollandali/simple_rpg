@@ -56,7 +56,7 @@ Speculative ideas belong in `EXPERIMENT_BANK.md`.
 
 ### Pressure Load Activation Order
 
-- When `gold`, shared inventory pressure, reward choice, route pressure, and carried-item displacement should activate in the prototype
+- When `gold`, backpack pressure, reward choice, route pressure, and carried-item displacement should activate in the prototype
 - Revisit after reward truth and scene/application boundaries are cleaned up
 
 ### Future Reward Cadence Split
@@ -110,8 +110,8 @@ These are already locked and should not be treated as open:
 - revisit allowed without repeat-farm value on resolved nodes
 - one stage-local `key` plus one locked boss gate per stage
 - compact build engine scope:
-  - base shared inventory: `5`
-  - equipped belt bonus: `+2`
+  - base backpack capacity: `5`
+  - equipped belt bonus comes from authored `backpack_capacity_bonus`
   - small linear synergies
   - no combo explosion
 - engine baseline

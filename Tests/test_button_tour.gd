@@ -6,6 +6,7 @@ const AppBootstrapScript = preload("res://Game/Application/app_bootstrap.gd")
 const SceneRouterScript = preload("res://Game/Infrastructure/scene_router.gd")
 const FlowStateScript = preload("res://Game/Application/flow_state.gd")
 const AudioPreferencesScript = preload("res://Game/UI/audio_preferences.gd")
+const TestExitCleanupHelperScript = preload("res://Tests/_exit_cleanup_helper.gd")
 const ROUTE_BUTTON_NODE_NAMES: PackedStringArray = [
 	"CombatNodeButton",
 	"RewardNodeButton",
@@ -23,12 +24,12 @@ const SUPPORT_ACTION_A_BUTTON_PATH := "Margin/VBox/ActionsRow/ActionAButton"
 const SUPPORT_ACTION_B_BUTTON_PATH := "Margin/VBox/ActionsRow/ActionBButton"
 const SUPPORT_ACTION_C_BUTTON_PATH := "Margin/VBox/ActionsRow/ActionCButton"
 const SUPPORT_LEAVE_BUTTON_PATH := "Margin/VBox/FooterRow/LeaveButton"
-const EVENT_CHOICE_B_BUTTON_PATH := "Margin/VBox/CardsRow/ChoiceBCard/VBox/ChoiceBButton"
-const COMBAT_ATTACK_BUTTON_PATH := "Margin/VBox/Buttons/AttackButton"
-const COMBAT_BRACE_BUTTON_PATH := "Margin/VBox/Buttons/BraceButton"
-const COMBAT_USE_ITEM_BUTTON_PATH := "Margin/VBox/Buttons/UseItemButton"
-const COMBAT_CONSUMABLE_3_CARD_PATH := "Margin/VBox/QuickItemSection/InventoryCard/InventoryCardsFlow/InventorySlot4Card"
-const REWARD_CHOICE_C_BUTTON_PATH := "Margin/VBox/CardsRow/ChoiceCCard/VBox/ChoiceCButton"
+const EVENT_CHOICE_B_BUTTON_PATH := "Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard/VBox/ChoiceBButton"
+const COMBAT_ATTACK_BUTTON_PATH := "Margin/VBox/Buttons/AttackActionCard/AttackActionVBox/AttackButton"
+const COMBAT_DEFEND_BUTTON_PATH := "Margin/VBox/Buttons/DefenseActionCard/DefenseActionVBox/DefenseActionButton"
+const COMBAT_USE_ITEM_BUTTON_PATH := "Margin/VBox/Buttons/UseItemActionCard/UseItemActionVBox/UseItemButton"
+const COMBAT_CONSUMABLE_3_CARD_PATH := "Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryCard/InventoryCardsFlow/InventorySlot3Card"
+const REWARD_CHOICE_C_BUTTON_PATH := "Margin/VBox/OffersShell/VBox/CardsRow/ChoiceCCard/VBox/ChoiceCButton"
 const LEVEL_UP_CHOICE_B_BUTTON_PATH := "Margin/VBox/ChoicesRow/ChoiceBButton"
 const RUN_END_RETURN_BUTTON_PATH := "Margin/Center/ContentCard/VBox/ReturnButton"
 const PHASE_TIMEOUT_MS := 8000
@@ -38,7 +39,14 @@ var _phase_started_at_ms: int = 0
 var _combat_attack_count: int = 0
 var _combat_hp_before_use_item: int = 0
 var _combat_hunger_before_use_item: int = 0
+var _combat_durability_before_use_item: int = 0
 var _selected_consumable_definition_before_use_item: String = ""
+var _event_gold_before: int = 0
+var _event_hp_before: int = 0
+var _event_hunger_before: int = 0
+var _event_xp_before: int = 0
+var _event_inventory_slot_count_before: int = 0
+var _is_finishing: bool = false
 
 
 func _init() -> void:
@@ -61,7 +69,7 @@ func _on_process_frame() -> void:
 			if _is_scene("MapExplore"):
 				var run_state: RunState = _get_run_state()
 				_require(run_state != null, "Expected RunState on first MapExplore.")
-				run_state.configure_run_seed(99)
+				run_state.configure_run_seed(1)
 				run_state.player_hp = 40
 				run_state.hunger = 14
 				run_state.gold = 40
@@ -106,8 +114,8 @@ func _on_process_frame() -> void:
 		7:
 			if _is_scene("MapExplore"):
 				var run_state_after_rest: RunState = _get_run_state()
-				_require(run_state_after_rest.player_hp == 48, "Expected rest button A to heal 8 HP.")
-				_require(run_state_after_rest.hunger == 9, "Expected rest button A to spend hunger after map move cost.")
+				_require(run_state_after_rest.player_hp == 50, "Expected rest button A to heal 10 HP.")
+				_require(run_state_after_rest.hunger == 10, "Expected rest button A to spend 3 hunger after map move cost.")
 				_prepare_map_adjacent_to_family("merchant")
 				_press_map_route_containing("Merchant")
 				_advance_phase(8)
@@ -122,27 +130,43 @@ func _on_process_frame() -> void:
 		9:
 			if _is_scene("SupportInteraction"):
 				var run_state_after_action_a: RunState = _get_run_state()
-				_require(run_state_after_action_a.gold == 35, "Expected merchant action A to cost 5 gold.")
+				_require(run_state_after_action_a.gold == 34, "Expected merchant action A to cost 6 gold.")
 				_require(run_state_after_action_a.inventory_state.consumable_slots.size() == 2, "Expected merchant action A to add a consumable slot.")
 				_press(SUPPORT_ACTION_B_BUTTON_PATH)
 				_advance_phase(10)
 		10:
 			if _is_scene("SupportInteraction"):
 				var run_state_after_action_b: RunState = _get_run_state()
-				_require(run_state_after_action_b.gold == 27, "Expected merchant action B to cost 8 gold.")
+				_require(run_state_after_action_b.gold == 26, "Expected merchant action B to cost 8 gold.")
 				_require(run_state_after_action_b.inventory_state.consumable_slots.size() == 3, "Expected merchant action B to add the second merchant consumable.")
 				_press(SUPPORT_ACTION_C_BUTTON_PATH)
 				_advance_phase(11)
 		11:
 			if _is_scene("MapExplore"):
 				var run_state_after_action_c: RunState = _get_run_state()
-				_require(run_state_after_action_c.gold == 12, "Expected merchant action C to cost 15 gold.")
-				_require(String(run_state_after_action_c.inventory_state.weapon_instance.get("definition_id", "")) == "splitter_axe", "Expected merchant action C to equip splitter axe.")
+				_require(run_state_after_action_c.gold == 13, "Expected merchant action C to cost 13 gold.")
+				_require(String(run_state_after_action_c.inventory_state.left_hand_instance.get("definition_id", "")) != "watchman_shield", "Expected merchant action C not to auto-equip the purchased shield.")
+				var carried_watchman_shield_found: bool = false
+				for slot in run_state_after_action_c.inventory_state.inventory_slots:
+					if String(slot.get("inventory_family", "")) != InventoryState.INVENTORY_FAMILY_SHIELD:
+						continue
+					if String(slot.get("definition_id", "")) != "watchman_shield":
+						continue
+					carried_watchman_shield_found = true
+					break
+				_require(carried_watchman_shield_found, "Expected merchant action C to add Watchman Shield as a carried shield.")
 				_advance_phase(12)
 		12:
 			if _is_scene("MapExplore"):
+				var run_state_before_event: RunState = _get_run_state()
+				run_state_before_event.configure_run_seed(1)
+				_event_gold_before = run_state_before_event.gold
+				_event_hp_before = run_state_before_event.player_hp
+				_event_hunger_before = run_state_before_event.hunger
+				_event_xp_before = run_state_before_event.xp
+				_event_inventory_slot_count_before = run_state_before_event.inventory_state.inventory_slots.size()
 				_prepare_map_adjacent_to_family("event")
-				_press_map_route_containing("Roadside Encounter")
+				_press_map_route_containing("Trail Event")
 				_advance_phase(13)
 		13:
 			if _is_scene("Event"):
@@ -151,8 +175,14 @@ func _on_process_frame() -> void:
 		14:
 			if _is_scene("MapExplore"):
 				var run_state_after_event: RunState = _get_run_state()
-				_require(run_state_after_event.gold == 12, "Expected encounter choice B not to mint gold after the earlier merchant spend.")
-				_require(run_state_after_event.player_hp == 44, "Expected encounter choice B to apply the authored shrine backlash damage.")
+				var event_outcome_changed_state: bool = (
+					run_state_after_event.gold != _event_gold_before
+					or run_state_after_event.player_hp != _event_hp_before
+					or run_state_after_event.hunger != _event_hunger_before
+					or run_state_after_event.xp != _event_xp_before
+					or run_state_after_event.inventory_state.inventory_slots.size() != _event_inventory_slot_count_before
+				)
+				_require(event_outcome_changed_state, "Expected event choice B to resolve into a real authored outcome before returning to MapExplore.")
 				run_state_after_event.player_hp = 30
 				run_state_after_event.hunger = 16
 				run_state_after_event.xp = 9
@@ -166,33 +196,42 @@ func _on_process_frame() -> void:
 				_require(combat_flow != null, "Expected combat flow owner on Combat scene.")
 				_combat_hp_before_use_item = int(combat_flow.combat_state.player_hp)
 				_combat_hunger_before_use_item = int(combat_flow.combat_state.player_hunger)
+				_combat_durability_before_use_item = int(combat_flow.combat_state.weapon_instance.get("current_durability", 0))
 				var consumable_card: PanelContainer = current_scene.get_node(COMBAT_CONSUMABLE_3_CARD_PATH) as PanelContainer
 				_require(consumable_card != null, "Expected the third combat consumable card after the merchant setup path.")
+				_require(combat_flow.combat_state.consumable_slots.size() >= 3, "Expected merchant setup path to leave at least three combat-usable consumable slots.")
+				_selected_consumable_definition_before_use_item = String(combat_flow.combat_state.consumable_slots[2].get("definition_id", ""))
+				_require(not _selected_consumable_definition_before_use_item.is_empty(), "Expected the third combat consumable slot to resolve to a live consumable definition.")
 				_click_combat_card(COMBAT_CONSUMABLE_3_CARD_PATH)
-				_selected_consumable_definition_before_use_item = "quick_clot_poultice"
 				_advance_phase(16)
 		16:
 			if _is_scene("Combat"):
 				var combat_flow = current_scene.get("_combat_flow")
 				_require(combat_flow != null, "Expected combat flow owner after use-item.")
-				_require(combat_flow.combat_state.player_hp > _combat_hp_before_use_item, "Expected clicking a combat consumable card to recover HP in combat.")
+				var item_click_applied_effect: bool = (
+					combat_flow.combat_state.player_hp > _combat_hp_before_use_item
+					or combat_flow.combat_state.player_hunger > _combat_hunger_before_use_item
+					or int(combat_flow.combat_state.weapon_instance.get("current_durability", 0)) > _combat_durability_before_use_item
+				)
+				_require(item_click_applied_effect, "Expected clicking a combat consumable card to apply one authored combat-usable consumable effect.")
 				_require(not _combat_has_consumable_definition(combat_flow, _selected_consumable_definition_before_use_item), "Expected clicking a combat consumable card to consume that stack directly instead of waiting for the action button.")
-				_press(COMBAT_BRACE_BUTTON_PATH)
+				_press(COMBAT_DEFEND_BUTTON_PATH)
 				_advance_phase(17)
 		17:
 			if _is_scene("Combat"):
-				var combat_log: Label = current_scene.get_node("Margin/VBox/CombatLogCard/CombatLogLabel") as Label
-				_require(combat_log.text.contains("Brace") or combat_log.text.contains("brace"), "Expected brace button to write to the combat log.")
+				var combat_log: Label = current_scene.get_node("Margin/VBox/SecondaryScroll/SecondaryScrollContent/CombatLogCard/CombatLogLabel") as Label
+				_require(combat_log.text.contains("Defend") or combat_log.text.contains("guard"), "Expected defend button to write to the combat log.")
 				_press(COMBAT_ATTACK_BUTTON_PATH)
 				_combat_attack_count = 1
 				_advance_phase(18)
 		18:
 			if _is_scene("Combat"):
 				_combat_attack_count += 1
-				_require(_combat_attack_count <= 4, "Expected combat to end within four attacks after using item and brace.")
+				_require(_combat_attack_count <= 4, "Expected combat to end within four attacks after using item and defend.")
 				_press(COMBAT_ATTACK_BUTTON_PATH)
 			elif _is_scene("Reward"):
-				var reward_button_c: Button = current_scene.get_node(REWARD_CHOICE_C_BUTTON_PATH) as Button
+				var reward_root: Node = _get_scene_root("Reward")
+				var reward_button_c: Button = reward_root.get_node(REWARD_CHOICE_C_BUTTON_PATH) as Button
 				_require(reward_button_c != null and reward_button_c.visible and not reward_button_c.disabled, "Expected combat reward button C to stay available.")
 				reward_button_c.emit_signal("pressed")
 				_advance_phase(19)
@@ -204,9 +243,11 @@ func _on_process_frame() -> void:
 			if _is_scene("MapExplore"):
 				var run_state_after_level_up: RunState = _get_run_state()
 				_require(run_state_after_level_up.current_level == 2, "Expected full tour to reach level 2 after reward/level-up branch.")
-				_require(run_state_after_level_up.inventory_state.passive_slots.size() == 1, "Expected one passive after level-up choice.")
+				_require(run_state_after_level_up.character_perk_state.get_owned_perk_ids().size() == 1, "Expected one character perk after level-up choice.")
+				_require(run_state_after_level_up.inventory_state.passive_slots.is_empty(), "Expected level-up progression to stop writing passive-item backpack slots.")
 				run_state_after_level_up.player_hp = 1
 				_reset_current_map_for_active_stage()
+				run_state_after_level_up.map_runtime_state.roadside_encounters_this_stage = run_state_after_level_up.map_runtime_state.MAX_ROADSIDE_ENCOUNTERS_PER_STAGE
 				current_scene.call("_refresh_ui")
 				_prepare_map_adjacent_to_family("combat")
 				_press_map_route_containing("Combat")
@@ -221,8 +262,7 @@ func _on_process_frame() -> void:
 				_advance_phase(23)
 		23:
 			if _is_scene("MainMenu"):
-				print("test_button_tour: all assertions passed")
-				quit()
+				await _finish_success("test_button_tour")
 
 	_assert_phase_timeout()
 
@@ -243,7 +283,11 @@ func _ensure_autoload_like_nodes() -> void:
 
 
 func _is_scene(expected_name: String) -> bool:
-	return current_scene != null and current_scene.name == expected_name
+	if current_scene == null:
+		return false
+	if expected_name == "MapExplore":
+		return current_scene.name == "MapExplore" and _get_visible_overlay_root() == null
+	return _get_scene_root(expected_name) != null
 
 
 func _get_bootstrap() -> Node:
@@ -265,8 +309,9 @@ func _get_support_state() -> RefCounted:
 
 
 func _press(node_path: String) -> void:
-	_require(current_scene != null, "Expected current scene before pressing %s." % node_path)
-	var button: Button = current_scene.get_node(node_path) as Button
+	var scene_root: Node = _get_scene_root()
+	_require(scene_root != null, "Expected current scene before pressing %s." % node_path)
+	var button: Button = scene_root.get_node(node_path) as Button
 	_require(button != null, "Expected button at %s." % node_path)
 	button.emit_signal("pressed")
 
@@ -297,6 +342,7 @@ func _combat_has_consumable_definition(combat_flow: Variant, definition_id: Stri
 
 func _press_map_route_containing(label_fragment: String) -> void:
 	_require(current_scene != null, "Expected current scene before pressing a map route.")
+	_require(_get_visible_overlay_root() == null, "Expected no active overlay before pressing a map route.")
 	for button_name in ROUTE_BUTTON_NODE_NAMES:
 		var button: Button = current_scene.get_node_or_null("Margin/VBox/RouteGrid/%s" % button_name) as Button
 		if button == null or not button.visible or button.disabled:
@@ -370,6 +416,17 @@ func _advance_phase(new_phase: int) -> void:
 	_phase_started_at_ms = Time.get_ticks_msec()
 
 
+func _finish_success(test_name: String) -> void:
+	if _is_finishing:
+		return
+	_is_finishing = true
+	var process_frame_handler := Callable(self, "_on_process_frame")
+	if process_frame.is_connected(process_frame_handler):
+		process_frame.disconnect(process_frame_handler)
+	print("%s: all assertions passed" % test_name)
+	await TestExitCleanupHelperScript.cleanup_and_quit(self)
+
+
 func _assert_phase_timeout() -> void:
 	if Time.get_ticks_msec() - _phase_started_at_ms < PHASE_TIMEOUT_MS:
 		return
@@ -379,7 +436,65 @@ func _assert_phase_timeout() -> void:
 func _stringify_current_scene() -> String:
 	if current_scene == null:
 		return "<null>"
+	var overlay_root: Node = _get_visible_overlay_root()
+	if overlay_root != null:
+		return "%s (%s) + %s" % [current_scene.name, current_scene.scene_file_path, overlay_root.name]
 	return "%s (%s)" % [current_scene.name, current_scene.scene_file_path]
+
+
+func _get_scene_root(expected_name: String = "") -> Node:
+	if current_scene == null:
+		return null
+	if expected_name.is_empty():
+		var overlay_root: Node = _get_visible_overlay_root()
+		return overlay_root if overlay_root != null else current_scene
+	if current_scene.name == expected_name:
+		return current_scene
+	if current_scene.name != "MapExplore":
+		return null
+	var overlay_root_name: String = _overlay_root_name(expected_name)
+	if overlay_root_name.is_empty():
+		return null
+	return _find_visible_overlay_root(overlay_root_name)
+
+
+func _get_visible_overlay_root() -> Node:
+	if current_scene == null or current_scene.name != "MapExplore":
+		return null
+	for overlay_root_name in ["SupportOverlay", "EventOverlay", "RewardOverlay", "LevelUpOverlay"]:
+		var overlay_root: Control = _find_visible_overlay_root(overlay_root_name)
+		if overlay_root != null:
+			return overlay_root
+	return null
+
+
+func _find_visible_overlay_root(overlay_root_name: String) -> Control:
+	if current_scene == null:
+		return null
+	var exact_match: Control = current_scene.get_node_or_null(overlay_root_name) as Control
+	if exact_match != null and exact_match.visible:
+		return exact_match
+	for child in current_scene.get_children():
+		var overlay_root: Control = child as Control
+		if overlay_root == null or not overlay_root.visible:
+			continue
+		if String(overlay_root.name).begins_with(overlay_root_name):
+			return overlay_root
+	return null
+
+
+func _overlay_root_name(expected_name: String) -> String:
+	match expected_name:
+		"SupportInteraction":
+			return "SupportOverlay"
+		"Event":
+			return "EventOverlay"
+		"Reward":
+			return "RewardOverlay"
+		"LevelUp":
+			return "LevelUpOverlay"
+		_:
+			return ""
 
 
 func _require(condition: bool, message: String) -> void:

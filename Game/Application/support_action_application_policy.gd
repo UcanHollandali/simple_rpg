@@ -3,13 +3,15 @@ extends RefCounted
 class_name SupportActionApplicationPolicy
 
 const ContentLoaderScript = preload("res://Game/Infrastructure/content_loader.gd")
+const INVENTORY_CHOICE_REQUIRED_ERROR: String = "inventory_choice_required"
 
 func apply_action(
 	active_run_state: RunState,
 	active_support_state: SupportInteractionState,
 	inventory_actions: InventoryActions,
 	enemy_selection_policy: EnemySelectionPolicy,
-	action_id: String
+	action_id: String,
+	discard_slot_id: int = -1
 ) -> Dictionary:
 	if active_run_state == null:
 		return {"ok": false, "action_id": action_id, "error": "missing_run_state"}
@@ -98,7 +100,15 @@ func apply_action(
 			result["gold"] = active_run_state.gold
 			result["close_interaction"] = true
 		"buy_consumable":
-			var add_result: Dictionary = inventory_actions.add_consumable_stack(active_run_state.inventory_state, String(offer.get("definition_id", "")), int(offer.get("amount", 1)))
+			var add_result: Dictionary = _resolve_inventory_grant(
+				active_run_state,
+				inventory_actions,
+				action_id,
+				InventoryState.INVENTORY_FAMILY_CONSUMABLE,
+				String(offer.get("definition_id", "")),
+				int(offer.get("amount", 1)),
+				discard_slot_id
+			)
 			if not bool(add_result.get("ok", false)):
 				return {"ok": false, "action_id": action_id, "error": String(add_result.get("error", "support_action_failed"))}
 			active_run_state.gold -= cost_gold
@@ -107,16 +117,32 @@ func apply_action(
 			result["gold"] = active_run_state.gold
 			result["close_interaction"] = _should_close_interaction_after_apply(active_support_state)
 		"buy_weapon":
-			var replace_result: Dictionary = inventory_actions.replace_active_weapon(active_run_state.inventory_state, String(offer.get("definition_id", "")))
-			if not bool(replace_result.get("ok", false)):
-				return {"ok": false, "action_id": action_id, "error": String(replace_result.get("error", "support_action_failed"))}
+			var weapon_result: Dictionary = _resolve_inventory_grant(
+				active_run_state,
+				inventory_actions,
+				action_id,
+				InventoryState.INVENTORY_FAMILY_WEAPON,
+				String(offer.get("definition_id", "")),
+				1,
+				discard_slot_id
+			)
+			if not bool(weapon_result.get("ok", false)):
+				return {"ok": false, "action_id": action_id, "error": String(weapon_result.get("error", "support_action_failed"))}
 			active_run_state.gold -= cost_gold
 			active_support_state.mark_offer_unavailable(action_id)
-			result.merge(replace_result, true)
+			result.merge(weapon_result, true)
 			result["gold"] = active_run_state.gold
 			result["close_interaction"] = _should_close_interaction_after_apply(active_support_state)
 		"buy_armor":
-			var armor_result: Dictionary = inventory_actions.replace_active_armor(active_run_state.inventory_state, String(offer.get("definition_id", "")))
+			var armor_result: Dictionary = _resolve_inventory_grant(
+				active_run_state,
+				inventory_actions,
+				action_id,
+				InventoryState.INVENTORY_FAMILY_ARMOR,
+				String(offer.get("definition_id", "")),
+				1,
+				discard_slot_id
+			)
 			if not bool(armor_result.get("ok", false)):
 				return {"ok": false, "action_id": action_id, "error": String(armor_result.get("error", "support_action_failed"))}
 			active_run_state.gold -= cost_gold
@@ -124,22 +150,76 @@ func apply_action(
 			result.merge(armor_result, true)
 			result["gold"] = active_run_state.gold
 			result["close_interaction"] = _should_close_interaction_after_apply(active_support_state)
+		"buy_shield":
+			var shield_result: Dictionary = _resolve_inventory_grant(
+				active_run_state,
+				inventory_actions,
+				action_id,
+				InventoryState.INVENTORY_FAMILY_SHIELD,
+				String(offer.get("definition_id", "")),
+				1,
+				discard_slot_id
+			)
+			if not bool(shield_result.get("ok", false)):
+				return {"ok": false, "action_id": action_id, "error": String(shield_result.get("error", "support_action_failed"))}
+			active_run_state.gold -= cost_gold
+			active_support_state.mark_offer_unavailable(action_id)
+			result.merge(shield_result, true)
+			result["gold"] = active_run_state.gold
+			result["close_interaction"] = _should_close_interaction_after_apply(active_support_state)
+		"buy_belt":
+			var belt_result: Dictionary = _resolve_inventory_grant(
+				active_run_state,
+				inventory_actions,
+				action_id,
+				InventoryState.INVENTORY_FAMILY_BELT,
+				String(offer.get("definition_id", "")),
+				1,
+				discard_slot_id
+			)
+			if not bool(belt_result.get("ok", false)):
+				return {"ok": false, "action_id": action_id, "error": String(belt_result.get("error", "support_action_failed"))}
+			active_run_state.gold -= cost_gold
+			active_support_state.mark_offer_unavailable(action_id)
+			result.merge(belt_result, true)
+			result["gold"] = active_run_state.gold
+			result["close_interaction"] = _should_close_interaction_after_apply(active_support_state)
+		"buy_passive_item":
+			var passive_result: Dictionary = _resolve_inventory_grant(
+				active_run_state,
+				inventory_actions,
+				action_id,
+				InventoryState.INVENTORY_FAMILY_PASSIVE,
+				String(offer.get("definition_id", "")),
+				1,
+				discard_slot_id
+			)
+			if not bool(passive_result.get("ok", false)):
+				return {"ok": false, "action_id": action_id, "error": String(passive_result.get("error", "support_action_failed"))}
+			active_run_state.gold -= cost_gold
+			active_support_state.mark_offer_unavailable(action_id)
+			result.merge(passive_result, true)
+			result["gold"] = active_run_state.gold
+			result["close_interaction"] = _should_close_interaction_after_apply(active_support_state)
 		"accept_side_mission":
-			var accept_result: Dictionary = _apply_side_mission_accept(
+			var accept_result: Dictionary = _apply_hamlet_accept(
 				active_run_state,
 				active_support_state,
-				enemy_selection_policy
+				inventory_actions,
+				enemy_selection_policy,
+				discard_slot_id
 			)
 			if not bool(accept_result.get("ok", false)):
 				return accept_result.merged({"action_id": action_id}, true)
 			result.merge(accept_result, true)
 			result["close_interaction"] = true
 		"claim_side_mission_reward":
-			var reward_result: Dictionary = _apply_side_mission_reward_claim(
+			var reward_result: Dictionary = _apply_hamlet_reward_claim(
 				active_run_state,
 				active_support_state,
 				inventory_actions,
-				offer
+				offer,
+				discard_slot_id
 			)
 			if not bool(reward_result.get("ok", false)):
 				return reward_result.merged({"action_id": action_id}, true)
@@ -159,12 +239,50 @@ func _should_close_interaction_after_apply(active_support_state: SupportInteract
 	return not active_support_state.has_available_offers()
 
 
-func _apply_side_mission_accept(
+func _resolve_inventory_grant(
+	active_run_state: RunState,
+	inventory_actions: InventoryActions,
+	action_id: String,
+	inventory_family: String,
+	definition_id: String,
+	amount: int,
+	discard_slot_id: int = -1
+) -> Dictionary:
+	var preview_result: Dictionary = inventory_actions.preview_inventory_item_grant(
+		active_run_state.inventory_state,
+		inventory_family,
+		definition_id,
+		max(1, amount)
+	)
+	if not bool(preview_result.get("ok", false)):
+		return preview_result.merged({
+			"ok": false,
+			"action_id": action_id,
+			"error": String(preview_result.get("error", "support_action_failed")),
+		}, true)
+	if bool(preview_result.get("inventory_choice_required", false)) and discard_slot_id <= 0:
+		return preview_result.merged({
+			"ok": false,
+			"action_id": action_id,
+			"error": INVENTORY_CHOICE_REQUIRED_ERROR,
+		}, true)
+	return inventory_actions.grant_inventory_item(
+		active_run_state.inventory_state,
+		inventory_family,
+		definition_id,
+		max(1, amount),
+		discard_slot_id
+	)
+
+
+func _apply_hamlet_accept(
 	active_run_state: RunState,
 	active_support_state: SupportInteractionState,
-	enemy_selection_policy: EnemySelectionPolicy
+	inventory_actions: InventoryActions,
+	enemy_selection_policy: EnemySelectionPolicy,
+	discard_slot_id: int = -1
 ) -> Dictionary:
-	if active_support_state.support_type != SupportInteractionState.TYPE_SIDE_MISSION:
+	if active_support_state.support_type != SupportInteractionState.TYPE_HAMLET:
 		return {"ok": false, "error": "invalid_support_type"}
 
 	var map_runtime_state: MapRuntimeState = active_run_state.map_runtime_state
@@ -172,17 +290,29 @@ func _apply_side_mission_accept(
 		return {"ok": false, "error": "missing_map_runtime_state"}
 
 	var source_node_id: int = int(active_support_state.source_node_id)
-	var candidate_node_ids: Array[int] = map_runtime_state.list_eligible_side_mission_target_node_ids(source_node_id)
+	var mission_type: String = String(active_support_state.mission_type)
+	var quest_item_definition_id: String = String(active_support_state.quest_item_definition_id).strip_edges()
+	if mission_type == SupportInteractionState.MISSION_TYPE_DELIVER_SUPPLIES:
+		if quest_item_definition_id.is_empty():
+			return {"ok": false, "error": "missing_side_quest_item_definition"}
+		var add_quest_item_result: Dictionary = _resolve_inventory_grant(
+			active_run_state,
+			inventory_actions,
+			"accept_side_mission",
+			InventoryState.INVENTORY_FAMILY_QUEST_ITEM,
+			quest_item_definition_id,
+			1,
+			discard_slot_id
+		)
+		if not bool(add_quest_item_result.get("ok", false)):
+			return add_quest_item_result
+
+	var target_families: PackedStringArray = _resolve_side_quest_target_families(active_support_state)
+	var candidate_node_ids: Array[int] = map_runtime_state.list_eligible_side_quest_target_node_ids(source_node_id, target_families)
 	if candidate_node_ids.is_empty():
 		return {"ok": false, "error": "no_side_mission_target"}
 
 	var loader: ContentLoader = ContentLoaderScript.new()
-	var enemy_definition_ids: Array[String] = []
-	if enemy_selection_policy != null:
-		enemy_definition_ids = enemy_selection_policy.list_combat_enemy_definition_ids(loader, active_run_state.stage_index)
-	if enemy_definition_ids.is_empty():
-		return {"ok": false, "error": "missing_side_mission_enemy_pool"}
-
 	var mission_definition: Dictionary = loader.load_definition(
 		SupportInteractionState.SIDE_MISSION_FAMILY,
 		String(active_support_state.mission_definition_id)
@@ -190,9 +320,16 @@ func _apply_side_mission_accept(
 	if mission_definition.is_empty():
 		return {"ok": false, "error": "missing_side_mission_definition"}
 
-	var reward_pool: Array[Dictionary] = _extract_side_mission_reward_pool(mission_definition)
+	var reward_pool: Array[Dictionary] = _extract_hamlet_reward_pool(mission_definition)
 	if reward_pool.size() < 2:
 		return {"ok": false, "error": "insufficient_side_mission_reward_pool"}
+
+	var enemy_definition_ids: Array[String] = []
+	if mission_type == SupportInteractionState.MISSION_TYPE_HUNT_MARKED_ENEMY:
+		if enemy_selection_policy != null:
+			enemy_definition_ids = enemy_selection_policy.list_combat_enemy_definition_ids(loader, active_run_state.stage_index)
+		if enemy_definition_ids.is_empty():
+			return {"ok": false, "error": "missing_side_mission_enemy_pool"}
 
 	var rng_context: Dictionary = active_run_state.consume_named_rng_context(
 		"side_mission_accept",
@@ -204,75 +341,106 @@ func _apply_side_mission_accept(
 	)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = max(1, int(rng_context.get("stream_seed", 1)))
+	var hamlet_personality: String = SupportInteractionState.resolve_hamlet_personality_for_stage(
+		active_run_state.stage_index
+	)
 
 	_shuffle_variant_array(candidate_node_ids, rng)
-	_shuffle_variant_array(enemy_definition_ids, rng)
+	if not enemy_definition_ids.is_empty():
+		_shuffle_variant_array(enemy_definition_ids, rng)
 	_shuffle_dictionary_array(reward_pool, rng)
+	reward_pool = _build_biased_hamlet_reward_pool(reward_pool, hamlet_personality)
 
 	var target_node_id: int = candidate_node_ids[0]
-	var target_enemy_definition_id: String = enemy_definition_ids[0]
+	var target_enemy_definition_id: String = enemy_definition_ids[0] if not enemy_definition_ids.is_empty() else ""
 	var reward_offers: Array[Dictionary] = []
 	for index in range(min(2, reward_pool.size())):
 		reward_offers.append((reward_pool[index] as Dictionary).duplicate(true))
 
 	map_runtime_state.reveal_node(target_node_id)
 	var persisted_state: Dictionary = {
-		"support_type": SupportInteractionState.TYPE_SIDE_MISSION,
+		"support_type": SupportInteractionState.TYPE_HAMLET,
 		"mission_definition_id": active_support_state.mission_definition_id,
+		"mission_type": mission_type,
 		"mission_status": SupportInteractionState.SIDE_MISSION_STATUS_ACCEPTED,
 		"target_node_id": target_node_id,
 		"target_enemy_definition_id": target_enemy_definition_id,
+		"quest_item_definition_id": quest_item_definition_id,
 		"reward_offers": reward_offers,
 	}
 	active_support_state.setup_for_type(
-		SupportInteractionState.TYPE_SIDE_MISSION,
+		SupportInteractionState.TYPE_HAMLET,
 		source_node_id,
 		persisted_state,
 		active_run_state.stage_index,
 		active_run_state.inventory_state,
-		map_runtime_state
+		map_runtime_state,
+		active_run_state.run_seed
 	)
 	return {
 		"ok": true,
 		"mission_status": SupportInteractionState.SIDE_MISSION_STATUS_ACCEPTED,
 		"target_node_id": target_node_id,
 		"target_enemy_definition_id": target_enemy_definition_id,
+		"mission_type": mission_type,
+		"quest_item_definition_id": quest_item_definition_id,
 		"reward_offer_count": reward_offers.size(),
 	}
 
 
-func _apply_side_mission_reward_claim(
+func _apply_hamlet_reward_claim(
 	active_run_state: RunState,
 	active_support_state: SupportInteractionState,
 	inventory_actions: InventoryActions,
-	offer: Dictionary
+	offer: Dictionary,
+	discard_slot_id: int = -1
 ) -> Dictionary:
-	if active_support_state.support_type != SupportInteractionState.TYPE_SIDE_MISSION:
+	if active_support_state.support_type != SupportInteractionState.TYPE_HAMLET:
 		return {"ok": false, "error": "invalid_support_type"}
 
-	var inventory_family: String = String(offer.get("inventory_family", ""))
-	var definition_id: String = String(offer.get("definition_id", ""))
+	var effect_type: String = String(offer.get("effect_type", "")).strip_edges()
+	if effect_type.is_empty():
+		effect_type = "grant_item"
 	var reward_result: Dictionary = {}
-	match inventory_family:
-		InventoryState.INVENTORY_FAMILY_WEAPON:
-			reward_result = inventory_actions.add_carried_weapon(active_run_state.inventory_state, definition_id)
-		InventoryState.INVENTORY_FAMILY_ARMOR:
-			reward_result = inventory_actions.add_carried_armor(active_run_state.inventory_state, definition_id)
+	match effect_type:
+		"grant_gold":
+			var gold_amount: int = max(1, int(offer.get("amount", 0)))
+			active_run_state.gold += gold_amount
+			reward_result = {
+				"ok": true,
+				"gold": active_run_state.gold,
+				"applied_amount": gold_amount,
+			}
+		"grant_item", "claim_side_mission_reward":
+			reward_result = _resolve_inventory_grant(
+				active_run_state,
+				inventory_actions,
+				String(offer.get("offer_id", "claim_side_mission_reward")),
+				String(offer.get("inventory_family", "")).strip_edges(),
+				String(offer.get("definition_id", "")).strip_edges(),
+				max(1, int(offer.get("amount", 1))),
+				discard_slot_id
+			)
 		_:
-			return {"ok": false, "error": "invalid_side_mission_reward_family"}
+			return {"ok": false, "error": "invalid_side_mission_reward_effect"}
 
 	if not bool(reward_result.get("ok", false)):
 		return reward_result
 
+	var quest_item_definition_id: String = String(active_support_state.quest_item_definition_id).strip_edges()
+	if not quest_item_definition_id.is_empty():
+		inventory_actions.remove_quest_item(active_run_state.inventory_state, quest_item_definition_id)
+
 	var persisted_state: Dictionary = active_support_state.build_persisted_node_state()
 	persisted_state["mission_status"] = SupportInteractionState.SIDE_MISSION_STATUS_CLAIMED
 	active_support_state.setup_for_type(
-		SupportInteractionState.TYPE_SIDE_MISSION,
+		SupportInteractionState.TYPE_HAMLET,
 		int(active_support_state.source_node_id),
 		persisted_state,
 		active_run_state.stage_index,
 		active_run_state.inventory_state,
-		active_run_state.map_runtime_state
+		active_run_state.map_runtime_state,
+		active_run_state.run_seed
 	)
 	return {
 		"ok": true,
@@ -280,7 +448,7 @@ func _apply_side_mission_reward_claim(
 	}.merged(reward_result, true)
 
 
-func _extract_side_mission_reward_pool(mission_definition: Dictionary) -> Array[Dictionary]:
+func _extract_hamlet_reward_pool(mission_definition: Dictionary) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	var reward_pool_variant: Variant = mission_definition.get("rules", {}).get("reward_pool", [])
 	if typeof(reward_pool_variant) != TYPE_ARRAY:
@@ -289,21 +457,125 @@ func _extract_side_mission_reward_pool(mission_definition: Dictionary) -> Array[
 		if typeof(offer_variant) != TYPE_DICTIONARY:
 			continue
 		var offer: Dictionary = offer_variant
-		var inventory_family: String = String(offer.get("inventory_family", "")).strip_edges()
-		var definition_id: String = String(offer.get("definition_id", "")).strip_edges()
-		if inventory_family not in [InventoryState.INVENTORY_FAMILY_WEAPON, InventoryState.INVENTORY_FAMILY_ARMOR]:
-			continue
-		if definition_id.is_empty():
-			continue
-		result.append({
-			"offer_id": String(offer.get("offer_id", "claim_%s" % definition_id)),
-			"label": String(offer.get("label", "")),
-			"effect_type": "claim_side_mission_reward",
-			"inventory_family": inventory_family,
-			"definition_id": definition_id,
-			"available": true,
-		})
+		var effect_type: String = String(offer.get("effect_type", "")).strip_edges()
+		if effect_type.is_empty():
+			effect_type = "grant_item"
+		match effect_type:
+			"grant_gold":
+				var gold_amount: int = max(1, int(offer.get("amount", 0)))
+				result.append({
+					"offer_id": String(offer.get("offer_id", "claim_gold_%d" % gold_amount)),
+					"label": String(offer.get("label", "")),
+					"effect_type": "grant_gold",
+					"amount": gold_amount,
+					"available": true,
+				})
+			"grant_item":
+				var inventory_family: String = String(offer.get("inventory_family", "")).strip_edges()
+				var definition_id: String = String(offer.get("definition_id", "")).strip_edges()
+				if inventory_family.is_empty() or definition_id.is_empty():
+					continue
+				var reward_offer: Dictionary = {
+					"offer_id": String(offer.get("offer_id", "claim_%s" % definition_id)),
+					"label": String(offer.get("label", "")),
+					"effect_type": "grant_item",
+					"inventory_family": inventory_family,
+					"definition_id": definition_id,
+					"available": true,
+				}
+				if inventory_family == InventoryState.INVENTORY_FAMILY_CONSUMABLE:
+					reward_offer["amount"] = max(1, int(offer.get("amount", 1)))
+				result.append(reward_offer)
 	return result
+
+
+func _build_biased_hamlet_reward_pool(
+	reward_pool: Array[Dictionary],
+	hamlet_personality: String
+) -> Array[Dictionary]:
+	var strong_matches: Array[Dictionary] = []
+	var medium_matches: Array[Dictionary] = []
+	var fallback_matches: Array[Dictionary] = []
+	for reward_offer in reward_pool:
+		var score: int = _score_hamlet_reward_offer_for_personality(reward_offer, hamlet_personality)
+		if score >= 2:
+			strong_matches.append(reward_offer)
+		elif score >= 1:
+			medium_matches.append(reward_offer)
+		else:
+			fallback_matches.append(reward_offer)
+	var biased_pool: Array[Dictionary] = []
+	biased_pool.append_array(strong_matches)
+	biased_pool.append_array(medium_matches)
+	biased_pool.append_array(fallback_matches)
+	return biased_pool
+
+
+func _score_hamlet_reward_offer_for_personality(reward_offer: Dictionary, hamlet_personality: String) -> int:
+	var effect_type: String = String(reward_offer.get("effect_type", "grant_item")).strip_edges()
+	if effect_type == "grant_gold":
+		match hamlet_personality:
+			SupportInteractionState.HAMLET_PERSONALITY_FRONTIER, SupportInteractionState.HAMLET_PERSONALITY_PILGRIM:
+				return 1
+			SupportInteractionState.HAMLET_PERSONALITY_TRADE:
+				return 2
+			_:
+				return 0
+
+	var inventory_family: String = String(reward_offer.get("inventory_family", "")).strip_edges()
+	match hamlet_personality:
+		SupportInteractionState.HAMLET_PERSONALITY_FRONTIER:
+			if inventory_family == InventoryState.INVENTORY_FAMILY_WEAPON:
+				return 2
+			if inventory_family == InventoryState.INVENTORY_FAMILY_SHIELD_ATTACHMENT:
+				return 2
+			if inventory_family == InventoryState.INVENTORY_FAMILY_ARMOR:
+				return 1
+		SupportInteractionState.HAMLET_PERSONALITY_PILGRIM:
+			if inventory_family == InventoryState.INVENTORY_FAMILY_SHIELD:
+				return 2
+			if inventory_family == InventoryState.INVENTORY_FAMILY_CONSUMABLE:
+				return 2
+			if inventory_family == InventoryState.INVENTORY_FAMILY_SHIELD_ATTACHMENT:
+				return 1
+			if inventory_family == InventoryState.INVENTORY_FAMILY_ARMOR:
+				return 1
+		SupportInteractionState.HAMLET_PERSONALITY_TRADE:
+			if inventory_family == InventoryState.INVENTORY_FAMILY_BELT:
+				return 2
+			if inventory_family == InventoryState.INVENTORY_FAMILY_PASSIVE:
+				return 2
+			if inventory_family == InventoryState.INVENTORY_FAMILY_CONSUMABLE:
+				return 1
+	return 0
+
+
+func _resolve_side_quest_target_families(active_support_state: SupportInteractionState) -> PackedStringArray:
+	var mission_definition: Dictionary = {}
+	var loader: ContentLoader = ContentLoaderScript.new()
+	if active_support_state != null and not String(active_support_state.mission_definition_id).is_empty():
+		mission_definition = loader.load_definition(
+			SupportInteractionState.SIDE_MISSION_FAMILY,
+			String(active_support_state.mission_definition_id)
+		)
+	var configured_target_families: Variant = mission_definition.get("rules", {}).get("target_families", [])
+	var target_families: PackedStringArray = PackedStringArray()
+	if typeof(configured_target_families) == TYPE_ARRAY:
+		for family_variant in configured_target_families:
+			var family_name: String = String(family_variant).strip_edges()
+			if family_name.is_empty() or target_families.has(family_name):
+				continue
+			target_families.append(family_name)
+	if not target_families.is_empty():
+		return target_families
+
+	match String(active_support_state.mission_type):
+		SupportInteractionState.MISSION_TYPE_DELIVER_SUPPLIES:
+			return PackedStringArray(["event", "reward", "rest", "merchant", "blacksmith"])
+		SupportInteractionState.MISSION_TYPE_RESCUE_MISSING_SCOUT, SupportInteractionState.MISSION_TYPE_BRING_PROOF:
+			return PackedStringArray(["combat", "event", "reward"])
+		_:
+			return PackedStringArray(["combat"])
 
 
 func _shuffle_variant_array(values: Array, rng: RandomNumberGenerator) -> void:

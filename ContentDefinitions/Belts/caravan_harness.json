@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "definition_id": "caravan_harness",
+  "family": "Belts",
+  "tags": [
+    "belt",
+    "utility",
+    "heavy",
+    "pack"
+  ],
+  "display": {
+    "name": "Caravan Harness",
+    "short_description": "A broad freight harness that opens 3 extra backpack slots for late-run cargo and spare kit.",
+    "icon_key": "belt_caravan_harness"
+  },
+  "rules": {
+    "backpack_capacity_bonus": 3
+  }
+}

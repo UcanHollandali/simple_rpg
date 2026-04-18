@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "definition_id": "gatewall_kite_shield",
+  "family": "Shields",
+  "tags": [
+    "shield",
+    "defense",
+    "heavy",
+    "guard"
+  ],
+  "display": {
+    "name": "Gatewall Kite Shield",
+    "short_description": "A tall gatehouse kite shield that slows the road down and shaves another point off incoming blows.",
+    "icon_key": "shield_gatewall_kite_shield"
+  },
+  "rules": {
+    "behaviors": [
+      {
+        "trigger": "passive",
+        "condition": {
+          "op": "always"
+        },
+        "target": "self",
+        "effects": [
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "incoming_damage_flat_reduction",
+              "amount": 1
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

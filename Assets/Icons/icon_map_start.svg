@@ -1,7 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
-  <circle cx="64" cy="64" r="40" fill="#2a3628" stroke="#9d8557" stroke-width="8"/>
-  <circle cx="64" cy="64" r="10" fill="#f0e3b2"/>
-  <path d="M64 20 82 64 64 108 46 64Z" fill="#6f8653"/>
-  <path d="M64 34 72 64 64 94 56 64Z" fill="#dcc98a"/>
+  <defs>
+    <linearGradient id="start_ring" x1="64" y1="18" x2="64" y2="110" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#CBB47A"/>
+      <stop offset="1" stop-color="#7B6A48"/>
+    </linearGradient>
+    <linearGradient id="start_core" x1="64" y1="28" x2="64" y2="100" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22322F"/>
+      <stop offset="1" stop-color="#101A1D"/>
+    </linearGradient>
+  </defs>
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="64" cy="64" r="46" fill="url(#start_core)" stroke="url(#start_ring)" stroke-width="8"/>
+    <circle cx="64" cy="64" r="15" fill="#E6DFC9"/>
+    <path d="M64 18 80 48 64 110 48 48Z" fill="#395856" stroke="#E6DFC9" stroke-width="4"/>
+    <path d="M64 31 72 49 64 87 56 49Z" fill="#C9B26B"/>
+    <path d="M64 18v11M64 99v11M18 64h11M99 64h11" stroke="#C9B26B" stroke-width="6"/>
+  </g>
 </svg>
-

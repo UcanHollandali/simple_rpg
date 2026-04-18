@@ -4,6 +4,15 @@ class_name MapExploreSceneUi
 
 const TempScreenThemeScript = preload("res://Game/UI/temp_screen_theme.gd")
 const MapBoardCanvasScript = preload("res://Game/UI/map_board_canvas.gd")
+const SceneLayoutHelperScript = preload("res://Game/UI/scene_layout_helper.gd")
+const TOP_ROW_PATH := "Margin/VBox/TopRow"
+const HEADER_CARD_PATH := "Margin/VBox/TopRow/HeaderCard"
+const HEADER_STACK_PATH := "Margin/VBox/TopRow/HeaderCard/HeaderRow/HeaderStack"
+const STAGE_BADGE_PATH := "Margin/VBox/TopRow/HeaderCard/HeaderRow/StageBadge"
+const STAGE_BADGE_LABEL_PATH := "Margin/VBox/TopRow/HeaderCard/HeaderRow/StageBadge/StageBadgeLabel"
+const RUN_SUMMARY_CARD_PATH := "Margin/VBox/TopRow/RunSummaryCard"
+const ROUTE_GRID_PATH := "Margin/VBox/RouteGrid"
+const BOARD_FRAME_PATH := "Margin/VBox/RouteGrid/BoardFrame"
 const SAFE_MENU_ANCHOR_PATH := "Margin/VBox/TopRow/SettingsMenuAnchor"
 
 
@@ -138,102 +147,133 @@ static func apply_temp_theme(root: Control) -> void:
 		return
 
 	TempScreenThemeScript.apply_wayfinder_backdrop(root, 0.30, 0.14, 0.03, true)
+	var top_row: HBoxContainer = root.get_node_or_null(TOP_ROW_PATH) as HBoxContainer
+	var top_row_shell: PanelContainer = root.get_node_or_null("Margin/VBox/TopRowShell") as PanelContainer
+	if top_row_shell == null:
+		var root_vbox: VBoxContainer = root.get_node_or_null("Margin/VBox") as VBoxContainer
+		if root_vbox != null:
+			top_row_shell = PanelContainer.new()
+			top_row_shell.name = "TopRowShell"
+			top_row_shell.visible = false
+			top_row_shell.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			root_vbox.add_child(top_row_shell)
+			root_vbox.move_child(top_row_shell, 0)
+	var header_card: PanelContainer = root.get_node_or_null(HEADER_CARD_PATH) as PanelContainer
+	var run_summary_card: PanelContainer = root.get_node_or_null(RUN_SUMMARY_CARD_PATH) as PanelContainer
+	var top_row_divider: ColorRect = root.get_node_or_null("%s/TopRowDivider" % TOP_ROW_PATH) as ColorRect
+	var stage_badge: PanelContainer = root.get_node_or_null(STAGE_BADGE_PATH) as PanelContainer
+	var stage_badge_label: Label = root.get_node_or_null(STAGE_BADGE_LABEL_PATH) as Label
+	var board_frame: PanelContainer = root.get_node_or_null(BOARD_FRAME_PATH) as PanelContainer
+	var equipment_card: PanelContainer = root.get_node_or_null("Margin/VBox/InventorySection/EquipmentCard") as PanelContainer
+	var inventory_card: PanelContainer = root.get_node_or_null("Margin/VBox/InventorySection/InventoryCard") as PanelContainer
+	var current_anchor_card: PanelContainer = root.get_node_or_null("Margin/VBox/BottomRow/CurrentAnchorCard") as PanelContainer
+	var status_card: PanelContainer = root.get_node_or_null("Margin/VBox/BottomRow/StatusCard") as PanelContainer
+	_apply_compact_map_panel(header_card, TempScreenThemeScript.PANEL_BORDER_COLOR, 16, 0.42, 12, 10)
+	_apply_top_shell_cell(header_card, TempScreenThemeScript.PANEL_BORDER_COLOR)
+	_apply_compact_map_panel(run_summary_card, TempScreenThemeScript.TEAL_ACCENT_COLOR.darkened(0.12), 16, 0.46, 12, 10)
+	_apply_top_shell_cell(run_summary_card, TempScreenThemeScript.TEAL_ACCENT_COLOR)
+	TempScreenThemeScript.apply_choice_card_shell(equipment_card, TempScreenThemeScript.TEAL_ACCENT_COLOR)
+	TempScreenThemeScript.apply_choice_card_shell(inventory_card, TempScreenThemeScript.REWARD_ACCENT_COLOR)
+	TempScreenThemeScript.apply_choice_card_shell(current_anchor_card, TempScreenThemeScript.TEAL_ACCENT_COLOR)
+	_apply_compact_map_panel(status_card, TempScreenThemeScript.TEAL_ACCENT_COLOR.darkened(0.08), 16, 0.74, 12, 10)
+	_apply_top_row_shell(top_row_shell)
+	_apply_top_row_divider(top_row_divider)
+	_apply_stage_badge_style(stage_badge, stage_badge_label)
+	_apply_board_frame_style(board_frame)
 
-	_apply_compact_map_panel(root.get_node_or_null("Margin/VBox/TopRow/HeaderCard") as PanelContainer, TempScreenThemeScript.PANEL_BORDER_COLOR, 14, 0.84, 8, 6)
-	TempScreenThemeScript.apply_label(root.get_node_or_null("Margin/VBox/TopRow/HeaderCard/HeaderStack/TitleLabel") as Label, "title")
-	TempScreenThemeScript.apply_label(root.get_node_or_null("Margin/VBox/TopRow/HeaderCard/HeaderStack/ProgressLabel") as Label, "accent")
-	_apply_compact_map_panel(root.get_node_or_null("Margin/VBox/TopRow/RunSummaryCard") as PanelContainer, TempScreenThemeScript.PANEL_BORDER_COLOR, 14, 0.82, 8, 6)
-	_apply_compact_map_panel(root.get_node_or_null("Margin/VBox/InventorySection/InventoryCard") as PanelContainer, TempScreenThemeScript.REWARD_ACCENT_COLOR, 14, 0.80, 10, 8)
-	_apply_compact_map_panel(root.get_node_or_null("Margin/VBox/BottomRow/CurrentAnchorCard") as PanelContainer, TempScreenThemeScript.PANEL_BORDER_COLOR, 14, 0.82, 10, 7)
-	_apply_compact_map_panel(root.get_node_or_null("Margin/VBox/BottomRow/StatusCard") as PanelContainer, TempScreenThemeScript.TEAL_ACCENT_COLOR, 14, 0.74, 10, 7)
-	for label_path in [
-		"Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HpRow/HpStatusLabel",
-		"Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HungerRow/HungerStatusLabel",
-		"Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/DurabilityRow/DurabilityStatusLabel",
-		"Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HpRow/GoldStatusValueLabel",
-	]:
-		TempScreenThemeScript.apply_label(root.get_node_or_null(label_path) as Label)
-	TempScreenThemeScript.apply_label(root.get_node_or_null("Margin/VBox/InventorySection/InventoryTitleLabel") as Label, "reward")
-	TempScreenThemeScript.apply_label(root.get_node_or_null("Margin/VBox/InventorySection/InventoryHintLabel") as Label, "muted")
-	TempScreenThemeScript.apply_label(root.get_node_or_null("Margin/VBox/BottomRow/CurrentAnchorCard/VBox/CurrentAnchorLabel") as Label, "accent")
-	TempScreenThemeScript.apply_label(root.get_node_or_null("Margin/VBox/BottomRow/CurrentAnchorCard/VBox/CurrentAnchorDetailLabel") as Label)
-	TempScreenThemeScript.apply_label(root.get_node_or_null("Margin/VBox/BottomRow/StatusCard/StatusLabel") as Label, "muted")
-
-	var title_label: Label = root.get_node_or_null("Margin/VBox/TopRow/HeaderCard/HeaderStack/TitleLabel") as Label
+	var title_label: Label = root.get_node_or_null("%s/TitleLabel" % HEADER_STACK_PATH) as Label
+	TempScreenThemeScript.apply_label(title_label, "title")
 	if title_label != null:
-		title_label.add_theme_font_size_override("font_size", 28)
+		title_label.add_theme_font_size_override("font_size", 32)
 		title_label.clip_text = true
 		title_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 		title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		title_label.max_lines_visible = 1
 
-	var progress_label: Label = root.get_node_or_null("Margin/VBox/TopRow/HeaderCard/HeaderStack/ProgressLabel") as Label
+	var progress_label: Label = root.get_node_or_null("%s/ProgressLabel" % HEADER_STACK_PATH) as Label
+	TempScreenThemeScript.apply_label(progress_label, "accent")
 	if progress_label != null:
-		progress_label.add_theme_font_size_override("font_size", 16)
+		progress_label.add_theme_font_size_override("font_size", 13)
 		progress_label.clip_text = true
 		progress_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 		progress_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		progress_label.max_lines_visible = 1
 
-	var header_stack: VBoxContainer = root.get_node_or_null("Margin/VBox/TopRow/HeaderCard/HeaderStack") as VBoxContainer
-	if header_stack != null:
-		header_stack.add_theme_constant_override("separation", 1)
-	var stats_stack: VBoxContainer = root.get_node_or_null("Margin/VBox/TopRow/RunSummaryCard/StatsStack") as VBoxContainer
-	if stats_stack != null:
-		stats_stack.add_theme_constant_override("separation", 2)
-	var status_rows: VBoxContainer = root.get_node_or_null("Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows") as VBoxContainer
-	if status_rows != null:
-		status_rows.add_theme_constant_override("separation", 1)
-	var status_row_nodes: Array[Container] = [
-		root.get_node_or_null("Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HpRow") as Container,
-		root.get_node_or_null("Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HungerRow") as Container,
-	]
-	for status_row in status_row_nodes:
-		if status_row != null:
-			status_row.add_theme_constant_override("separation", 4)
+	var route_read_label: Label = root.get_node_or_null("%s/RouteReadLabel" % HEADER_STACK_PATH) as Label
+	TempScreenThemeScript.apply_label(route_read_label, "muted")
+	if route_read_label != null:
+		route_read_label.add_theme_font_size_override("font_size", 15)
+		route_read_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		route_read_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		route_read_label.max_lines_visible = 2
 
-	for status_label_path in [
-		"Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HpRow/HpStatusLabel",
-		"Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HungerRow/HungerStatusLabel",
-		"Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/DurabilityRow/DurabilityStatusLabel",
-		"Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HpRow/GoldStatusValueLabel",
-		"Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/XpRow/XpLabel",
-	]:
-		var status_label: Label = root.get_node_or_null(status_label_path) as Label
-		if status_label != null:
-			status_label.add_theme_font_size_override("font_size", 16)
-			if status_label.name == "GoldStatusValueLabel":
-				status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-			elif status_label.name == "XpLabel":
-				status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-			else:
-				status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	var run_status_label: Label = root.get_node_or_null("%s/RunStatusLabel" % RUN_SUMMARY_CARD_PATH) as Label
+	TempScreenThemeScript.apply_label(run_status_label, "muted")
+	if run_status_label != null:
+		run_status_label.add_theme_font_size_override("font_size", 14)
+		run_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		run_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		run_status_label.max_lines_visible = 3
 
-	for icon_path in [
-		"Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HpRow/HpStatusIcon",
-		"Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HungerRow/HungerStatusIcon",
-		"Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/DurabilityRow/DurabilityStatusIcon",
-		"Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HpRow/GoldStatusIcon",
-	]:
-		var icon_rect: TextureRect = root.get_node_or_null(icon_path) as TextureRect
-		if icon_rect != null:
-			icon_rect.custom_minimum_size = Vector2(16, 16)
-			icon_rect.modulate = Color(0.96, 0.93, 0.82, 0.95)
+	TempScreenThemeScript.apply_label(root.get_node_or_null("Margin/VBox/InventorySection/EquipmentTitleLabel") as Label, "accent")
+	var equipment_title_label: Label = root.get_node_or_null("Margin/VBox/InventorySection/EquipmentTitleLabel") as Label
+	if equipment_title_label != null:
+		equipment_title_label.add_theme_font_size_override("font_size", 19)
+	var equipment_hint_label: Label = root.get_node_or_null("Margin/VBox/InventorySection/EquipmentHintLabel") as Label
+	TempScreenThemeScript.apply_label(equipment_hint_label, "muted")
+	if equipment_hint_label != null:
+		equipment_hint_label.add_theme_font_size_override("font_size", 14)
+		equipment_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		equipment_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		equipment_hint_label.max_lines_visible = 2
 
-	var current_anchor_label: Label = root.get_node_or_null("Margin/VBox/BottomRow/CurrentAnchorCard/VBox/CurrentAnchorLabel") as Label
-	if current_anchor_label != null:
-		current_anchor_label.add_theme_font_size_override("font_size", 21)
-
-	var current_anchor_detail_label: Label = root.get_node_or_null("Margin/VBox/BottomRow/CurrentAnchorCard/VBox/CurrentAnchorDetailLabel") as Label
-	if current_anchor_detail_label != null:
-		current_anchor_detail_label.add_theme_font_size_override("font_size", 17)
-
+	TempScreenThemeScript.apply_label(root.get_node_or_null("Margin/VBox/InventorySection/InventoryTitleLabel") as Label, "reward")
 	var inventory_title_label: Label = root.get_node_or_null("Margin/VBox/InventorySection/InventoryTitleLabel") as Label
 	if inventory_title_label != null:
-		inventory_title_label.add_theme_font_size_override("font_size", 22)
+		inventory_title_label.add_theme_font_size_override("font_size", 21)
 	var inventory_hint_label: Label = root.get_node_or_null("Margin/VBox/InventorySection/InventoryHintLabel") as Label
+	TempScreenThemeScript.apply_label(inventory_hint_label, "muted")
 	if inventory_hint_label != null:
-		inventory_hint_label.add_theme_font_size_override("font_size", 15 if root.get_viewport_rect().size.y >= 1560.0 else 14)
+		inventory_hint_label.add_theme_font_size_override("font_size", 14)
+		inventory_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		inventory_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		inventory_hint_label.max_lines_visible = 2
+
+	var current_anchor_label: Label = root.get_node_or_null("Margin/VBox/BottomRow/CurrentAnchorCard/VBox/CurrentAnchorLabel") as Label
+	TempScreenThemeScript.apply_label(current_anchor_label, "accent")
+	if current_anchor_label != null:
+		current_anchor_label.add_theme_font_size_override("font_size", 22)
+	var current_anchor_detail_label: Label = root.get_node_or_null("Margin/VBox/BottomRow/CurrentAnchorCard/VBox/CurrentAnchorDetailLabel") as Label
+	TempScreenThemeScript.apply_label(current_anchor_detail_label)
+	if current_anchor_detail_label != null:
+		current_anchor_detail_label.add_theme_font_size_override("font_size", 16)
+		current_anchor_detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		current_anchor_detail_label.max_lines_visible = 2
+	var current_anchor_hint_label: Label = root.get_node_or_null("Margin/VBox/BottomRow/CurrentAnchorCard/VBox/CurrentAnchorHintLabel") as Label
+	TempScreenThemeScript.apply_label(current_anchor_hint_label, "muted")
+	if current_anchor_hint_label != null:
+		current_anchor_hint_label.add_theme_font_size_override("font_size", 14)
+		current_anchor_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		current_anchor_hint_label.max_lines_visible = 2
+
+	var status_label: Label = root.get_node_or_null("Margin/VBox/BottomRow/StatusCard/StatusLabel") as Label
+	TempScreenThemeScript.apply_label(status_label, "muted")
+	if status_label != null:
+		status_label.add_theme_font_size_override("font_size", 15)
+		status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		status_label.max_lines_visible = 2
+
+	var header_stack: VBoxContainer = root.get_node_or_null(HEADER_STACK_PATH) as VBoxContainer
+	if header_stack != null:
+		header_stack.add_theme_constant_override("separation", 3)
+	var current_anchor_stack: VBoxContainer = root.get_node_or_null("Margin/VBox/BottomRow/CurrentAnchorCard/VBox") as VBoxContainer
+	if current_anchor_stack != null:
+		current_anchor_stack.add_theme_constant_override("separation", 3)
+
+	var board_backdrop: TextureRect = root.get_node_or_null("%s/BoardBackdrop" % ROUTE_GRID_PATH) as TextureRect
+	if board_backdrop != null:
+		board_backdrop.modulate = Color(0.78, 0.86, 0.82, 0.28)
 
 
 static func style_route_buttons_for_overlay_mode(route_grid: Control, route_button_node_names: PackedStringArray) -> void:
@@ -264,12 +304,30 @@ static func apply_text_density_pass(root: Control) -> void:
 	if root == null:
 		return
 
+	var route_read_label: Label = root.get_node_or_null("%s/RouteReadLabel" % HEADER_STACK_PATH) as Label
+	if route_read_label != null:
+		route_read_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		route_read_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		route_read_label.max_lines_visible = 2
+
+	var current_anchor_detail_label: Label = root.get_node_or_null("Margin/VBox/BottomRow/CurrentAnchorCard/VBox/CurrentAnchorDetailLabel") as Label
+	if current_anchor_detail_label != null:
+		current_anchor_detail_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		current_anchor_detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		current_anchor_detail_label.max_lines_visible = 2
+
+	var current_anchor_hint_label: Label = root.get_node_or_null("Margin/VBox/BottomRow/CurrentAnchorCard/VBox/CurrentAnchorHintLabel") as Label
+	if current_anchor_hint_label != null:
+		current_anchor_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		current_anchor_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		current_anchor_hint_label.max_lines_visible = 2
+
 	var status_label: Label = root.get_node_or_null("Margin/VBox/BottomRow/StatusCard/StatusLabel") as Label
 	if status_label != null:
-		status_label.add_theme_font_size_override("font_size", 17)
+		status_label.add_theme_font_size_override("font_size", 15)
 		status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		status_label.max_lines_visible = 3
+		status_label.max_lines_visible = 2
 
 
 static func apply_portrait_safe_layout(root: Control, max_width: int, min_side_margin: int) -> void:
@@ -278,108 +336,208 @@ static func apply_portrait_safe_layout(root: Control, max_width: int, min_side_m
 
 	var margin: MarginContainer = root.get_node_or_null("Margin") as MarginContainer
 	var vbox: VBoxContainer = root.get_node_or_null("Margin/VBox") as VBoxContainer
-	var route_grid: Control = root.get_node_or_null("Margin/VBox/RouteGrid") as Control
-	var header_card: PanelContainer = root.get_node_or_null("Margin/VBox/TopRow/HeaderCard") as PanelContainer
+	var route_grid: Control = root.get_node_or_null(ROUTE_GRID_PATH) as Control
+	var header_card: PanelContainer = root.get_node_or_null(HEADER_CARD_PATH) as PanelContainer
+	var route_read_label: Label = root.get_node_or_null("%s/RouteReadLabel" % HEADER_STACK_PATH) as Label
 	var inventory_section: VBoxContainer = root.get_node_or_null("Margin/VBox/InventorySection") as VBoxContainer
+	var equipment_card: PanelContainer = root.get_node_or_null("Margin/VBox/InventorySection/EquipmentCard") as PanelContainer
+	var equipment_cards_flow: HBoxContainer = root.get_node_or_null("Margin/VBox/InventorySection/EquipmentCard/EquipmentCardsFlow") as HBoxContainer
+	var equipment_title_label: Label = root.get_node_or_null("Margin/VBox/InventorySection/EquipmentTitleLabel") as Label
+	var equipment_hint_label: Label = root.get_node_or_null("Margin/VBox/InventorySection/EquipmentHintLabel") as Label
 	var inventory_card: PanelContainer = root.get_node_or_null("Margin/VBox/InventorySection/InventoryCard") as PanelContainer
 	var inventory_cards_flow: HBoxContainer = root.get_node_or_null("Margin/VBox/InventorySection/InventoryCard/InventoryCardsFlow") as HBoxContainer
 	var inventory_title_label: Label = root.get_node_or_null("Margin/VBox/InventorySection/InventoryTitleLabel") as Label
 	var inventory_hint_label: Label = root.get_node_or_null("Margin/VBox/InventorySection/InventoryHintLabel") as Label
-	var top_row: HBoxContainer = root.get_node_or_null("Margin/VBox/TopRow") as HBoxContainer
+	var top_row: HBoxContainer = root.get_node_or_null(TOP_ROW_PATH) as HBoxContainer
 	var bottom_row: VBoxContainer = root.get_node_or_null("Margin/VBox/BottomRow") as VBoxContainer
 	var current_anchor_card: PanelContainer = root.get_node_or_null("Margin/VBox/BottomRow/CurrentAnchorCard") as PanelContainer
 	var status_card: PanelContainer = root.get_node_or_null("Margin/VBox/BottomRow/StatusCard") as PanelContainer
 	var safe_menu_anchor: Control = root.get_node_or_null(SAFE_MENU_ANCHOR_PATH) as Control
-	var run_summary_card: PanelContainer = root.get_node_or_null("Margin/VBox/TopRow/RunSummaryCard") as PanelContainer
+	var run_summary_card: PanelContainer = root.get_node_or_null(RUN_SUMMARY_CARD_PATH) as PanelContainer
+	var top_row_divider: ColorRect = root.get_node_or_null("%s/TopRowDivider" % TOP_ROW_PATH) as ColorRect
+	var stage_badge: Control = root.get_node_or_null(STAGE_BADGE_PATH) as Control
+	var current_anchor_hint_label: Label = root.get_node_or_null("Margin/VBox/BottomRow/CurrentAnchorCard/VBox/CurrentAnchorHintLabel") as Label
 	if margin == null or route_grid == null:
 		return
 
 	var viewport_size: Vector2 = root.get_viewport_rect().size
-	var top_margin: int = 4
-	var bottom_margin: int = 8
 	var compact_layout: bool = viewport_size.y < 1540.0
 	var very_compact_layout: bool = viewport_size.y < 1360.0
-	if viewport_size.y >= 1560.0:
-		top_margin = 8
-		bottom_margin = 10
-	elif viewport_size.y >= 1400.0:
-		top_margin = 7
-		bottom_margin = 9
-
-	TempScreenThemeScript.apply_portrait_safe_margins(
-		margin,
-		max_width,
-		min_side_margin,
-		top_margin,
-		bottom_margin
-	)
+	SceneLayoutHelperScript.apply_portrait_layout(root, {
+		"max_width": max_width,
+		"min_side_margin": min_side_margin,
+		"top_margin": 14,
+		"bottom_margin": 8,
+		"margin_steps": [
+			{"max_height": 1760.0, "top_margin": 12, "bottom_margin": 6},
+			{"max_height": 1560.0, "top_margin": 10, "bottom_margin": 5},
+			{"max_height": 1400.0, "top_margin": 12, "bottom_margin": 4},
+		],
+	})
 
 	if vbox != null:
-		vbox.add_theme_constant_override("separation", 0)
+		vbox.add_theme_constant_override("separation", 4 if compact_layout else 6)
 
 	# Top HUD
 	if top_row != null:
 		top_row.alignment = 0
-		top_row.add_theme_constant_override("separation", 0)
+		top_row.add_theme_constant_override("separation", 8 if compact_layout else 12)
 		top_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		top_row.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 		if header_card != null:
 			header_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			header_card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-			header_card.size_flags_stretch_ratio = 1.0
+			header_card.size_flags_stretch_ratio = 1.02
 			header_card.custom_minimum_size = Vector2(0.0, 0.0)
+		if route_read_label != null:
+			route_read_label.max_lines_visible = 2 if compact_layout else 1
 		if run_summary_card != null:
 			run_summary_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			run_summary_card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-			run_summary_card.size_flags_stretch_ratio = 1.0
+			run_summary_card.size_flags_stretch_ratio = 1.18
 			run_summary_card.custom_minimum_size = Vector2(0.0, 0.0)
+		if top_row_divider != null:
+			top_row_divider.visible = not very_compact_layout
+			top_row_divider.custom_minimum_size = Vector2(2.0, 0.0)
+		if stage_badge != null:
+			var badge_size: float = 54.0 if compact_layout else 62.0
+			stage_badge.custom_minimum_size = Vector2(badge_size, badge_size)
 		if safe_menu_anchor != null:
 			safe_menu_anchor.size_flags_horizontal = Control.SIZE_SHRINK_END
 			safe_menu_anchor.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 			safe_menu_anchor.size_flags_stretch_ratio = 0.0
-			safe_menu_anchor.custom_minimum_size = Vector2(74, 52)
+			safe_menu_anchor.custom_minimum_size = Vector2(98 if compact_layout else 108, 52)
 
 	# Middle map (main content)
 	route_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	route_grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	route_grid.custom_minimum_size = Vector2(0.0, 0.0)
+	route_grid.custom_minimum_size = Vector2(0.0, 500.0 if very_compact_layout else 560.0 if compact_layout else 600.0)
 
 	# Bottom action/info block (inventory + state summary)
 	if inventory_section != null:
 		inventory_section.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		inventory_section.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-		inventory_section.add_theme_constant_override("separation", 2 if very_compact_layout else 3)
+		inventory_section.add_theme_constant_override("separation", 1 if very_compact_layout else 3)
 		inventory_section.custom_minimum_size = Vector2.ZERO
+		if equipment_title_label != null:
+			equipment_title_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+		if equipment_hint_label != null:
+			equipment_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			equipment_hint_label.max_lines_visible = 1 if very_compact_layout else 2
+		if equipment_cards_flow != null:
+			equipment_cards_flow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			equipment_cards_flow.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+			equipment_cards_flow.custom_minimum_size = Vector2.ZERO
+			equipment_cards_flow.add_theme_constant_override("separation", 4 if very_compact_layout else 6 if compact_layout else 8)
+		if equipment_card != null:
+			equipment_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			equipment_card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+			equipment_card.custom_minimum_size = Vector2(0.0, 104.0 if very_compact_layout else 116.0 if compact_layout else 136.0)
 		if inventory_title_label != null:
-			inventory_title_label.autowrap_mode = TextServer.AUTOWRAP_OFF if very_compact_layout else TextServer.AUTOWRAP_OFF
+			inventory_title_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 		if inventory_hint_label != null:
-			inventory_hint_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+			inventory_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			inventory_hint_label.max_lines_visible = 1 if very_compact_layout else 2
 		if inventory_cards_flow != null:
 			inventory_cards_flow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			inventory_cards_flow.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 			inventory_cards_flow.custom_minimum_size = Vector2.ZERO
+			inventory_cards_flow.add_theme_constant_override("separation", 4 if very_compact_layout else 6 if compact_layout else 8)
 		if inventory_card != null:
 			inventory_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			inventory_card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-			inventory_card.custom_minimum_size = Vector2(0.0, 0.0)
+			inventory_card.custom_minimum_size = Vector2(0.0, 102.0 if very_compact_layout else 114.0 if compact_layout else 138.0)
 
 	if bottom_row != null:
 		bottom_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		bottom_row.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-		bottom_row.add_theme_constant_override("separation", 3 if very_compact_layout else 4)
+		bottom_row.add_theme_constant_override("separation", 2 if very_compact_layout else 4)
 		bottom_row.custom_minimum_size = Vector2.ZERO
 		if current_anchor_card != null:
 			current_anchor_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			current_anchor_card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+			current_anchor_card.custom_minimum_size = Vector2.ZERO
+		if current_anchor_hint_label != null:
+			current_anchor_hint_label.max_lines_visible = 1 if very_compact_layout else 2
 		if status_card != null:
 			status_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			status_card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+			status_card.custom_minimum_size = Vector2.ZERO
 
 	_flush_container_layout(vbox)
 	_flush_container_layout(top_row)
 	_flush_container_layout(route_grid)
 	_flush_container_layout(inventory_section)
 	_flush_container_layout(bottom_row)
+
+
+static func _apply_top_row_shell(shell: PanelContainer) -> void:
+	if shell == null:
+		return
+	_apply_compact_map_panel(shell, TempScreenThemeScript.PANEL_BORDER_COLOR, 22, 0.82, 18, 14)
+	TempScreenThemeScript.intensify_panel(shell, TempScreenThemeScript.PANEL_BORDER_COLOR, 3, 26, 0.05, 0.24, 20, 14)
+
+
+static func _apply_top_shell_cell(panel: PanelContainer, accent: Color) -> void:
+	if panel == null:
+		return
+	var style: StyleBoxFlat = panel.get_theme_stylebox("panel") as StyleBoxFlat
+	if style == null:
+		return
+	var tuned_style: StyleBoxFlat = style.duplicate() as StyleBoxFlat
+	tuned_style.bg_color = Color(
+		tuned_style.bg_color.r,
+		tuned_style.bg_color.g,
+		tuned_style.bg_color.b,
+		0.18
+	)
+	tuned_style.border_color = Color(accent.r, accent.g, accent.b, 0.22)
+	tuned_style.border_width_left = 1
+	tuned_style.border_width_top = 1
+	tuned_style.border_width_right = 1
+	tuned_style.border_width_bottom = 1
+	tuned_style.shadow_color = Color(accent.r, accent.g, accent.b, 0.06)
+	tuned_style.shadow_size = 6
+	panel.add_theme_stylebox_override("panel", tuned_style)
+
+
+static func _apply_top_row_divider(divider: ColorRect) -> void:
+	if divider == null:
+		return
+	divider.color = Color(
+		TempScreenThemeScript.PANEL_BORDER_COLOR.r,
+		TempScreenThemeScript.PANEL_BORDER_COLOR.g,
+		TempScreenThemeScript.PANEL_BORDER_COLOR.b,
+		0.18
+	)
+
+
+static func _apply_stage_badge_style(stage_badge: PanelContainer, stage_badge_label: Label) -> void:
+	if stage_badge == null or stage_badge_label == null:
+		return
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.28, 0.23, 0.11, 0.96)
+	style.border_color = TempScreenThemeScript.REWARD_ACCENT_COLOR.lightened(0.12)
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	style.corner_radius_top_left = 999
+	style.corner_radius_top_right = 999
+	style.corner_radius_bottom_right = 999
+	style.corner_radius_bottom_left = 999
+	style.shadow_color = Color(TempScreenThemeScript.REWARD_ACCENT_COLOR.r, TempScreenThemeScript.REWARD_ACCENT_COLOR.g, TempScreenThemeScript.REWARD_ACCENT_COLOR.b, 0.22)
+	style.shadow_size = 16
+	stage_badge.add_theme_stylebox_override("panel", style)
+	stage_badge_label.add_theme_color_override("font_color", TempScreenThemeScript.TEXT_PRIMARY_COLOR)
+	stage_badge_label.add_theme_font_size_override("font_size", 24)
+
+
+static func _apply_board_frame_style(board_frame: PanelContainer) -> void:
+	if board_frame == null:
+		return
+	TempScreenThemeScript.apply_panel(board_frame, TempScreenThemeScript.TEAL_ACCENT_COLOR, 30, 0.72)
+	TempScreenThemeScript.intensify_panel(board_frame, TempScreenThemeScript.TEAL_ACCENT_COLOR, 2, 24, 0.03, 0.18, 16, 16)
 
 static func _ensure_marker_overlay(marker_rect: TextureRect) -> void:
 	var selection_ring: PanelContainer = marker_rect.get_node_or_null("SelectionRing") as PanelContainer
@@ -475,6 +633,26 @@ static func _apply_compact_map_panel(panel: PanelContainer, accent: Color, corne
 	compact_style.content_margin_right = margin_x + 1
 	compact_style.content_margin_bottom = margin_y
 	panel.add_theme_stylebox_override("panel", compact_style)
+
+
+static func _soften_embedded_panel(panel: PanelContainer, accent: Color) -> void:
+	if panel == null:
+		return
+
+	var style: StyleBoxFlat = panel.get_theme_stylebox("panel") as StyleBoxFlat
+	if style == null:
+		return
+
+	var softened_style: StyleBoxFlat = style.duplicate() as StyleBoxFlat
+	softened_style.border_width_left = 1
+	softened_style.border_width_top = 1
+	softened_style.border_width_right = 1
+	softened_style.border_width_bottom = 1
+	softened_style.border_color = Color(accent.r, accent.g, accent.b, 0.36)
+	softened_style.bg_color = Color(softened_style.bg_color.r, softened_style.bg_color.g, softened_style.bg_color.b, 0.54)
+	softened_style.shadow_color = Color(accent.r, accent.g, accent.b, 0.08)
+	softened_style.shadow_size = 6
+	panel.add_theme_stylebox_override("panel", softened_style)
 
 
 static func _build_route_button_box(fill: Color, border: Color, border_width: int) -> StyleBoxFlat:

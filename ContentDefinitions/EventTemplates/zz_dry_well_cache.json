@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "definition_id": "zz_dry_well_cache",
+  "family": "EventTemplates",
+  "tags": [
+    "event",
+    "well",
+    "prototype"
+  ],
+  "display": {
+    "name": "Stones Around a Dry Well",
+    "short_description": "The well has been dry for years, but someone kept packing loose stones back over the mouth as if it still hid something worth guarding."
+  },
+  "rules": {
+    "choices": [
+      {
+        "choice_id": "hook_the_jar",
+        "label": "Hook the sealed jar out",
+        "summary": "A cool jar rides up on the old line, still tight enough to drink from.",
+        "effect_type": "grant_item",
+        "inventory_family": "consumable",
+        "definition_id": "field_broth",
+        "amount": 1
+      },
+      {
+        "choice_id": "work_the_chain_free",
+        "label": "Work the chain free from the stones",
+        "summary": "The rusted links still make decent repair iron if you are patient enough to pull them clean.",
+        "effect_type": "repair_weapon"
+      }
+    ]
+  }
+}

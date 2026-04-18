@@ -14,6 +14,7 @@ const SUPPORT_LEAVE_BUTTON_PATH := "Margin/VBox/FooterRow/LeaveButton"
 const SAFE_MENU_SAVE_BUTTON_PATH := "SafeMenuOverlay/MenuLayer/PanelHolder/PanelRow/MenuPanel/VBox/ActionsVBox/SaveRunButton"
 const SAFE_MENU_LOAD_BUTTON_PATH := "SafeMenuOverlay/MenuLayer/PanelHolder/PanelRow/MenuPanel/VBox/ActionsVBox/LoadRunButton"
 const InventoryActionsScript = preload("res://Game/Application/inventory_actions.gd")
+const TestExitCleanupHelperScript = preload("res://Tests/_exit_cleanup_helper.gd")
 const ROUTE_BUTTON_NODE_NAMES: PackedStringArray = [
 	"CombatNodeButton",
 	"RewardNodeButton",
@@ -25,6 +26,7 @@ const ROUTE_BUTTON_NODE_NAMES: PackedStringArray = [
 
 var _phase: int = 0
 var _phase_frame_count: int = 0
+var _is_finishing: bool = false
 
 
 func _init() -> void:
@@ -49,6 +51,7 @@ func _on_process_frame() -> void:
 			if _is_scene("MapExplore"):
 				var run_state: RunState = _get_run_state()
 				_require(run_state != null, "Expected RunState to exist.")
+				run_state.configure_run_seed(1)
 				run_state.player_hp = 40
 				run_state.hunger = 13
 				run_state.gold = 20
@@ -75,8 +78,8 @@ func _on_process_frame() -> void:
 		3:
 			if _is_scene("MapExplore"):
 				var run_state_after_rest: RunState = _get_run_state()
-				_require(run_state_after_rest.player_hp == 48, "Expected rest to heal 8 HP.")
-				_require(run_state_after_rest.hunger == 8, "Expected rest to spend 4 hunger after the node-move hunger cost.")
+				_require(run_state_after_rest.player_hp == 50, "Expected rest to heal 10 HP.")
+				_require(run_state_after_rest.hunger == 9, "Expected rest to spend 3 hunger after the node-move hunger cost.")
 				_require(_get_support_state() == null, "Expected support state to clear after rest.")
 				_press_map_route_containing("Merchant")
 				_advance_phase(4)
@@ -93,7 +96,7 @@ func _on_process_frame() -> void:
 		5:
 			if _is_scene("SupportInteraction"):
 				var run_state_after_purchase: RunState = _get_run_state()
-				_require(run_state_after_purchase.gold == 15, "Expected first merchant purchase to cost 5 gold.")
+				_require(run_state_after_purchase.gold == 14, "Expected first merchant purchase to cost 6 gold.")
 				_require(run_state_after_purchase.inventory_state.consumable_slots.size() == 2, "Expected bread purchase to add a second food stack beside the starter food.")
 				_require(String(run_state_after_purchase.inventory_state.consumable_slots[0].get("definition_id", "")) == "wild_berries", "Expected the starter food stack to remain first.")
 				_require(String(run_state_after_purchase.inventory_state.consumable_slots[1].get("definition_id", "")) == "traveler_bread", "Expected the first merchant food purchase to add traveler bread.")
@@ -118,16 +121,16 @@ func _on_process_frame() -> void:
 				_require(String(stage_two_merchant_state.support_type) == "merchant", "Expected stage-2 opening support to route to merchant.")
 				_require(stage_two_merchant_state.offers.size() == 3, "Expected stage-2 merchant stock to expose 3 offers.")
 				_require(
-					String(stage_two_merchant_state.offers[0].get("offer_id", "")) == "buy_roadside_stew_jar_x1",
+					String(stage_two_merchant_state.offers[0].get("offer_id", "")) == "buy_war_biscuit_x1",
 					"Expected the stage-2 merchant stock to switch to the authored stage-2 consumable offer."
 				)
 				_require(
-					String(stage_two_merchant_state.offers[1].get("offer_id", "")) == "buy_forager_knife",
-					"Expected the stage-2 merchant stock to switch to the authored mid-run weapon offer."
+					String(stage_two_merchant_state.offers[1].get("offer_id", "")) == "buy_bandit_hatchet",
+					"Expected the stage-2 merchant stock to switch to the authored dual-wield weapon offer."
 				)
 				_require(
-					String(stage_two_merchant_state.offers[2].get("offer_id", "")) == "buy_watchman_mace",
-					"Expected the stage-2 merchant stock to expose the authored durable weapon offer."
+					String(stage_two_merchant_state.offers[2].get("offer_id", "")) == "buy_pilgrim_board",
+					"Expected the stage-2 merchant stock to expose the authored survival shield offer."
 				)
 				_press(SUPPORT_LEAVE_BUTTON_PATH)
 				_advance_phase(8)
@@ -171,14 +174,15 @@ func _on_process_frame() -> void:
 				_require(bool(blacksmith_target_state.call("is_blacksmith_target_selection_active")), "Expected blacksmith to switch into target-selection mode.")
 				_require(String(blacksmith_target_state.title_text) == "Temper Weapon", "Expected blacksmith target-selection title to stay explicit.")
 				_require(String(blacksmith_target_state.offers[0].get("label", "")).contains("Iron Sword"), "Expected the first blacksmith target to include the carried non-active weapon.")
-				var leave_button: Button = current_scene.get_node_or_null(SUPPORT_LEAVE_BUTTON_PATH) as Button
+				var support_root: Node = _get_scene_root("SupportInteraction")
+				var leave_button: Button = support_root.get_node_or_null(SUPPORT_LEAVE_BUTTON_PATH) as Button
 				_require(leave_button != null and leave_button.text == "Back to Services", "Expected blacksmith target-selection to retitle the leave button as a service back action.")
 				_press(SUPPORT_ACTION_A_BUTTON_PATH)
 				_advance_phase(13)
 		13:
 			if _is_scene("MapExplore"):
 				var run_state_after_blacksmith: RunState = _get_run_state()
-				_require(run_state_after_blacksmith.gold == 7, "Expected blacksmith tempering to cost 8 gold after the earlier merchant spend.")
+				_require(run_state_after_blacksmith.gold == 7, "Expected blacksmith tempering to cost 7 gold after the earlier 6-gold merchant spend.")
 				_require(String(run_state_after_blacksmith.inventory_state.weapon_instance.get("definition_id", "")) == "splitter_axe", "Expected tempering a carried weapon not to swap the active weapon lane.")
 				var carried_weapon_slot_id: int = -1
 				for slot in run_state_after_blacksmith.inventory_state.inventory_slots:
@@ -197,8 +201,10 @@ func _on_process_frame() -> void:
 		14:
 			if _is_scene("MapExplore"):
 				_require(_get_support_state() == null, "Expected resolved rest revisit after blacksmith not to reopen support state.")
-				print("test_support_interaction: all assertions passed")
-				quit()
+				_advance_phase(15)
+		15:
+			if _is_scene("MapExplore") and _phase_frame_count >= 60:
+				await _finish_success("test_support_interaction")
 
 	_assert_phase_timeout()
 
@@ -219,25 +225,37 @@ func _ensure_autoload_like_nodes() -> void:
 
 
 func _is_scene(expected_name: String) -> bool:
-	return current_scene != null and current_scene.name == expected_name
+	if current_scene == null:
+		return false
+	if expected_name == "MapExplore":
+		return current_scene.name == "MapExplore" and _get_visible_overlay_root() == null
+	return _get_scene_root(expected_name) != null
 
 
 func _press(node_path: String) -> void:
-	if current_scene == null:
-		_fail("Expected current scene before pressing %s." % node_path)
-	var button: Button = current_scene.get_node(node_path) as Button
+	var scene_root: Node = _get_scene_root()
+	_require(scene_root != null, "Expected current scene before pressing %s." % node_path)
+	var button: Button = scene_root.get_node(node_path) as Button
 	_require(button != null, "Expected button at %s." % node_path)
 	button.emit_signal("pressed")
 
 
 func _press_map_route_containing(label_fragment: String) -> void:
 	_require(current_scene != null, "Expected current scene before pressing a map route.")
-	for button_name in ROUTE_BUTTON_NODE_NAMES:
+	_require(_get_visible_overlay_root() == null, "Expected no active overlay before pressing a map route.")
+	var route_models: Array = current_scene.get("_route_models_cache")
+	for route_index in range(ROUTE_BUTTON_NODE_NAMES.size()):
+		var button_name: String = String(ROUTE_BUTTON_NODE_NAMES[route_index])
 		var button: Button = current_scene.get_node_or_null("Margin/VBox/RouteGrid/%s" % button_name) as Button
 		if button == null or not button.visible or button.disabled:
 			continue
 		var route_label: String = button.text if not button.text.is_empty() else button.tooltip_text
 		if route_label.contains(label_fragment):
+			if route_index >= 0 and route_index < route_models.size():
+				var target_node_id: int = int((route_models[route_index] as Dictionary).get("node_id", -1))
+				if target_node_id >= 0:
+					current_scene.call("_move_to_node", target_node_id)
+					return
 			button.emit_signal("pressed")
 			return
 	_fail("Expected a visible enabled route button containing %s." % label_fragment)
@@ -280,18 +298,25 @@ func _set_stage_on_current_run(stage_index: int) -> void:
 
 
 func _require_modal_popup_shell() -> void:
-	var scrim: ColorRect = current_scene.get_node_or_null("Scrim") as ColorRect
-	_require(scrim != null, "Expected Scrim on %s." % current_scene.name)
-	_require(scrim.visible, "Expected Scrim to stay visible on %s." % current_scene.name)
-	var shell: PanelContainer = current_scene.get_node_or_null("Margin/ContentShell") as PanelContainer
-	_require(shell != null, "Expected ContentShell popup on %s." % current_scene.name)
-	_require(shell.visible, "Expected ContentShell popup to stay visible on %s." % current_scene.name)
-	_require_texture_rect_present("BackgroundFar")
-	_require_texture_rect_present("BackgroundMid")
-	var overlay: TextureRect = current_scene.get_node_or_null("BackgroundOverlay") as TextureRect
-	_require(overlay != null, "Expected TextureRect BackgroundOverlay to exist on %s." % current_scene.name)
-	_require(overlay.visible, "Expected TextureRect BackgroundOverlay to stay visible on %s." % current_scene.name)
-	_require(overlay.texture != null, "Expected TextureRect BackgroundOverlay to keep a texture on %s." % current_scene.name)
+	var scene_root: Node = _get_scene_root()
+	var scrim: ColorRect = scene_root.get_node_or_null("Scrim") as ColorRect
+	_require(scrim != null, "Expected Scrim on %s." % scene_root.name)
+	_require(scrim.visible, "Expected Scrim to stay visible on %s." % scene_root.name)
+	var margin: Control = scene_root.get_node_or_null("Margin") as Control
+	_require(margin != null, "Expected Margin popup root on %s." % scene_root.name)
+	_require(margin.visible, "Expected Margin popup root to stay visible on %s." % scene_root.name)
+	var shell: PanelContainer = scene_root.get_node_or_null("Margin/ContentShell") as PanelContainer
+	var uses_full_scene_shell: bool = shell != null and shell.visible
+	if uses_full_scene_shell:
+		_require_texture_rect_present("BackgroundFar")
+		_require_texture_rect_present("BackgroundMid")
+	else:
+		_require_hidden_texture_rect_present("BackgroundFar")
+		_require_hidden_texture_rect_present("BackgroundMid")
+	var overlay: TextureRect = scene_root.get_node_or_null("BackgroundOverlay") as TextureRect
+	_require(overlay != null, "Expected TextureRect BackgroundOverlay to exist on %s." % scene_root.name)
+	_require(overlay.visible if uses_full_scene_shell else not overlay.visible, "Expected TextureRect BackgroundOverlay visibility on %s to match the current popup mode." % scene_root.name)
+	_require(overlay.texture != null, "Expected TextureRect BackgroundOverlay to keep a texture on %s." % scene_root.name)
 
 
 func _require_generic_background_shell() -> void:
@@ -301,10 +326,19 @@ func _require_generic_background_shell() -> void:
 
 
 func _require_texture_rect_present(node_name: String) -> void:
-	var texture_rect: TextureRect = current_scene.get_node_or_null(node_name) as TextureRect
-	_require(texture_rect != null, "Expected TextureRect %s to exist on %s." % [node_name, current_scene.name])
-	_require(texture_rect.visible, "Expected TextureRect %s to stay visible on %s." % [node_name, current_scene.name])
-	_require(texture_rect.texture != null, "Expected TextureRect %s to have a texture on %s." % [node_name, current_scene.name])
+	var scene_root: Node = _get_scene_root()
+	var texture_rect: TextureRect = scene_root.get_node_or_null(node_name) as TextureRect
+	_require(texture_rect != null, "Expected TextureRect %s to exist on %s." % [node_name, scene_root.name])
+	_require(texture_rect.visible, "Expected TextureRect %s to stay visible on %s." % [node_name, scene_root.name])
+	_require(texture_rect.texture != null, "Expected TextureRect %s to have a texture on %s." % [node_name, scene_root.name])
+
+
+func _require_hidden_texture_rect_present(node_name: String) -> void:
+	var scene_root: Node = _get_scene_root()
+	var texture_rect: TextureRect = scene_root.get_node_or_null(node_name) as TextureRect
+	_require(texture_rect != null, "Expected TextureRect %s to exist on %s." % [node_name, scene_root.name])
+	_require(not texture_rect.visible, "Expected TextureRect %s to stay hidden on %s." % [node_name, scene_root.name])
+	_require(texture_rect.texture != null, "Expected TextureRect %s to have a texture on %s." % [node_name, scene_root.name])
 
 
 func _require_support_button_icon_floor() -> void:
@@ -317,21 +351,34 @@ func _require_support_button_icon_floor() -> void:
 
 
 func _require_button_icon(node_path: String, expected_path: String) -> void:
-	var button: Button = current_scene.get_node_or_null(node_path) as Button
-	_require(button != null, "Expected button %s on %s." % [node_path, current_scene.name])
-	_require(button.icon != null, "Expected button %s to expose an icon on %s." % [node_path, current_scene.name])
-	_require(button.icon.resource_path == expected_path, "Expected button %s to use %s on %s, got %s." % [node_path, expected_path, current_scene.name, button.icon.resource_path])
+	var scene_root: Node = _get_scene_root()
+	var button: Button = scene_root.get_node_or_null(node_path) as Button
+	_require(button != null, "Expected button %s on %s." % [node_path, scene_root.name])
+	_require(button.icon != null, "Expected button %s to expose an icon on %s." % [node_path, scene_root.name])
+	_require(button.icon.resource_path == expected_path, "Expected button %s to use %s on %s, got %s." % [node_path, expected_path, scene_root.name, button.icon.resource_path])
 
 
 func _require_button_has_no_icon(node_path: String) -> void:
-	var button: Button = current_scene.get_node_or_null(node_path) as Button
-	_require(button != null, "Expected button %s on %s." % [node_path, current_scene.name])
-	_require(button.icon == null, "Expected button %s to stay text-first on %s." % [node_path, current_scene.name])
+	var scene_root: Node = _get_scene_root()
+	var button: Button = scene_root.get_node_or_null(node_path) as Button
+	_require(button != null, "Expected button %s on %s." % [node_path, scene_root.name])
+	_require(button.icon == null, "Expected button %s to stay text-first on %s." % [node_path, scene_root.name])
 
 
 func _advance_phase(new_phase: int) -> void:
 	_phase = new_phase
 	_phase_frame_count = 0
+
+
+func _finish_success(test_name: String) -> void:
+	if _is_finishing:
+		return
+	_is_finishing = true
+	var process_frame_handler := Callable(self, "_on_process_frame")
+	if process_frame.is_connected(process_frame_handler):
+		process_frame.disconnect(process_frame_handler)
+	print("%s: all assertions passed" % test_name)
+	await TestExitCleanupHelperScript.cleanup_and_quit(self)
 
 
 func _assert_phase_timeout() -> void:
@@ -343,7 +390,65 @@ func _assert_phase_timeout() -> void:
 func _stringify_current_scene() -> String:
 	if current_scene == null:
 		return "<null>"
+	var overlay_root: Node = _get_visible_overlay_root()
+	if overlay_root != null:
+		return "%s (%s) + %s" % [current_scene.name, current_scene.scene_file_path, overlay_root.name]
 	return "%s (%s)" % [current_scene.name, current_scene.scene_file_path]
+
+
+func _get_scene_root(expected_name: String = "") -> Node:
+	if current_scene == null:
+		return null
+	if expected_name.is_empty():
+		var overlay_root: Node = _get_visible_overlay_root()
+		return overlay_root if overlay_root != null else current_scene
+	if current_scene.name == expected_name:
+		return current_scene
+	if current_scene.name != "MapExplore":
+		return null
+	var overlay_root_name: String = _overlay_root_name(expected_name)
+	if overlay_root_name.is_empty():
+		return null
+	return _find_visible_overlay_root(overlay_root_name)
+
+
+func _get_visible_overlay_root() -> Node:
+	if current_scene == null or current_scene.name != "MapExplore":
+		return null
+	for overlay_root_name in ["SupportOverlay", "EventOverlay", "RewardOverlay", "LevelUpOverlay"]:
+		var overlay_root: Control = _find_visible_overlay_root(overlay_root_name)
+		if overlay_root != null:
+			return overlay_root
+	return null
+
+
+func _find_visible_overlay_root(overlay_root_name: String) -> Control:
+	if current_scene == null:
+		return null
+	var exact_match: Control = current_scene.get_node_or_null(overlay_root_name) as Control
+	if exact_match != null and exact_match.visible:
+		return exact_match
+	for child in current_scene.get_children():
+		var overlay_root: Control = child as Control
+		if overlay_root == null or not overlay_root.visible:
+			continue
+		if String(overlay_root.name).begins_with(overlay_root_name):
+			return overlay_root
+	return null
+
+
+func _overlay_root_name(expected_name: String) -> String:
+	match expected_name:
+		"SupportInteraction":
+			return "SupportOverlay"
+		"Event":
+			return "EventOverlay"
+		"Reward":
+			return "RewardOverlay"
+		"LevelUp":
+			return "LevelUpOverlay"
+		_:
+			return ""
 
 
 func _require(condition: bool, message: String) -> void:

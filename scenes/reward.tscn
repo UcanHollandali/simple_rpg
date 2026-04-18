@@ -85,119 +85,129 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 8
 
-[node name="HeaderRow" type="VBoxContainer" parent="Margin/VBox"]
+[node name="OffersShell" type="PanelContainer" parent="Margin/VBox"]
+size_flags_horizontal = 3
+size_flags_vertical = 1
+
+[node name="VBox" type="VBoxContainer" parent="Margin/VBox/OffersShell"]
 theme_override_constants/separation = 8
 
-[node name="HeaderStack" type="VBoxContainer" parent="Margin/VBox/HeaderRow"]
+[node name="HeaderRow" type="VBoxContainer" parent="Margin/VBox/OffersShell/VBox"]
+theme_override_constants/separation = 8
+
+[node name="HeaderCard" type="PanelContainer" parent="Margin/VBox/OffersShell/VBox/HeaderRow"]
+size_flags_horizontal = 3
+
+[node name="HeaderStack" type="VBoxContainer" parent="Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard"]
 size_flags_horizontal = 3
 theme_override_constants/separation = 4
 
-[node name="ChipCard" type="PanelContainer" parent="Margin/VBox/HeaderRow/HeaderStack"]
+[node name="ChipCard" type="PanelContainer" parent="Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard/HeaderStack"]
 
-[node name="ChipLabel" type="Label" parent="Margin/VBox/HeaderRow/HeaderStack/ChipCard"]
+[node name="ChipLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard/HeaderStack/ChipCard"]
 text = "SALVAGE"
 
-[node name="TitleLabel" type="Label" parent="Margin/VBox/HeaderRow/HeaderStack"]
+[node name="TitleLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard/HeaderStack"]
 text = "Victory! Choose a reward"
 autowrap_mode = 3
 
-[node name="ContextLabel" type="Label" parent="Margin/VBox/HeaderRow/HeaderStack"]
+[node name="ContextLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard/HeaderStack"]
 text = "Choose 1 of 3"
 autowrap_mode = 3
 
-[node name="HintLabel" type="Label" parent="Margin/VBox/HeaderRow/HeaderStack"]
+[node name="HintLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard/HeaderStack"]
 text = "Take one salvage result. The rest is left behind."
 autowrap_mode = 3
 
-[node name="RunStatusCard" type="PanelContainer" parent="Margin/VBox/HeaderRow"]
+[node name="RunStatusCard" type="PanelContainer" parent="Margin/VBox/OffersShell/VBox/HeaderRow"]
 size_flags_horizontal = 3
 
-[node name="RunStatusLabel" type="Label" parent="Margin/VBox/HeaderRow/RunStatusCard"]
+[node name="RunStatusLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/HeaderRow/RunStatusCard"]
 text = "HP 0 | Hunger 0 | Gold 0 | Durability 0"
 autowrap_mode = 3
 
-[node name="CardsRow" type="VBoxContainer" parent="Margin/VBox"]
+[node name="CardsRow" type="VBoxContainer" parent="Margin/VBox/OffersShell/VBox"]
 size_flags_vertical = 1
 theme_override_constants/separation = 8
 
-[node name="ChoiceACard" type="PanelContainer" parent="Margin/VBox/CardsRow"]
+[node name="ChoiceACard" type="PanelContainer" parent="Margin/VBox/OffersShell/VBox/CardsRow"]
 size_flags_horizontal = 3
 size_flags_vertical = 1
 custom_minimum_size = Vector2(0, 100)
 
-[node name="VBox" type="VBoxContainer" parent="Margin/VBox/CardsRow/ChoiceACard"]
+[node name="VBox" type="VBoxContainer" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard"]
 theme_override_constants/separation = 3
 
-[node name="BadgeLabel" type="Label" parent="Margin/VBox/CardsRow/ChoiceACard/VBox"]
+[node name="BadgeLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard/VBox"]
 text = "Reward"
 
-[node name="OfferTitleLabel" type="Label" parent="Margin/VBox/CardsRow/ChoiceACard/VBox"]
+[node name="OfferTitleLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard/VBox"]
 text = "Choice A"
 autowrap_mode = 3
 
-[node name="OfferDetailLabel" type="Label" parent="Margin/VBox/CardsRow/ChoiceACard/VBox"]
+[node name="OfferDetailLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard/VBox"]
 text = "Detail"
 autowrap_mode = 3
 
-[node name="Fill" type="Control" parent="Margin/VBox/CardsRow/ChoiceACard/VBox"]
+[node name="Fill" type="Control" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard/VBox"]
 custom_minimum_size = Vector2(0, 4)
 size_flags_vertical = 1
 
-[node name="ChoiceAButton" type="Button" parent="Margin/VBox/CardsRow/ChoiceACard/VBox"]
+[node name="ChoiceAButton" type="Button" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard/VBox"]
 text = "Claim"
 size_flags_horizontal = 3
 
-[node name="ChoiceBCard" type="PanelContainer" parent="Margin/VBox/CardsRow"]
+[node name="ChoiceBCard" type="PanelContainer" parent="Margin/VBox/OffersShell/VBox/CardsRow"]
 size_flags_horizontal = 3
 size_flags_vertical = 1
 custom_minimum_size = Vector2(0, 100)
 
-[node name="VBox" type="VBoxContainer" parent="Margin/VBox/CardsRow/ChoiceBCard"]
+[node name="VBox" type="VBoxContainer" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard"]
 theme_override_constants/separation = 3
 
-[node name="BadgeLabel" type="Label" parent="Margin/VBox/CardsRow/ChoiceBCard/VBox"]
+[node name="BadgeLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard/VBox"]
 text = "Reward"
 
-[node name="OfferTitleLabel" type="Label" parent="Margin/VBox/CardsRow/ChoiceBCard/VBox"]
+[node name="OfferTitleLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard/VBox"]
 text = "Choice B"
 autowrap_mode = 3
 
-[node name="OfferDetailLabel" type="Label" parent="Margin/VBox/CardsRow/ChoiceBCard/VBox"]
+[node name="OfferDetailLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard/VBox"]
 text = "Detail"
 autowrap_mode = 3
 
-[node name="Fill" type="Control" parent="Margin/VBox/CardsRow/ChoiceBCard/VBox"]
+[node name="Fill" type="Control" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard/VBox"]
 custom_minimum_size = Vector2(0, 4)
 size_flags_vertical = 1
 
-[node name="ChoiceBButton" type="Button" parent="Margin/VBox/CardsRow/ChoiceBCard/VBox"]
+[node name="ChoiceBButton" type="Button" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard/VBox"]
 text = "Claim"
 size_flags_horizontal = 3
 
-[node name="ChoiceCCard" type="PanelContainer" parent="Margin/VBox/CardsRow"]
+[node name="ChoiceCCard" type="PanelContainer" parent="Margin/VBox/OffersShell/VBox/CardsRow"]
 size_flags_horizontal = 3
 size_flags_vertical = 1
 custom_minimum_size = Vector2(0, 100)
 
-[node name="VBox" type="VBoxContainer" parent="Margin/VBox/CardsRow/ChoiceCCard"]
+[node name="VBox" type="VBoxContainer" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceCCard"]
 theme_override_constants/separation = 3
 
-[node name="BadgeLabel" type="Label" parent="Margin/VBox/CardsRow/ChoiceCCard/VBox"]
+[node name="BadgeLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceCCard/VBox"]
 text = "Reward"
 
-[node name="OfferTitleLabel" type="Label" parent="Margin/VBox/CardsRow/ChoiceCCard/VBox"]
+[node name="OfferTitleLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceCCard/VBox"]
 text = "Choice C"
 autowrap_mode = 3
 
-[node name="OfferDetailLabel" type="Label" parent="Margin/VBox/CardsRow/ChoiceCCard/VBox"]
+[node name="OfferDetailLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceCCard/VBox"]
 text = "Detail"
 autowrap_mode = 3
 
-[node name="Fill" type="Control" parent="Margin/VBox/CardsRow/ChoiceCCard/VBox"]
+[node name="Fill" type="Control" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceCCard/VBox"]
 custom_minimum_size = Vector2(0, 4)
 size_flags_vertical = 1
 
-[node name="ChoiceCButton" type="Button" parent="Margin/VBox/CardsRow/ChoiceCCard/VBox"]
+[node name="ChoiceCButton" type="Button" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceCCard/VBox"]
 text = "Claim"
 size_flags_horizontal = 3
 

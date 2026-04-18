@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "definition_id": "lantern_crest",
+  "family": "ShieldAttachments",
+  "tags": [
+    "shield_attachment",
+    "survival",
+    "road",
+    "light"
+  ],
+  "display": {
+    "name": "Lantern Crest",
+    "short_description": "A small beacon crest that steadies the hands and reduces weapon wear during drawn-out road fights.",
+    "icon_key": "shield_attachment_lantern_crest"
+  },
+  "rules": {
+    "attachment_target": "shield",
+    "max_per_shield": 1,
+    "behaviors": [
+      {
+        "trigger": "passive",
+        "condition": {
+          "op": "always"
+        },
+        "target": "self",
+        "effects": [
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "durability_cost_flat_reduction",
+              "amount": 1
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

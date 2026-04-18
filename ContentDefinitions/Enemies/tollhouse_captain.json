@@ -1,0 +1,201 @@
+{
+  "schema_version": 1,
+  "definition_id": "tollhouse_captain",
+  "authoring_order": 205,
+  "family": "Enemies",
+  "encounter_tier": "elite",
+  "design_intent_question": "Can the player read an early boss that alternates measured setup cuts with one committed punish, saving Defend for the real swing instead of panicking on every beat?",
+  "tags": [
+    "enemy",
+    "boss",
+    "stage_1",
+    "guardian",
+    "teachable_pattern"
+  ],
+  "display": {
+    "name": "Tollhouse Captain",
+    "short_description": "A hard-eyed road captain who tests the player's nerve with measured pressure before a heavier finishing stroke.",
+    "icon_key": "enemy_tollhouse_captain"
+  },
+  "rules": {
+    "stats": {
+      "base_hp": 34,
+      "base_damage": 5
+    },
+    "intent_pool": [
+      {
+        "intent_id": "captain_test_cut",
+        "action_family": "attack",
+        "threat_level": "medium",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 4,
+              "damage_kind": "physical"
+            }
+          }
+        ]
+      },
+      {
+        "intent_id": "tollhouse_command",
+        "action_family": "attack",
+        "threat_level": "medium",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 4,
+              "damage_kind": "physical"
+            }
+          },
+          {
+            "type": "apply_status",
+            "params": {
+              "definition_id": "weakened"
+            }
+          }
+        ]
+      },
+      {
+        "intent_id": "captain_halberd_drop",
+        "action_family": "attack",
+        "threat_level": "high",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 8,
+              "damage_kind": "physical"
+            }
+          }
+        ]
+      }
+    ],
+    "boss_phases": [
+      {
+        "phase_id": "road_toll",
+        "display_name": "Road Toll",
+        "intent_pool": [
+          {
+            "intent_id": "captain_test_cut",
+            "action_family": "attack",
+            "threat_level": "medium",
+            "effects": [
+              {
+                "type": "deal_damage",
+                "params": {
+                  "base": 4,
+                  "damage_kind": "physical"
+                }
+              }
+            ]
+          },
+          {
+            "intent_id": "tollhouse_command",
+            "action_family": "attack",
+            "threat_level": "medium",
+            "effects": [
+              {
+                "type": "deal_damage",
+                "params": {
+                  "base": 4,
+                  "damage_kind": "physical"
+                }
+              },
+              {
+                "type": "apply_status",
+                "params": {
+                  "definition_id": "weakened"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "phase_id": "captains_push",
+        "display_name": "Captain's Push",
+        "enter_at_or_below_percent": 60,
+        "intent_pool": [
+          {
+            "intent_id": "tollhouse_command",
+            "action_family": "attack",
+            "threat_level": "medium",
+            "effects": [
+              {
+                "type": "deal_damage",
+                "params": {
+                  "base": 4,
+                  "damage_kind": "physical"
+                }
+              },
+              {
+                "type": "apply_status",
+                "params": {
+                  "definition_id": "weakened"
+                }
+              }
+            ]
+          },
+          {
+            "intent_id": "captain_halberd_drop",
+            "action_family": "attack",
+            "threat_level": "high",
+            "effects": [
+              {
+                "type": "deal_damage",
+                "params": {
+                  "base": 8,
+                  "damage_kind": "physical"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "phase_id": "last_collector",
+        "display_name": "Last Collector",
+        "enter_at_or_below_percent": 30,
+        "intent_pool": [
+          {
+            "intent_id": "captain_finish",
+            "action_family": "attack",
+            "threat_level": "high",
+            "effects": [
+              {
+                "type": "deal_damage",
+                "params": {
+                  "base": 7,
+                  "damage_kind": "physical"
+                }
+              },
+              {
+                "type": "apply_status",
+                "params": {
+                  "definition_id": "bleed"
+                }
+              }
+            ]
+          },
+          {
+            "intent_id": "captain_halberd_drop",
+            "action_family": "attack",
+            "threat_level": "high",
+            "effects": [
+              {
+                "type": "deal_damage",
+                "params": {
+                  "base": 8,
+                  "damage_kind": "physical"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "behaviors": []
+  }
+}

@@ -4,12 +4,12 @@
   "authoring_order": 160,
   "family": "Enemies",
   "encounter_tier": "minor",
-  "design_intent_question": "Can the player save Brace for the clearly telegraphed impale turn instead of spending it on safer chip hits that only set up the real punish?",
+  "design_intent_question": "Can the player save Defend for the clearly telegraphed impale turn instead of spending it on safer chip hits that only set up the real punish?",
   "tags": [
     "enemy",
     "soldier",
     "stage_3",
-    "brace_test",
+    "guard_test",
     "high_threat"
   ],
   "display": {
@@ -19,7 +19,7 @@
   },
   "rules": {
     "stats": {
-      "base_hp": 28,
+      "base_hp": 30,
       "base_damage": 5
     },
     "intent_pool": [

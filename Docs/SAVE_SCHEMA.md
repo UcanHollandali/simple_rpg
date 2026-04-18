@@ -13,21 +13,22 @@ Save stores authoritative runtime truth, not presentation data.
 - Current save-sensitive truth lives in implemented owners only:
   - `GameFlowManager` for active flow state
   - `RunState` for current run-level data
-  - `MapRuntimeState` for the current scaffold-based stage-local graph slice, current node identity, realized graph truth, node-state truth, stage-local key / boss-gate truth, stage-local support-node local state, stage-local side-mission local state, roadside encounter quota state, and pending-node continuity, serialized through `RunState`
-  - `InventoryState` for shared carried inventory slots plus active equipped weapon / armor / belt slot ids
+  - `MapRuntimeState` for the current controlled-scatter stage-local realized graph slice, current node identity, realized graph truth, node-state truth, stage-local key / boss-gate truth, stage-local support-node local state, stage-local side-mission local state, roadside encounter quota state, and pending-node continuity, serialized through `RunState`
+  - `InventoryState` for backpack slot order plus explicit equipment-slot dictionaries
   - `CombatState` for active combat-only truth
   - `EventState` for pending event offer truth during the dedicated `Event` flow
   - `RewardState` for pending reward offers and source context
-  - `LevelUpState` for pending passive offers and target level
-- `SupportInteractionState` for pending support offers, support type, active support source node id, and active side-mission contract offer state when `SupportInteraction` is open
+  - `LevelUpState` for pending perk offers and target level
+  - `SupportInteractionState` for pending support offers, support type, active support source node id, and active side-mission contract offer state when `SupportInteraction` is open
   - current blacksmith target-selection view mode and page also live here when that visit is active
   - `RunSessionCoordinator` for a few transitional orchestration fields such as `last_run_result`
 - `MapRuntimeState` is now an implemented repo class; broader map-graph ownership is still later architecture.
 - Current map save payload now includes stable node identity, exact realized graph payload, and per-node gameplay state for the live procedural slice.
-- `save_schema_version = 5` writes the current exact-restore procedural payload, run-level deterministic stream continuity, the shared inventory-slot payload, side-mission node persistence, and roadside encounter quota state.
+- `save_schema_version = 8` writes the current exact-restore procedural payload, run-level deterministic stream continuity, the explicit backpack-plus-equipment inventory payload, character perk ownership, side-mission node persistence, roadside encounter quota state, and item-taxonomy fields for quest cargo plus shield attachments.
 - `save_schema_version = 2` is still accepted for backward-compatible load of the pre-seeded reward baseline.
 - `save_schema_version = 1` is still accepted for backward-compatible load and rebuilds the old fixed template path from `fixed_stage_cluster.json` / `fixed_stage_detour.json`.
-- `save_schema_version = 3` is still accepted for backward-compatible load of the earlier lane-based inventory payload plus the exact-restore procedural map slice.
+- `save_schema_version = 6` is still accepted for backward-compatible load of the pre-perk equipment-plus-backpack baseline.
+- `save_schema_version = 5` is still accepted for backward-compatible load of the earlier shared-bag inventory payload.
 - Save work must therefore distinguish between current implementation truth and target save split.
 
 ## Required Metadata
@@ -48,12 +49,12 @@ These are different concepts and should not be merged.
 
 Current baseline:
 - snapshots write `content_version`
-- snapshots now write `content_version = prototype_content_v4`
-- snapshots now write `save_schema_version = 5`
+- snapshots now write `content_version = prototype_content_v7`
+- snapshots now write `save_schema_version = 8`
 - load validation requires `content_version` to be present
 - load validation rejects saves whose `content_version` does not match the current runtime baseline
 - old eventless `prototype_content_v1` saves are therefore rejected instead of being silently reconstructed under the current event-node baseline
-- load validation still accepts legacy `save_schema_version = 1`, `save_schema_version = 2`, `save_schema_version = 3`, and `save_schema_version = 4` snapshots for compatibility
+- load validation still accepts legacy `save_schema_version = 1`, `save_schema_version = 2`, `save_schema_version = 5`, `save_schema_version = 6`, and `save_schema_version = 7` snapshots for compatibility
 
 ## Stable ID Rule
 
@@ -90,7 +91,6 @@ Current implemented safe-state baseline:
 
 Not supported first:
 - `Boot`
-- `RunSetup`
 - `NodeResolve`
 - `Combat`
 - `Event`
@@ -148,22 +148,37 @@ Current baseline note:
   - `run_seed`
   - `rng_stream_states`
   - current truthful live stream: `reward_rng`
-- Current schema-5 `RunState` inventory payload now includes:
-  - `inventory_slots`
+- Current schema-6 `RunState` inventory payload now includes:
+- Current schema-7 `RunState` progression payload now also includes:
+  - `character_perk_state`
+  - `character_perk_state.owned_perk_ids`
+- Current schema-8 `RunState` inventory payload still includes:
+  - `backpack_slots`
   - `inventory_next_slot_id`
+  - `equipped_right_hand_slot`
+  - `equipped_left_hand_slot`
+  - `equipped_armor_slot`
+  - `equipped_belt_slot`
+- Current schema-8 shield slot payload may also include:
+  - `attachment_definition_id` on `shield` slot dictionaries
+- Current schema-8 backpack slots may now also use:
+  - `inventory_family = quest_item`
+  - `inventory_family = shield_attachment`
+- The array order of `backpack_slots` is current truthful backpack order and must survive save/load.
+- Current schema-6 backpack slot entries may also carry:
+  - `upgrade_level` on `weapon` and `armor` slots
+- Legacy schema-1 / schema-2 / schema-5 / schema-6 payloads may still carry:
+  - `inventory_slots`
   - `active_weapon_slot_id`
   - `active_armor_slot_id`
   - `active_belt_slot_id`
-- The array order of `inventory_slots` is current truthful carried inventory order and must survive save/load.
-- Current schema-5 inventory slot entries may also carry:
-  - `upgrade_level` on `weapon` and `armor` slots
-- Legacy schema-1 through schema-3 payloads may still carry:
   - `weapon_instance`
   - `armor_instance`
   - `belt_instance`
   - `consumable_slots`
   - `passive_slots`
-- Current load still accepts those legacy lane fields and hydrates the shared inventory owner from them.
+- Current load still accepts those legacy lane fields and hydrates the backpack-plus-equipment owner from them.
+- Current schema-7 load also migrates legacy progression passives from older save shapes into `character_perk_state` and clears those migrated passives from backpack truth.
 - Current `MapRuntimeState` save payload covers:
   - `active_map_template_id`
   - `map_realized_graph`
@@ -238,17 +253,21 @@ Required invariants include:
 - missing or mismatched `content_version` is rejected during load validation
 - legacy `save_schema_version = 1` files remain loadable for the old fixed-template map slice
 - `save_schema_version = 2` files remain loadable for the pre-seeded reward baseline
-- `save_schema_version = 3` files remain loadable for the earlier lane-based inventory slice
-- current `save_schema_version = 5` files require:
+- current `save_schema_version = 8` files require:
   - `active_map_template_id`
   - `map_realized_graph`
   - `run_seed`
   - `rng_stream_states`
+  - `character_perk_state`
   - roadside encounter stream history is preserved inside `rng_stream_states` for deterministic `roadside_encounter_rng` roll replay
+  - `backpack_slots`
+  - `equipped_right_hand_slot`
+  - `side_mission_node_states`
+    - legacy-named persistence surface for current runtime-backed `hamlet` request node state
+  - `roadside_encounters_this_stage`
+- legacy `save_schema_version = 5` files still require:
   - `inventory_slots`
   - `active_weapon_slot_id`
-  - `side_mission_node_states`
-  - `roadside_encounters_this_stage`
 - broken or missing content references should not silently map to random substitutes
 
 ## Pending Choice Rule

@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "definition_id": "warden_spear",
+  "family": "Weapons",
+  "tags": [
+    "weapon",
+    "melee",
+    "spear",
+    "physical",
+    "steady",
+    "warden"
+  ],
+  "display": {
+    "name": "Warden Spear",
+    "short_description": "A disciplined road spear with stable reach, clean damage, and forgiving wear.",
+    "icon_key": "weapon_warden_spear"
+  },
+  "design_intent_question": "Can a steady spear create a safer right-hand option for defend-first runs without collapsing into the pure durability lane of the mace?",
+  "rules": {
+    "slot_compatibility": {
+      "right_hand": true,
+      "left_hand": false,
+      "offhand_capable": false
+    },
+    "stats": {
+      "weapon_type": "spear",
+      "base_damage": 6,
+      "max_durability": 24,
+      "durability_cost_per_attack": 2,
+      "durability_profile": "sturdy"
+    }
+  }
+}

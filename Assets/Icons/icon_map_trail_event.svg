@@ -1,0 +1,16 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="event_pin" x1="64" y1="18" x2="64" y2="112" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#466861"/>
+      <stop offset="1" stop-color="#263C38"/>
+    </linearGradient>
+  </defs>
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <path d="M64 18C84 18 101 34 101 54c0 26-21 42-37 58C48 96 27 80 27 54c0-20 17-36 37-36Z" fill="url(#event_pin)" stroke="#E6DFC9" stroke-width="4"/>
+    <path d="M49 76c11-13 18-22 28-35" stroke="#F4ECD7" stroke-width="8"/>
+    <path d="M62 35h27l-8 17H55Z" fill="#C9B26B" stroke="#F4ECD7" stroke-width="3"/>
+    <circle cx="51" cy="80" r="11" fill="#E6DFC9"/>
+    <circle cx="51" cy="80" r="5" fill="#395856"/>
+    <path d="M83 30 92 39" stroke="#C9B26B" stroke-width="5"/>
+  </g>
+</svg>

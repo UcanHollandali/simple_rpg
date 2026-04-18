@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "definition_id": "hamlet_seal",
+  "family": "QuestItems",
+  "tags": [
+    "quest_item",
+    "hamlet",
+    "cargo"
+  ],
+  "display": {
+    "name": "Hamlet Seal",
+    "short_description": "A stamped village seal carried as protected quest cargo.",
+    "icon_key": "quest_hamlet_seal"
+  },
+  "rules": {}
+}

@@ -4,41 +4,44 @@
   "authoring_order": 50,
   "family": "Enemies",
   "encounter_tier": "minor",
-  "design_intent_question": "Can the player finish a fast target before its low-HP frenzy turns chip damage into a real punish window?",
+  "design_intent_question": "Can the player keep a fast beast from turning chip bites into a bleed spiral once it starts running in circles around the guard line?",
   "tags": [
     "enemy",
     "undead",
+    "stage_1",
     "forest",
-    "hound"
+    "hound",
+    "beast",
+    "bleed"
   ],
   "display": {
     "name": "Skeletal Hound",
-    "short_description": "A grave-hound from the treeline that starts with quick bites, then lunges harder once it smells weakness.",
+    "short_description": "A grave-hound from the treeline that chips with darting bites, worries at open legs, and grows bolder once blood is in the air.",
     "icon_key": "enemy_skeletal_hound"
   },
   "rules": {
     "stats": {
       "base_hp": 16,
-      "base_damage": 4,
-      "dodge_chance": 15
+      "base_damage": 3,
+      "dodge_chance": 20
     },
     "intent_pool": [
       {
-        "intent_id": "grave_lunge",
+        "intent_id": "darting_bite",
         "action_family": "attack",
-        "threat_level": "medium",
+        "threat_level": "low",
         "effects": [
           {
             "type": "deal_damage",
             "params": {
-              "base": 4,
+              "base": 3,
               "damage_kind": "physical"
             }
           }
         ]
       },
       {
-        "intent_id": "rib_rake",
+        "intent_id": "hamstring_snap",
         "action_family": "attack",
         "threat_level": "medium",
         "effects": [
@@ -58,14 +61,14 @@
         ]
       },
       {
-        "intent_id": "circling_snap",
+        "intent_id": "grave_lunge",
         "action_family": "attack",
-        "threat_level": "low",
+        "threat_level": "high",
         "effects": [
           {
             "type": "deal_damage",
             "params": {
-              "base": 2,
+              "base": 4,
               "damage_kind": "physical"
             }
           }
@@ -86,7 +89,7 @@
             "type": "modify_stat",
             "params": {
               "stat": "attack_power_bonus",
-              "amount": 2
+              "amount": 1
             }
           }
         ]

@@ -4,21 +4,35 @@ extends Control
 const FlowStateScript = preload("res://Game/Application/flow_state.gd")
 const SceneAudioCleanupScript = preload("res://Game/UI/scene_audio_cleanup.gd")
 const RunMenuSceneHelperScript = preload("res://Game/UI/run_menu_scene_helper.gd")
+const RunStatusPresenterScript = preload("res://Game/UI/run_status_presenter.gd")
+const RunStatusStripScript = preload("res://Game/UI/run_status_strip.gd")
 const SceneAudioPlayersScript = preload("res://Game/UI/scene_audio_players.gd")
+const SceneLayoutHelperScript = preload("res://Game/UI/scene_layout_helper.gd")
 const TempScreenThemeScript = preload("res://Game/UI/temp_screen_theme.gd")
-const UI_CONFIRM_SFX_PATH := "res://Assets/Audio/SFX/sfx_ui_confirm_01.ogg"
-const UI_CANCEL_SFX_PATH := "res://Assets/Audio/SFX/sfx_ui_cancel_01.ogg"
-const PANEL_OPEN_SFX_PATH := "res://Assets/Audio/SFX/sfx_panel_open_01.ogg"
-const RUN_END_MUSIC_LOOP_PATH := "res://Assets/Audio/Music/music_run_end_loop_temp_01.ogg"
 const ONE_SHOT_UI_TRANSITION_LEAD_IN_SECONDS := 0.06
 const PORTRAIT_SAFE_MAX_WIDTH := 860
 const PORTRAIT_SAFE_MIN_SIDE_MARGIN := 28
-const AUDIO_PLAYER_NODE_NAMES: Array[String] = [
-	"UiConfirmSfxPlayer",
-	"UiCancelSfxPlayer",
-	"PanelOpenSfxPlayer",
-	"RunEndMusicPlayer",
-]
+const AUDIO_PLAYER_CONFIG := {
+	"UiConfirmSfxPlayer": {"path": "res://Assets/Audio/SFX/sfx_ui_confirm_01.ogg"},
+	"UiCancelSfxPlayer": {"path": "res://Assets/Audio/SFX/sfx_ui_cancel_01.ogg"},
+	"PanelOpenSfxPlayer": {"path": "res://Assets/Audio/SFX/sfx_panel_open_01.ogg"},
+	"RunEndMusicPlayer": {"path": "res://Assets/Audio/Music/music_run_end_loop_proto_01.ogg", "music": true, "loop": true},
+}
+const PORTRAIT_LAYOUT_CONFIG := {
+	"max_width": PORTRAIT_SAFE_MAX_WIDTH,
+	"min_side_margin": PORTRAIT_SAFE_MIN_SIDE_MARGIN,
+	"top_margin": 112,
+	"bottom_margin": 112,
+	"margin_steps": [
+		{"max_height": 1760.0, "top_margin": 92, "bottom_margin": 92},
+		{"max_height": 1540.0, "top_margin": 70, "bottom_margin": 70},
+	],
+	"bands": {
+		"large": {"min_width": 720.0, "min_height": 1640.0, "title_font_size": 48, "result_font_size": 28, "hint_font_size": 19, "run_status_font_size": 18, "status_font_size": 19, "button_font_size": 22, "button_height": 80.0, "run_status_width": 320.0, "button_icon_max_width": 30},
+		"medium": {"min_width": 600.0, "min_height": 1460.0, "title_font_size": 42, "result_font_size": 24, "hint_font_size": 17, "run_status_font_size": 16, "status_font_size": 17, "button_font_size": 20, "button_height": 72.0, "run_status_width": 280.0, "button_icon_max_width": 26},
+		"compact": {"title_font_size": 36, "result_font_size": 21, "hint_font_size": 15, "run_status_font_size": 14, "status_font_size": 15, "button_font_size": 18, "button_height": 64.0, "run_status_width": 236.0, "button_icon_max_width": 22},
+	},
+}
 
 var _bootstrap
 var _safe_menu: SafeMenuOverlay
@@ -30,7 +44,7 @@ func _ready() -> void:
 	var title_label: Label = get_node_or_null("Margin/Center/ContentCard/VBox/TitleLabel") as Label
 	var return_button: Button = get_node_or_null("Margin/Center/ContentCard/VBox/ReturnButton") as Button
 	_bootstrap = get_node_or_null("/root/AppBootstrap")
-	_configure_audio_players()
+	SceneAudioPlayersScript.configure_from_config(self, AUDIO_PLAYER_CONFIG)
 	if _bootstrap != null:
 		var last_result: String = String(_bootstrap.get_last_run_result())
 		var result_texts: Dictionary = _build_result_copy(String(_bootstrap.get_last_run_result()))
@@ -49,8 +63,9 @@ func _ready() -> void:
 
 	_apply_temp_theme()
 	_setup_safe_menu()
-	_connect_viewport_layout_updates()
+	SceneLayoutHelperScript.bind_viewport_size_changed(self, Callable(self, "_apply_portrait_safe_layout"))
 	_apply_portrait_safe_layout()
+	_render_run_status_card()
 	_set_status_text("")
 	_refresh_save_controls()
 	SceneAudioPlayersScript.start_looping(self, "RunEndMusicPlayer")
@@ -58,8 +73,8 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
-	_disconnect_viewport_layout_updates()
-	SceneAudioCleanupScript.release_players(self, AUDIO_PLAYER_NODE_NAMES)
+	SceneLayoutHelperScript.unbind_viewport_size_changed(self, Callable(self, "_apply_portrait_safe_layout"))
+	SceneAudioCleanupScript.release_players(self, SceneAudioPlayersScript.node_names_from_config(AUDIO_PLAYER_CONFIG))
 
 
 func _on_return_pressed() -> void:
@@ -110,13 +125,6 @@ func _get_flow_manager() -> GameFlowManager:
 	return _bootstrap.get_flow_manager()
 
 
-func _configure_audio_players() -> void:
-	SceneAudioPlayersScript.assign_stream_from_path(self, "UiConfirmSfxPlayer", UI_CONFIRM_SFX_PATH)
-	SceneAudioPlayersScript.assign_stream_from_path(self, "UiCancelSfxPlayer", UI_CANCEL_SFX_PATH)
-	SceneAudioPlayersScript.assign_stream_from_path(self, "PanelOpenSfxPlayer", PANEL_OPEN_SFX_PATH)
-	SceneAudioPlayersScript.assign_music_stream_from_path(self, "RunEndMusicPlayer", RUN_END_MUSIC_LOOP_PATH, true)
-
-
 func _apply_temp_theme() -> void:
 	TempScreenThemeScript.apply_wayfinder_backdrop(self, 0.58, 0.24, 0.08, true)
 	TempScreenThemeScript.apply_panel(get_node_or_null("Margin/Center/ContentCard") as PanelContainer, TempScreenThemeScript.RUST_ACCENT_COLOR, 22, 0.95)
@@ -126,31 +134,26 @@ func _apply_temp_theme() -> void:
 		get_node_or_null("Margin/Center/ContentCard/VBox/ChipCard/ChipLabel") as Label,
 		TempScreenThemeScript.RUST_ACCENT_COLOR
 	)
-	TempScreenThemeScript.apply_label(get_node_or_null("Margin/Center/ContentCard/VBox/TitleLabel") as Label, "title")
-	TempScreenThemeScript.apply_label(get_node_or_null("Margin/Center/ContentCard/VBox/ResultLabel") as Label, "danger")
-	TempScreenThemeScript.apply_label(get_node_or_null("Margin/Center/ContentCard/VBox/HintLabel") as Label, "accent")
-	TempScreenThemeScript.apply_label(get_node_or_null("Margin/Center/ContentCard/VBox/StatusLabel") as Label)
+	TempScreenThemeScript.apply_compact_status_area(
+		get_node_or_null("Margin/Center/ContentCard/VBox/RunStatusCard") as PanelContainer,
+		TempScreenThemeScript.PANEL_BORDER_COLOR
+	)
 	TempScreenThemeScript.apply_button(get_node_or_null("Margin/Center/ContentCard/VBox/ReturnButton") as Button, TempScreenThemeScript.RUST_ACCENT_COLOR, true)
-
-	var title_label: Label = get_node_or_null("Margin/Center/ContentCard/VBox/TitleLabel") as Label
-	if title_label != null:
-		title_label.add_theme_font_size_override("font_size", 34)
-
-	var result_label: Label = get_node_or_null("Margin/Center/ContentCard/VBox/ResultLabel") as Label
-	if result_label != null:
-		result_label.add_theme_font_size_override("font_size", 20)
-
-	var hint_label: Label = get_node_or_null("Margin/Center/ContentCard/VBox/HintLabel") as Label
-	if hint_label != null:
-		hint_label.add_theme_font_size_override("font_size", 16)
-
-	var status_label: Label = get_node_or_null("Margin/Center/ContentCard/VBox/StatusLabel") as Label
-	if status_label != null:
-		status_label.add_theme_font_size_override("font_size", 14)
-
-	var return_button: Button = get_node_or_null("Margin/Center/ContentCard/VBox/ReturnButton") as Button
-	if return_button != null:
-		return_button.add_theme_font_size_override("font_size", 18)
+	SceneLayoutHelperScript.apply_label_tones(self, [
+		{"path": "Margin/Center/ContentCard/VBox/TitleLabel", "tone": "title"},
+		{"path": "Margin/Center/ContentCard/VBox/ResultLabel", "tone": "danger"},
+		{"path": "Margin/Center/ContentCard/VBox/HintLabel", "tone": "accent"},
+		{"path": "Margin/Center/ContentCard/VBox/RunStatusCard/RunStatusLabel", "tone": "muted"},
+		{"path": "Margin/Center/ContentCard/VBox/StatusLabel", "tone": "body"},
+	])
+	SceneLayoutHelperScript.apply_control_overrides(self, {}, [
+		{"path": "Margin/Center/ContentCard/VBox/TitleLabel", "font_size": 34},
+		{"path": "Margin/Center/ContentCard/VBox/ResultLabel", "font_size": 20},
+		{"path": "Margin/Center/ContentCard/VBox/HintLabel", "font_size": 16},
+		{"path": "Margin/Center/ContentCard/VBox/RunStatusCard/RunStatusLabel", "font_size": 14},
+		{"path": "Margin/Center/ContentCard/VBox/StatusLabel", "font_size": 14},
+		{"path": "Margin/Center/ContentCard/VBox/ReturnButton", "font_size": 18},
+	])
 
 
 func _setup_safe_menu() -> void:
@@ -158,89 +161,46 @@ func _setup_safe_menu() -> void:
 		self,
 		_safe_menu,
 		"Run Menu",
-		"Save, load, mute music, or quit.",
+		"Save, load, return to menu, mute music, or quit.",
 		"Settings",
 		Callable(self, "_on_save_pressed"),
-		Callable(self, "_on_load_pressed")
+		Callable(self, "_on_load_pressed"),
+		Callable(self, "_on_return_pressed")
 	)
-
-
-func _connect_viewport_layout_updates() -> void:
-	var viewport: Viewport = get_viewport()
-	if viewport == null:
-		return
-	var size_changed_handler := Callable(self, "_on_viewport_size_changed")
-	if not viewport.is_connected("size_changed", size_changed_handler):
-		viewport.connect("size_changed", size_changed_handler)
-
-
-func _disconnect_viewport_layout_updates() -> void:
-	var viewport: Viewport = get_viewport()
-	if viewport == null:
-		return
-	var size_changed_handler := Callable(self, "_on_viewport_size_changed")
-	if viewport.is_connected("size_changed", size_changed_handler):
-		viewport.disconnect("size_changed", size_changed_handler)
-
-
-func _on_viewport_size_changed() -> void:
-	_apply_portrait_safe_layout()
 
 
 func _apply_portrait_safe_layout() -> void:
-	var margin: MarginContainer = get_node_or_null("Margin") as MarginContainer
-	var content_card: PanelContainer = get_node_or_null("Margin/Center/ContentCard") as PanelContainer
-	var vbox: VBoxContainer = get_node_or_null("Margin/Center/ContentCard/VBox") as VBoxContainer
-	if margin == null or content_card == null:
+	var values: Dictionary = SceneLayoutHelperScript.apply_portrait_layout(self, PORTRAIT_LAYOUT_CONFIG)
+	if values.is_empty():
 		return
+	var viewport_size: Vector2 = values.get("viewport_size", Vector2.ZERO)
+	values["panel_width"] = min(float(values.get("safe_width", 0.0)), 820.0 if viewport_size.y >= 1640.0 else 740.0 if viewport_size.y >= 1460.0 else 620.0)
+	values["vbox_separation"] = 12 if viewport_size.y < 1560.0 else 16
+	SceneLayoutHelperScript.apply_control_overrides(self, values, [
+		{"path": "Margin/Center/ContentCard", "custom_minimum_size": {"x": "panel_width", "y": 0.0}},
+		{"path": "Margin/Center/ContentCard/VBox", "theme_constants": {"separation": "vbox_separation"}},
+		{"path": "Margin/Center/ContentCard/VBox/TitleLabel", "font_size": "title_font_size"},
+		{"path": "Margin/Center/ContentCard/VBox/ResultLabel", "font_size": "result_font_size"},
+		{"path": "Margin/Center/ContentCard/VBox/HintLabel", "font_size": "hint_font_size"},
+		{"path": "Margin/Center/ContentCard/VBox/RunStatusCard/RunStatusLabel", "font_size": "run_status_font_size"},
+		{"path": "Margin/Center/ContentCard/VBox/RunStatusCard", "custom_minimum_size": {"x": "run_status_width", "y": 0.0}},
+		{"path": "Margin/Center/ContentCard/VBox/StatusLabel", "font_size": "status_font_size"},
+		{"path": "Margin/Center/ContentCard/VBox/ReturnButton", "font_size": "button_font_size", "custom_minimum_size": {"x": 0.0, "y": "button_height"}, "theme_constants": {"icon_max_width": "button_icon_max_width"}},
+	])
 
-	var viewport_size: Vector2 = get_viewport_rect().size
-	var top_margin: int = 112
-	var bottom_margin: int = 112
-	if viewport_size.y < 1760.0:
-		top_margin = 92
-		bottom_margin = 92
-	if viewport_size.y < 1540.0:
-		top_margin = 70
-		bottom_margin = 70
 
-	var safe_width: int = TempScreenThemeScript.apply_portrait_safe_margins(
-		margin,
-		PORTRAIT_SAFE_MAX_WIDTH,
-		PORTRAIT_SAFE_MIN_SIDE_MARGIN,
-		top_margin,
-		bottom_margin
+func _render_run_status_card() -> void:
+	var run_state: RunState = _bootstrap.get_run_state() if _bootstrap != null else null
+	RunStatusStripScript.render_into(
+		get_node_or_null("Margin/Center/ContentCard/VBox/RunStatusCard") as PanelContainer,
+		get_node_or_null("Margin/Center/ContentCard/VBox/RunStatusCard/RunStatusLabel") as Label,
+		RunStatusPresenterScript.build_status_model(run_state, {
+			"variant": RunStatusPresenterScript.VARIANT_STANDARD,
+			"include_weapon": true,
+			"include_xp": true,
+		}),
+		TempScreenThemeScript.PANEL_BORDER_COLOR
 	)
-	content_card.custom_minimum_size = Vector2(min(float(safe_width), 820.0 if viewport_size.y >= 1640.0 else 740.0 if viewport_size.y >= 1460.0 else 620.0), 0.0)
-	if vbox != null:
-		vbox.add_theme_constant_override("separation", 12 if viewport_size.y < 1560.0 else 16)
-
-	var large_layout: bool = safe_width >= 720 and viewport_size.y >= 1640.0
-	var medium_layout: bool = not large_layout and safe_width >= 600 and viewport_size.y >= 1460.0
-	var title_font_size: int = 48 if large_layout else 42 if medium_layout else 36
-	var result_font_size: int = 28 if large_layout else 24 if medium_layout else 21
-	var hint_font_size: int = 19 if large_layout else 17 if medium_layout else 15
-	var status_font_size: int = 19 if large_layout else 17 if medium_layout else 15
-	var button_font_size: int = 22 if large_layout else 20 if medium_layout else 18
-	var button_height: float = 80.0 if large_layout else 72.0 if medium_layout else 64.0
-
-	var title_label: Label = get_node_or_null("Margin/Center/ContentCard/VBox/TitleLabel") as Label
-	if title_label != null:
-		title_label.add_theme_font_size_override("font_size", title_font_size)
-	var result_label: Label = get_node_or_null("Margin/Center/ContentCard/VBox/ResultLabel") as Label
-	if result_label != null:
-		result_label.add_theme_font_size_override("font_size", result_font_size)
-	var hint_label: Label = get_node_or_null("Margin/Center/ContentCard/VBox/HintLabel") as Label
-	if hint_label != null:
-		hint_label.add_theme_font_size_override("font_size", hint_font_size)
-	var status_label: Label = get_node_or_null("Margin/Center/ContentCard/VBox/StatusLabel") as Label
-	if status_label != null:
-		status_label.add_theme_font_size_override("font_size", status_font_size)
-	var return_button: Button = get_node_or_null("Margin/Center/ContentCard/VBox/ReturnButton") as Button
-	if return_button != null:
-		return_button.custom_minimum_size = Vector2(0.0, button_height)
-		return_button.add_theme_font_size_override("font_size", button_font_size)
-		return_button.add_theme_constant_override("icon_max_width", 30 if large_layout else 26 if medium_layout else 22)
 
 
 func _build_result_copy(result: String) -> Dictionary:
@@ -248,17 +208,17 @@ func _build_result_copy(result: String) -> Dictionary:
 		"victory":
 			return {
 				"title": "Gate Reached",
-				"result": "You made it through the ashwood.",
+				"result": "You crossed the ashwood and reached the far gate.",
 			}
 		"defeat":
 			return {
 				"title": "Journey's End",
-				"result": "The road took this run.",
+				"result": "The ashwood closed over this run.",
 			}
 		_:
 			return {
 				"title": "Journey's End",
-				"result": result.capitalize() if not result.is_empty() else "The road has gone quiet.",
+				"result": result.capitalize() if not result.is_empty() else "The road has gone still.",
 			}
 
 
@@ -267,7 +227,7 @@ func _build_result_chip_text(result: String) -> String:
 		"victory":
 			return "GATE REACHED"
 		"defeat":
-			return "RUN CLOSED"
+			return "ROAD CLOSED"
 		_:
 			return "ROAD CLOSED"
 
@@ -275,8 +235,8 @@ func _build_result_chip_text(result: String) -> String:
 func _build_result_hint_text(result: String) -> String:
 	match result:
 		"victory":
-			return "You cleared the road. Return to the main menu when ready."
+			return "You made it through. Return to the main menu when you want another run."
 		"defeat":
-			return "Return to the main menu when ready. Save and load stay in Settings on this screen."
+			return "Take a breath, then return to the main menu. Settings still keeps save and load here."
 		_:
 			return "Return to the main menu when ready. Settings still keeps save and load available here."

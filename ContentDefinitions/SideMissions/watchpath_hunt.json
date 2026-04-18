@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "definition_id": "watchpath_hunt",
+  "family": "SideMissions",
+  "tags": [
+    "hamlet",
+    "side_quest",
+    "contract",
+    "hunt",
+    "prototype"
+  ],
+  "display": {
+    "name": "Clear the Watchpath",
+    "short_description": "A splintered watchpost keeps flagging the same knife-crew. The hamlet wants the path made safe again."
+  },
+  "rules": {
+    "mission_type": "hunt_marked_enemy",
+    "briefing_text": "A cutthroat keeps working the watchpath around the hamlet. Hunt the mark down and the board will pay in road gear.",
+    "accept_label": "Take the watchpath mark",
+    "accepted_text": "The watchpath mark is live now. Run the target down, then return here for payment.",
+    "reminder_label": "Watchpath mark ahead",
+    "completed_text": "The watchpath is quiet again. Choose one hamlet reward before you move on.",
+    "claimed_text": "The watchpath board is already marked clean. This request is settled.",
+    "claimed_label": "Watchpath cleared",
+    "reward_pool": [
+      {
+        "offer_id": "claim_thornwood_buckler",
+        "effect_type": "grant_item",
+        "inventory_family": "shield",
+        "definition_id": "thornwood_buckler"
+      },
+      {
+        "offer_id": "claim_field_broth",
+        "effect_type": "grant_item",
+        "inventory_family": "consumable",
+        "definition_id": "field_broth",
+        "amount": 1
+      },
+      {
+        "offer_id": "claim_watchpath_fee",
+        "effect_type": "grant_gold",
+        "amount": 8
+      }
+    ]
+  }
+}

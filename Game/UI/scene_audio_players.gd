@@ -8,6 +8,26 @@ const SHARED_MUSIC_PLAYER_NAME := "__SharedMusicPlayer"
 static var _shared_music_track_positions: Dictionary = {}
 
 
+static func configure_from_config(owner: Node, config: Dictionary) -> void:
+	for node_name_variant in config.keys():
+		var node_path: String = String(node_name_variant)
+		var spec: Dictionary = config.get(node_name_variant, {})
+		var resource_path: String = String(spec.get("path", ""))
+		if resource_path.is_empty():
+			continue
+		if bool(spec.get("music", false)):
+			assign_music_stream_from_path(owner, node_path, resource_path, bool(spec.get("loop", false)))
+		else:
+			assign_stream_from_path(owner, node_path, resource_path)
+
+
+static func node_names_from_config(config: Dictionary) -> Array[String]:
+	var node_names: Array[String] = []
+	for node_name_variant in config.keys():
+		node_names.append(String(node_name_variant))
+	return node_names
+
+
 static func assign_stream(owner: Node, node_path: String, stream: AudioStream) -> void:
 	var player: AudioStreamPlayer = owner.get_node_or_null(node_path) as AudioStreamPlayer
 	if player != null:
@@ -79,10 +99,19 @@ static func _defer_start_looping_retry(owner: Node, node_path: String, retry_cou
 	if owner_tree == null:
 		return
 	var retry_timer: SceneTreeTimer = owner_tree.create_timer(0.016)
-	retry_timer.timeout.connect(func() -> void:
-		if is_instance_valid(owner) and owner.is_inside_tree():
-			start_looping(owner, node_path, retry_count)
+	retry_timer.timeout.connect(
+		Callable(SceneAudioPlayers, "_on_start_looping_retry_timeout").bind(weakref(owner), node_path, retry_count),
+		CONNECT_ONE_SHOT
 	)
+
+
+static func _on_start_looping_retry_timeout(owner_ref: WeakRef, node_path: String, retry_count: int) -> void:
+	if owner_ref == null:
+		return
+	var owner: Node = owner_ref.get_ref() as Node
+	if owner == null or not is_instance_valid(owner) or not owner.is_inside_tree():
+		return
+	start_looping(owner, node_path, retry_count)
 
 
 static func wait_for_lead_in(owner: Node, node_path: String, lead_in_seconds: float) -> void:
@@ -113,6 +142,7 @@ static func get_shared_music_player(root: Node) -> AudioStreamPlayer:
 
 	var shared_player := AudioStreamPlayer.new()
 	shared_player.name = SHARED_MUSIC_PLAYER_NAME
+	_connect_root_exit_cleanup(root)
 	root.call_deferred("add_child", shared_player)
 	AudioPreferencesScript.prepare_music_player(shared_player)
 	return shared_player
@@ -134,8 +164,42 @@ static func release_shared_music_session(root: Node) -> void:
 		return
 	shared_player.stop()
 	shared_player.stream = null
-	shared_player.queue_free()
+	var parent: Node = shared_player.get_parent()
+	if parent != null:
+		parent.remove_child(shared_player)
+	shared_player.free()
 	_shared_music_track_positions.clear()
+
+
+static func _connect_root_exit_cleanup(root: Node) -> void:
+	if root == null:
+		return
+	var cleanup_callable := Callable(SceneAudioPlayers, "_on_root_tree_exiting").bind(weakref(root))
+	if not root.is_connected("tree_exiting", cleanup_callable):
+		root.connect("tree_exiting", cleanup_callable, CONNECT_ONE_SHOT)
+
+
+static func _on_root_tree_exiting(root_ref: WeakRef) -> void:
+	if root_ref == null:
+		_shared_music_track_positions.clear()
+		return
+	var root: Node = root_ref.get_ref() as Node
+	if root == null:
+		_shared_music_track_positions.clear()
+		return
+	_release_audio_players_recursive(root)
+	release_shared_music_session(root)
+
+
+static func _release_audio_players_recursive(node: Node) -> void:
+	if node == null:
+		return
+	if node is AudioStreamPlayer:
+		var player: AudioStreamPlayer = node as AudioStreamPlayer
+		player.stop()
+		player.stream = null
+	for child in node.get_children():
+		_release_audio_players_recursive(child)
 
 
 static func _store_shared_music_position(shared_player: AudioStreamPlayer) -> void:

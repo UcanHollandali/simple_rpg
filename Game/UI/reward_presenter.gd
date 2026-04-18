@@ -2,8 +2,12 @@
 extends RefCounted
 class_name RewardPresenter
 
+const ContentLoaderScript = preload("res://Game/Infrastructure/content_loader.gd")
+const InventoryStateScript = preload("res://Game/RuntimeState/inventory_state.gd")
 const RunStatusPresenterScript = preload("res://Game/UI/run_status_presenter.gd")
 const DEFAULT_CARD_COUNT: int = 3
+
+var _loader: ContentLoader = ContentLoaderScript.new()
 
 
 func build_chip_text(reward_state: RefCounted) -> String:
@@ -30,9 +34,9 @@ func build_context_text(reward_state: RefCounted) -> String:
 
 	match String(reward_state.source_context):
 		"combat_victory":
-			return "Take 1 of 3 spoils before you move."
+			return "Choose 1 of 3 spoils now before you move on."
 		"reward_node":
-			return "Take 1 of 2 finds before the cache gives way."
+			return "Choose 1 of 2 finds now before the cache gives way."
 		_:
 			return "Choose 1 salvage"
 
@@ -42,9 +46,9 @@ func build_hint_text(reward_state: RefCounted) -> String:
 		return ""
 	match String(reward_state.source_context):
 		"combat_victory":
-			return "Choose one payoff. The rest is left behind on the road."
+			return "Claim one payoff now. The other spoils are left behind."
 		"reward_node":
-			return "Take one cache find. The rest stays buried."
+			return "Claim one cache find now. The rest stays buried."
 		_:
 			return "Choose one salvage result."
 
@@ -62,7 +66,7 @@ func build_offer_view_models(reward_state: RefCounted, card_count: int = DEFAULT
 			var source_context: String = String(reward_state.source_context)
 			models.append({
 				"visible": true,
-				"badge_text": _build_badge_text(effect_type),
+				"badge_text": _build_badge_text(effect_type, offer),
 				"title_text": _build_offer_title(offer, effect_type),
 				"detail_text": _build_offer_detail(offer),
 				"button_text": _build_button_text(effect_type, source_context),
@@ -81,11 +85,15 @@ func build_offer_view_models(reward_state: RefCounted, card_count: int = DEFAULT
 	return models
 
 
-func build_run_status_text(run_state: RunState) -> String:
-	return RunStatusPresenterScript.build_compact_status_text(run_state)
+func build_run_status_model(run_state: RunState) -> Dictionary:
+	return RunStatusPresenterScript.build_status_model(run_state, {
+		"variant": RunStatusPresenterScript.VARIANT_STANDARD,
+		"include_weapon": true,
+		"include_xp": true,
+	})
 
 
-func _build_badge_text(effect_type: String) -> String:
+func _build_badge_text(effect_type: String, offer: Dictionary = {}) -> String:
 	match effect_type:
 		"heal":
 			return "Recovery"
@@ -95,6 +103,24 @@ func _build_badge_text(effect_type: String) -> String:
 			return "Momentum"
 		"grant_gold":
 			return "Coins"
+		"grant_item":
+			match String(offer.get("inventory_family", "")):
+				InventoryStateScript.INVENTORY_FAMILY_WEAPON:
+					return "Weapon"
+				InventoryStateScript.INVENTORY_FAMILY_SHIELD:
+					return "Shield"
+				InventoryStateScript.INVENTORY_FAMILY_ARMOR:
+					return "Armor"
+				InventoryStateScript.INVENTORY_FAMILY_BELT:
+					return "Belt"
+				InventoryStateScript.INVENTORY_FAMILY_PASSIVE:
+					return "Passive"
+				InventoryStateScript.INVENTORY_FAMILY_SHIELD_ATTACHMENT:
+					return "Shield Mod"
+				InventoryStateScript.INVENTORY_FAMILY_QUEST_ITEM:
+					return "Quest Cargo"
+				_:
+					return "Supplies"
 		_:
 			return "Reward"
 
@@ -112,6 +138,10 @@ func _build_offer_title(offer: Dictionary, effect_type: String) -> String:
 			return "Take the Lesson"
 		"grant_gold":
 			return "Pocket the Coins"
+		"grant_item":
+			var inventory_family: String = String(offer.get("inventory_family", ""))
+			var definition_id: String = String(offer.get("definition_id", ""))
+			return _load_inventory_display_name(inventory_family, definition_id)
 		_:
 			return "Reward"
 
@@ -129,6 +159,19 @@ func _build_offer_detail(offer: Dictionary) -> String:
 			return "Gain %d XP and keep the route moving." % amount
 		"grant_gold":
 			return "Gain %d gold for the next stop." % amount
+		"grant_item":
+			var inventory_family: String = String(offer.get("inventory_family", "")).strip_edges()
+			var definition_id: String = String(offer.get("definition_id", "")).strip_edges()
+			var item_name: String = _load_inventory_display_name(inventory_family, definition_id)
+			if inventory_family == InventoryStateScript.INVENTORY_FAMILY_CONSUMABLE:
+				return "Add %s x%d to the backpack." % [item_name, max(1, amount)]
+			if inventory_family == InventoryStateScript.INVENTORY_FAMILY_PASSIVE:
+				return "Carry %s for its backpack-only passive bonus." % item_name
+			if inventory_family == InventoryStateScript.INVENTORY_FAMILY_SHIELD_ATTACHMENT:
+				return "Pack %s as a shield mod for later attachment." % item_name
+			if inventory_family == InventoryStateScript.INVENTORY_FAMILY_QUEST_ITEM:
+				return "Carry %s as quest cargo. It stays separate from normal loot." % item_name
+			return "Add %s to the backpack." % item_name
 		_:
 			return String(offer.get("label", String(offer.get("offer_id", ""))))
 
@@ -143,5 +186,37 @@ func _build_button_text(effect_type: String, source_context: String) -> String:
 			return "Take XP"
 		"grant_gold":
 			return "Take Gold"
+		"grant_item":
+			return "Pack It"
 		_:
 			return "Pack It" if source_context == "combat_victory" else "Take It"
+
+
+func _load_inventory_display_name(inventory_family: String, definition_id: String) -> String:
+	var family_name: String = _definition_family_for_inventory_family(inventory_family)
+	if family_name.is_empty() or definition_id.is_empty():
+		return definition_id
+	var definition: Dictionary = _loader.load_definition(family_name, definition_id)
+	return String(definition.get("display", {}).get("name", definition_id))
+
+
+func _definition_family_for_inventory_family(inventory_family: String) -> String:
+	match inventory_family:
+		InventoryStateScript.INVENTORY_FAMILY_WEAPON:
+			return "Weapons"
+		InventoryStateScript.INVENTORY_FAMILY_SHIELD:
+			return "Shields"
+		InventoryStateScript.INVENTORY_FAMILY_ARMOR:
+			return "Armors"
+		InventoryStateScript.INVENTORY_FAMILY_BELT:
+			return "Belts"
+		InventoryStateScript.INVENTORY_FAMILY_CONSUMABLE:
+			return "Consumables"
+		InventoryStateScript.INVENTORY_FAMILY_PASSIVE:
+			return "PassiveItems"
+		InventoryStateScript.INVENTORY_FAMILY_SHIELD_ATTACHMENT:
+			return "ShieldAttachments"
+		InventoryStateScript.INVENTORY_FAMILY_QUEST_ITEM:
+			return "QuestItems"
+		_:
+			return ""

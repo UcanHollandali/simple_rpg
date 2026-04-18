@@ -11,7 +11,8 @@
 ## Prototype Scope
 
 - This is a Windows-only playtest build for the current prototype slice.
-- Current live flow is `Main Menu -> Run Setup -> Map Explore -> Node Resolve -> Combat / Event / Reward / SupportInteraction -> LevelUp? / StageTransition / RunEnd`.
+- Current live flow is `Main Menu -> Run Setup -> Map Explore -> Combat / Event / Reward / SupportInteraction -> LevelUp? / StageTransition / RunEnd`.
+- Current non-combat node interactions (`Event`, `Reward`, `SupportInteraction`, `LevelUp`) render as overlays on top of `MapExplore` during the active prototype flow.
 - The slice is intentionally compact and deterministic. It is not content-complete, balance-complete, or release-ready.
 
 ## Feedback Focus
@@ -23,6 +24,7 @@
 
 ## Temporary Floor
 
-- The current visual/audio floor is still temporary placeholder surface, not final production art/audio.
+- The current visual/audio floor is still temporary prototype surface, not final production art/audio.
+- The current music floor is the calmer repo-authored `proto_01` set, but it is still marked temporary and replace-before-release.
 - Feedback about readability, contrast, clarity, and information hierarchy is useful.
 - Feedback that assumes final art polish, final balance breadth, or release-ready content coverage should be treated as provisional.

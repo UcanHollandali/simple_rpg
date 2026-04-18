@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "definition_id": "stage_2_merchant_stock_forgegear",
+  "family": "MerchantStocks",
+  "tags": [
+    "merchant_stock",
+    "support",
+    "stage_2",
+    "prototype"
+  ],
+  "display": {
+    "name": "Stage 2 Forgegear Stock",
+    "short_description": "A mid-run stock of field repair oil, sturdier coats, and broader carry straps."
+  },
+  "rules": {
+    "stock": [
+      {
+        "offer_id": "buy_tinker_oil_x1",
+        "definition_id": "tinker_oil",
+        "effect_type": "buy_consumable",
+        "amount": 1,
+        "cost_gold": 10
+      },
+      {
+        "offer_id": "buy_patched_buffcoat",
+        "definition_id": "patched_buffcoat",
+        "effect_type": "buy_armor",
+        "cost_gold": 20
+      },
+      {
+        "offer_id": "buy_packhook_sash",
+        "definition_id": "packhook_sash",
+        "effect_type": "buy_belt",
+        "cost_gold": 17
+      }
+    ]
+  }
+}

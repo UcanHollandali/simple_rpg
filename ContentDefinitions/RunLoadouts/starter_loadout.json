@@ -12,9 +12,10 @@
     "short_description": "Current prototype baseline for new-run equipment and carried items."
   },
   "rules": {
-    "weapon_definition_id": "iron_sword",
-    "consumable_slots": [
+    "right_hand_definition_id": "iron_sword",
+    "backpack_items": [
       {
+        "inventory_family": "consumable",
         "definition_id": "wild_berries",
         "current_stack": 1
       }

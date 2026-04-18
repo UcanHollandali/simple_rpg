@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "definition_id": "scavenger_strap",
+  "family": "Belts",
+  "tags": [
+    "belt",
+    "utility",
+    "salvage",
+    "pack"
+  ],
+  "display": {
+    "name": "Scavenger Strap",
+    "short_description": "A patched field strap that keeps reclaimed tools and salvage tucked into 2 extra backpack slots.",
+    "icon_key": "belt_scavenger_strap"
+  },
+  "rules": {
+    "backpack_capacity_bonus": 2
+  }
+}

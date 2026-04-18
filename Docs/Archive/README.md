@@ -4,7 +4,7 @@
 
 What stays here now:
 - dated architecture reviews that still have historical value
-- `ARCHITECTURE_REVIEW_2026_04_09.md` stays only as a pre-implementation review snapshot; use it for dated rationale lookup, not current repo truth
+- archive contents are intentionally sparse right now; if a dated review is archived later, read it as historical context only, not current repo truth
 
 What was intentionally removed on `2026-04-12`:
 - prompt dumps

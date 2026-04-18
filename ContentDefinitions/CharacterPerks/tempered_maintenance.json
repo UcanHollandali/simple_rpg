@@ -1,0 +1,38 @@
+{
+    "schema_version":  1,
+    "definition_id":  "tempered_maintenance",
+    "authoring_order":  30,
+    "family":  "CharacterPerks",
+    "tags":  [
+                 "perk",
+                 "survival",
+                 "maintenance"
+             ],
+    "display":  {
+                    "name":  "Tempered Maintenance",
+                    "short_description":  "A survival perk that reduces weapon durability cost per attack by 1.",
+                    "icon_key":  "passive_tempered_binding"
+                },
+    "rules":  {
+                  "behaviors":  [
+                                    {
+                                        "trigger":  "passive",
+                                        "condition":  {
+                                                          "op":  "always"
+                                                      },
+                                        "target":  "self",
+                                        "effects":  [
+                                                        {
+                                                            "type":  "modify_stat",
+                                                            "params":  {
+                                                                           "stat":  "durability_cost_flat_reduction",
+                                                                           "amount":  1
+                                                                       }
+                                                        }
+                                                    ]
+                                    }
+                                ],
+                  "perk_family":  "survival"
+              }
+}
+

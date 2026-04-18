@@ -92,22 +92,30 @@ text = "NEXT ROAD"
 horizontal_alignment = 1
 
 [node name="TitleLabel" type="Label" parent="Margin/Center/ContentCard/VBox"]
-text = "Stage Transition"
+text = "Beyond the Treeline"
 horizontal_alignment = 1
 autowrap_mode = 3
 
 [node name="SummaryLabel" type="Label" parent="Margin/Center/ContentCard/VBox"]
-text = "Stage 0 stands ahead."
+text = "Stage 0 waits past the lantern line.\nCheck your kit, then push deeper into the ashwood.\nSettings still holds save and load on this screen."
 horizontal_alignment = 1
 autowrap_mode = 3
 
 [node name="HintLabel" type="Label" parent="Margin/Center/ContentCard/VBox"]
-text = "Continue when ready. Save and load stay in Settings on this screen."
+text = "Step into the next route when ready."
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="RunStatusCard" type="PanelContainer" parent="Margin/Center/ContentCard/VBox"]
+size_flags_horizontal = 3
+
+[node name="RunStatusLabel" type="Label" parent="Margin/Center/ContentCard/VBox/RunStatusCard"]
+text = "HP 0 | Hunger 0 | Gold 0 | Durability 0"
 horizontal_alignment = 1
 autowrap_mode = 3
 
 [node name="ContinueButton" type="Button" parent="Margin/Center/ContentCard/VBox"]
-text = "Continue"
+text = "Step Into Next Route"
 custom_minimum_size = Vector2(0, 58)
 size_flags_horizontal = 3
 icon = ExtResource("5")

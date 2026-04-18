@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "definition_id": "zz_old_road_sign",
+  "family": "EventTemplates",
+  "tags": [
+    "event",
+    "roadside",
+    "trail",
+    "stage_1",
+    "prototype"
+  ],
+  "display": {
+    "name": "Old Road Sign",
+    "short_description": "A fork marker leans out of the nettles, its old cuts still pointing toward dead paths. Someone tied a waxed bundle under the warning knot."
+  },
+  "rules": {
+    "choices": [
+      {
+        "choice_id": "study_the_old_route_cuts",
+        "label": "Study the old route cuts",
+        "summary": "Trace the weathered warnings with your thumb and learn why this stretch taught the wardens to distrust easy ground.",
+        "effect_type": "grant_xp",
+        "amount": 4
+      },
+      {
+        "choice_id": "pry_loose_the_knot_bundle",
+        "label": "Pry loose the knot bundle",
+        "summary": "Untie the waxed packet tucked behind the sign and keep the trail tea the last scout left behind.",
+        "effect_type": "grant_item",
+        "inventory_family": "consumable",
+        "definition_id": "forager_tea",
+        "amount": 1
+      }
+    ]
+  }
+}

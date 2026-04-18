@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "definition_id": "hearth_knot_charm",
+  "authoring_order": 85,
+  "family": "PassiveItems",
+  "tags": [
+    "passive",
+    "hamlet",
+    "survival",
+    "gratitude"
+  ],
+  "display": {
+    "name": "Hearth-Knot Charm",
+    "short_description": "A gratitude charm from a rescued hamlet hearth that keeps weapon wear down on the road.",
+    "icon_key": "passive_hearth_knot_charm"
+  },
+  "rules": {
+    "behaviors": [
+      {
+        "trigger": "passive",
+        "condition": {
+          "op": "always"
+        },
+        "target": "self",
+        "effects": [
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "durability_cost_flat_reduction",
+              "amount": 1
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

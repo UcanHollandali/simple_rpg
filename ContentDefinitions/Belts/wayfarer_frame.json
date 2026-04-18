@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "definition_id": "wayfarer_frame",
+  "family": "Belts",
+  "tags": [
+    "belt",
+    "utility",
+    "light",
+    "pack"
+  ],
+  "display": {
+    "name": "Wayfarer Frame",
+    "short_description": "A slim travel frame that frees 1 extra backpack slot without much bulk.",
+    "icon_key": "belt_wayfarer_frame"
+  },
+  "rules": {
+    "backpack_capacity_bonus": 1
+  }
+}

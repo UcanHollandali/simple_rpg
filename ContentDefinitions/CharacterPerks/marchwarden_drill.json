@@ -1,0 +1,45 @@
+{
+    "schema_version":  1,
+    "definition_id":  "marchwarden_drill",
+    "authoring_order":  55,
+    "family":  "CharacterPerks",
+    "tags":  [
+                 "perk",
+                 "economy_route",
+                 "route"
+             ],
+    "display":  {
+                    "name":  "Marchwarden Drill",
+                    "short_description":  "A route-kept drill that grants 1 flat damage reduction and cuts durability cost by 1.",
+                    "icon_key":  "passive_marchwarden_talisman"
+                },
+    "rules":  {
+                  "behaviors":  [
+                                    {
+                                        "trigger":  "passive",
+                                        "condition":  {
+                                                          "op":  "always"
+                                                      },
+                                        "target":  "self",
+                                        "effects":  [
+                                                        {
+                                                            "type":  "modify_stat",
+                                                            "params":  {
+                                                                           "stat":  "incoming_damage_flat_reduction",
+                                                                           "amount":  1
+                                                                       }
+                                                        },
+                                                        {
+                                                            "type":  "modify_stat",
+                                                            "params":  {
+                                                                           "stat":  "durability_cost_flat_reduction",
+                                                                           "amount":  1
+                                                                       }
+                                                        }
+                                                    ]
+                                    }
+                                ],
+                  "perk_family":  "economy_route"
+              }
+}
+

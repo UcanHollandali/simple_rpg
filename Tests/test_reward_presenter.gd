@@ -28,22 +28,24 @@ func test_reward_presenter_builds_combat_reward_cards() -> void:
 		"Expected reward presenter to use runtime-backed title text."
 	)
 	assert(
-		presenter.call("build_context_text", reward_state) == "Take 1 of 3 spoils before you move.",
+		presenter.call("build_context_text", reward_state) == "Choose 1 of 3 spoils now before you move on.",
 		"Expected reward presenter to expose the combat reward shell context."
 	)
 	assert(
-		presenter.call("build_hint_text", reward_state) == "Choose one payoff. The rest is left behind on the road.",
+		presenter.call("build_hint_text", reward_state) == "Claim one payoff now. The other spoils are left behind.",
 		"Expected reward presenter to explain the one-claim salvage rule."
 	)
 
 	var models: Array = presenter.call("build_offer_view_models", reward_state, 3)
 	assert(models.size() == 3, "Expected one reward view model per visible combat-reward card.")
-	assert(String((models[0] as Dictionary).get("title_text", "")) == "Strip the Purse", "Expected reward presenter to prefer authored salvage labels for combat rewards.")
-	assert(String((models[1] as Dictionary).get("title_text", "")) == "Bind the Cut", "Expected reward presenter to prefer authored salvage labels for healing rewards.")
-	assert(String((models[2] as Dictionary).get("title_text", "")) == "Read the Opening", "Expected reward presenter to prefer authored salvage labels for XP rewards.")
-	assert(String((models[0] as Dictionary).get("button_text", "")) == "Take Gold", "Expected gold rewards to expose a clearer CTA.")
-	assert(String((models[1] as Dictionary).get("button_text", "")) == "Recover HP", "Expected healing rewards to expose a clearer CTA.")
-	assert(String((models[2] as Dictionary).get("button_text", "")) == "Take XP", "Expected XP rewards to expose a clearer CTA.")
+	assert(String((models[0] as Dictionary).get("title_text", "")) == "Field Provisions: Traveler Bread", "Expected reward presenter to surface the tuned field-provisions label first.")
+	assert(String((models[1] as Dictionary).get("title_text", "")) == "Quick Refit: Set the Edge Straight", "Expected reward presenter to surface the tuned refit label second.")
+	assert(String((models[2] as Dictionary).get("title_text", "")) == "Scavenger's Find: Watchman Shield", "Expected reward presenter to surface the tuned tutorial shield label third.")
+	assert(String((models[0] as Dictionary).get("badge_text", "")) == "Supplies", "Expected consumable reward badges to stay supply-focused.")
+	assert(String((models[2] as Dictionary).get("badge_text", "")) == "Shield", "Expected shield reward badges to expose the equipped family clearly.")
+	assert(String((models[0] as Dictionary).get("button_text", "")) == "Pack It", "Expected inventory reward items to use the pack CTA.")
+	assert(String((models[1] as Dictionary).get("button_text", "")) == "Repair Weapon", "Expected repair rewards to expose the repair CTA.")
+	assert(String((models[2] as Dictionary).get("button_text", "")) == "Pack It", "Expected shield rewards to use the pack CTA.")
 
 
 func test_reward_presenter_hides_unused_small_reward_card() -> void:
@@ -71,7 +73,23 @@ func test_reward_presenter_builds_compact_run_status_strip() -> void:
 	run_state.gold = 18
 	run_state.inventory_state.weapon_instance["current_durability"] = 7
 
+	var status_model: Dictionary = presenter.call("build_run_status_model", run_state)
+	var secondary_items: Array = status_model.get("secondary_items", [])
+	var progress_items: Array = status_model.get("progress_items", [])
 	assert(
-		presenter.call("build_run_status_text", run_state) == "HP 41 | Hunger 12 | Gold 18 | Durability 7",
-		"Expected reward presenter to keep the reward shell as a compact attrition-aware run-state strip."
+		String(status_model.get("variant", "")) == "standard",
+		"Expected reward presenter to opt into the richer shared run-status variant."
+	)
+	assert(
+		secondary_items.size() == 1 and String((secondary_items[0] as Dictionary).get("value_text", "")).contains("Iron Sword"),
+		"Expected reward presenter to surface the active weapon summary alongside the shared chips."
+	)
+	assert(progress_items.size() == 1, "Expected reward presenter to expose the XP progress row in the shared status strip.")
+	assert(
+		String((progress_items[0] as Dictionary).get("label_text", "")).contains("Lv 2"),
+		"Expected reward presenter to expose the next-level target in the shared XP row."
+	)
+	assert(
+		String(status_model.get("fallback_text", "")) == "HP 41 | Hunger 12 | Gold 18 | Durability 7",
+		"Expected reward presenter to keep the compact fallback string inside the shared run-status model."
 	)

@@ -23,8 +23,8 @@ func test_enraged_raises_damage_and_lowers_defense() -> void:
 	assert(flow.combat_state.enemy_hp == 10, "Expected enraged attack to reduce drain adept HP from 18 to 10.")
 
 	var enemy_result: Dictionary = flow.process_enemy_action()
-	assert(int(enemy_result.get("damage_applied", -1)) == 3, "Expected enraged to turn the first adept hit from 2 into 3 taken damage.")
-	assert(flow.combat_state.player_hp == 57, "Expected the defense penalty to cost 1 extra HP on the return hit.")
+	assert(int(enemy_result.get("damage_applied", -1)) == 2, "Expected enraged not to push flat reduction below zero on the first adept hit.")
+	assert(flow.combat_state.player_hp == 58, "Expected the return hit to stay at the adept's normal 2 damage with zero armor.")
 
 	flow.process_turn_end()
 	assert(flow.combat_state.player_statuses.size() == 2, "Expected enraged and weakened to coexist after the first turn.")

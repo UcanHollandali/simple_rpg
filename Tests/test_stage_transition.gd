@@ -5,15 +5,19 @@ class_name TestStageTransition
 const AppBootstrapScript = preload("res://Game/Application/app_bootstrap.gd")
 const SceneRouterScript = preload("res://Game/Infrastructure/scene_router.gd")
 const FlowStateScript = preload("res://Game/Application/flow_state.gd")
+const TestExitCleanupHelperScript = preload("res://Tests/_exit_cleanup_helper.gd")
 const CONFIRM_ICON_PATH := "res://Assets/Icons/icon_confirm.svg"
 const CONTINUE_BUTTON_PATH := "Margin/Center/ContentCard/VBox/ContinueButton"
+const TITLE_LABEL_PATH := "Margin/Center/ContentCard/VBox/TitleLabel"
 const SUMMARY_LABEL_PATH := "Margin/Center/ContentCard/VBox/SummaryLabel"
+const HINT_LABEL_PATH := "Margin/Center/ContentCard/VBox/HintLabel"
 const SAFE_MENU_SAVE_BUTTON_PATH := "SafeMenuOverlay/MenuLayer/PanelHolder/PanelRow/MenuPanel/VBox/ActionsVBox/SaveRunButton"
 const SAFE_MENU_LOAD_BUTTON_PATH := "SafeMenuOverlay/MenuLayer/PanelHolder/PanelRow/MenuPanel/VBox/ActionsVBox/LoadRunButton"
 
 var _phase: int = 0
 var _phase_frame_count: int = 0
 var _stage_transition_frames: int = 0
+var _is_finishing: bool = false
 
 
 func _init() -> void:
@@ -36,6 +40,7 @@ func _on_process_frame() -> void:
 				var run_state: RunState = bootstrap.call("get_run_state")
 				_require(run_state != null, "Expected RunState before stage transition test.")
 				run_state.stage_index = 3
+				run_state.map_runtime_state.reset_for_next_stage(run_state.stage_index, run_state.run_seed)
 				bootstrap.call("get_flow_manager").call("restore_state", FlowStateScript.Type.STAGE_TRANSITION)
 				_get_scene_router().call("route_to_state_for_restore", FlowStateScript.Type.STAGE_TRANSITION)
 				_advance_phase(1)
@@ -47,10 +52,17 @@ func _on_process_frame() -> void:
 				_require_audio_player_stream("PanelOpenSfxPlayer")
 				_require_audio_player_stream("PanelCloseSfxPlayer")
 				_require_audio_player_stream("StageTransitionMusicPlayer")
+				var title_label: Label = current_scene.get_node(TITLE_LABEL_PATH) as Label
 				var summary_label: Label = current_scene.get_node(SUMMARY_LABEL_PATH) as Label
+				var hint_label: Label = current_scene.get_node(HINT_LABEL_PATH) as Label
+				_require(title_label != null, "Expected stage transition title label.")
 				_require(summary_label != null, "Expected stage transition summary label.")
-				_require(summary_label.text.contains("3"), "Expected stage transition summary to reflect current stage index.")
-				_require(summary_label.text.contains("Settings"), "Expected stage transition summary to expose the utility-screen save/load context.")
+				_require(hint_label != null, "Expected stage transition hint label.")
+				_require(title_label.text.contains("Stage 3"), "Expected stage transition title to reflect the incoming stage number.")
+				_require(title_label.text.contains("Trade"), "Expected stage transition title to surface the stage personality read.")
+				_require(summary_label.text.contains("Trade"), "Expected stage transition summary to surface the stage-personality copy.")
+				_require(hint_label.text.contains("key"), "Expected stage transition hint to expose the stage objective.")
+				_require(hint_label.text.contains("boss"), "Expected stage transition hint to keep the boss objective visible.")
 				_require_button_icon(CONTINUE_BUTTON_PATH, CONFIRM_ICON_PATH)
 				_require_button_icon(SAFE_MENU_SAVE_BUTTON_PATH, CONFIRM_ICON_PATH)
 				_require_button_icon(SAFE_MENU_LOAD_BUTTON_PATH, CONFIRM_ICON_PATH)
@@ -64,8 +76,7 @@ func _on_process_frame() -> void:
 				var run_state_after_continue: RunState = _get_bootstrap().call("get_run_state")
 				_require(run_state_after_continue != null, "Expected RunState after stage transition continue.")
 				_require(run_state_after_continue.stage_index == 3, "Expected stage index to persist through StageTransition.")
-				print("test_stage_transition: all assertions passed")
-				quit()
+				await _finish_success("test_stage_transition")
 
 	_assert_phase_timeout()
 
@@ -145,6 +156,17 @@ func _require_button_icon(node_path: String, expected_path: String) -> void:
 func _advance_phase(new_phase: int) -> void:
 	_phase = new_phase
 	_phase_frame_count = 0
+
+
+func _finish_success(test_name: String) -> void:
+	if _is_finishing:
+		return
+	_is_finishing = true
+	var process_frame_handler := Callable(self, "_on_process_frame")
+	if process_frame.is_connected(process_frame_handler):
+		process_frame.disconnect(process_frame_handler)
+	print("%s: all assertions passed" % test_name)
+	await TestExitCleanupHelperScript.cleanup_and_quit(self)
 
 
 func _assert_phase_timeout() -> void:

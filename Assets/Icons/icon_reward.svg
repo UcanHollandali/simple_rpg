@@ -1,8 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="reward_ring" x1="64" y1="18" x2="64" y2="110" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D9C27F"/>
+      <stop offset="1" stop-color="#8C7A5B"/>
+    </linearGradient>
+    <radialGradient id="reward_core" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(64 64) rotate(90) scale(33)">
+      <stop stop-color="#F6EAB7"/>
+      <stop offset="1" stop-color="#C9B26B"/>
+    </radialGradient>
+  </defs>
   <g stroke-linecap="round" stroke-linejoin="round">
-    <path d="m64 18 11 24 26 3-19 18 5 27-23-13-23 13 5-27-19-18 26-3Z" fill="#e2c56d"/>
-    <path d="m64 30 8 17 19 2-14 13 4 19-17-10-17 10 4-19-14-13 19-2Z" fill="#f0e3b2"/>
-    <path d="m64 16 8 8" fill="none" stroke="#6f8653" stroke-width="8"/>
+    <circle cx="64" cy="64" r="46" fill="#182126" stroke="url(#reward_ring)" stroke-width="8"/>
+    <circle cx="64" cy="64" r="33" fill="url(#reward_core)" stroke="#F2E7C8" stroke-width="4"/>
+    <path d="m64 24 8 14 16 3-12 11 3 16-15-8-15 8 3-16-12-11 16-3Z" fill="#E6DFC9" opacity="0.95"/>
+    <path d="m64 34 5 9 11 2-8 7 2 11-10-5-10 5 2-11-8-7 11-2Z" fill="#395856"/>
+    <path d="M31 64h11M86 64h11M64 31v11M64 86v11" stroke="#C9B26B" stroke-width="6"/>
   </g>
 </svg>
-

@@ -7,6 +7,7 @@ const AudioPreferencesScript = preload("res://Game/UI/audio_preferences.gd")
 const SceneRouterScript = preload("res://Game/Infrastructure/scene_router.gd")
 const FlowStateScript = preload("res://Game/Application/flow_state.gd")
 const SaveServiceScript = preload("res://Game/Infrastructure/save_service.gd")
+const TestExitCleanupHelperScript = preload("res://Tests/_exit_cleanup_helper.gd")
 
 const SAVE_PATH: String = SaveServiceScript.DEFAULT_SAVE_PATH
 const MAIN_MENU_START_BUTTON_PATH := "Margin/VBox/ActionPanel/ActionVBox/StartRunButton"
@@ -15,6 +16,7 @@ const MAP_SAFE_MENU_LAUNCHER_BUTTON_PATH := "SafeMenuOverlay/MenuLauncherButton"
 const MAP_SAFE_MENU_TOAST_PATH := "SafeMenuOverlay/StatusToast"
 const MAP_SAFE_MENU_SAVE_BUTTON_PATH := "SafeMenuOverlay/MenuLayer/PanelHolder/PanelRow/MenuPanel/VBox/ActionsVBox/SaveRunButton"
 const MAP_SAFE_MENU_LOAD_BUTTON_PATH := "SafeMenuOverlay/MenuLayer/PanelHolder/PanelRow/MenuPanel/VBox/ActionsVBox/LoadRunButton"
+const MAP_SAFE_MENU_MAIN_MENU_BUTTON_PATH := "SafeMenuOverlay/MenuLayer/PanelHolder/PanelRow/MenuPanel/VBox/ActionsVBox/ReturnToMainMenuButton"
 const MAP_SAFE_MENU_MUSIC_BUTTON_PATH := "SafeMenuOverlay/MenuLayer/PanelHolder/PanelRow/MenuPanel/VBox/ActionsVBox/MusicToggleButton"
 const MAP_SAFE_MENU_QUIT_BUTTON_PATH := "SafeMenuOverlay/MenuLayer/PanelHolder/PanelRow/MenuPanel/VBox/ActionsVBox/QuitGameButton"
 const MAP_SAFE_MENU_TOAST_LABEL_PATH := "SafeMenuOverlay/StatusToast/StatusToastLabel"
@@ -23,6 +25,7 @@ const PHASE_TIMEOUT_MS := 6000
 var _phase: int = 0
 var _phase_started_at_ms: int = 0
 var _pending_saved_stats: Dictionary = {}
+var _is_finishing: bool = false
 
 
 func _init() -> void:
@@ -55,6 +58,7 @@ func _on_process_frame() -> void:
 				_require(run_state != null, "Expected RunState on MapExplore.")
 				var launcher_button: Button = current_scene.get_node(MAP_SAFE_MENU_LAUNCHER_BUTTON_PATH) as Button
 				var load_button_before_save: Button = current_scene.get_node(MAP_SAFE_MENU_LOAD_BUTTON_PATH) as Button
+				var main_menu_button: Button = current_scene.get_node(MAP_SAFE_MENU_MAIN_MENU_BUTTON_PATH) as Button
 				var music_button: Button = current_scene.get_node(MAP_SAFE_MENU_MUSIC_BUTTON_PATH) as Button
 				var quit_button: Button = current_scene.get_node(MAP_SAFE_MENU_QUIT_BUTTON_PATH) as Button
 				_require(launcher_button != null, "Expected launcher button on MapExplore.")
@@ -62,6 +66,7 @@ func _on_process_frame() -> void:
 				_require(launcher_button.tooltip_text == "Settings", "Expected safe menu launcher tooltip to read Settings.")
 				_require(load_button_before_save != null, "Expected load button on MapExplore.")
 				_require(load_button_before_save.disabled, "Expected MapExplore load button to start disabled when no save exists.")
+				_require(main_menu_button != null, "Expected return-to-main-menu button on MapExplore settings drawer.")
 				_require(music_button != null, "Expected music toggle button on MapExplore settings drawer.")
 				_require(quit_button != null, "Expected quit button on MapExplore settings drawer.")
 				_require(music_button.text == "Music: On", "Expected music toggle to start enabled.")
@@ -90,6 +95,7 @@ func _on_process_frame() -> void:
 		2:
 			if _is_scene("MapExplore"):
 				var load_button_after_save_on_map: Button = current_scene.get_node(MAP_SAFE_MENU_LOAD_BUTTON_PATH) as Button
+				var main_menu_button: Button = current_scene.get_node(MAP_SAFE_MENU_MAIN_MENU_BUTTON_PATH) as Button
 				_require(bool(_get_bootstrap().call("has_save_game")), "Expected UI save to create the default save file.")
 				_require(load_button_after_save_on_map != null, "Expected load button on MapExplore after save.")
 				_require(not load_button_after_save_on_map.disabled, "Expected MapExplore load button to enable after save succeeds.")
@@ -97,8 +103,8 @@ func _on_process_frame() -> void:
 				run_state_after_save.player_hp = 1
 				run_state_after_save.gold = 0
 				run_state_after_save.hunger = 0
-				_get_bootstrap().call("get_flow_manager").set("current_state", FlowStateScript.Type.MAIN_MENU)
-				change_scene_to_file("res://scenes/main_menu.tscn")
+				_require(main_menu_button != null, "Expected return-to-main-menu button after save.")
+				main_menu_button.emit_signal("pressed")
 				_advance_phase(3)
 		3:
 			if _is_scene("MainMenu"):
@@ -115,8 +121,7 @@ func _on_process_frame() -> void:
 				var delete_result_after_load: Dictionary = _get_bootstrap().call("delete_save_game", SAVE_PATH)
 				_require(bool(delete_result_after_load.get("ok", false)), "Expected UI save cleanup to succeed.")
 				_require(not bool(_get_bootstrap().call("has_save_game")), "Expected UI save file to be removed.")
-				print("test_save_ui: all assertions passed")
-				quit()
+				await _finish_success("test_save_ui")
 
 	_assert_phase_timeout()
 
@@ -164,6 +169,17 @@ func _press(node_path: String) -> void:
 func _advance_phase(new_phase: int) -> void:
 	_phase = new_phase
 	_phase_started_at_ms = Time.get_ticks_msec()
+
+
+func _finish_success(test_name: String) -> void:
+	if _is_finishing:
+		return
+	_is_finishing = true
+	var process_frame_handler := Callable(self, "_on_process_frame")
+	if process_frame.is_connected(process_frame_handler):
+		process_frame.disconnect(process_frame_handler)
+	print("%s: all assertions passed" % test_name)
+	await TestExitCleanupHelperScript.cleanup_and_quit(self)
 
 
 func _assert_phase_timeout() -> void:

@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "definition_id": "hedge_sabre",
+  "family": "Weapons",
+  "tags": [
+    "weapon",
+    "melee",
+    "sword",
+    "physical",
+    "road"
+  ],
+  "display": {
+    "name": "Hedge Sabre",
+    "short_description": "A road-cut sabre that trades peak force for a long edge and forgiving wear.",
+    "icon_key": "weapon_hedge_sabre"
+  },
+  "design_intent_question": "Can a long-wearing sabre give early and mid-run shops a cleaner efficiency pick without adding a new mechanic surface?",
+  "rules": {
+    "slot_compatibility": {
+      "right_hand": true,
+      "left_hand": false,
+      "offhand_capable": false
+    },
+    "stats": {
+      "weapon_type": "sword",
+      "base_damage": 5,
+      "max_durability": 24,
+      "durability_cost_per_attack": 2,
+      "durability_profile": "sturdy"
+    }
+  }
+}

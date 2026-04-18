@@ -22,13 +22,14 @@ Current runtime-backed prototype node families:
 - `combat`
 - `event`
 - `reward`
-- `side_mission`
+- `hamlet`
 - `rest`
 - `merchant`
 - `blacksmith`
 - `key`
 - `boss`
-- The technical `event` family is currently rendered to the player as `Roadside Encounter` on map and transition UI surfaces.
+- The technical `event` family is currently rendered to the player as `Trail Event` on map route surfaces.
+- `hamlet` is the support-family settlement stop. The side-quest system hangs off that node family rather than living as a second separate map-node family.
 
 ## Topology Baseline
 
@@ -77,21 +78,23 @@ Current runtime-backed prototype node families:
 - Prototype map generation should target bounded profile-driven controlled-scatter graphs first.
 - Full free-graph generation is still deferred.
 - The current runtime-backed slice now uses stage-profile-driven controlled scatter generation keyed by the `procedural_stage_*` ids inside the locked compact portrait envelope.
+- Fresh runs may now vary the realized controlled-scatter topology and role placement within that stage-profile floor by consuming the active run seed.
+- That seeded variation must preserve the same stage guarantee floor, bounded compact envelope, and center-start readability contract rather than widening into free-form graph generation.
 - Current controlled-scatter v1 truth uses a two-step runtime model:
-  - first build the bounded connected scatter graph
-  - then assign node families onto that graph through a separate controlled placement step
+  - first build the bounded connected center-start frontier-growth scatter graph with controlled late reconnect
+  - then assign node families onto that graph through a separate structural role-scoring placement step
 - Current controlled-scatter v1 truth keeps the opening readable shell explicit: start reveals an early combat route, an early reward route, and an early support route under fixed stage quotas across a denser `14`-node stage graph.
 - Current controlled family placement also keeps one support branch explicit:
   - one opening support node is adjacent to start
-  - one late support node is adjacent to that opening support node
+  - one late support node stays directly adjacent on that opening support branch
 - Current event placement is narrow and controlled:
   - each stage graph owns exactly `1` dedicated late-route detour event role
   - that role always resolves to the runtime-backed `event` node family
   - it is additive to the existing combat/reward/support/key/boss floor, not a replacement for it
-- Current side-mission placement is also narrow and controlled:
-  - each stage graph owns exactly `1` dedicated optional-detour side-mission role
-  - that role always resolves to the runtime-backed `side_mission` node family
-  - it is additive to the existing combat/reward/support/key/boss floor, not a replacement for them
+- Current hamlet placement is also narrow and controlled:
+  - each stage graph owns exactly `1` dedicated optional-detour hamlet role
+  - that role always resolves to the runtime-backed `hamlet` node family
+  - that hamlet node may later host side-quest targeting and return flow, but it is additive to the existing combat/reward/support/key/boss floor rather than replacing them
 - Current key/boss placement is also controlled:
   - they are biased to the outer region
   - they are placed on the same late route line or flank
@@ -106,7 +109,7 @@ Current runtime-backed prototype node families:
   - `6` non-boss `combat` opportunities
   - `1` `event` opportunity
   - `1` `reward` opportunity
-  - `1` `side_mission` opportunity
+  - `1` `hamlet` opportunity
   - `2` support opportunities
   - `1` `key` node
   - `1` `boss` node
@@ -117,7 +120,7 @@ Current runtime-backed prototype node families:
   - `1` prep valve in the pre-boss portion of the stage
   - `1` `key` node
 - `support opportunity` means `rest`, `merchant`, or `blacksmith`.
-- `side_mission` is a separate optional contract detour, not a support-economy substitute.
+- `hamlet` is a support-family settlement detour, but in the current floor it is still a separate optional contract stop rather than a substitute for the main support-economy slice.
 - `prep valve` means `rest` or `blacksmith`.
 - Current procedural v1 support-family rotation is stage-scoped:
   - stage `1`: opening `rest`, late `merchant`
@@ -162,7 +165,7 @@ Current runtime-backed prototype node families:
   - boss-gate locked / unlocked state
   - roadside encounter quota (`roadside_encounters_this_stage`) and deterministic roadside routing draw state
   - support-node local revisit state keyed by stable node id
-  - side-mission local contract state keyed by stable node id
+  - hamlet-local side-quest state keyed by stable node id
   - pending node resolution context
 - The current stage-profile ids are:
   - `ContentDefinitions/MapTemplates/procedural_stage_corridor_v1.json`
@@ -174,50 +177,60 @@ Current runtime-backed prototype node families:
 - `RunSessionCoordinator` routes node entry and node resolution through that state.
 - The current implemented slice now owns adjacency movement, local undiscovered-node reveal, stage-local key/gate truth, support-node revisit persistence, resolved traversal, controlled-scatter graph construction, and separate role-based family assignment across that bounded graph set.
 - The current controlled-scatter role fill places `event` nodes through one dedicated late-route event role; it does not disguise events as reward or support nodes.
-- The current controlled-scatter role fill also places `side_mission` nodes through one dedicated late-route side-mission role.
+- The current controlled-scatter role fill also places `hamlet` nodes through one dedicated late-route settlement role.
 - Boss-clear stage progression currently routes through `RunSessionCoordinator` plus `RunState`, not through UI.
 - The current implemented slice now owns controlled-scatter v1 generation, but not broader free-form graph generation.
 - Save-safe exact restore now depends on the realized graph payload, not on re-running scaffold fill from seed alone.
+- Current runtime node snapshots may expose a derived `hamlet_personality` read for `hamlet` nodes.
+  - this read is stage-derived selection/presentation context, not extra saved graph payload
 - Target authority direction is fuller exploration graph state in `MapRuntimeState`; current implementation is still a bounded controlled-scatter foundation rather than the complete long-term graph-generation slice.
 
 ## Current Runtime-Backed Node Resolution
 
-- Most unresolved nodes still move flow from `MapExplore` to `NodeResolve`.
-- Current support-node exception:
-  - entering `rest`, `merchant`, `blacksmith`, or `side_mission` now opens `SupportInteraction` directly
-  - those families no longer show a separate resolve-shell screen first
-- Side-step movement can also route to `Event` when the roadside RNG stream rolls a hit:
-  - source context is `roadside_encounter`
-  - attempt happens after movement and before `NodeResolve`
-  - only unresolved `discovered` targets are eligible
-  - key, boss, excluded support-family families, and explicit non-encounter families stay untouched
-  - quota is enforced by `MapRuntimeState.can_trigger_roadside_encounter` (1 per stage)
-- Current runtime-backed node type determines the next authoritative flow state:
+- Current live traversal now resolves active node families directly from `MapExplore`.
+- Current direct-routing truth:
   - `combat` -> `Combat`
+  - `boss` -> `Combat`
   - `event` -> `Event`
   - `reward` -> `Reward`
-  - `side_mission` -> `SupportInteraction` (direct from `MapExplore`)
-  - `rest` -> `SupportInteraction` (direct from `MapExplore`)
-  - `merchant` -> `SupportInteraction` (direct from `MapExplore`)
-  - `blacksmith` -> `SupportInteraction` (direct from `MapExplore`)
-  - `key` -> `NodeResolve`
-  - `boss` -> `Combat`
+  - `rest` -> `SupportInteraction`
+  - `merchant` -> `SupportInteraction`
+  - `blacksmith` -> `SupportInteraction`
+  - `hamlet` -> `SupportInteraction`
+  - `key` resolves in place on `MapExplore` while updating stage-key and boss-gate truth
+- `NodeResolve` remains implemented as a legacy transition shell, but it is no longer on the live map-to-interaction path for the current runtime-backed node families.
+- Planned `event` nodes and movement-triggered roadside encounters are distinct:
+  - the planned map-node family remains `event` and routes directly into `Event`
+  - travel-triggered roadside encounters are transient movement interruptions and do not occupy or consume a map-node slot
+  - `Roadside Encounter` is now reserved for the movement-triggered interruption only
+- Side-step movement can also route to `Event` when the roadside RNG stream rolls a hit:
+  - source context is `roadside_encounter`
+  - attempt happens after the move is chosen and its hunger cost is paid, but before destination arrival commits
+  - only unresolved `discovered` combat/reward-style travel targets are eligible
+  - current roadside tune allows up to `3` movement interruptions per stage through `MapRuntimeState.MAX_ROADSIDE_ENCOUNTERS_PER_STAGE`
+  - roadside-tagged `EventTemplates` may optionally gate themselves behind `rules.trigger_condition` using current route-state stats such as hunger, HP percent, gold, or backpack room
+  - start, planned `event`, key, boss, hamlet, and direct support-family destinations stay untouched
+  - an accepted side-quest marked combat target also stays untouched so that route opens `Combat` directly
+  - while the roadside interruption is open, the player has not yet arrived on the destination node
+  - a successful roadside interruption does not mark the destination resolved or consume its primary content
+  - after the roadside interruption resolves, destination flow resumes through its own family routing
+  - quota is enforced by `MapRuntimeState.can_trigger_roadside_encounter`
 - `start` is a map anchor node, not a reward or combat result node.
 - Re-entering a resolved node may still support traversal, but must not create fresh primary payout or encounter value by default.
 - Resolved event-node revisits must stay traversable without reopening `Event` or minting a second primary outcome.
 - Resolved support-node revisits must stay traversable without reopening `SupportInteraction`.
-- Resolved side-mission nodes are the one current exception:
-  - after a contract is accepted or completed, revisiting that node may reopen `SupportInteraction`
-  - after the contract is claimed, revisiting that node must fall back to pure traversal
+- Resolved hamlet nodes are the one current exception:
+  - after a side quest is accepted or completed, revisiting that node may reopen `SupportInteraction`
+  - after the side quest is claimed, revisiting that node must fall back to pure traversal
 
 ## Current Map Inventory Strip
 
-- `MapExplore` shows the shared carried inventory strip directly from `InventoryState`.
+- `MapExplore` shows the carried inventory strip directly from `InventoryState`.
 - Current map-side card interactions are:
   - click carried `weapon`, `armor`, or `belt` to equip or unequip it immediately
   - click carried `consumable` to use it immediately if it changes HP or hunger
-  - drag carried cards to reorder shared inventory slot order
-- Those interactions mutate the shared inventory owner; they are not separate map-local UI truth.
+  - drag carried cards to reorder backpack slot order
+- Those interactions mutate the canonical inventory owner; they are not separate map-local UI truth.
 
 ## Boss Rule
 

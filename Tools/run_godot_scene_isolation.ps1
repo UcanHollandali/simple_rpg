@@ -9,22 +9,6 @@ $ErrorActionPreference = "Stop"
 
 . (Join-Path $PSScriptRoot "godot_windows_common.ps1")
 
-function Invoke-Godot {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$Executable,
-        [Parameter(Mandatory = $true)]
-        [string[]]$Arguments
-    )
-
-    & $Executable @Arguments
-    if ($LASTEXITCODE -ne 0) {
-        throw "Godot exited with code $LASTEXITCODE while running: $($Arguments -join ' ')"
-    }
-
-    Assert-NoRunningGodot -Reason "waiting for scene isolation helper shutdown"
-}
-
 function Resolve-SceneResource {
     param(
         [Parameter(Mandatory = $true)]
@@ -68,36 +52,57 @@ function Resolve-SceneResource {
     }
 }
 
+function New-SceneIsolationLogName {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SceneResourcePath
+    )
+
+    $slug = ($SceneResourcePath -replace '[^A-Za-z0-9]+', '_').Trim('_')
+    if ([string]::IsNullOrWhiteSpace($slug)) {
+        $slug = "scene"
+    }
+
+    $token = [System.Guid]::NewGuid().ToString("N").Substring(0, 8)
+    return "godot_scene_isolation_${slug}_${token}.log"
+}
+
 try {
     $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
     $profilePaths = Initialize-GodotLocalProfile -ProjectRoot $projectRoot
     Assert-NoRunningGodot -Reason "using scene isolation"
     $godotExe = Get-GodotExecutable
     $scene = Resolve-SceneResource -ProjectRoot $projectRoot -InputPath $ScenePath
-    $logFile = Get-GodotLogFilePath -ProjectRoot $projectRoot -Name "godot_scene_isolation.log"
+    $logFile = Get-GodotLogFilePath -ProjectRoot $projectRoot -Name (New-SceneIsolationLogName -SceneResourcePath $scene.ResourcePath)
+    $smokeScriptPath = "res://Tools/scene_isolation_smoke.gd"
+    $sceneTimeoutMs = [Math]::Max($QuitAfter * 1000, 2000)
+    $processTimeoutSeconds = [Math]::Max($QuitAfter + 15, 20)
 
     Write-Host "Using Godot executable: $godotExe"
     Write-Host "Using repo-local Godot profile: $($profilePaths.Root)"
     Write-Host "Running import step before isolated scene smoke check..."
     Reset-GodotLogFile -LogFile $logFile
-    Invoke-Godot -Executable $godotExe -Arguments @(
+    Invoke-GodotWithTimeout -Executable $godotExe -Arguments @(
         "--headless",
         "--path", $projectRoot,
         "--log-file", $logFile,
         "--import"
-    )
+    ) -TimeoutSeconds $processTimeoutSeconds
     Assert-NoHiddenLogFailures -LogFile $logFile -ContextLabel "scene isolation import"
 
     Write-Host "Running isolated scene smoke check for $($scene.ResourcePath)"
     Reset-GodotLogFile -LogFile $logFile
-    Invoke-Godot -Executable $godotExe -Arguments @(
+    Invoke-GodotWithTimeout -Executable $godotExe -Arguments @(
         "--headless",
         "--path", $projectRoot,
         "--log-file", $logFile,
-        "--quit-after", "$QuitAfter",
-        $scene.ResourcePath
-    )
+        "--script", $smokeScriptPath,
+        "--",
+        "--scene", $scene.ResourcePath,
+        "--timeout-ms", "$sceneTimeoutMs"
+    ) -TimeoutSeconds $processTimeoutSeconds
     Assert-NoHiddenLogFailures -LogFile $logFile -ContextLabel $scene.ResourcePath
+    Assert-LogContains -LogFile $logFile -Pattern "SCENE_ISOLATION_SMOKE: scene_ready $($scene.ResourcePath)"
     Write-NonBlockingShutdownWarningNote -LogFile $logFile -ContextLabel $scene.ResourcePath
 
     Write-Host "Isolated scene smoke check passed for $($scene.ResourcePath)"

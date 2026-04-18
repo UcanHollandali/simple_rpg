@@ -23,7 +23,7 @@ Use:
 
 ## Quick Reminders
 
-- Combat is intentionally small: `Attack`, `Brace`, `Use Item`.
+- Combat is intentionally small: `Attack`, `Defend`, `Use Item`.
 - Most new content should be definition-driven.
 - UI is presentation, not gameplay truth.
 - Save compatibility matters early.

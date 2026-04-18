@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "definition_id": "warden_boss_plate",
+  "family": "ShieldAttachments",
+  "tags": [
+    "shield_attachment",
+    "defense",
+    "guard",
+    "warden"
+  ],
+  "display": {
+    "name": "Warden Boss Plate",
+    "short_description": "A thick metal boss plate that makes every guarded stand feel firmer and less forgiving to incoming hits.",
+    "icon_key": "shield_attachment_warden_boss_plate"
+  },
+  "rules": {
+    "attachment_target": "shield",
+    "max_per_shield": 1,
+    "behaviors": [
+      {
+        "trigger": "passive",
+        "condition": {
+          "op": "always"
+        },
+        "target": "self",
+        "effects": [
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "incoming_damage_flat_reduction",
+              "amount": 1
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

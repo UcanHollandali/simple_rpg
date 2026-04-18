@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "definition_id": "watchman_shield",
+  "family": "Shields",
+  "tags": [
+    "shield",
+    "defense",
+    "tutorial",
+    "balanced"
+  ],
+  "display": {
+    "name": "Watchman Shield",
+    "short_description": "A square road-watch shield that teaches the basic Defend-to-Guard rhythm without extra tricks.",
+    "icon_key": "shield_watchman_shield"
+  },
+  "rules": {
+    "behaviors": []
+  }
+}

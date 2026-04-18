@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "definition_id": "binding_resin",
+  "family": "Consumables",
+  "tags": [
+    "consumable",
+    "repair",
+    "combat",
+    "preparation"
+  ],
+  "display": {
+    "name": "Binding Resin",
+    "short_description": "A tacky field resin that seals splintered weapon edges back into fighting shape.",
+    "icon_key": "consumable_binding_resin"
+  },
+  "rules": {
+    "stats": {
+      "max_stack": 2
+    },
+    "use_effect": {
+      "trigger": "on_use",
+      "condition": {
+        "op": "always"
+      },
+      "target": "self",
+      "effects": [
+        {
+          "type": "repair_weapon",
+          "params": {}
+        }
+      ]
+    }
+  }
+}

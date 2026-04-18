@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "definition_id": "ridge_contract_hunt",
+  "family": "SideMissions",
+  "tags": [
+    "hamlet",
+    "side_quest",
+    "contract",
+    "hunt",
+    "prototype"
+  ],
+  "display": {
+    "name": "Clear the Ridge Cut",
+    "short_description": "A ridge trail above the hamlet keeps feeding carrion crews onto the road. The board wants one marked scavenger run down."
+  },
+  "rules": {
+    "mission_type": "hunt_marked_enemy",
+    "briefing_text": "A scavenger pack leader keeps cutting down from the ridge path. Hunt the marked threat and the hamlet will pay in practical road gear.",
+    "accept_label": "Take the ridge mark",
+    "accepted_text": "The ridge mark is live now. Run the target down, then return here for payment.",
+    "reminder_label": "Ridge mark ahead",
+    "completed_text": "The ridge path is quiet again. Choose one hamlet reward before you move on.",
+    "claimed_text": "The ridge board is already crossed clean. This request is settled.",
+    "claimed_label": "Ridge cleared",
+    "reward_pool": [
+      {
+        "offer_id": "claim_hedge_sabre",
+        "effect_type": "grant_item",
+        "inventory_family": "weapon",
+        "definition_id": "hedge_sabre"
+      },
+      {
+        "offer_id": "claim_wayfarer_frame",
+        "effect_type": "grant_item",
+        "inventory_family": "belt",
+        "definition_id": "wayfarer_frame"
+      },
+      {
+        "offer_id": "claim_embersalt_ration",
+        "effect_type": "grant_item",
+        "inventory_family": "consumable",
+        "definition_id": "embersalt_ration",
+        "amount": 1
+      }
+    ]
+  }
+}

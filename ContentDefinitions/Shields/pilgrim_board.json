@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "definition_id": "pilgrim_board",
+  "family": "Shields",
+  "tags": [
+    "shield",
+    "survival",
+    "road",
+    "pilgrim"
+  ],
+  "display": {
+    "name": "Pilgrim Board",
+    "short_description": "A patched travel board that helps cautious runs preserve steel and food through rough stretches.",
+    "icon_key": "shield_pilgrim_board"
+  },
+  "rules": {
+    "behaviors": [
+      {
+        "trigger": "passive",
+        "condition": {
+          "op": "always"
+        },
+        "target": "self",
+        "effects": [
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "durability_cost_flat_reduction",
+              "amount": 1
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

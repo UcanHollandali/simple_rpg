@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "definition_id": "ash_barricade_proof",
+  "family": "SideMissions",
+  "tags": [
+    "hamlet",
+    "side_quest",
+    "proof",
+    "prototype"
+  ],
+  "display": {
+    "name": "Bring Proof from the Barricade",
+    "short_description": "The hamlet wants hard proof that the ash barricade threat was broken before it opens the heavy stores."
+  },
+  "rules": {
+    "mission_type": "bring_proof",
+    "quest_item_definition_id": "brigand_proof",
+    "target_families": [
+      "combat",
+      "event",
+      "reward"
+    ],
+    "briefing_text": "Break the marked barricade threat and bring back proof. The hamlet will only open its stronger stores once the evidence is in hand.",
+    "accept_label": "Take the barricade proof request",
+    "accepted_text": "The marked pocket is live now. Finish it, collect proof, then return here for payment.",
+    "reminder_label": "Barricade proof needed",
+    "completed_text": "The proof is in hand. Choose one payment before you move on.",
+    "claimed_text": "The barricade proof was already turned in. This request is settled.",
+    "claimed_label": "Proof delivered",
+    "reward_pool": [
+      {
+        "offer_id": "claim_bastion_plate",
+        "effect_type": "grant_item",
+        "inventory_family": "armor",
+        "definition_id": "bastion_plate"
+      },
+      {
+        "offer_id": "claim_caravan_harness",
+        "effect_type": "grant_item",
+        "inventory_family": "belt",
+        "definition_id": "caravan_harness"
+      },
+      {
+        "offer_id": "claim_tinker_oil",
+        "effect_type": "grant_item",
+        "inventory_family": "consumable",
+        "definition_id": "tinker_oil",
+        "amount": 1
+      },
+      {
+        "offer_id": "claim_barricade_bounty",
+        "effect_type": "grant_gold",
+        "amount": 14
+      }
+    ]
+  }
+}

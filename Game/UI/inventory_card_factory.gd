@@ -5,6 +5,8 @@ class_name InventoryCardFactory
 const TempScreenThemeScript = preload("res://Game/UI/temp_screen_theme.gd")
 const CUSTOM_TOOLTIP_META_KEY := "custom_tooltip_text"
 const ACCENT_COLOR_META_KEY := "accent_color"
+const EQUIPPED_HIGHLIGHT_COLOR := Color(0.40, 0.82, 0.56, 0.98)
+const SELECTED_HIGHLIGHT_COLOR := Color(0.55, 0.90, 0.66, 0.98)
 
 
 static func rebuild_cards(container: Container, card_models: Array[Dictionary]) -> Array[PanelContainer]:
@@ -12,9 +14,10 @@ static func rebuild_cards(container: Container, card_models: Array[Dictionary]) 
 	if container == null:
 		return cards
 
-	for child in container.get_children():
+	while container.get_child_count() > 0:
+		var child: Node = container.get_child(0)
 		container.remove_child(child)
-		child.queue_free()
+		child.free()
 
 	for card_model in card_models:
 		var card: PanelContainer = _build_card(card_model)
@@ -33,7 +36,7 @@ static func _build_card(card_model: Dictionary) -> PanelContainer:
 	var action_hint_tone: String = String(card_model.get("action_hint_tone", "muted"))
 	var accent: Color = Color(card_model.get("accent_color", TempScreenThemeScript.PANEL_BORDER_COLOR))
 	card.name = String(card_model.get("card_name", "InventoryCard"))
-	card.custom_minimum_size = Vector2(138, 160)
+	card.custom_minimum_size = Vector2(128, 148)
 	card.mouse_filter = Control.MOUSE_FILTER_STOP
 	if is_clickable:
 		card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
@@ -60,7 +63,7 @@ static func _build_card(card_model: Dictionary) -> PanelContainer:
 	var vbox := VBoxContainer.new()
 	vbox.name = "VBox"
 	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	vbox.add_theme_constant_override("separation", 5)
+	vbox.add_theme_constant_override("separation", 4)
 	card.add_child(vbox)
 
 	var accent_bar := ColorRect.new()
@@ -112,7 +115,7 @@ static func _build_card(card_model: Dictionary) -> PanelContainer:
 	var icon_rect := TextureRect.new()
 	icon_rect.name = "IconRect"
 	icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	icon_rect.custom_minimum_size = Vector2(46, 46)
+	icon_rect.custom_minimum_size = Vector2(42, 42)
 	icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon_rect.texture = _load_texture_or_null(String(card_model.get("icon_texture_path", "")))
@@ -127,7 +130,7 @@ static func _build_card(card_model: Dictionary) -> PanelContainer:
 	placeholder_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	placeholder_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	TempScreenThemeScript.apply_label(placeholder_label, "muted")
-	placeholder_label.add_theme_font_size_override("font_size", 28)
+	placeholder_label.add_theme_font_size_override("font_size", 24)
 	placeholder_label.visible = icon_rect.texture == null
 	vbox.add_child(placeholder_label)
 
@@ -138,7 +141,7 @@ static func _build_card(card_model: Dictionary) -> PanelContainer:
 	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	TempScreenThemeScript.apply_label(title_label)
-	title_label.add_theme_font_size_override("font_size", 18)
+	title_label.add_theme_font_size_override("font_size", 17)
 	vbox.add_child(title_label)
 
 	var detail_label := Label.new()
@@ -148,7 +151,7 @@ static func _build_card(card_model: Dictionary) -> PanelContainer:
 	detail_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	TempScreenThemeScript.apply_label(detail_label, "muted")
-	detail_label.add_theme_font_size_override("font_size", 15)
+	detail_label.add_theme_font_size_override("font_size", 14)
 	detail_label.visible = not detail_label.text.is_empty()
 	vbox.add_child(detail_label)
 
@@ -159,7 +162,7 @@ static func _build_card(card_model: Dictionary) -> PanelContainer:
 	action_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	action_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_apply_action_hint_style(action_hint_label, accent, action_hint_tone, false)
-	action_hint_label.add_theme_font_size_override("font_size", 13)
+	action_hint_label.add_theme_font_size_override("font_size", 12)
 	action_hint_label.visible = not action_hint_label.text.is_empty()
 	vbox.add_child(action_hint_label)
 
@@ -202,42 +205,49 @@ static func _apply_card_style(
 	compact_style.shadow_size = 10
 	compact_style.bg_color = compact_style.bg_color.lightened(0.02)
 	if is_equipped:
+		var equipped_color: Color = EQUIPPED_HIGHLIGHT_COLOR
 		compact_style.border_width_left = 3
 		compact_style.border_width_top = 3
 		compact_style.border_width_right = 3
 		compact_style.border_width_bottom = 3
-		compact_style.border_color = accent.lightened(0.22)
-		compact_style.bg_color = compact_style.bg_color.lightened(0.06)
-		compact_style.shadow_color = Color(accent.r, accent.g, accent.b, 0.34)
-		compact_style.shadow_size = 14
+		compact_style.border_color = equipped_color
+		compact_style.bg_color = compact_style.bg_color.lerp(equipped_color.darkened(0.78), 0.14)
+		compact_style.shadow_color = Color(equipped_color.r, equipped_color.g, equipped_color.b, 0.34)
+		compact_style.shadow_size = 16
 	if is_hovered:
 		compact_style.border_color = accent.lightened(0.18)
 		compact_style.bg_color = compact_style.bg_color.lightened(0.05)
 		compact_style.shadow_color = Color(accent.r, accent.g, accent.b, 0.32)
 		compact_style.shadow_size = 13
 	if is_selected:
-		compact_style.border_color = accent.lightened(0.26)
-		compact_style.bg_color = compact_style.bg_color.lightened(0.08)
-		compact_style.shadow_color = Color(accent.r, accent.g, accent.b, 0.30)
-		compact_style.shadow_size = 14
+		var selected_color: Color = SELECTED_HIGHLIGHT_COLOR
+		compact_style.border_color = selected_color
+		compact_style.bg_color = compact_style.bg_color.lerp(selected_color.darkened(0.80), 0.12)
+		compact_style.shadow_color = Color(selected_color.r, selected_color.g, selected_color.b, 0.32)
+		compact_style.shadow_size = 16
 		if is_hovered:
-			compact_style.border_color = accent.lightened(0.34)
-			compact_style.shadow_color = Color(accent.r, accent.g, accent.b, 0.38)
+			compact_style.border_color = selected_color.lightened(0.08)
+			compact_style.shadow_color = Color(selected_color.r, selected_color.g, selected_color.b, 0.40)
 			compact_style.shadow_size = 16
 	if is_dragging:
 		compact_style.bg_color = compact_style.bg_color.lightened(0.10)
 		compact_style.shadow_color = Color(accent.r, accent.g, accent.b, 0.44)
 		compact_style.shadow_size = 18
-	compact_style.content_margin_left = 12
-	compact_style.content_margin_top = 10
-	compact_style.content_margin_right = 12
-	compact_style.content_margin_bottom = 10
+	compact_style.content_margin_left = 10
+	compact_style.content_margin_top = 9
+	compact_style.content_margin_right = 10
+	compact_style.content_margin_bottom = 9
 	card.add_theme_stylebox_override("panel", compact_style)
 
 	var accent_bar: ColorRect = card.get_node_or_null("VBox/AccentBar") as ColorRect
 	if accent_bar != null:
-		var accent_alpha: float = 1.0 if is_hovered else 0.92 if is_equipped else 0.84
-		accent_bar.color = Color(accent.r, accent.g, accent.b, accent_alpha)
+		var accent_color: Color = accent
+		if is_selected:
+			accent_color = SELECTED_HIGHLIGHT_COLOR
+		elif is_equipped:
+			accent_color = EQUIPPED_HIGHLIGHT_COLOR
+		var accent_alpha: float = 1.0 if is_hovered else 0.96 if (is_equipped or is_selected) else 0.84
+		accent_bar.color = Color(accent_color.r, accent_color.g, accent_color.b, accent_alpha)
 
 	var icon_rect: TextureRect = card.get_node_or_null("VBox/IconRect") as TextureRect
 	if icon_rect != null:

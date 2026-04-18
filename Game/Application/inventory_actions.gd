@@ -4,9 +4,60 @@ class_name InventoryActions
 
 const ContentLoaderScript = preload("res://Game/Infrastructure/content_loader.gd")
 const InventoryStateScript = preload("res://Game/RuntimeState/inventory_state.gd")
+const InventoryOverflowResolverScript = preload("res://Game/Application/inventory_overflow_resolver.gd")
+const INVENTORY_CHOICE_REQUIRED_ERROR: String = "inventory_choice_required"
+static func extract_consumable_use_profile(use_effect: Dictionary) -> Dictionary:
+	if use_effect.is_empty():
+		return {
+			"heal_amount": 0,
+			"hunger_delta": 0,
+			"repairs_weapon": false,
+		}
+	if String(use_effect.get("trigger", "")) != "on_use":
+		return {
+			"heal_amount": 0,
+			"hunger_delta": 0,
+			"repairs_weapon": false,
+		}
+	if String(use_effect.get("target", "")) != "self":
+		return {
+			"heal_amount": 0,
+			"hunger_delta": 0,
+			"repairs_weapon": false,
+		}
 
-# Compatibility constant only. Shared inventory capacity is now runtime-owned on InventoryState.
-const MAX_CONSUMABLE_SLOTS: int = InventoryStateScript.BASE_SLOT_CAPACITY
+	var effects: Variant = use_effect.get("effects", [])
+	if typeof(effects) != TYPE_ARRAY:
+		return {
+			"heal_amount": 0,
+			"hunger_delta": 0,
+			"repairs_weapon": false,
+		}
+
+	var heal_amount: int = 0
+	var hunger_delta: int = 0
+	var repairs_weapon: bool = false
+	for effect_value in effects:
+		if typeof(effect_value) != TYPE_DICTIONARY:
+			continue
+		var effect: Dictionary = effect_value
+		var params: Variant = effect.get("params", {})
+		if typeof(params) != TYPE_DICTIONARY:
+			continue
+		var effect_params: Dictionary = params
+		match String(effect.get("type", "")):
+			"heal":
+				heal_amount += int(effect_params.get("base", 0))
+			"modify_hunger":
+				hunger_delta += int(effect_params.get("amount", 0))
+			"repair_weapon":
+				repairs_weapon = true
+
+	return {
+		"heal_amount": heal_amount,
+		"hunger_delta": hunger_delta,
+		"repairs_weapon": repairs_weapon,
+	}
 
 
 func toggle_equipment_slot(inventory_owner: Variant, slot_id: int) -> Dictionary:
@@ -16,6 +67,15 @@ func toggle_equipment_slot(inventory_owner: Variant, slot_id: int) -> Dictionary
 			"ok": false,
 			"error": "missing_inventory_state",
 		}
+
+	var equipped_slot_name: String = inventory_state.find_equipment_slot_name_by_id(slot_id)
+	if not equipped_slot_name.is_empty():
+		if (
+			equipped_slot_name == InventoryStateScript.EQUIPMENT_SLOT_LEFT_HAND
+			and inventory_state.shield_slot_has_attachment(inventory_state.build_equipment_slot_snapshot(equipped_slot_name))
+		):
+			return inventory_state.detach_attachment_from_equipped_shield()
+		return inventory_state.move_equipment_slot_to_backpack(equipped_slot_name)
 
 	var slot_index: int = inventory_state.find_slot_index_by_id(slot_id)
 	if slot_index < 0:
@@ -27,8 +87,11 @@ func toggle_equipment_slot(inventory_owner: Variant, slot_id: int) -> Dictionary
 
 	var slot: Dictionary = inventory_state.inventory_slots[slot_index]
 	var inventory_family: String = String(slot.get("inventory_family", ""))
+	if inventory_family == InventoryStateScript.INVENTORY_FAMILY_SHIELD_ATTACHMENT:
+		return inventory_state.attach_backpack_attachment_to_equipped_shield(slot_id)
 	if inventory_family not in [
 		InventoryStateScript.INVENTORY_FAMILY_WEAPON,
+		InventoryStateScript.INVENTORY_FAMILY_SHIELD,
 		InventoryStateScript.INVENTORY_FAMILY_ARMOR,
 		InventoryStateScript.INVENTORY_FAMILY_BELT,
 	]:
@@ -39,32 +102,15 @@ func toggle_equipment_slot(inventory_owner: Variant, slot_id: int) -> Dictionary
 			"inventory_family": inventory_family,
 		}
 
-	var active_slot_id: int = _get_active_slot_id_for_family(inventory_state, inventory_family)
-	var equipping: bool = active_slot_id != slot_id
-	if not equipping and inventory_family == InventoryStateScript.INVENTORY_FAMILY_BELT:
-		var next_capacity: int = max(0, inventory_state.get_total_capacity() - InventoryStateScript.BELT_SLOT_CAPACITY_BONUS)
-		if inventory_state.get_used_capacity() > next_capacity:
-			return {
-				"ok": false,
-				"error": "belt_capacity_required",
-				"slot_id": slot_id,
-				"used_capacity": inventory_state.get_used_capacity(),
-				"total_capacity": inventory_state.get_total_capacity(),
-				"required_capacity": inventory_state.get_used_capacity(),
-				"next_capacity": next_capacity,
-			}
-
-	_set_active_slot_id_for_family(inventory_state, inventory_family, slot_id if equipping else -1)
-	return {
-		"ok": true,
-		"slot_id": slot_id,
-		"inventory_family": inventory_family,
-		"definition_id": String(slot.get("definition_id", "")),
-		"equipped": equipping,
-		"active_slot_id": _get_active_slot_id_for_family(inventory_state, inventory_family),
-		"used_capacity": inventory_state.get_used_capacity(),
-		"total_capacity": inventory_state.get_total_capacity(),
-	}
+	var target_equipment_slot: String = inventory_state.resolve_default_equipment_slot_name(slot)
+	if target_equipment_slot.is_empty():
+		return {
+			"ok": false,
+			"error": "invalid_equipment_family",
+			"slot_id": slot_id,
+			"inventory_family": inventory_family,
+		}
+	return inventory_state.move_backpack_slot_to_equipment(slot_id, target_equipment_slot)
 
 
 func move_slot_to_index(inventory_owner: Variant, slot_id: int, target_index: int) -> Dictionary:
@@ -309,6 +355,26 @@ func add_consumable_stack(inventory_owner: Variant, definition_id: String, amoun
 	}
 
 
+func preview_inventory_item_grant(
+	inventory_owner: Variant,
+	inventory_family: String,
+	definition_id: String,
+	amount: int = 1
+) -> Dictionary:
+	var inventory_state: RefCounted = _coerce_inventory_state(inventory_owner)
+	return InventoryOverflowResolverScript.preview_inventory_item_grant(
+		inventory_state,
+		inventory_family,
+		definition_id,
+		amount
+	)
+
+
+func discard_backpack_slot(inventory_owner: Variant, slot_id: int) -> Dictionary:
+	var inventory_state: RefCounted = _coerce_inventory_state(inventory_owner)
+	return InventoryOverflowResolverScript.discard_backpack_slot(inventory_state, slot_id)
+
+
 func remove_consumable_stack(inventory_owner: Variant, definition_id: String, amount: int = 1) -> Dictionary:
 	var inventory_state: RefCounted = _coerce_inventory_state(inventory_owner)
 	if inventory_state == null:
@@ -439,6 +505,87 @@ func add_passive_item(inventory_owner: Variant, definition_id: String, capacity:
 	}
 
 
+func add_quest_item(inventory_owner: Variant, definition_id: String) -> Dictionary:
+	var inventory_state: RefCounted = _coerce_inventory_state(inventory_owner)
+	if inventory_state == null:
+		return {
+			"ok": false,
+			"error": "missing_inventory_state",
+		}
+	if definition_id.is_empty():
+		return {
+			"ok": false,
+			"error": "missing_quest_item_definition",
+		}
+
+	var loader: ContentLoader = ContentLoaderScript.new()
+	var quest_item_definition: Dictionary = loader.load_definition("QuestItems", definition_id)
+	if quest_item_definition.is_empty():
+		return {
+			"ok": false,
+			"error": "missing_quest_item_definition",
+			"definition_id": definition_id,
+		}
+
+	var capacity_result: Dictionary = _ensure_capacity_for_carried_item(inventory_state, definition_id)
+	if not bool(capacity_result.get("ok", false)):
+		return capacity_result
+
+	var slot_id: int = _issue_slot_id(inventory_state)
+	inventory_state.inventory_slots.append({
+		"slot_id": slot_id,
+		"inventory_family": InventoryStateScript.INVENTORY_FAMILY_QUEST_ITEM,
+		"definition_id": definition_id,
+	})
+	return {
+		"ok": true,
+		"inventory_family": InventoryStateScript.INVENTORY_FAMILY_QUEST_ITEM,
+		"definition_id": definition_id,
+		"slot_id": slot_id,
+		"replaced_definition_id": String(capacity_result.get("replaced_definition_id", "")),
+		"replaced_family": String(capacity_result.get("replaced_family", "")),
+		"used_capacity": inventory_state.get_used_capacity(),
+		"total_capacity": inventory_state.get_total_capacity(),
+	}
+
+
+func remove_quest_item(inventory_owner: Variant, definition_id: String) -> Dictionary:
+	var inventory_state: RefCounted = _coerce_inventory_state(inventory_owner)
+	if inventory_state == null:
+		return {
+			"ok": false,
+			"error": "missing_inventory_state",
+		}
+	if definition_id.is_empty():
+		return {
+			"ok": false,
+			"error": "missing_quest_item_definition",
+		}
+
+	for index in range(inventory_state.inventory_slots.size()):
+		var slot: Dictionary = inventory_state.inventory_slots[index]
+		if String(slot.get("inventory_family", "")) != InventoryStateScript.INVENTORY_FAMILY_QUEST_ITEM:
+			continue
+		if String(slot.get("definition_id", "")) != definition_id:
+			continue
+		var slot_id: int = int(slot.get("slot_id", -1))
+		inventory_state.inventory_slots.remove_at(index)
+		return {
+			"ok": true,
+			"inventory_family": InventoryStateScript.INVENTORY_FAMILY_QUEST_ITEM,
+			"definition_id": definition_id,
+			"slot_id": slot_id,
+			"used_capacity": inventory_state.get_used_capacity(),
+			"total_capacity": inventory_state.get_total_capacity(),
+		}
+
+	return {
+		"ok": false,
+		"error": "missing_quest_item",
+		"definition_id": definition_id,
+	}
+
+
 func add_carried_weapon(inventory_owner: Variant, definition_id: String) -> Dictionary:
 	var inventory_state: RefCounted = _coerce_inventory_state(inventory_owner)
 	if inventory_state == null:
@@ -494,6 +641,50 @@ func add_carried_weapon(inventory_owner: Variant, definition_id: String) -> Dict
 	}
 
 
+func add_carried_shield(inventory_owner: Variant, definition_id: String) -> Dictionary:
+	var inventory_state: RefCounted = _coerce_inventory_state(inventory_owner)
+	if inventory_state == null:
+		return {
+			"ok": false,
+			"error": "missing_inventory_state",
+		}
+	if definition_id.is_empty():
+		return {
+			"ok": false,
+			"error": "missing_shield_definition",
+		}
+
+	var loader: ContentLoader = ContentLoaderScript.new()
+	var shield_definition: Dictionary = loader.load_definition("Shields", definition_id)
+	if shield_definition.is_empty():
+		return {
+			"ok": false,
+			"error": "missing_shield_definition",
+			"definition_id": definition_id,
+		}
+
+	var capacity_result: Dictionary = _ensure_capacity_for_carried_item(inventory_state, definition_id)
+	if not bool(capacity_result.get("ok", false)):
+		return capacity_result
+
+	var slot_id: int = _issue_slot_id(inventory_state)
+	inventory_state.inventory_slots.append({
+		"slot_id": slot_id,
+		"inventory_family": InventoryStateScript.INVENTORY_FAMILY_SHIELD,
+		"definition_id": definition_id,
+	})
+	return {
+		"ok": true,
+		"inventory_family": InventoryStateScript.INVENTORY_FAMILY_SHIELD,
+		"definition_id": definition_id,
+		"slot_id": slot_id,
+		"replaced_definition_id": String(capacity_result.get("replaced_definition_id", "")),
+		"replaced_family": String(capacity_result.get("replaced_family", "")),
+		"used_capacity": inventory_state.get_used_capacity(),
+		"total_capacity": inventory_state.get_total_capacity(),
+	}
+
+
 func add_carried_armor(inventory_owner: Variant, definition_id: String) -> Dictionary:
 	var inventory_state: RefCounted = _coerce_inventory_state(inventory_owner)
 	if inventory_state == null:
@@ -539,6 +730,94 @@ func add_carried_armor(inventory_owner: Variant, definition_id: String) -> Dicti
 	}
 
 
+func add_carried_belt(inventory_owner: Variant, definition_id: String) -> Dictionary:
+	var inventory_state: RefCounted = _coerce_inventory_state(inventory_owner)
+	if inventory_state == null:
+		return {
+			"ok": false,
+			"error": "missing_inventory_state",
+		}
+	if definition_id.is_empty():
+		return {
+			"ok": false,
+			"error": "missing_belt_definition",
+		}
+
+	var loader: ContentLoader = ContentLoaderScript.new()
+	var belt_definition: Dictionary = loader.load_definition("Belts", definition_id)
+	if belt_definition.is_empty():
+		return {
+			"ok": false,
+			"error": "missing_belt_definition",
+			"definition_id": definition_id,
+		}
+
+	var capacity_result: Dictionary = _ensure_capacity_for_carried_item(inventory_state, definition_id)
+	if not bool(capacity_result.get("ok", false)):
+		return capacity_result
+
+	var slot_id: int = _issue_slot_id(inventory_state)
+	inventory_state.inventory_slots.append({
+		"slot_id": slot_id,
+		"inventory_family": InventoryStateScript.INVENTORY_FAMILY_BELT,
+		"definition_id": definition_id,
+	})
+	return {
+		"ok": true,
+		"inventory_family": InventoryStateScript.INVENTORY_FAMILY_BELT,
+		"definition_id": definition_id,
+		"slot_id": slot_id,
+		"replaced_definition_id": String(capacity_result.get("replaced_definition_id", "")),
+		"replaced_family": String(capacity_result.get("replaced_family", "")),
+		"used_capacity": inventory_state.get_used_capacity(),
+		"total_capacity": inventory_state.get_total_capacity(),
+	}
+
+
+func add_shield_attachment(inventory_owner: Variant, definition_id: String) -> Dictionary:
+	var inventory_state: RefCounted = _coerce_inventory_state(inventory_owner)
+	if inventory_state == null:
+		return {
+			"ok": false,
+			"error": "missing_inventory_state",
+		}
+	if definition_id.is_empty():
+		return {
+			"ok": false,
+			"error": "missing_shield_attachment_definition",
+		}
+
+	var loader: ContentLoader = ContentLoaderScript.new()
+	var attachment_definition: Dictionary = loader.load_definition("ShieldAttachments", definition_id)
+	if attachment_definition.is_empty():
+		return {
+			"ok": false,
+			"error": "missing_shield_attachment_definition",
+			"definition_id": definition_id,
+		}
+
+	var capacity_result: Dictionary = _ensure_capacity_for_carried_item(inventory_state, definition_id)
+	if not bool(capacity_result.get("ok", false)):
+		return capacity_result
+
+	var slot_id: int = _issue_slot_id(inventory_state)
+	inventory_state.inventory_slots.append({
+		"slot_id": slot_id,
+		"inventory_family": InventoryStateScript.INVENTORY_FAMILY_SHIELD_ATTACHMENT,
+		"definition_id": definition_id,
+	})
+	return {
+		"ok": true,
+		"inventory_family": InventoryStateScript.INVENTORY_FAMILY_SHIELD_ATTACHMENT,
+		"definition_id": definition_id,
+		"slot_id": slot_id,
+		"replaced_definition_id": String(capacity_result.get("replaced_definition_id", "")),
+		"replaced_family": String(capacity_result.get("replaced_family", "")),
+		"used_capacity": inventory_state.get_used_capacity(),
+		"total_capacity": inventory_state.get_total_capacity(),
+	}
+
+
 func replace_active_weapon(inventory_owner: Variant, definition_id: String) -> Dictionary:
 	var inventory_state: RefCounted = _coerce_inventory_state(inventory_owner)
 	if inventory_state == null:
@@ -569,31 +848,63 @@ func replace_active_weapon(inventory_owner: Variant, definition_id: String) -> D
 			"error": "invalid_weapon_durability",
 			"definition_id": definition_id,
 		}
-	if not inventory_state.has_capacity_for_new_slot():
-		return {
-			"ok": false,
-			"error": "no_inventory_capacity",
+	var equip_result: Dictionary = inventory_state.replace_equipped_slot(
+		InventoryStateScript.EQUIPMENT_SLOT_RIGHT_HAND,
+		{
 			"definition_id": definition_id,
-			"used_capacity": inventory_state.get_used_capacity(),
-			"total_capacity": inventory_state.get_total_capacity(),
+			"inventory_family": InventoryStateScript.INVENTORY_FAMILY_WEAPON,
+			"current_durability": max_durability,
+			"upgrade_level": 0,
 		}
-
-	var previous_definition_id: String = String(inventory_state.weapon_instance.get("definition_id", ""))
-	var slot_id: int = _issue_slot_id(inventory_state)
-	inventory_state.inventory_slots.append({
-		"slot_id": slot_id,
-		"inventory_family": InventoryStateScript.INVENTORY_FAMILY_WEAPON,
-		"definition_id": definition_id,
-		"current_durability": max_durability,
-		"upgrade_level": 0,
-	})
-	inventory_state.active_weapon_slot_id = slot_id
+	)
+	if not bool(equip_result.get("ok", false)):
+		return equip_result.merged({"definition_id": definition_id}, true)
 
 	return {
 		"ok": true,
 		"definition_id": definition_id,
-		"replaced_definition_id": previous_definition_id,
+		"replaced_definition_id": String(equip_result.get("replaced_definition_id", "")),
 		"current_durability": max_durability,
+		"used_capacity": inventory_state.get_used_capacity(),
+		"total_capacity": inventory_state.get_total_capacity(),
+	}
+
+
+func replace_active_shield(inventory_owner: Variant, definition_id: String) -> Dictionary:
+	var inventory_state: RefCounted = _coerce_inventory_state(inventory_owner)
+	if inventory_state == null:
+		return {
+			"ok": false,
+			"error": "missing_inventory_state",
+		}
+	if definition_id.is_empty():
+		return {
+			"ok": false,
+			"error": "missing_shield_definition",
+		}
+
+	var loader: ContentLoader = ContentLoaderScript.new()
+	var shield_definition: Dictionary = loader.load_definition("Shields", definition_id)
+	if shield_definition.is_empty():
+		return {
+			"ok": false,
+			"error": "missing_shield_definition",
+			"definition_id": definition_id,
+		}
+	var equip_result: Dictionary = inventory_state.replace_equipped_slot(
+		InventoryStateScript.EQUIPMENT_SLOT_LEFT_HAND,
+		{
+			"definition_id": definition_id,
+			"inventory_family": InventoryStateScript.INVENTORY_FAMILY_SHIELD,
+		}
+	)
+	if not bool(equip_result.get("ok", false)):
+		return equip_result.merged({"definition_id": definition_id}, true)
+
+	return {
+		"ok": true,
+		"definition_id": definition_id,
+		"replaced_definition_id": String(equip_result.get("replaced_definition_id", "")),
 		"used_capacity": inventory_state.get_used_capacity(),
 		"total_capacity": inventory_state.get_total_capacity(),
 	}
@@ -620,29 +931,21 @@ func replace_active_armor(inventory_owner: Variant, definition_id: String) -> Di
 			"error": "missing_armor_definition",
 			"definition_id": definition_id,
 		}
-	if not inventory_state.has_capacity_for_new_slot():
-		return {
-			"ok": false,
-			"error": "no_inventory_capacity",
+	var equip_result: Dictionary = inventory_state.replace_equipped_slot(
+		InventoryStateScript.EQUIPMENT_SLOT_ARMOR,
+		{
 			"definition_id": definition_id,
-			"used_capacity": inventory_state.get_used_capacity(),
-			"total_capacity": inventory_state.get_total_capacity(),
+			"inventory_family": InventoryStateScript.INVENTORY_FAMILY_ARMOR,
+			"upgrade_level": 0,
 		}
-
-	var previous_definition_id: String = String(inventory_state.armor_instance.get("definition_id", ""))
-	var slot_id: int = _issue_slot_id(inventory_state)
-	inventory_state.inventory_slots.append({
-		"slot_id": slot_id,
-		"inventory_family": InventoryStateScript.INVENTORY_FAMILY_ARMOR,
-		"definition_id": definition_id,
-		"upgrade_level": 0,
-	})
-	inventory_state.active_armor_slot_id = slot_id
+	)
+	if not bool(equip_result.get("ok", false)):
+		return equip_result.merged({"definition_id": definition_id}, true)
 
 	return {
 		"ok": true,
 		"definition_id": definition_id,
-		"replaced_definition_id": previous_definition_id,
+		"replaced_definition_id": String(equip_result.get("replaced_definition_id", "")),
 		"used_capacity": inventory_state.get_used_capacity(),
 		"total_capacity": inventory_state.get_total_capacity(),
 	}
@@ -669,31 +972,41 @@ func replace_active_belt(inventory_owner: Variant, definition_id: String) -> Dic
 			"error": "missing_belt_definition",
 			"definition_id": definition_id,
 		}
-	if not inventory_state.has_capacity_for_new_slot(InventoryStateScript.BELT_SLOT_CAPACITY_BONUS):
-		return {
-			"ok": false,
-			"error": "no_inventory_capacity",
+	var equip_result: Dictionary = inventory_state.replace_equipped_slot(
+		InventoryStateScript.EQUIPMENT_SLOT_BELT,
+		{
 			"definition_id": definition_id,
-			"used_capacity": inventory_state.get_used_capacity(),
-			"total_capacity": inventory_state.get_total_capacity(),
+			"inventory_family": InventoryStateScript.INVENTORY_FAMILY_BELT,
 		}
-
-	var previous_definition_id: String = String(inventory_state.belt_instance.get("definition_id", ""))
-	var slot_id: int = _issue_slot_id(inventory_state)
-	inventory_state.inventory_slots.append({
-		"slot_id": slot_id,
-		"inventory_family": InventoryStateScript.INVENTORY_FAMILY_BELT,
-		"definition_id": definition_id,
-	})
-	inventory_state.active_belt_slot_id = slot_id
+	)
+	if not bool(equip_result.get("ok", false)):
+		return equip_result.merged({"definition_id": definition_id}, true)
 
 	return {
 		"ok": true,
 		"definition_id": definition_id,
-		"replaced_definition_id": previous_definition_id,
+		"replaced_definition_id": String(equip_result.get("replaced_definition_id", "")),
 		"used_capacity": inventory_state.get_used_capacity(),
 		"total_capacity": inventory_state.get_total_capacity(),
 	}
+
+
+func grant_inventory_item(
+	inventory_owner: Variant,
+	inventory_family: String,
+	definition_id: String,
+	amount: int = 1,
+	discard_slot_id: int = -1
+) -> Dictionary:
+	var inventory_state: RefCounted = _coerce_inventory_state(inventory_owner)
+	return InventoryOverflowResolverScript.grant_inventory_item(
+		self,
+		inventory_state,
+		inventory_family,
+		definition_id,
+		amount,
+		discard_slot_id
+	)
 
 
 func _load_max_consumable_stack(definition_id: String) -> int:
@@ -736,13 +1049,7 @@ func _ensure_capacity_for_carried_item(inventory_state: InventoryState, definiti
 
 func _find_oldest_non_active_slot_index(inventory_state: InventoryState) -> int:
 	for index in range(inventory_state.inventory_slots.size()):
-		var slot: Dictionary = inventory_state.inventory_slots[index]
-		var slot_id: int = int(slot.get("slot_id", -1))
-		if slot_id in [
-			int(inventory_state.active_weapon_slot_id),
-			int(inventory_state.active_armor_slot_id),
-			int(inventory_state.active_belt_slot_id),
-		]:
+		if String(inventory_state.inventory_slots[index].get("inventory_family", "")) == InventoryStateScript.INVENTORY_FAMILY_QUEST_ITEM:
 			continue
 		return index
 	return -1
@@ -752,28 +1059,6 @@ func _issue_slot_id(inventory_state: InventoryState) -> int:
 	var issued_slot_id: int = max(1, int(inventory_state.next_slot_id))
 	inventory_state.next_slot_id = issued_slot_id + 1
 	return issued_slot_id
-
-
-func _get_active_slot_id_for_family(inventory_state: InventoryState, inventory_family: String) -> int:
-	match inventory_family:
-		InventoryStateScript.INVENTORY_FAMILY_WEAPON:
-			return int(inventory_state.active_weapon_slot_id)
-		InventoryStateScript.INVENTORY_FAMILY_ARMOR:
-			return int(inventory_state.active_armor_slot_id)
-		InventoryStateScript.INVENTORY_FAMILY_BELT:
-			return int(inventory_state.active_belt_slot_id)
-		_:
-			return -1
-
-
-func _set_active_slot_id_for_family(inventory_state: InventoryState, inventory_family: String, slot_id: int) -> void:
-	match inventory_family:
-		InventoryStateScript.INVENTORY_FAMILY_WEAPON:
-			inventory_state.active_weapon_slot_id = slot_id
-		InventoryStateScript.INVENTORY_FAMILY_ARMOR:
-			inventory_state.active_armor_slot_id = slot_id
-		InventoryStateScript.INVENTORY_FAMILY_BELT:
-			inventory_state.active_belt_slot_id = slot_id
 
 
 # Transitional compatibility only. New callers should prefer passing InventoryState directly

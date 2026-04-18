@@ -1,0 +1,52 @@
+{
+    "schema_version":  1,
+    "definition_id":  "wolfspur_frenzy",
+    "authoring_order":  65,
+    "family":  "CharacterPerks",
+    "tags":  [
+                 "perk",
+                 "offense",
+                 "risk"
+             ],
+    "display":  {
+                    "name":  "Wolfspur Frenzy",
+                    "short_description":  "A ferocious perk that grants 3 attack power, but you take 1 more damage and each swing costs 1 extra durability.",
+                    "icon_key":  "passive_wolfspur_ring"
+                },
+    "rules":  {
+                  "behaviors":  [
+                                    {
+                                        "trigger":  "passive",
+                                        "condition":  {
+                                                          "op":  "always"
+                                                      },
+                                        "target":  "self",
+                                        "effects":  [
+                                                        {
+                                                            "type":  "modify_stat",
+                                                            "params":  {
+                                                                           "stat":  "attack_power_bonus",
+                                                                           "amount":  3
+                                                                       }
+                                                        },
+                                                        {
+                                                            "type":  "modify_stat",
+                                                            "params":  {
+                                                                           "stat":  "incoming_damage_flat_reduction",
+                                                                           "amount":  -1
+                                                                       }
+                                                        },
+                                                        {
+                                                            "type":  "modify_stat",
+                                                            "params":  {
+                                                                           "stat":  "durability_cost_flat_reduction",
+                                                                           "amount":  -1
+                                                                       }
+                                                        }
+                                                    ]
+                                    }
+                                ],
+                  "perk_family":  "offense"
+              }
+}
+

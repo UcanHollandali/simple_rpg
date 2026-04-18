@@ -1,0 +1,45 @@
+{
+    "schema_version":  1,
+    "definition_id":  "scavenger_stride",
+    "authoring_order":  25,
+    "family":  "CharacterPerks",
+    "tags":  [
+                 "perk",
+                 "survival",
+                 "fieldcraft"
+             ],
+    "display":  {
+                    "name":  "Scavenger Stride",
+                    "short_description":  "A fieldcraft perk that reduces incoming combat damage by 1 and weapon durability cost per attack by 1.",
+                    "icon_key":  "passive_scavenger_straps"
+                },
+    "rules":  {
+                  "behaviors":  [
+                                    {
+                                        "trigger":  "passive",
+                                        "condition":  {
+                                                          "op":  "always"
+                                                      },
+                                        "target":  "self",
+                                        "effects":  [
+                                                        {
+                                                            "type":  "modify_stat",
+                                                            "params":  {
+                                                                           "stat":  "incoming_damage_flat_reduction",
+                                                                           "amount":  1
+                                                                       }
+                                                        },
+                                                        {
+                                                            "type":  "modify_stat",
+                                                            "params":  {
+                                                                           "stat":  "durability_cost_flat_reduction",
+                                                                           "amount":  1
+                                                                       }
+                                                        }
+                                                    ]
+                                    }
+                                ],
+                  "perk_family":  "survival"
+              }
+}
+

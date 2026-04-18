@@ -3,8 +3,11 @@ extends RefCounted
 class_name CombatPresenter
 
 const ContentLoaderScript = preload("res://Game/Infrastructure/content_loader.gd")
+const InventoryActionsScript = preload("res://Game/Application/inventory_actions.gd")
+const CombatFeedbackFactoryScript = preload("res://Game/UI/combat_feedback_factory.gd")
 const TempScreenThemeScript = preload("res://Game/UI/temp_screen_theme.gd")
 const UiAssetPathsScript = preload("res://Game/UI/ui_asset_paths.gd")
+const UiFormattingScript = preload("res://Game/UI/ui_formatting.gd")
 
 var _loader: ContentLoader = ContentLoaderScript.new()
 
@@ -21,36 +24,7 @@ func build_intent_text(intent: Dictionary) -> String:
 
 
 func build_intent_summary_text(intent: Dictionary) -> String:
-	if intent.is_empty():
-		return "Intent: Unknown"
-
-	var parts: PackedStringArray = []
-	var total_damage: int = 0
-	var status_names: PackedStringArray = []
-	var effects: Array = intent.get("effects", [])
-	for effect_value in effects:
-		if typeof(effect_value) != TYPE_DICTIONARY:
-			continue
-		var effect: Dictionary = effect_value
-		var effect_type: String = String(effect.get("type", ""))
-		var params: Dictionary = effect.get("params", {})
-		match effect_type:
-			"deal_damage":
-				total_damage += int(params.get("base", 0))
-			"apply_status":
-				var status_id: String = String(params.get("definition_id", ""))
-				if not status_id.is_empty():
-					status_names.append(_humanize_identifier(status_id))
-
-	if total_damage > 0:
-		parts.append("Attack %d" % total_damage)
-	for status_name in status_names:
-		parts.append(status_name)
-
-	if parts.is_empty():
-		parts.append(_humanize_identifier(String(intent.get("action_family", intent.get("intent_id", "unknown")))))
-
-	return "Intent: %s" % " + ".join(parts)
+	return UiFormattingScript.build_enemy_intent_summary(intent)
 
 
 func build_intent_icon_texture_path(intent: Dictionary) -> String:
@@ -141,7 +115,7 @@ func build_enemy_hp_text(combat_state: CombatState) -> String:
 
 
 func build_player_hp_text(combat_state: CombatState) -> String:
-	return "HP: %d/%d" % [combat_state.player_hp, RunState.DEFAULT_PLAYER_HP]
+	return UiFormattingScript.build_hp_text(combat_state.player_hp, RunState.DEFAULT_PLAYER_HP, ": ")
 
 
 func build_hp_icon_texture_path() -> String:
@@ -149,7 +123,7 @@ func build_hp_icon_texture_path() -> String:
 
 
 func build_hunger_text(combat_state: CombatState) -> String:
-	return "Hunger: %d/%d" % [combat_state.player_hunger, RunState.DEFAULT_HUNGER]
+	return UiFormattingScript.build_hunger_text(combat_state.player_hunger, RunState.DEFAULT_HUNGER, ": ")
 
 
 func build_hunger_icon_texture_path() -> String:
@@ -158,7 +132,7 @@ func build_hunger_icon_texture_path() -> String:
 
 func build_durability_text(combat_state: CombatState) -> String:
 	var max_durability: int = _extract_weapon_max_durability(combat_state)
-	return "Durability: %d/%d" % [int(combat_state.weapon_instance.get("current_durability", 0)), max_durability]
+	return UiFormattingScript.build_durability_text(int(combat_state.weapon_instance.get("current_durability", 0)), max_durability, ": ")
 
 
 func build_durability_icon_texture_path() -> String:
@@ -166,7 +140,117 @@ func build_durability_icon_texture_path() -> String:
 
 
 func build_active_weapon_text(combat_state: CombatState) -> String:
-	return "Active Weapon: %s" % _build_weapon_display_name(combat_state.weapon_instance)
+	return "Active Weapon: %s" % UiFormattingScript.build_weapon_display_name(combat_state.weapon_instance)
+
+
+func build_player_status_model(combat_state: CombatState) -> Dictionary:
+	var primary_items: Array[Dictionary] = []
+	var secondary_items: Array[Dictionary] = []
+	if combat_state == null:
+		return {
+			"variant": "compact",
+			"density": "compact",
+			"primary_items": primary_items,
+			"secondary_items": secondary_items,
+			"progress_items": [],
+			"fallback_text": "",
+		}
+
+	primary_items.append({
+		"key": "hp",
+		"label_text": "HP",
+		"value_text": UiFormattingScript.build_metric_value_text(combat_state.player_hp, RunState.DEFAULT_PLAYER_HP),
+		"semantic": "health",
+		"current_value": combat_state.player_hp,
+		"max_value": RunState.DEFAULT_PLAYER_HP,
+	})
+	primary_items.append({
+		"key": "hunger",
+		"label_text": "Hunger",
+		"value_text": UiFormattingScript.build_metric_value_text(combat_state.player_hunger, RunState.DEFAULT_HUNGER),
+		"semantic": "hunger",
+		"current_value": combat_state.player_hunger,
+		"max_value": RunState.DEFAULT_HUNGER,
+	})
+	primary_items.append({
+		"key": "durability",
+		"label_text": "Durability",
+		"value_text": UiFormattingScript.build_metric_value_text(
+			int(combat_state.weapon_instance.get("current_durability", 0)),
+			_extract_weapon_max_durability(combat_state)
+		),
+		"semantic": "durability",
+		"current_value": int(combat_state.weapon_instance.get("current_durability", 0)),
+		"max_value": _extract_weapon_max_durability(combat_state),
+	})
+	primary_items.append({
+		"key": "guard",
+		"label_text": "Guard",
+		"value_text": str(max(0, int(combat_state.current_guard))),
+		"semantic": "guard",
+		"current_value": max(0, int(combat_state.current_guard)),
+	})
+
+	secondary_items.append({
+		"key": "weapon",
+		"label_text": "Weapon",
+		"value_text": UiFormattingScript.build_weapon_summary(combat_state.weapon_instance),
+		"semantic": "weapon",
+	})
+	var left_hand_summary: String = _build_left_hand_summary(combat_state)
+	if not left_hand_summary.is_empty():
+		secondary_items.append({
+			"key": "left_hand",
+			"label_text": "Left Hand",
+			"value_text": left_hand_summary,
+			"semantic": "offhand",
+		})
+
+	var armor_name: String = _build_equipment_display_name("Armors", combat_state.armor_instance)
+	if not armor_name.is_empty():
+		secondary_items.append({
+			"key": "armor",
+			"label_text": "Armor",
+			"value_text": armor_name,
+			"semantic": "armor",
+		})
+
+	var belt_name: String = _build_equipment_display_name("Belts", combat_state.belt_instance)
+	if not belt_name.is_empty():
+		secondary_items.append({
+			"key": "belt",
+			"label_text": "Belt",
+			"value_text": belt_name,
+			"semantic": "offhand",
+		})
+
+	return {
+		"variant": "compact",
+		"density": "compact",
+		"primary_items": primary_items,
+		"secondary_items": secondary_items,
+		"progress_items": [],
+		"fallback_text": build_state_text(combat_state),
+	}
+
+
+func build_player_loadout_text(combat_state: CombatState) -> String:
+	if combat_state == null:
+		return ""
+
+	var fragments: PackedStringArray = []
+	var left_hand_summary: String = _build_left_hand_loadout_fragment(combat_state)
+	if not left_hand_summary.is_empty():
+		fragments.append(left_hand_summary)
+	var armor_name: String = _build_equipment_display_name("Armors", combat_state.armor_instance)
+	if not armor_name.is_empty():
+		fragments.append("Armor %s" % armor_name)
+	var belt_name: String = _build_equipment_display_name("Belts", combat_state.belt_instance)
+	if not belt_name.is_empty():
+		fragments.append("Belt %s" % belt_name)
+	if fragments.is_empty():
+		return "No left-hand, armor, or belt equipped."
+	return " | ".join(fragments)
 
 
 func build_player_identity_text() -> String:
@@ -177,21 +261,26 @@ func build_player_badge_text() -> String:
 	return "YOU"
 
 
+func build_defensive_action_label(_combat_state: CombatState = null) -> String:
+	return "Defend"
+
+
 func build_resource_hud_texts(combat_state: CombatState) -> Dictionary:
 	if combat_state == null:
 		return {
-			"hp": "HP 0/60",
-			"hunger": "Hunger 0/%d" % RunState.DEFAULT_HUNGER,
-			"durability": "Durability 0/0",
+			"hp": UiFormattingScript.build_hp_text(0, RunState.DEFAULT_PLAYER_HP),
+			"hunger": UiFormattingScript.build_hunger_text(0, RunState.DEFAULT_HUNGER),
+			"durability": UiFormattingScript.build_durability_text(0, 0),
 		}
 
 	return {
-		"hp": "HP %d/%d" % [combat_state.player_hp, RunState.DEFAULT_PLAYER_HP],
-		"hunger": "Hunger %d/%d" % [combat_state.player_hunger, RunState.DEFAULT_HUNGER],
-		"durability": "Durability %d/%d" % [
+		"hp": UiFormattingScript.build_hp_text(combat_state.player_hp, RunState.DEFAULT_PLAYER_HP),
+		"hunger": UiFormattingScript.build_hunger_text(combat_state.player_hunger, RunState.DEFAULT_HUNGER),
+		"durability": UiFormattingScript.build_durability_text(
 			int(combat_state.weapon_instance.get("current_durability", 0)),
 			_extract_weapon_max_durability(combat_state),
-		],
+		),
+		"guard": "Guard %d" % max(0, int(combat_state.current_guard)),
 	}
 
 
@@ -201,17 +290,20 @@ func build_impact_feedback_model(target: String, amount: int) -> Dictionary:
 	var flash_alpha: float = 0.18
 	var float_distance: float = 44.0
 	var font_size: int = 22
+	var pulse_out_duration: float = 0.18
 	match intensity:
 		"medium":
 			pulse_scale = 1.045
 			flash_alpha = 0.26
 			float_distance = 56.0
 			font_size = 26
+			pulse_out_duration = 0.2
 		"heavy":
 			pulse_scale = 1.075
 			flash_alpha = 0.38
 			float_distance = 72.0
 			font_size = 32
+			pulse_out_duration = 0.22
 
 	var flash_color: Color = TempScreenThemeScript.RUST_ACCENT_COLOR
 	var font_color: Color = TempScreenThemeScript.RUST_ACCENT_COLOR.lightened(0.18)
@@ -229,83 +321,45 @@ func build_impact_feedback_model(target: String, amount: int) -> Dictionary:
 		"pulse_scale": pulse_scale,
 		"float_distance": float_distance,
 		"font_size": font_size,
+		"feedback_stagger": 0.08,
+		"flash_cycles": 2,
+		"flash_on_duration": 0.06,
+		"flash_off_duration": 0.06,
+		"pulse_in_duration": 0.08,
+		"pulse_out_duration": pulse_out_duration,
+		"text_fade_in_duration": 0.08,
+		"text_hold_duration": 0.16,
+		"text_fade_out_duration": 0.16,
+		"text_float_duration": 0.4,
 	}
 
 
-func build_brace_feedback_model(raw_damage: int, reduced_damage: int) -> Dictionary:
-	return {
-		"target": "player",
-		"text": "Brace %d->%d" % [raw_damage, reduced_damage],
-		"intensity": "medium",
-		"flash_color": TempScreenThemeScript.TEAL_ACCENT_COLOR,
-		"font_color": TempScreenThemeScript.TEAL_ACCENT_COLOR.lightened(0.2),
-		"flash_alpha": 0.22,
-		"pulse_scale": 1.04,
-		"float_distance": 48.0,
-		"font_size": 20,
-	}
+func build_guard_feedback_model(guard_amount: int) -> Dictionary:
+	return CombatFeedbackFactoryScript.build_guard_feedback_model(guard_amount)
+
+
+func build_guard_delta_feedback_model(guard_delta: int, label_text: String = "guard") -> Dictionary:
+	return CombatFeedbackFactoryScript.build_guard_delta_feedback_model(guard_delta, label_text)
+
+
+func build_guard_decay_feedback_model(decay_amount: int) -> Dictionary:
+	return CombatFeedbackFactoryScript.build_guard_decay_feedback_model(decay_amount)
+
+
+func build_guard_absorb_feedback_model(guard_amount: int) -> Dictionary:
+	return CombatFeedbackFactoryScript.build_guard_absorb_feedback_model(guard_amount)
 
 
 func build_recovery_feedback_models(healed_amount: int, hunger_restored_amount: int) -> Array[Dictionary]:
-	var models: Array[Dictionary] = []
-	if healed_amount > 0:
-		models.append({
-			"target": "player",
-			"text": "+%d HP" % healed_amount,
-			"intensity": "medium",
-			"flash_color": TempScreenThemeScript.TEAL_ACCENT_COLOR,
-			"font_color": TempScreenThemeScript.TEAL_ACCENT_COLOR.lightened(0.25),
-			"flash_alpha": 0.18,
-			"pulse_scale": 1.035,
-			"float_distance": 52.0,
-			"font_size": 24,
-		})
-	if hunger_restored_amount > 0:
-		models.append({
-			"target": "player",
-			"text": "+%d H" % hunger_restored_amount,
-			"intensity": "light",
-			"flash_color": TempScreenThemeScript.REWARD_ACCENT_COLOR,
-			"font_color": TempScreenThemeScript.REWARD_ACCENT_COLOR,
-			"flash_alpha": 0.14,
-			"pulse_scale": 1.025,
-			"float_distance": 44.0,
-			"font_size": 20,
-		})
-	return models
+	return CombatFeedbackFactoryScript.build_recovery_feedback_models(healed_amount, hunger_restored_amount)
 
 
 func build_preview_texts(preview_snapshot: Dictionary) -> Dictionary:
-	if preview_snapshot.is_empty():
-		return {
-			"attack": "Hit ?",
-			"defense": "Defense ?",
-			"incoming": "Incoming ?",
-			"brace": "Brace ?",
-			"hunger_tick": "Tick -1 hunger",
-			"durability_spend": "Swing -? durability",
-			"intent_detail": "Incoming ? | Brace ?",
-		}
+	return UiFormattingScript.build_consequence_preview_texts(preview_snapshot)
 
-	var attack_text: String = "Hit %d" % int(preview_snapshot.get("attack_damage_preview", 0))
-	if bool(preview_snapshot.get("uses_fallback_attack", false)):
-		attack_text = "Fallback %d" % int(preview_snapshot.get("attack_damage_preview", 0))
-	var dodge_chance: int = int(preview_snapshot.get("attack_dodge_chance", 0))
-	if dodge_chance > 0:
-		attack_text = "%s | Dodge %d%%" % [attack_text, dodge_chance]
 
-	return {
-		"attack": attack_text,
-		"defense": "Defense %d" % int(preview_snapshot.get("defense_preview", 0)),
-		"incoming": "Incoming %d" % int(preview_snapshot.get("incoming_damage_preview", 0)),
-		"brace": "Brace %d" % int(preview_snapshot.get("brace_damage_preview", 0)),
-		"hunger_tick": "Tick -%d hunger" % int(preview_snapshot.get("hunger_tick_preview", 1)),
-		"durability_spend": "Swing -%d durability" % int(preview_snapshot.get("durability_spend_preview", 0)),
-		"intent_detail": "Incoming %d | Brace %d" % [
-			int(preview_snapshot.get("incoming_damage_preview", 0)),
-			int(preview_snapshot.get("brace_damage_preview", 0)),
-		],
-	}
+func build_guard_badge_text(guard_amount: int) -> String:
+	return "Guard: %d" % max(0, guard_amount)
 
 
 func build_quick_slot_title_text(slot_type: String) -> String:
@@ -319,7 +373,7 @@ func build_quick_slot_title_text(slot_type: String) -> String:
 
 
 func build_weapon_slot_body_text(combat_state: CombatState) -> String:
-	return _build_quick_slot_body_text(_build_weapon_display_name(combat_state.weapon_instance), "Weapon")
+	return _build_quick_slot_body_text(UiFormattingScript.build_weapon_display_name(combat_state.weapon_instance), "Weapon")
 
 
 func build_consumable_slot_body_text(consumable_slot: Dictionary) -> String:
@@ -336,12 +390,51 @@ func build_quick_slot_count_text(amount: int) -> String:
 	return str(amount) if amount > 0 else ""
 
 
+func build_action_card_preview_text(action_name: String, combat_state: CombatState, preview_consumable_slot: Dictionary = {}, preview_snapshot: Dictionary = {}) -> String:
+	var preview_texts: Dictionary = build_preview_texts(preview_snapshot)
+	match action_name:
+		"attack":
+			if preview_snapshot.is_empty():
+				return "Weapon strike that spends durability."
+			return "%s | %s" % [
+				String(preview_texts.get("attack", "Hit ?")),
+				String(preview_texts.get("durability_spend", "Swing -? durability")),
+			]
+		"defend":
+			if preview_snapshot.is_empty():
+				return "Gain guard before the enemy swing."
+			return String(preview_texts.get("guard_result", "Guard ? | HP ?"))
+		"use_item":
+			if combat_state == null:
+				return "Select a consumable card below."
+			if preview_consumable_slot.is_empty():
+				return "Select a consumable card below."
+			var item_name: String = _build_consumable_display_name(preview_consumable_slot)
+			if item_name.is_empty():
+				item_name = "Consumable"
+			if not _is_consumable_slot_usable_in_combat(combat_state, preview_consumable_slot):
+				return "%s ready, but it needs missing HP or hunger." % item_name
+			var effect_profile: Dictionary = _extract_consumable_use_profile(preview_consumable_slot)
+			var effect_fragments: PackedStringArray = []
+			var heal_amount: int = int(effect_profile.get("heal_amount", 0))
+			var hunger_restore: int = max(0, -int(effect_profile.get("hunger_delta", 0)))
+			if heal_amount > 0:
+				effect_fragments.append("+%d HP" % heal_amount)
+			if hunger_restore > 0:
+				effect_fragments.append("+%d hunger" % hunger_restore)
+			if effect_fragments.is_empty():
+				return item_name
+			return "%s | %s" % [item_name, " | ".join(effect_fragments)]
+		_:
+			return ""
+
+
 func build_action_tooltip_text(action_name: String, combat_state: CombatState, preview_consumable_slot: Dictionary = {}, preview_snapshot: Dictionary = {}) -> String:
 	match action_name:
 		"attack":
 			return _build_attack_tooltip_text(combat_state, preview_snapshot)
-		"brace":
-			return _build_brace_tooltip_text(preview_snapshot)
+		"defend":
+			return _build_defend_tooltip_text(combat_state, preview_snapshot)
 		"use_item":
 			return _build_use_item_tooltip_text(combat_state, preview_consumable_slot)
 		_:
@@ -349,16 +442,7 @@ func build_action_tooltip_text(action_name: String, combat_state: CombatState, p
 
 
 func build_status_chip_texts(statuses: Array[Dictionary], empty_text: String) -> PackedStringArray:
-	if statuses.is_empty():
-		return PackedStringArray([empty_text])
-
-	var result: PackedStringArray = []
-	for status in statuses:
-		result.append("%s %dT" % [
-			String(status.get("display_name", status.get("definition_id", ""))),
-			int(status.get("remaining_turns", 0)),
-		])
-	return result
+	return UiFormattingScript.build_status_chip_texts(statuses, empty_text)
 
 
 func build_state_text(combat_state: CombatState) -> String:
@@ -367,13 +451,13 @@ func build_state_text(combat_state: CombatState) -> String:
 		var slot: Dictionary = slot_value
 		item_count += int(slot.get("current_stack", 0))
 
-	return "Player HP: %d | Hunger: %d | Durability: %d | Items: %d | Status: %s | Brace: %s | Enemy HP: %d" % [
+	return "Player HP: %d | Hunger: %d | Durability: %d | Guard: %d | Items: %d | Status: %s | Enemy HP: %d" % [
 		combat_state.player_hp,
 		combat_state.player_hunger,
 		int(combat_state.weapon_instance.get("current_durability", 0)),
+		max(0, int(combat_state.current_guard)),
 		item_count,
 		_format_status_summary(combat_state.player_statuses),
-		"on" if combat_state.brace_active else "off",
 		combat_state.enemy_hp,
 	]
 
@@ -396,13 +480,13 @@ func format_player_turn_phase_line(action_name: String, result: Dictionary) -> S
 	match action_name:
 		"attack":
 			return format_action_result_line("Player", "enemy", result)
+		"defend":
+			if bool(result.get("skipped", false)):
+				return ""
+			return "Defend raised %d guard." % int(result.get("guard_generated", result.get("guard_points", 0)))
 		"use_item":
 			if bool(result.get("skipped", false)):
 				return "No usable item."
-			return ""
-		"change_equipment":
-			if bool(result.get("skipped", false)):
-				return ""
 			return ""
 		_:
 			return ""
@@ -427,13 +511,19 @@ func format_domain_event_line(event_name: String, payload: Dictionary) -> String
 			return "Durability: %d" % int(payload.get("current_durability", 0))
 		"WeaponBroken":
 			return "Weapon broke."
-		"BraceActivated":
-			return "Brace prepared for the incoming hit."
-		"BraceMitigated":
-			return "Brace reduced damage from %d to %d." % [
-				int(payload.get("raw_damage", 0)),
-				int(payload.get("reduced_damage", 0)),
-			]
+		"GuardGained":
+			var guard_points: int = int(payload.get("guard_points", 0))
+			if bool(payload.get("shield_bonus_applied", false)):
+				return "Defend raised %d guard with shield support." % guard_points
+			if bool(payload.get("dual_wield_penalty_applied", false)):
+				return "Defend raised %d guard while dual wielding." % guard_points
+			return "Defend raised %d guard." % guard_points
+		"GuardAbsorbed":
+			var guard_absorbed: int = int(payload.get("guard_absorbed", 0))
+			var hp_damage: int = int(payload.get("hp_damage", 0))
+			if hp_damage > 0:
+				return "Guard absorbed %d damage. %d still reached HP." % [guard_absorbed, hp_damage]
+			return "Guard absorbed %d damage." % guard_absorbed
 		"ConsumableUsed":
 			var item_name: String = String(payload.get("display_name", payload.get("definition_id", "")))
 			var healed_amount: int = int(payload.get("healed_amount", 0))
@@ -453,13 +543,6 @@ func format_domain_event_line(event_name: String, payload: Dictionary) -> String
 				item_name,
 				healed_amount,
 			]
-		"EquipmentChanged":
-			var item_name: String = String(payload.get("display_name", payload.get("definition_id", "")))
-			var inventory_family: String = _humanize_identifier(String(payload.get("inventory_family", "equipment")))
-			var is_equipped: bool = bool(payload.get("equipped", true))
-			if is_equipped:
-				return "Equipped %s as %s. The enemy still acts this turn." % [item_name, inventory_family.to_lower()]
-			return "Unequipped %s from %s. The enemy still acts this turn." % [item_name, inventory_family.to_lower()]
 		"StatusApplied":
 			return "%s applied to %s for %d turns." % [
 				String(payload.get("display_name", payload.get("definition_id", ""))),
@@ -487,16 +570,7 @@ func format_domain_event_line(event_name: String, payload: Dictionary) -> String
 
 
 func _format_status_summary(statuses: Array[Dictionary]) -> String:
-	if statuses.is_empty():
-		return "none"
-
-	var parts: PackedStringArray = []
-	for status in statuses:
-		parts.append("%s(%d)" % [
-			String(status.get("display_name", status.get("definition_id", ""))),
-			int(status.get("remaining_turns", 0)),
-		])
-	return ", ".join(parts)
+	return UiFormattingScript.build_status_summary(statuses, "none", "inline")
 
 
 func _extract_enemy_max_hp(combat_state: CombatState) -> int:
@@ -509,15 +583,14 @@ func _extract_weapon_max_durability(combat_state: CombatState) -> int:
 	return max(1, int(combat_state.weapon_instance.get("max_durability", combat_state.weapon_instance.get("current_durability", 1))))
 
 
-func _build_weapon_display_name(weapon_instance: Dictionary) -> String:
-	var definition_id: String = String(weapon_instance.get("definition_id", "none"))
+func _build_equipment_display_name(definition_folder: String, equipment_instance: Dictionary) -> String:
+	var definition_id: String = String(equipment_instance.get("definition_id", ""))
 	if definition_id.is_empty() or definition_id == "none":
-		return "None"
+		return ""
 
-	var weapon_definition: Dictionary = _loader.load_definition("Weapons", definition_id)
-	var display: Dictionary = weapon_definition.get("display", {})
-	var display_name: String = String(display.get("name", definition_id))
-	var upgrade_level: int = max(0, int(weapon_instance.get("upgrade_level", 0)))
+	var definition: Dictionary = _loader.load_definition(definition_folder, definition_id)
+	var display_name: String = String(definition.get("display", {}).get("name", definition_id))
+	var upgrade_level: int = max(0, int(equipment_instance.get("upgrade_level", 0)))
 	if upgrade_level <= 0:
 		return display_name
 	return "%s +%d" % [display_name, upgrade_level]
@@ -537,7 +610,7 @@ func _build_attack_tooltip_text(combat_state: CombatState, preview_snapshot: Dic
 	if combat_state == null:
 		return "Attack the enemy. Starting the swing spends weapon durability, and broken weapons fall back to a weak 1 damage hit."
 
-	var weapon_name: String = _build_weapon_display_name(combat_state.weapon_instance)
+	var weapon_name: String = UiFormattingScript.build_weapon_display_name(combat_state.weapon_instance)
 	var current_durability: int = int(combat_state.weapon_instance.get("current_durability", 0))
 	var preview_texts: Dictionary = build_preview_texts(preview_snapshot)
 	var preview_fragment: String = ""
@@ -553,14 +626,19 @@ func _build_attack_tooltip_text(combat_state: CombatState, preview_snapshot: Dic
 	return "Attack with %s. Starting the swing spends weapon durability even if the enemy dodges. If the weapon breaks, later hits fall back to 1 damage.%s" % [weapon_name, preview_fragment]
 
 
-func _build_brace_tooltip_text(preview_snapshot: Dictionary = {}) -> String:
+func _build_defend_tooltip_text(combat_state: CombatState, preview_snapshot: Dictionary = {}) -> String:
+	var base_text: String = "Defend raises temporary guard for the next hit. Armor reduces damage first; any remainder hits guard before HP. Most leftover guard decays at turn end, but a small remainder can carry forward. A shield in the left hand increases the guard gain."
+	var left_hand_family: String = _left_hand_inventory_family(combat_state)
+	if left_hand_family == "weapon":
+		base_text += " An offhand weapon adds attack pressure but lowers defend guard."
 	if preview_snapshot.is_empty():
-		return "Brace for this turn. The next incoming hit is cut by 50%, rounded up. It deals no damage and does not spend durability."
+		return base_text
 
 	var preview_texts: Dictionary = build_preview_texts(preview_snapshot)
-	return "Brace for this turn. The next incoming hit is cut by 50%%, rounded up. It deals no damage and does not spend durability. Expected %s into %s." % [
-		String(preview_texts.get("incoming", "Incoming ?")).to_lower(),
-		String(preview_texts.get("brace", "Brace ?")).to_lower(),
+	return "%s Expected %s into %s." % [
+		base_text,
+		String(preview_texts.get("defend", "Guard ?")).to_lower(),
+		String(preview_texts.get("guard_result", "Guard ? | HP ?")).to_lower(),
 	]
 
 
@@ -622,49 +700,7 @@ func _extract_consumable_use_profile(consumable_slot: Dictionary) -> Dictionary:
 
 	var consumable_definition: Dictionary = _loader.load_definition("Consumables", definition_id)
 	var use_effect: Dictionary = consumable_definition.get("rules", {}).get("use_effect", {})
-	if use_effect.is_empty():
-		return {
-			"heal_amount": 0,
-			"hunger_delta": 0,
-		}
-	if String(use_effect.get("trigger", "")) != "on_use":
-		return {
-			"heal_amount": 0,
-			"hunger_delta": 0,
-		}
-	if String(use_effect.get("target", "")) != "self":
-		return {
-			"heal_amount": 0,
-			"hunger_delta": 0,
-		}
-
-	var effects: Variant = use_effect.get("effects", [])
-	if typeof(effects) != TYPE_ARRAY:
-		return {
-			"heal_amount": 0,
-			"hunger_delta": 0,
-		}
-
-	var heal_amount: int = 0
-	var hunger_delta: int = 0
-	for effect_value in effects:
-		if typeof(effect_value) != TYPE_DICTIONARY:
-			continue
-		var effect: Dictionary = effect_value
-		var params_value: Variant = effect.get("params", {})
-		if typeof(params_value) != TYPE_DICTIONARY:
-			continue
-		var params: Dictionary = params_value
-		match String(effect.get("type", "")):
-			"heal":
-				heal_amount += int(params.get("base", 0))
-			"modify_hunger":
-				hunger_delta += int(params.get("amount", 0))
-
-	return {
-		"heal_amount": heal_amount,
-		"hunger_delta": hunger_delta,
-	}
+	return InventoryActionsScript.extract_consumable_use_profile(use_effect)
 
 
 func _intent_uses_damage_effect(intent: Dictionary) -> bool:
@@ -711,3 +747,34 @@ func _resolve_impact_intensity(amount: int) -> String:
 	if amount >= 3:
 		return "medium"
 	return "light"
+
+
+func _build_left_hand_summary(combat_state: CombatState) -> String:
+	if combat_state == null:
+		return ""
+	var left_hand_family: String = _left_hand_inventory_family(combat_state)
+	match left_hand_family:
+		"shield":
+			return _build_equipment_display_name("Shields", combat_state.left_hand_instance)
+		"weapon":
+			return UiFormattingScript.build_weapon_display_name(combat_state.left_hand_instance)
+		_:
+			return ""
+
+
+func _build_left_hand_loadout_fragment(combat_state: CombatState) -> String:
+	var left_hand_summary: String = _build_left_hand_summary(combat_state)
+	if left_hand_summary.is_empty():
+		return ""
+	var left_hand_family: String = _left_hand_inventory_family(combat_state)
+	if left_hand_family == "shield":
+		return "Shield %s" % left_hand_summary
+	if left_hand_family == "weapon":
+		return "Offhand %s" % left_hand_summary
+	return "Left Hand %s" % left_hand_summary
+
+
+func _left_hand_inventory_family(combat_state: CombatState) -> String:
+	if combat_state == null:
+		return ""
+	return String(combat_state.left_hand_instance.get("inventory_family", ""))

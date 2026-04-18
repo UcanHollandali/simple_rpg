@@ -90,8 +90,22 @@ theme_override_constants/separation = 8
 size_flags_horizontal = 3
 theme_override_constants/separation = 4
 
+[node name="ChipCard" type="PanelContainer" parent="Margin/VBox/HeaderRow/HeaderStack"]
+size_flags_horizontal = 0
+
+[node name="ChipLabel" type="Label" parent="Margin/VBox/HeaderRow/HeaderStack/ChipCard"]
+text = "LEVEL UP"
+
 [node name="TitleLabel" type="Label" parent="Margin/VBox/HeaderRow/HeaderStack"]
 text = "Level Up"
+autowrap_mode = 3
+
+[node name="ContextLabel" type="Label" parent="Margin/VBox/HeaderRow/HeaderStack"]
+text = "Choose 1 character perk for the rest of the run."
+autowrap_mode = 3
+
+[node name="HintLabel" type="Label" parent="Margin/VBox/HeaderRow/HeaderStack"]
+text = "Perks stay active for the whole run and do not use backpack space."
 autowrap_mode = 3
 
 [node name="NoteLabel" type="Label" parent="Margin/VBox/HeaderRow/HeaderStack"]

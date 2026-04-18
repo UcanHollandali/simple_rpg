@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "definition_id": "zz_silent_grave_mound",
+  "family": "EventTemplates",
+  "tags": [
+    "event",
+    "roadside",
+    "grave",
+    "stage_3",
+    "prototype"
+  ],
+  "display": {
+    "name": "Silent Grave Mound",
+    "short_description": "A low grave mound sits just off the road with its cairn stones freshly straightened. A wax stub and a burial coin rest under the top marker."
+  },
+  "rules": {
+    "choices": [
+      {
+        "choice_id": "set_the_marker_stones_right",
+        "label": "Set the marker stones right",
+        "summary": "Take one quiet minute to restack the slipped cairn and let the hush settle your breathing before you move on.",
+        "effect_type": "heal",
+        "amount": 5
+      },
+      {
+        "choice_id": "lift_the_burial_coin",
+        "label": "Lift the burial coin",
+        "summary": "Break the wax seal and pocket the small dead-money bundle before the road asks who saw you do it.",
+        "effect_type": "grant_gold",
+        "amount": 8
+      }
+    ]
+  }
+}

@@ -4,33 +4,15 @@
   "family": "Belts",
   "tags": [
     "belt",
-    "combat",
     "utility",
-    "durability"
+    "pack"
   ],
   "display": {
     "name": "Trailhook Bandolier",
-    "short_description": "A practical belt rig that reduces attack durability cost by 1.",
+    "short_description": "A practical belt rig that frees 2 extra backpack slots.",
     "icon_key": "belt_trailhook_bandolier"
   },
   "rules": {
-    "behaviors": [
-      {
-        "trigger": "passive",
-        "condition": {
-          "op": "always"
-        },
-        "target": "self",
-        "effects": [
-          {
-            "type": "modify_stat",
-            "params": {
-              "stat": "durability_cost_flat_reduction",
-              "amount": 1
-            }
-          }
-        ]
-      }
-    ]
+    "backpack_capacity_bonus": 2
   }
 }

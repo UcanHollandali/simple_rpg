@@ -104,30 +104,30 @@ size_flags_horizontal = 3
 [node name="HeroVBox" type="VBoxContainer" parent="Margin/VBox/HeroPanel"]
 theme_override_constants/separation = 8
 
-[node name="ChipRow" type="VBoxContainer" parent="Margin/VBox/HeroPanel/HeroVBox"]
+[node name="ChipRow" type="HBoxContainer" parent="Margin/VBox/HeroPanel/HeroVBox"]
 visible = false
 theme_override_constants/separation = 8
 
 [node name="PlaytestChipCard" type="PanelContainer" parent="Margin/VBox/HeroPanel/HeroVBox/ChipRow"]
 
 [node name="PlaytestChipLabel" type="Label" parent="Margin/VBox/HeroPanel/HeroVBox/ChipRow/PlaytestChipCard"]
-text = "ASHWOOD ROAD"
+text = "WAYFINDER RUN"
 
 [node name="SaveChipCard" type="PanelContainer" parent="Margin/VBox/HeroPanel/HeroVBox/ChipRow"]
 
 [node name="SaveChipLabel" type="Label" parent="Margin/VBox/HeroPanel/HeroVBox/ChipRow/SaveChipCard"]
-text = "LOAD READY"
+text = "SAFE SAVE READY"
 
 [node name="TitleLabel" type="Label" parent="Margin/VBox/HeroPanel/HeroVBox"]
-text = "Simple RPG"
-autowrap_mode = 3
-
-[node name="SubtitleLabel" type="Label" parent="Margin/VBox/HeroPanel/HeroVBox"]
 text = "Ashwood Descent"
 autowrap_mode = 3
 
+[node name="SubtitleLabel" type="Label" parent="Margin/VBox/HeroPanel/HeroVBox"]
+text = "Hazırlan. Rotanı Seç. Hayatta Kal. — 3 aşama, ~20 dk koşu"
+autowrap_mode = 3
+
 [node name="MoodLabel" type="Label" parent="Margin/VBox/HeroPanel/HeroVBox"]
-text = "Choose a road. Survive the stops. Reach the gate."
+text = "Choose a road through the ashwood. Keep your gear alive. Reach the gate."
 autowrap_mode = 3
 
 [node name="FlowReadLabel" type="Label" parent="Margin/VBox/HeroPanel/HeroVBox"]
@@ -146,21 +146,21 @@ size_flags_horizontal = 3
 theme_override_constants/separation = 12
 
 [node name="PlaytestReadLabel" type="Label" parent="Margin/VBox/ActionPanel/ActionVBox"]
-text = "Begin a run. Your first road waits on the map."
+text = "Step onto a fresh road. The first branches teach fast."
 autowrap_mode = 3
 
 [node name="StartRunButton" type="Button" parent="Margin/VBox/ActionPanel/ActionVBox"]
-text = "Start Run"
+text = "Begin New Run"
 icon = ExtResource("5")
 custom_minimum_size = Vector2(0, 56)
 
 [node name="LoadRunButton" type="Button" parent="Margin/VBox/ActionPanel/ActionVBox"]
-text = "Load Run"
+text = "Resume Safe Save"
 icon = ExtResource("5")
 custom_minimum_size = Vector2(0, 56)
 
 [node name="StatusLabel" type="Label" parent="Margin/VBox/ActionPanel/ActionVBox"]
-text = "Load appears after your first save."
+text = "Resume unlocks after your first safe-stop save."
 autowrap_mode = 3
 
 [node name="BottomSpacer" type="Control" parent="Margin/VBox"]

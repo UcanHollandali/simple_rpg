@@ -3,6 +3,7 @@ $ErrorActionPreference = "Stop"
 
 $script:GodotHiddenFailurePatterns = @(
     # Keep this list narrow and high-signal. Do not treat generic shutdown leak warnings as hard failures here.
+    "SCRIPT ERROR:",
     "SCRIPT ERROR: Assertion failed:",
     "Parse Error:",
     "No loader found for resource:"
@@ -170,6 +171,20 @@ function Get-GodotLogFilePath {
     return (Join-Path $paths.Logs $Name)
 }
 
+function Clear-GodotTestLogs {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$LogsPath
+    )
+
+    if (-not (Test-Path -LiteralPath $LogsPath -PathType Container)) {
+        return
+    }
+
+    Get-ChildItem -LiteralPath $LogsPath -File -Filter "*.log" -ErrorAction SilentlyContinue |
+        Remove-Item -Force -ErrorAction SilentlyContinue
+}
+
 function Reset-GodotLogFile {
     param(
         [Parameter(Mandatory = $true)]
@@ -221,6 +236,24 @@ function Assert-NoHiddenLogFailures {
     if ($matches.Count -gt 0) {
         $matchedSummary = $matches | Sort-Object -Unique
         throw "Godot log for $ContextLabel contains hidden failure pattern(s): $($matchedSummary -join ', '). See $LogFile"
+    }
+}
+
+function Assert-LogContains {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$LogFile,
+        [Parameter(Mandatory = $true)]
+        [string]$Pattern
+    )
+
+    if (-not (Test-Path -LiteralPath $LogFile -PathType Leaf)) {
+        throw "Expected log file was not created: $LogFile"
+    }
+
+    $logContent = Get-Content -LiteralPath $LogFile -Raw
+    if (-not $logContent.Contains($Pattern)) {
+        throw "Expected log marker missing from ${LogFile}: $Pattern"
     }
 }
 

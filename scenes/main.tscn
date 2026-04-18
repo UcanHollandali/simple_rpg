@@ -83,7 +83,7 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="Panel" type="PanelContainer" parent="Margin/Center"]
-custom_minimum_size = Vector2(500, 0)
+custom_minimum_size = Vector2(0, 0)
 
 [node name="VBox" type="VBoxContainer" parent="Margin/Center/Panel"]
 theme_override_constants/separation = 12

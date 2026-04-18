@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "definition_id": "briar_knife",
+  "family": "Weapons",
+  "tags": [
+    "weapon",
+    "melee",
+    "knife",
+    "physical",
+    "offhand",
+    "briar"
+  ],
+  "display": {
+    "name": "Briar Knife",
+    "short_description": "A hooked knife with a ragged bite, tuned for close offhand pressure and dirty cuts.",
+    "icon_key": "weapon_briar_knife"
+  },
+  "design_intent_question": "Can a low-commitment briar knife make dual wield feel nastier through route identity and pressure, even before a deeper bleed engine exists?",
+  "rules": {
+    "slot_compatibility": {
+      "right_hand": true,
+      "left_hand": true,
+      "offhand_capable": true
+    },
+    "stats": {
+      "weapon_type": "knife",
+      "base_damage": 4,
+      "max_durability": 17,
+      "durability_cost_per_attack": 1,
+      "durability_profile": "fragile"
+    }
+  }
+}

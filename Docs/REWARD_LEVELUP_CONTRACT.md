@@ -23,6 +23,8 @@ This file defines the minimum reward and progression rules for prototype and ear
   - `present_count`
   - run-level `reward_rng` continuity from `RunState`
   - context salt built from `source_context`, `current_node_id`, `stage_index`, and `current_level`
+  - narrow authored `stage_min` / `stage_max` filtering before the seeded window is chosen
+  - current `combat_victory` rewards may bias toward `preferred_enemy_tags_any` matches when enemy tags are available from the active combat setup
 - compatibility note:
   - `current_node_index` may still appear in legacy compatibility payloads, but active reward generation truth should read only from `current_node_id`
 - same `run_seed` plus the same reward-generation order now reproduces the same reward windows.
@@ -34,12 +36,16 @@ Current prototype reward offers may include:
 - active weapon repair
 - XP grant
 - gold bundle
+- inventory item grant for the currently runtime-backed acquisition families:
+  - `Consumables`
+  - `Weapons`
+  - `Shields`
+  - `Armors`
+  - `Belts`
+  - `PassiveItems`
+  - `ShieldAttachments`
 
 Deferred from the prototype reward baseline:
-- `Consumables`
-- `Weapons`
-- `Armors`
-- `Belts`
 - direct status unlocks
 - permanent stat-up rewards
 - multi-claim reward screens
@@ -53,6 +59,11 @@ Current application path note:
 - Generated rewards should be legally claimable under current inventory and equip rules.
 - If a reward would create an impossible claim state, it should be filtered out before presentation.
 - Reward choice is meant to be a real decision, not a UI trap caused by invalid offers.
+- Current live item-claim rule when the backpack is full:
+  - item rewards do not silently evict an older backpack item
+  - if the chosen reward would need a new backpack slot, runtime opens a discard-or-leave prompt against the current backpack
+  - discarding one carried non-quest item finalizes the chosen reward
+  - choosing `Leave Item` resolves the reward choice without adding the item
 
 ## Reward Node Revisit Rule
 
@@ -68,27 +79,31 @@ Current application path note:
 - After a marked side-mission target dies, the normal combat reward cadence still happens first.
 - The contract payout is claimed only by returning to the side-mission node through `SupportInteraction`.
 - Current live contract payout rules are:
-  - authored side-mission content provides a reward pool of gear definitions
+  - authored side-mission content provides a reward pool of item or gold outcomes
   - runtime presents exactly `2` random offers from that pool
   - the player claims `1`
-  - the claimed gear is added to the shared carried inventory, not auto-equipped
-- Current live contract payout support is intentionally narrow:
-  - `Weapons`
-  - `Armors`
+  - claimed item rewards are added through `InventoryActions`, not auto-equipped
+  - if a claimed item reward would need a new backpack slot, the same discard-or-leave prompt applies instead of silent backpack eviction
+  - claimed gold rewards go directly to `RunState.gold`
 
 ## Hold-Vs-Use Rule
 
 - This is a secondary consumable pressure, not the main inventory framing.
-- Current reward slice does not yet generate actual consumable offers.
-- Actual hold-vs-use pressure currently comes from carried consumables during combat rather than reward-table consumable picks.
-- Future weapon or consumable rewards may later create freshness and hold-vs-use tradeoffs, but that is not yet part of the runtime-backed slice.
+- Current reward slice now includes authored consumable and gear offers inside the seeded reward pool.
+- Hold-vs-use pressure therefore now comes from both carried consumables during combat and occasional reward/item-pick decisions.
 - `gold` rewards intentionally defer value into later merchant or blacksmith decisions.
 - Current reward content surface is intentionally narrow:
   - `heal`
   - `repair_weapon`
   - `grant_xp`
   - `grant_gold`
-- New reward content inside that effect set should not require new code.
+  - `grant_item`
+- Current live reward tuning now leans on three authored presentation families:
+  - `Field Provisions`
+  - `Quick Refit`
+  - `Scavenger's Find`
+- Shield attachments should stay relatively rare in ordinary rewards and feel more natural in hamlet contract payout lanes.
+- New reward content inside that effect set should not require new code unless it needs broader routing than the current stage/tone filter slice.
 - New reward definitions may now widen authored variety through `offer_pool` without adding new runtime code.
 - New reward effect families still require explicit runtime and validator work.
 
@@ -132,7 +147,7 @@ Deferred target direction:
 ## XP Sources
 
 - XP is granted from combat victories.
-- Current prototype combat victory grant is `5` XP.
+- Current prototype combat victory grant is `6` XP.
 - Current boss clear path does not apply a boss-specific XP bonus before `StageTransition` or `RunEnd`.
 - Node rewards or event outcomes may grant explicit bonus XP when authored to do so.
 - Support nodes do not grant XP by default.
@@ -152,25 +167,34 @@ Deferred target direction:
 ## Level-Up Offer Rules
 
 - Each `LevelUp` presents exactly `3` choices and the player claims `1`.
-- Prototype level-up choices are drawn from `PassiveItems` family definitions.
+- Prototype level-up choices are drawn from `CharacterPerks` family definitions.
 - Current prototype generation is application-owned and deterministic:
-  - `LevelUpState` is built from the current authored `PassiveItems` definition set loaded from content definitions
+  - `LevelUpState` is built from the current authored `CharacterPerks` definition set loaded from content definitions
   - seeded progression pools remain target direction, not current runtime truth
-- Level-up passives are intended to strengthen a build direction, not create a large skill-bar.
+- Level-up perks are intended to strengthen a build direction, not create a large skill-bar.
 
-## Shared Inventory Interaction
+## Character Perk Baseline
 
-- Chosen level-up passives now occupy the same shared carried-inventory pool as weapons, armor, belts, and consumables.
-- Current prototype capacity is:
-  - base inventory: `5`
-  - equipped belt bonus: `+2`
-- Current prototype temporary rule:
-  - if shared inventory is full, the oldest carried non-active item is displaced automatically
-  - active equipped weapon / armor / belt are protected from this automatic displacement
-  - explicit replacement UI remains deferred
-- Current prototype passive acquisition resolves through `InventoryActions` against `InventoryState`, not through the `LevelUp` scene.
-- Level-up does not create hidden overflow storage.
-- This replacement pressure is intentional; it keeps builds small but distinct inside the shared bag.
+- Chosen level-up rewards are `CharacterPerks`, not inventory items.
+- Character perks:
+  - are not backpack slots
+  - are not equipment slots
+  - do not consume capacity
+  - cannot be dropped
+  - remain active for the rest of the current run
+- Current authored perk families are:
+  - `offense`
+  - `defense`
+  - `survival`
+  - `economy_route`
+- Current perk application reuses the narrow passive-style `modify_stat` grammar documented in `CONTENT_ARCHITECTURE_SPEC.md`.
+
+## Passive Item Separation
+
+- Passive items remain in the game as backpack-carried bonus items.
+- Passive items are not progression truth.
+- Passive item effects stay active only while the item is carried in the backpack.
+- Character perks and passive items may share narrow stat-modifier grammar, but they are different runtime owners and different player-facing systems.
 
 ## Reward -> Level-Up Chain
 
@@ -197,8 +221,8 @@ Deferred target direction:
   - `LevelUpState.offers`
   - `LevelUpState.current_level`
   - `LevelUpState.target_level`
-  - current shared inventory capacity situation
-  - replacement requirement if shared inventory is already full
+  - the exact pending perk-choice window
+  - already-owned perks through run-state save truth
 
 ## Event Contract Alignment
 

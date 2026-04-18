@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "definition_id": "briar_spikes",
+  "family": "ShieldAttachments",
+  "tags": [
+    "shield_attachment",
+    "attack",
+    "briar",
+    "aggressive"
+  ],
+  "display": {
+    "name": "Briar Spikes",
+    "short_description": "A mean ring of thorn-spikes that turns a guarded stance into a nastier offensive posture.",
+    "icon_key": "shield_attachment_briar_spikes"
+  },
+  "rules": {
+    "attachment_target": "shield",
+    "max_per_shield": 1,
+    "behaviors": [
+      {
+        "trigger": "passive",
+        "condition": {
+          "op": "always"
+        },
+        "target": "self",
+        "effects": [
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "attack_power_bonus",
+              "amount": 1
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

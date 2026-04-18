@@ -16,75 +16,157 @@
     "present_count": 2,
     "offer_pool": [
       {
-        "offer_id": "gain_xp_2",
-        "label": "Read the Trail Marks",
-        "effect_type": "grant_xp",
-        "amount": 3
+        "offer_id": "field_provisions_traveler_bread",
+        "label": "Field Provisions: Traveler Bread",
+        "effect_type": "grant_item",
+        "inventory_family": "consumable",
+        "definition_id": "traveler_bread",
+        "amount": 1,
+        "stage_max": 1
       },
       {
-        "offer_id": "gain_gold_8",
-        "label": "Lift the Loose Coins",
+        "offer_id": "quick_refit_binding_resin",
+        "label": "Quick Refit: Binding Resin",
+        "effect_type": "grant_item",
+        "inventory_family": "consumable",
+        "definition_id": "binding_resin",
+        "amount": 1,
+        "stage_max": 1
+      },
+      {
+        "offer_id": "scavengers_find_trailhook_bandolier",
+        "label": "Scavenger's Find: Trailhook Bandolier",
+        "effect_type": "grant_item",
+        "inventory_family": "belt",
+        "definition_id": "trailhook_bandolier",
+        "stage_max": 1
+      },
+      {
+        "offer_id": "scavengers_find_thornwood_buckler",
+        "label": "Scavenger's Find: Thornwood Buckler",
+        "effect_type": "grant_item",
+        "inventory_family": "shield",
+        "definition_id": "thornwood_buckler",
+        "stage_max": 1
+      },
+      {
+        "offer_id": "scavengers_find_loose_coins",
+        "label": "Scavenger's Find: Loose Coins",
         "effect_type": "grant_gold",
-        "amount": 6
+        "amount": 6,
+        "stage_max": 1
       },
       {
-        "offer_id": "heal_4",
-        "label": "Bind the Bruise",
-        "effect_type": "heal",
-        "amount": 6
+        "offer_id": "field_provisions_war_biscuit",
+        "label": "Field Provisions: War Biscuit",
+        "effect_type": "grant_item",
+        "inventory_family": "consumable",
+        "definition_id": "war_biscuit",
+        "amount": 1,
+        "stage_min": 2,
+        "stage_max": 2
       },
       {
-        "offer_id": "heal_7",
-        "label": "Catch Your Breath",
-        "effect_type": "heal",
-        "amount": 8
+        "offer_id": "quick_refit_set_the_edge",
+        "label": "Quick Refit: Set the Edge Straight",
+        "effect_type": "repair_weapon",
+        "stage_min": 2,
+        "stage_max": 2
       },
       {
-        "offer_id": "heal_5",
-        "label": "Patch Up Fast",
-        "effect_type": "heal",
-        "amount": 7
+        "offer_id": "scavengers_find_packrat_clasp",
+        "label": "Scavenger's Find: Packrat Clasp",
+        "effect_type": "grant_item",
+        "inventory_family": "passive",
+        "definition_id": "packrat_clasp",
+        "stage_min": 2,
+        "stage_max": 2
       },
       {
-        "offer_id": "gain_gold_10",
-        "label": "Unwrap the Stash",
-        "effect_type": "grant_gold",
-        "amount": 8
+        "offer_id": "scavengers_find_mossbound_wraps",
+        "label": "Scavenger's Find: Mossbound Wraps",
+        "effect_type": "grant_item",
+        "inventory_family": "passive",
+        "definition_id": "sturdy_wraps",
+        "stage_min": 2,
+        "stage_max": 2
       },
       {
-        "offer_id": "repair_weapon",
-        "label": "Set the Edge Straight",
-        "effect_type": "repair_weapon"
+        "offer_id": "scavengers_find_briar_knife",
+        "label": "Scavenger's Find: Briar Knife",
+        "effect_type": "grant_item",
+        "inventory_family": "weapon",
+        "definition_id": "briar_knife",
+        "stage_min": 2,
+        "stage_max": 2
       },
       {
-        "offer_id": "gain_xp_4",
-        "label": "Study the Route",
-        "effect_type": "grant_xp",
-        "amount": 4
+        "offer_id": "scavengers_find_patched_buffcoat",
+        "label": "Scavenger's Find: Patched Buffcoat",
+        "effect_type": "grant_item",
+        "inventory_family": "armor",
+        "definition_id": "patched_buffcoat",
+        "stage_min": 2,
+        "stage_max": 2
       },
       {
-        "offer_id": "gain_gold_12",
-        "label": "Pocket the Tithe",
-        "effect_type": "grant_gold",
-        "amount": 10
+        "offer_id": "scavengers_find_packhook_sash",
+        "label": "Scavenger's Find: Packhook Sash",
+        "effect_type": "grant_item",
+        "inventory_family": "belt",
+        "definition_id": "packhook_sash",
+        "stage_min": 2,
+        "stage_max": 2
       },
       {
-        "offer_id": "heal_8",
-        "label": "Settle the Nerves",
-        "effect_type": "heal",
-        "amount": 10
+        "offer_id": "quick_refit_binding_resin_stage3",
+        "label": "Quick Refit: Binding Resin",
+        "effect_type": "grant_item",
+        "inventory_family": "consumable",
+        "definition_id": "binding_resin",
+        "amount": 1,
+        "stage_min": 3
       },
       {
-        "offer_id": "gain_xp_5_late",
-        "label": "Learn from the Cache",
-        "effect_type": "grant_xp",
-        "amount": 5
+        "offer_id": "scavengers_find_warden_spear",
+        "label": "Scavenger's Find: Warden Spear",
+        "effect_type": "grant_item",
+        "inventory_family": "weapon",
+        "definition_id": "warden_spear",
+        "stage_min": 3
       },
       {
-        "offer_id": "gain_gold_14",
-        "label": "Crack the Lockbox",
-        "effect_type": "grant_gold",
-        "amount": 12
+        "offer_id": "scavengers_find_gatewall_kite_shield",
+        "label": "Scavenger's Find: Gatewall Kite Shield",
+        "effect_type": "grant_item",
+        "inventory_family": "shield",
+        "definition_id": "gatewall_kite_shield",
+        "stage_min": 3
+      },
+      {
+        "offer_id": "scavengers_find_bastion_plate",
+        "label": "Scavenger's Find: Bastion Plate",
+        "effect_type": "grant_item",
+        "inventory_family": "armor",
+        "definition_id": "bastion_plate",
+        "stage_min": 3
+      },
+      {
+        "offer_id": "scavengers_find_caravan_harness",
+        "label": "Scavenger's Find: Caravan Harness",
+        "effect_type": "grant_item",
+        "inventory_family": "belt",
+        "definition_id": "caravan_harness",
+        "stage_min": 3
+      },
+      {
+        "offer_id": "quick_refit_tinker_oil",
+        "label": "Quick Refit: Tinker Oil",
+        "effect_type": "grant_item",
+        "inventory_family": "consumable",
+        "definition_id": "tinker_oil",
+        "amount": 1,
+        "stage_min": 3
       }
     ]
   }

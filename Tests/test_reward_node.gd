@@ -6,9 +6,12 @@ const AppBootstrapScript = preload("res://Game/Application/app_bootstrap.gd")
 const SceneRouterScript = preload("res://Game/Infrastructure/scene_router.gd")
 const FlowStateScript = preload("res://Game/Application/flow_state.gd")
 const RewardStateScript = preload("res://Game/RuntimeState/reward_state.gd")
+const TestExitCleanupHelperScript = preload("res://Tests/_exit_cleanup_helper.gd")
 const MAIN_MENU_SCENE_PATH := "res://scenes/main_menu.tscn"
 const CONFIRM_ICON_PATH := "res://Assets/Icons/icon_confirm.svg"
-const REWARD_TITLE_LABEL_PATH := "Margin/VBox/HeaderRow/HeaderStack/TitleLabel"
+const REWARD_TITLE_LABEL_PATH := "Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard/HeaderStack/TitleLabel"
+const REWARD_OFFERS_SHELL_PATH := "Margin/VBox/OffersShell"
+const REWARD_HEADER_CARD_PATH := "Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard"
 const REWARD_SAFE_MENU_SAVE_BUTTON_PATH := "SafeMenuOverlay/MenuLayer/PanelHolder/PanelRow/MenuPanel/VBox/ActionsVBox/SaveRunButton"
 const REWARD_SAFE_MENU_LOAD_BUTTON_PATH := "SafeMenuOverlay/MenuLayer/PanelHolder/PanelRow/MenuPanel/VBox/ActionsVBox/LoadRunButton"
 
@@ -18,6 +21,7 @@ var _starting_gold: int = 0
 var _starting_xp: int = 0
 var _selected_reward_effect_type: String = ""
 var _selected_reward_amount: int = 0
+var _is_finishing: bool = false
 
 
 func _init() -> void:
@@ -55,20 +59,25 @@ func _on_process_frame() -> void:
 					"Expected reward node source context."
 				)
 				_require(reward_state.offers.size() == 2, "Expected reward node to expose 2 offers.")
+				var reward_root: Node = _get_scene_root("Reward")
 
-				var title_label: Label = current_scene.get_node(REWARD_TITLE_LABEL_PATH) as Label
-				var choice_a_card: Control = current_scene.get_node("Margin/VBox/CardsRow/ChoiceACard") as Control
-				var choice_b_card: Control = current_scene.get_node("Margin/VBox/CardsRow/ChoiceBCard") as Control
-				var choice_c_card: Control = current_scene.get_node("Margin/VBox/CardsRow/ChoiceCCard") as Control
-				var choice_a_button: Button = current_scene.get_node("Margin/VBox/CardsRow/ChoiceACard/VBox/ChoiceAButton") as Button
-				var choice_b_button: Button = current_scene.get_node("Margin/VBox/CardsRow/ChoiceBCard/VBox/ChoiceBButton") as Button
-				var choice_c_button: Button = current_scene.get_node("Margin/VBox/CardsRow/ChoiceCCard/VBox/ChoiceCButton") as Button
-				var save_button: Button = current_scene.get_node(REWARD_SAFE_MENU_SAVE_BUTTON_PATH) as Button
-				var load_button: Button = current_scene.get_node(REWARD_SAFE_MENU_LOAD_BUTTON_PATH) as Button
-				var choice_a_title: Label = current_scene.get_node("Margin/VBox/CardsRow/ChoiceACard/VBox/OfferTitleLabel") as Label
-				var choice_b_title: Label = current_scene.get_node("Margin/VBox/CardsRow/ChoiceBCard/VBox/OfferTitleLabel") as Label
+				var title_label: Label = reward_root.get_node(REWARD_TITLE_LABEL_PATH) as Label
+				var offers_shell: PanelContainer = reward_root.get_node(REWARD_OFFERS_SHELL_PATH) as PanelContainer
+				var header_card: PanelContainer = reward_root.get_node(REWARD_HEADER_CARD_PATH) as PanelContainer
+				var choice_a_card: Control = reward_root.get_node("Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard") as Control
+				var choice_b_card: Control = reward_root.get_node("Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard") as Control
+				var choice_c_card: Control = reward_root.get_node("Margin/VBox/OffersShell/VBox/CardsRow/ChoiceCCard") as Control
+				var choice_a_button: Button = reward_root.get_node("Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard/VBox/ChoiceAButton") as Button
+				var choice_b_button: Button = reward_root.get_node("Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard/VBox/ChoiceBButton") as Button
+				var choice_c_button: Button = reward_root.get_node("Margin/VBox/OffersShell/VBox/CardsRow/ChoiceCCard/VBox/ChoiceCButton") as Button
+				var save_button: Button = reward_root.get_node(REWARD_SAFE_MENU_SAVE_BUTTON_PATH) as Button
+				var load_button: Button = reward_root.get_node(REWARD_SAFE_MENU_LOAD_BUTTON_PATH) as Button
+				var choice_a_title: Label = reward_root.get_node("Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard/VBox/OfferTitleLabel") as Label
+				var choice_b_title: Label = reward_root.get_node("Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard/VBox/OfferTitleLabel") as Label
 
 				_require(title_label.text == "Cracked Trail Cache", "Expected reward node title to render from RewardState.")
+				_require(offers_shell != null, "Expected reward overlay to expose the shared offer shell.")
+				_require(header_card != null, "Expected reward header copy to sit inside a dedicated header card.")
 				_require(choice_a_card.visible and not choice_a_button.disabled, "Expected first reward card to be active.")
 				_require(choice_b_card.visible and not choice_b_button.disabled, "Expected second reward card to be active.")
 				_require(not choice_c_card.visible and choice_c_button.disabled, "Expected third reward card to be hidden for reward node.")
@@ -98,8 +107,7 @@ func _on_process_frame() -> void:
 						_require(run_state_after_claim.xp == _starting_xp + _selected_reward_amount, "Expected reward-node XP claim to persist.")
 					_:
 						_require(true, "Expected reward-node first offer to resolve without a stat assertion branch.")
-				print("test_reward_node: all assertions passed")
-				quit()
+				await _finish_success("test_reward_node")
 
 	_assert_phase_timeout()
 
@@ -152,11 +160,17 @@ func _current_state() -> int:
 
 
 func _is_scene(expected_name: String) -> bool:
-	return current_scene != null and current_scene.name == expected_name
+	if current_scene == null:
+		return false
+	if expected_name == "MapExplore":
+		return current_scene.name == "MapExplore" and _get_visible_overlay_root() == null
+	return _get_scene_root(expected_name) != null
 
 
 func _press(node_path: String) -> void:
-	var button: Button = current_scene.get_node(node_path) as Button
+	var scene_root: Node = _get_scene_root()
+	_require(scene_root != null, "Expected current scene before pressing %s." % node_path)
+	var button: Button = scene_root.get_node(node_path) as Button
 	_require(button != null, "Expected button at %s." % node_path)
 	button.emit_signal("pressed")
 
@@ -193,7 +207,76 @@ func _assert_phase_timeout() -> void:
 func _stringify_current_scene() -> String:
 	if current_scene == null:
 		return "<null>"
+	var overlay_root: Node = _get_visible_overlay_root()
+	if overlay_root != null:
+		return "%s (%s) + %s" % [current_scene.name, current_scene.scene_file_path, overlay_root.name]
 	return "%s (%s)" % [current_scene.name, current_scene.scene_file_path]
+
+
+func _get_scene_root(expected_name: String = "") -> Node:
+	if current_scene == null:
+		return null
+	if expected_name.is_empty():
+		var overlay_root: Node = _get_visible_overlay_root()
+		return overlay_root if overlay_root != null else current_scene
+	if current_scene.name == expected_name:
+		return current_scene
+	if current_scene.name != "MapExplore":
+		return null
+	var overlay_root_name: String = _overlay_root_name(expected_name)
+	if overlay_root_name.is_empty():
+		return null
+	return _find_visible_overlay_root(overlay_root_name)
+
+
+func _get_visible_overlay_root() -> Node:
+	if current_scene == null or current_scene.name != "MapExplore":
+		return null
+	for overlay_root_name in ["EventOverlay", "RewardOverlay", "SupportOverlay", "LevelUpOverlay"]:
+		var overlay_root: Control = _find_visible_overlay_root(overlay_root_name)
+		if overlay_root != null:
+			return overlay_root
+	return null
+
+
+func _find_visible_overlay_root(overlay_root_name: String) -> Control:
+	if current_scene == null:
+		return null
+	var exact_match: Control = current_scene.get_node_or_null(overlay_root_name) as Control
+	if exact_match != null and exact_match.visible:
+		return exact_match
+	for child in current_scene.get_children():
+		var overlay_root: Control = child as Control
+		if overlay_root == null or not overlay_root.visible:
+			continue
+		if String(overlay_root.name).begins_with(overlay_root_name):
+			return overlay_root
+	return null
+
+
+func _overlay_root_name(expected_name: String) -> String:
+	match expected_name:
+		"Event":
+			return "EventOverlay"
+		"Reward":
+			return "RewardOverlay"
+		"SupportInteraction":
+			return "SupportOverlay"
+		"LevelUp":
+			return "LevelUpOverlay"
+		_:
+			return ""
+
+
+func _finish_success(test_name: String) -> void:
+	if _is_finishing:
+		return
+	_is_finishing = true
+	var process_frame_handler := Callable(self, "_on_process_frame")
+	if process_frame.is_connected(process_frame_handler):
+		process_frame.disconnect(process_frame_handler)
+	print("%s: all assertions passed" % test_name)
+	await TestExitCleanupHelperScript.cleanup_and_quit(self)
 
 
 func _require(condition: bool, message: String) -> void:

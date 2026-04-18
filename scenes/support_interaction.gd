@@ -4,43 +4,64 @@
 extends Control
 
 const BUTTON_NODE_NAMES: PackedStringArray = ["ActionAButton", "ActionBButton", "ActionCButton"]
-const SceneAudioPlayersScript = preload("res://Game/UI/scene_audio_players.gd")
+const FlowStateScript = preload("res://Game/Application/flow_state.gd")
 const SceneAudioCleanupScript = preload("res://Game/UI/scene_audio_cleanup.gd")
+const RunStatusStripScript = preload("res://Game/UI/run_status_strip.gd")
 const RunMenuSceneHelperScript = preload("res://Game/UI/run_menu_scene_helper.gd")
+const SceneAudioPlayersScript = preload("res://Game/UI/scene_audio_players.gd")
+const SceneLayoutHelperScript = preload("res://Game/UI/scene_layout_helper.gd")
 const SupportInteractionPresenterScript = preload("res://Game/UI/support_interaction_presenter.gd")
+const InventoryOverflowPromptScript = preload("res://Game/UI/inventory_overflow_prompt.gd")
 const TempScreenThemeScript = preload("res://Game/UI/temp_screen_theme.gd")
-const UI_CONFIRM_SFX_PATH := "res://Assets/Audio/SFX/sfx_ui_confirm_01.ogg"
-const PANEL_OPEN_SFX_PATH := "res://Assets/Audio/SFX/sfx_panel_open_01.ogg"
-const PANEL_CLOSE_SFX_PATH := "res://Assets/Audio/SFX/sfx_panel_close_01.ogg"
-const SUPPORT_MUSIC_LOOP_PATH := "res://Assets/Audio/Music/music_ui_hub_loop_temp_01.ogg"
+const HEADER_CARD_PATH := "Margin/VBox/HeaderRow/HeaderCard"
+const HEADER_STACK_PATH := "%s/HeaderStack" % HEADER_CARD_PATH
 const ONE_SHOT_UI_TRANSITION_LEAD_IN_SECONDS := 0.06
 const PORTRAIT_SAFE_MAX_WIDTH := 920
 const PORTRAIT_SAFE_MIN_SIDE_MARGIN := 30
-const AUDIO_PLAYER_NODE_NAMES: Array[String] = [
-	"UiConfirmSfxPlayer",
-	"PanelOpenSfxPlayer",
-	"PanelCloseSfxPlayer",
-	"SupportMusicPlayer",
-]
+const AUDIO_PLAYER_CONFIG := {
+	"UiConfirmSfxPlayer": {"path": "res://Assets/Audio/SFX/sfx_ui_confirm_01.ogg"},
+	"PanelOpenSfxPlayer": {"path": "res://Assets/Audio/SFX/sfx_panel_open_01.ogg"},
+	"PanelCloseSfxPlayer": {"path": "res://Assets/Audio/SFX/sfx_panel_close_01.ogg"},
+	"SupportMusicPlayer": {"path": "res://Assets/Audio/Music/music_ui_hub_loop_proto_01.ogg", "music": true, "loop": true},
+}
+const PORTRAIT_LAYOUT_CONFIG := {
+	"max_width": PORTRAIT_SAFE_MAX_WIDTH,
+	"min_side_margin": PORTRAIT_SAFE_MIN_SIDE_MARGIN,
+	"top_margin": 120,
+	"bottom_margin": 116,
+	"margin_steps": [
+		{"max_height": 1760.0, "top_margin": 92, "bottom_margin": 88},
+		{"max_height": 1540.0, "top_margin": 68, "bottom_margin": 64},
+	],
+	"bands": {
+		"large": {"min_width": 760.0, "min_height": 1640.0, "title_font_size": 46, "context_font_size": 21, "summary_font_size": 21, "status_font_size": 19, "button_font_size": 22, "leave_font_size": 20, "button_height": 84.0, "leave_button_height": 60.0, "run_status_width": 300.0, "button_icon_max_width": 30},
+		"medium": {"min_width": 620.0, "min_height": 1460.0, "title_font_size": 40, "context_font_size": 19, "summary_font_size": 19, "status_font_size": 17, "button_font_size": 20, "leave_font_size": 18, "button_height": 76.0, "leave_button_height": 54.0, "run_status_width": 260.0, "button_icon_max_width": 26},
+		"compact": {"title_font_size": 34, "context_font_size": 17, "summary_font_size": 17, "status_font_size": 15, "button_font_size": 18, "leave_font_size": 16, "button_height": 66.0, "leave_button_height": 48.0, "run_status_width": 224.0, "button_icon_max_width": 22},
+	},
+}
 
 var _bootstrap
 var _presenter: SupportInteractionPresenter
 var _support_state: SupportInteractionState
 var _safe_menu: SafeMenuOverlay
+var _overflow_prompt: InventoryOverflowPrompt
+var _pending_overflow_action_id: String = ""
+var _action_in_flight: bool = false
 
 
 func _ready() -> void:
 	_bootstrap = get_node_or_null("/root/AppBootstrap")
 	_presenter = SupportInteractionPresenterScript.new()
 	_support_state = null
-	_configure_audio_players()
+	SceneAudioPlayersScript.configure_from_config(self, AUDIO_PLAYER_CONFIG)
 	if _bootstrap != null:
 		_support_state = _bootstrap.get_support_interaction_state()
 
 	_connect_buttons()
 	_apply_temp_theme()
 	_setup_safe_menu()
-	_connect_viewport_layout_updates()
+	_setup_overflow_prompt()
+	SceneLayoutHelperScript.bind_viewport_size_changed(self, Callable(self, "_apply_portrait_safe_layout"))
 	_apply_portrait_safe_layout()
 	_render_support_state()
 	SceneAudioPlayersScript.start_looping(self, "SupportMusicPlayer")
@@ -48,11 +69,13 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
-	_disconnect_viewport_layout_updates()
-	SceneAudioCleanupScript.release_players(self, AUDIO_PLAYER_NODE_NAMES)
+	SceneLayoutHelperScript.unbind_viewport_size_changed(self, Callable(self, "_apply_portrait_safe_layout"))
+	SceneAudioCleanupScript.release_players(self, SceneAudioPlayersScript.node_names_from_config(AUDIO_PLAYER_CONFIG))
 
 
 func _on_action_pressed(index: int) -> void:
+	if _action_in_flight:
+		return
 	if _bootstrap == null or _support_state == null:
 		return
 	if index < 0 or index >= _support_state.offers.size():
@@ -63,9 +86,19 @@ func _on_action_pressed(index: int) -> void:
 	if offer_id.is_empty():
 		return
 
+	_action_in_flight = true
 	SceneAudioPlayersScript.play(self, "UiConfirmSfxPlayer")
-	_bootstrap.choose_support_action(offer_id)
+	var result: Dictionary = _bootstrap.choose_support_action(offer_id)
+	if not bool(result.get("ok", false)):
+		_action_in_flight = false
+		if String(result.get("error", "")) == "inventory_choice_required":
+			_present_inventory_overflow_prompt(offer_id, result)
+			return
+		_set_support_status_text("Action failed: %s" % String(result.get("error", "unknown")))
+		_render_support_state()
+		return
 	_support_state = _bootstrap.get_support_interaction_state()
+	_action_in_flight = false
 	_render_support_state()
 
 
@@ -98,24 +131,25 @@ func _connect_buttons() -> void:
 
 
 func _render_support_state() -> void:
-	var chip_label: Label = get_node_or_null("Margin/VBox/HeaderRow/HeaderStack/ChipCard/ChipLabel") as Label
-	var title_label: Label = get_node_or_null("Margin/VBox/HeaderRow/HeaderStack/TitleLabel") as Label
-	var summary_label: Label = get_node_or_null("Margin/VBox/HeaderRow/HeaderStack/SummaryLabel") as Label
-	var hint_label: Label = get_node_or_null("Margin/VBox/HeaderRow/HeaderStack/HintLabel") as Label
-	var status_label: Label = get_node_or_null("Margin/VBox/HeaderRow/RunStatusCard/StatusLabel") as Label
+	var chip_label: Label = get_node_or_null("%s/ChipCard/ChipLabel" % HEADER_STACK_PATH) as Label
+	var title_label: Label = get_node_or_null("%s/TitleLabel" % HEADER_STACK_PATH) as Label
+	var context_label: Label = get_node_or_null("%s/ContextLabel" % HEADER_STACK_PATH) as Label
+	var summary_label: Label = get_node_or_null("%s/SummaryLabel" % HEADER_STACK_PATH) as Label
+	var hint_label: Label = get_node_or_null("%s/HintLabel" % HEADER_STACK_PATH) as Label
 
 	if chip_label != null:
 		chip_label.text = _presenter.build_chip_text(_support_state)
 	if title_label != null:
 		title_label.text = _presenter.build_title_text(_support_state)
+	if context_label != null:
+		context_label.text = _presenter.build_context_text(_support_state)
 	if summary_label != null:
 		summary_label.text = _presenter.build_summary_text(_support_state)
 	if hint_label != null:
 		hint_label.text = _presenter.build_hint_text(_support_state)
 
 	var run_state: RunState = _get_run_state()
-	if status_label != null:
-		status_label.text = _presenter.build_run_status_text(run_state)
+	_render_run_status_card(run_state)
 
 	var button_models: Array[Dictionary] = _presenter.build_action_view_models(_support_state, BUTTON_NODE_NAMES.size())
 	for index in range(BUTTON_NODE_NAMES.size()):
@@ -157,8 +191,22 @@ func _on_load_pressed() -> void:
 	_refresh_save_controls()
 
 
+func _on_return_to_main_menu_pressed() -> void:
+	if _bootstrap == null:
+		return
+	var flow_manager = _bootstrap.get_flow_manager()
+	if flow_manager == null:
+		return
+	flow_manager.request_transition(FlowStateScript.Type.MAIN_MENU)
+
+
 func _refresh_save_controls() -> void:
 	RunMenuSceneHelperScript.sync_load_available(_safe_menu, _bootstrap)
+
+
+func _set_support_status_text(text: String) -> void:
+	if _safe_menu != null:
+		_safe_menu.set_status_text(text)
 
 
 func _get_run_state() -> RunState:
@@ -167,20 +215,30 @@ func _get_run_state() -> RunState:
 	return _bootstrap.get_run_state()
 
 
-func _configure_audio_players() -> void:
-	SceneAudioPlayersScript.assign_stream_from_path(self, "UiConfirmSfxPlayer", UI_CONFIRM_SFX_PATH)
-	SceneAudioPlayersScript.assign_stream_from_path(self, "PanelOpenSfxPlayer", PANEL_OPEN_SFX_PATH)
-	SceneAudioPlayersScript.assign_stream_from_path(self, "PanelCloseSfxPlayer", PANEL_CLOSE_SFX_PATH)
-	SceneAudioPlayersScript.assign_music_stream_from_path(self, "SupportMusicPlayer", SUPPORT_MUSIC_LOOP_PATH, true)
-
-
 func _apply_temp_theme() -> void:
-	# Skip backdrop styling when used as overlay (map_explore handles it)
+	# In overlay mode keep the map bed visible and let the action cards carry the visual weight.
+	var margin: MarginContainer = get_node_or_null("Margin") as MarginContainer
 	var is_overlay: bool = self.top_level
-	if not is_overlay:
+	if is_overlay:
+		for node_name in ["BackgroundFar", "BackgroundMid", "BackgroundOverlay"]:
+			var backdrop: CanvasItem = get_node_or_null(node_name) as CanvasItem
+			if backdrop != null:
+				backdrop.visible = false
+		var scrim: ColorRect = get_node_or_null("Scrim") as ColorRect
+		if scrim != null:
+			scrim.visible = true
+			TempScreenThemeScript.apply_scrim(scrim)
+			scrim.color = Color(scrim.color.r, scrim.color.g, scrim.color.b, 0.38)
+		if margin != null:
+			var overlay_margins: Dictionary = TempScreenThemeScript.compute_overlay_margins(get_viewport_rect().size, PORTRAIT_SAFE_MAX_WIDTH, PORTRAIT_SAFE_MIN_SIDE_MARGIN)
+			margin.add_theme_constant_override("margin_left", int(overlay_margins.get("left", PORTRAIT_SAFE_MIN_SIDE_MARGIN)))
+			margin.add_theme_constant_override("margin_top", int(overlay_margins.get("top", 40)))
+			margin.add_theme_constant_override("margin_right", int(overlay_margins.get("right", PORTRAIT_SAFE_MIN_SIDE_MARGIN)))
+			margin.add_theme_constant_override("margin_bottom", int(overlay_margins.get("bottom", 40)))
+	else:
 		TempScreenThemeScript.apply_modal_popup_shell(
 			self,
-			get_node_or_null("Margin") as MarginContainer,
+			margin,
 			get_node_or_null("Margin/VBox") as Control,
 			TempScreenThemeScript.TEAL_ACCENT_COLOR,
 			"ContentShell",
@@ -189,61 +247,48 @@ func _apply_temp_theme() -> void:
 			34,
 			102
 		)
-	TempScreenThemeScript.apply_chip(
-		get_node_or_null("Margin/VBox/HeaderRow/HeaderStack/ChipCard") as PanelContainer,
-		get_node_or_null("Margin/VBox/HeaderRow/HeaderStack/ChipCard/ChipLabel") as Label,
+	TempScreenThemeScript.apply_choice_card_shell(
+		get_node_or_null(HEADER_CARD_PATH) as PanelContainer,
 		TempScreenThemeScript.TEAL_ACCENT_COLOR
 	)
-	TempScreenThemeScript.apply_label(get_node_or_null("Margin/VBox/HeaderRow/HeaderStack/TitleLabel") as Label, "title")
-	TempScreenThemeScript.apply_label(get_node_or_null("Margin/VBox/HeaderRow/HeaderStack/SummaryLabel") as Label, "muted")
-	TempScreenThemeScript.apply_label(get_node_or_null("Margin/VBox/HeaderRow/HeaderStack/HintLabel") as Label, "accent")
-	TempScreenThemeScript.apply_panel(get_node_or_null("Margin/VBox/HeaderRow/RunStatusCard") as PanelContainer, TempScreenThemeScript.PANEL_BORDER_COLOR, 16, 0.88)
-	TempScreenThemeScript.intensify_panel(get_node_or_null("Margin/VBox/HeaderRow/RunStatusCard") as PanelContainer, TempScreenThemeScript.PANEL_BORDER_COLOR, 3, 18, 0.03, 0.18, 16, 12)
-	TempScreenThemeScript.apply_label(get_node_or_null("Margin/VBox/HeaderRow/RunStatusCard/StatusLabel") as Label, "muted")
+	TempScreenThemeScript.apply_chip(
+		get_node_or_null("%s/ChipCard" % HEADER_STACK_PATH) as PanelContainer,
+		get_node_or_null("%s/ChipCard/ChipLabel" % HEADER_STACK_PATH) as Label,
+		TempScreenThemeScript.TEAL_ACCENT_COLOR
+	)
+	TempScreenThemeScript.apply_compact_status_area(
+		get_node_or_null("Margin/VBox/HeaderRow/RunStatusCard") as PanelContainer,
+		TempScreenThemeScript.PANEL_BORDER_COLOR
+	)
+	SceneLayoutHelperScript.apply_label_tones(self, [
+		{"path": "%s/TitleLabel" % HEADER_STACK_PATH, "tone": "title"},
+		{"path": "%s/ContextLabel" % HEADER_STACK_PATH, "tone": "reward"},
+		{"path": "%s/SummaryLabel" % HEADER_STACK_PATH, "tone": "muted"},
+		{"path": "%s/HintLabel" % HEADER_STACK_PATH, "tone": "accent"},
+		{"path": "Margin/VBox/HeaderRow/RunStatusCard/StatusLabel", "tone": "muted"},
+	])
 
 	for button_name in BUTTON_NODE_NAMES:
 		var action_button: Button = get_node_or_null("Margin/VBox/ActionsRow/%s" % button_name) as Button
 		TempScreenThemeScript.apply_button(action_button, TempScreenThemeScript.TEAL_ACCENT_COLOR)
-		if action_button != null:
-			action_button.custom_minimum_size = Vector2(0, 78)
-			action_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 
 	TempScreenThemeScript.apply_button(get_node_or_null("Margin/VBox/FooterRow/LeaveButton") as Button, TempScreenThemeScript.PANEL_BORDER_COLOR, true)
-
-	var title_label: Label = get_node_or_null("Margin/VBox/HeaderRow/HeaderStack/TitleLabel") as Label
-	if title_label != null:
-		title_label.add_theme_font_size_override("font_size", 34)
-
-	var summary_label: Label = get_node_or_null("Margin/VBox/HeaderRow/HeaderStack/SummaryLabel") as Label
-	if summary_label != null:
-		summary_label.add_theme_font_size_override("font_size", 16)
-	var hint_label: Label = get_node_or_null("Margin/VBox/HeaderRow/HeaderStack/HintLabel") as Label
-	if hint_label != null:
-		hint_label.add_theme_font_size_override("font_size", 15)
-
-	var run_status_label: Label = get_node_or_null("Margin/VBox/HeaderRow/RunStatusCard/StatusLabel") as Label
-	if run_status_label != null:
-		run_status_label.add_theme_font_size_override("font_size", 14)
-
-	for button_name in BUTTON_NODE_NAMES:
-		var action_button: Button = get_node_or_null("Margin/VBox/ActionsRow/%s" % button_name) as Button
-		if action_button != null:
-			action_button.add_theme_font_size_override("font_size", 19)
-
+	SceneLayoutHelperScript.apply_control_overrides(self, {}, [
+		{"path": "%s/TitleLabel" % HEADER_STACK_PATH, "font_size": 34},
+		{"path": "%s/ContextLabel" % HEADER_STACK_PATH, "font_size": 16},
+		{"path": "%s/SummaryLabel" % HEADER_STACK_PATH, "font_size": 16},
+		{"path": "%s/HintLabel" % HEADER_STACK_PATH, "font_size": 15},
+		{"path": "Margin/VBox/HeaderRow/RunStatusCard/StatusLabel", "font_size": 14},
+		{"paths": [
+			"Margin/VBox/ActionsRow/ActionAButton",
+			"Margin/VBox/ActionsRow/ActionBButton",
+			"Margin/VBox/ActionsRow/ActionCButton",
+		], "font_size": 19, "alignment": HORIZONTAL_ALIGNMENT_LEFT, "custom_minimum_size": {"x": 0.0, "y": 78.0}},
+		{"path": "Margin/VBox/FooterRow/LeaveButton", "font_size": 16},
+	])
 	var leave_button: Button = get_node_or_null("Margin/VBox/FooterRow/LeaveButton") as Button
 	if leave_button != null:
-		leave_button.add_theme_font_size_override("font_size", 16)
 		leave_button.text = "Back to the Road"
-
-	var vbox: VBoxContainer = get_node_or_null("Margin/VBox") as VBoxContainer
-	if vbox != null:
-		vbox.add_theme_constant_override("separation", 14)
-	var header_row: VBoxContainer = get_node_or_null("Margin/VBox/HeaderRow") as VBoxContainer
-	if header_row != null:
-		header_row.add_theme_constant_override("separation", 10)
-	var actions_row: VBoxContainer = get_node_or_null("Margin/VBox/ActionsRow") as VBoxContainer
-	if actions_row != null:
-		actions_row.add_theme_constant_override("separation", 10)
 
 
 func _setup_safe_menu() -> void:
@@ -251,103 +296,106 @@ func _setup_safe_menu() -> void:
 		self,
 		_safe_menu,
 		"Run Menu",
-		"Save, load, mute music, or quit.",
+		"Save, load, return to menu, mute music, or quit.",
 		"Settings",
 		Callable(self, "_on_save_pressed"),
-		Callable(self, "_on_load_pressed")
+		Callable(self, "_on_load_pressed"),
+		Callable(self, "_on_return_to_main_menu_pressed")
 	)
 
 
-func _connect_viewport_layout_updates() -> void:
-	var viewport: Viewport = get_viewport()
-	if viewport == null:
+func _setup_overflow_prompt() -> void:
+	_overflow_prompt = InventoryOverflowPromptScript.new()
+	_overflow_prompt.name = "InventoryOverflowPrompt"
+	_overflow_prompt.configure(TempScreenThemeScript.TEAL_ACCENT_COLOR)
+	add_child(_overflow_prompt)
+	_overflow_prompt.discard_requested.connect(_on_overflow_discard_requested)
+	_overflow_prompt.leave_requested.connect(_on_overflow_leave_requested)
+
+
+func _present_inventory_overflow_prompt(action_id: String, prompt_result: Dictionary) -> void:
+	_pending_overflow_action_id = action_id
+	_set_action_buttons_interactable(false)
+	if _overflow_prompt == null:
 		return
-	var size_changed_handler := Callable(self, "_on_viewport_size_changed")
-	if not viewport.is_connected("size_changed", size_changed_handler):
-		viewport.connect("size_changed", size_changed_handler)
+	_overflow_prompt.present(prompt_result, "Leave Item")
 
 
-func _disconnect_viewport_layout_updates() -> void:
-	var viewport: Viewport = get_viewport()
-	if viewport == null:
+func _clear_overflow_prompt() -> void:
+	_pending_overflow_action_id = ""
+	if _overflow_prompt != null:
+		_overflow_prompt.dismiss()
+
+
+func _set_action_buttons_interactable(is_interactable: bool) -> void:
+	for button_name in BUTTON_NODE_NAMES:
+		var button: Button = get_node_or_null("Margin/VBox/ActionsRow/%s" % button_name) as Button
+		if button == null or not button.visible:
+			continue
+		button.disabled = not is_interactable
+	var leave_button: Button = get_node_or_null("Margin/VBox/FooterRow/LeaveButton") as Button
+	if leave_button != null:
+		leave_button.disabled = not is_interactable
+
+
+func _on_overflow_discard_requested(slot_id: int) -> void:
+	if _bootstrap == null or _pending_overflow_action_id.is_empty():
 		return
-	var size_changed_handler := Callable(self, "_on_viewport_size_changed")
-	if viewport.is_connected("size_changed", size_changed_handler):
-		viewport.disconnect("size_changed", size_changed_handler)
+	_action_in_flight = true
+	var result: Dictionary = _bootstrap.choose_support_action(_pending_overflow_action_id, slot_id)
+	if bool(result.get("ok", false)):
+		_clear_overflow_prompt()
+		_support_state = _bootstrap.get_support_interaction_state()
+		_action_in_flight = false
+		_render_support_state()
+		return
+	_action_in_flight = false
+	_clear_overflow_prompt()
+	_set_support_status_text("Action failed: %s" % String(result.get("error", "unknown")))
+	_support_state = _bootstrap.get_support_interaction_state()
+	_render_support_state()
 
 
-func _on_viewport_size_changed() -> void:
-	_apply_portrait_safe_layout()
+func _on_overflow_leave_requested() -> void:
+	_clear_overflow_prompt()
+	_action_in_flight = false
+	_render_support_state()
 
 
 func _apply_portrait_safe_layout() -> void:
-	var margin: MarginContainer = get_node_or_null("Margin") as MarginContainer
-	var vbox: VBoxContainer = get_node_or_null("Margin/VBox") as VBoxContainer
-	var header_row: HBoxContainer = get_node_or_null("Margin/VBox/HeaderRow") as HBoxContainer
-	var actions_row: VBoxContainer = get_node_or_null("Margin/VBox/ActionsRow") as VBoxContainer
-	var footer_row: HBoxContainer = get_node_or_null("Margin/VBox/FooterRow") as HBoxContainer
-	if margin == null or vbox == null:
+	var values: Dictionary = SceneLayoutHelperScript.apply_portrait_layout(self, PORTRAIT_LAYOUT_CONFIG)
+	if values.is_empty():
 		return
+	var viewport_size: Vector2 = values.get("viewport_size", Vector2.ZERO)
+	values["vbox_separation"] = 12 if viewport_size.y < 1560.0 else 16
+	values["footer_separation"] = 10 if viewport_size.y < 1560.0 else 12
+	values["hint_font_size"] = max(14, int(values.get("summary_font_size", 17)) - 2)
+	SceneLayoutHelperScript.apply_control_overrides(self, values, [
+		{"path": "Margin/VBox", "theme_constants": {"separation": "vbox_separation"}},
+		{"path": "Margin/VBox/HeaderRow", "theme_constants": {"separation": "vbox_separation"}},
+		{"path": HEADER_STACK_PATH, "theme_constants": {"separation": 4}},
+		{"path": "Margin/VBox/ActionsRow", "theme_constants": {"separation": "vbox_separation"}},
+		{"path": "Margin/VBox/FooterRow", "theme_constants": {"separation": "footer_separation"}},
+		{"path": "%s/TitleLabel" % HEADER_STACK_PATH, "font_size": "title_font_size"},
+		{"path": "%s/ContextLabel" % HEADER_STACK_PATH, "font_size": "context_font_size"},
+		{"path": "%s/SummaryLabel" % HEADER_STACK_PATH, "font_size": "summary_font_size"},
+		{"path": "%s/HintLabel" % HEADER_STACK_PATH, "font_size": "hint_font_size"},
+		{"path": "Margin/VBox/HeaderRow/RunStatusCard/StatusLabel", "font_size": "status_font_size"},
+		{"path": "Margin/VBox/HeaderRow/RunStatusCard", "custom_minimum_size": {"x": "run_status_width", "y": 0.0}},
+	    {"paths": [
+			"Margin/VBox/ActionsRow/ActionAButton",
+			"Margin/VBox/ActionsRow/ActionBButton",
+			"Margin/VBox/ActionsRow/ActionCButton",
+		], "font_size": "button_font_size", "custom_minimum_size": {"x": 0.0, "y": "button_height"}, "theme_constants": {"icon_max_width": "button_icon_max_width"}},
+		{"path": "Margin/VBox/FooterRow/LeaveButton", "font_size": "leave_font_size", "custom_minimum_size": {"x": 0.0, "y": "leave_button_height"}},
+	])
+	_render_run_status_card(_get_run_state())
 
-	var viewport_size: Vector2 = get_viewport_rect().size
-	var top_margin: int = 120
-	var bottom_margin: int = 116
-	if viewport_size.y < 1760.0:
-		top_margin = 92
-		bottom_margin = 88
-	if viewport_size.y < 1540.0:
-		top_margin = 68
-		bottom_margin = 64
 
-	var safe_width: int = TempScreenThemeScript.apply_portrait_safe_margins(
-		margin,
-		PORTRAIT_SAFE_MAX_WIDTH,
-		PORTRAIT_SAFE_MIN_SIDE_MARGIN,
-		top_margin,
-		bottom_margin
+func _render_run_status_card(run_state: RunState) -> void:
+	RunStatusStripScript.render_into(
+		get_node_or_null("Margin/VBox/HeaderRow/RunStatusCard") as PanelContainer,
+		get_node_or_null("Margin/VBox/HeaderRow/RunStatusCard/StatusLabel") as Label,
+		_presenter.build_run_status_model(run_state),
+		TempScreenThemeScript.PANEL_BORDER_COLOR
 	)
-	vbox.add_theme_constant_override("separation", 12 if viewport_size.y < 1560.0 else 16)
-	if header_row != null:
-		header_row.add_theme_constant_override("separation", 12 if viewport_size.y < 1560.0 else 16)
-	if actions_row != null:
-		actions_row.add_theme_constant_override("separation", 12 if viewport_size.y < 1560.0 else 16)
-	if footer_row != null:
-		footer_row.add_theme_constant_override("separation", 10 if viewport_size.y < 1560.0 else 12)
-
-	var large_layout: bool = safe_width >= 760 and viewport_size.y >= 1640.0
-	var medium_layout: bool = not large_layout and safe_width >= 620 and viewport_size.y >= 1460.0
-	var title_font_size: int = 46 if large_layout else 40 if medium_layout else 34
-	var summary_font_size: int = 21 if large_layout else 19 if medium_layout else 17
-	var status_font_size: int = 19 if large_layout else 17 if medium_layout else 15
-	var button_font_size: int = 22 if large_layout else 20 if medium_layout else 18
-	var leave_font_size: int = 20 if large_layout else 18 if medium_layout else 16
-	var button_height: float = 84.0 if large_layout else 76.0 if medium_layout else 66.0
-	var run_status_width: float = 300.0 if large_layout else 260.0 if medium_layout else 224.0
-
-	var title_label: Label = get_node_or_null("Margin/VBox/HeaderRow/HeaderStack/TitleLabel") as Label
-	if title_label != null:
-		title_label.add_theme_font_size_override("font_size", title_font_size)
-	var summary_label: Label = get_node_or_null("Margin/VBox/HeaderRow/HeaderStack/SummaryLabel") as Label
-	if summary_label != null:
-		summary_label.add_theme_font_size_override("font_size", summary_font_size)
-	var hint_label: Label = get_node_or_null("Margin/VBox/HeaderRow/HeaderStack/HintLabel") as Label
-	if hint_label != null:
-		hint_label.add_theme_font_size_override("font_size", max(14, summary_font_size - 2))
-	var run_status_label: Label = get_node_or_null("Margin/VBox/HeaderRow/RunStatusCard/StatusLabel") as Label
-	if run_status_label != null:
-		run_status_label.add_theme_font_size_override("font_size", status_font_size)
-	var run_status_card: PanelContainer = get_node_or_null("Margin/VBox/HeaderRow/RunStatusCard") as PanelContainer
-	if run_status_card != null:
-		run_status_card.custom_minimum_size = Vector2(run_status_width, 0.0)
-
-	for button_name in BUTTON_NODE_NAMES:
-		var action_button: Button = get_node_or_null("Margin/VBox/ActionsRow/%s" % button_name) as Button
-		if action_button != null:
-			action_button.custom_minimum_size = Vector2(0.0, button_height)
-			action_button.add_theme_font_size_override("font_size", button_font_size)
-			action_button.add_theme_constant_override("icon_max_width", 30 if large_layout else 26 if medium_layout else 22)
-
-	var leave_button: Button = get_node_or_null("Margin/VBox/FooterRow/LeaveButton") as Button
-	if leave_button != null:
-		leave_button.custom_minimum_size = Vector2(0.0, 60.0 if large_layout else 54.0 if medium_layout else 48.0)
-		leave_button.add_theme_font_size_override("font_size", leave_font_size)

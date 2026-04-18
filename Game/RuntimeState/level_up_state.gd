@@ -17,19 +17,21 @@ var source_context: String = ""
 var current_level: int = 1
 var target_level: int = 2
 var offers: Array[Dictionary] = []
-var requires_replacement: bool = false
 
 
 static func threshold_for_level(level: int) -> int:
 	return int(LEVEL_THRESHOLDS.get(level, -1))
 
 
-func setup_for_level(source_name: String, from_level: int, offer_list: Array[Dictionary], replacement_needed: bool) -> void:
+func setup_for_level(source_name: String, from_level: int, offer_list: Array[Dictionary], replacement_needed: bool = false) -> void:
 	source_context = source_name
 	current_level = from_level
 	target_level = current_level + 1
 	offers = offer_list.duplicate(true)
-	requires_replacement = replacement_needed
+	# Legacy argument kept only so old tests/callers do not widen this migration patch.
+	# Current perk-based level-up flow no longer uses shared-inventory replacement pressure.
+	if replacement_needed:
+		pass
 
 
 func get_offer_by_id(offer_id: String) -> Dictionary:
@@ -45,7 +47,6 @@ func to_save_dict() -> Dictionary:
 		"current_level": current_level,
 		"target_level": target_level,
 		"offers": offers.duplicate(true),
-		"requires_replacement": requires_replacement,
 	}
 
 
@@ -54,7 +55,6 @@ func load_from_save_dict(save_data: Dictionary) -> void:
 	current_level = int(save_data.get("current_level", 1))
 	target_level = int(save_data.get("target_level", current_level + 1))
 	offers = _extract_offer_array(save_data.get("offers", []))
-	requires_replacement = bool(save_data.get("requires_replacement", false))
 
 
 func _extract_offer_array(value: Variant) -> Array[Dictionary]:

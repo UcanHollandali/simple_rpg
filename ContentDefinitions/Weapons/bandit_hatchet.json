@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "definition_id": "bandit_hatchet",
+  "family": "Weapons",
+  "tags": [
+    "weapon",
+    "melee",
+    "axe",
+    "physical",
+    "offhand",
+    "brigand"
+  ],
+  "display": {
+    "name": "Bandit Hatchet",
+    "short_description": "A mean little hatchet built for dirty follow-ups and fast dual-wield pivots.",
+    "icon_key": "weapon_bandit_hatchet"
+  },
+  "design_intent_question": "Can a cheap offhand-capable hatchet open a scrappy dual-wield lane without asking for a second full attack engine?",
+  "rules": {
+    "slot_compatibility": {
+      "right_hand": true,
+      "left_hand": true,
+      "offhand_capable": true
+    },
+    "stats": {
+      "weapon_type": "axe",
+      "base_damage": 5,
+      "max_durability": 16,
+      "durability_cost_per_attack": 1,
+      "durability_profile": "fragile"
+    }
+  }
+}

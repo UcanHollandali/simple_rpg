@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "definition_id": "zigzag_wolf_sign",
+  "family": "EventTemplates",
+  "tags": [
+    "event",
+    "roadside",
+    "wolves",
+    "stage_3",
+    "prototype"
+  ],
+  "display": {
+    "name": "Hungry Wolf Tracks",
+    "short_description": "Fresh wolf sign crosses the road twice, then disappears into the brush. Something dragged a hare off the path not long ago."
+  },
+  "rules": {
+    "trigger_condition": {
+      "op": "lt",
+      "stat": "hunger",
+      "value": 10
+    },
+    "choices": [
+      {
+        "choice_id": "trail_the_pack_sign",
+        "label": "Trail the pack sign",
+        "summary": "Follow the print pattern just long enough to learn where the wolves avoid the road and why.",
+        "effect_type": "grant_xp",
+        "amount": 4
+      },
+      {
+        "choice_id": "bait_a_quick_snare",
+        "label": "Bait a quick snare",
+        "summary": "Lift what the wolves left behind, rig a fast snare, and pull free one strip of meat before moving on.",
+        "effect_type": "grant_item",
+        "inventory_family": "consumable",
+        "definition_id": "cured_meat",
+        "amount": 1
+      }
+    ]
+  }
+}

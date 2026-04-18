@@ -163,6 +163,16 @@ For content additions, reason using:
 - Validate the changed area.
 - Report what changed, what did not, and what still needs checking.
 
+## Maintainability Guardrails
+
+- Large hotspot files over `500` lines should prefer extraction-first over additive growth.
+- Do not add new `AppBootstrap` convenience gameplay methods without explicit escalation.
+- Do not add new `RunState` compatibility accessors.
+- Scene/UI changes inside large files must preserve composition-only intent; do not smuggle gameplay ownership into presentation cleanup.
+- Owner-changing cleanup is not fast-lane work.
+- Consolidate duplicate threshold constants across owners when a safe local opportunity appears.
+- Node family references should prefer shared constants or owner-backed identifiers over bare strings.
+
 ## Continuation Gate
 
 For any non-trivial human or AI continuation pass, state these before or alongside the implementation work:

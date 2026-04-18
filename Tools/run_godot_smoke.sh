@@ -63,6 +63,6 @@ while IFS= read -r -d '' script_file; do
   resource_path="res://${relative_path//\\//}"
   echo "Parsing $resource_path"
   "$godot_exe" --headless --path "$project_root" --script "$resource_path" --check-only
-done < <(find "$project_root" -type f -name "*.gd" ! -path "$project_root/.godot/*" -print0 | sort -z)
+done < <(find "$project_root" -type f -name "*.gd" ! -path "$project_root/.godot/*" ! -path "$project_root/_godot_profile/*" -print0 | sort -z)
 
 echo "Godot smoke check passed."

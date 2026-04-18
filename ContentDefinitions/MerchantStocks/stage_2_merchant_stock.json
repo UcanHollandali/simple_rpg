@@ -15,22 +15,22 @@
   "rules": {
     "stock": [
       {
-        "offer_id": "buy_roadside_stew_jar_x1",
-        "definition_id": "roadside_stew_jar",
+        "offer_id": "buy_war_biscuit_x1",
+        "definition_id": "war_biscuit",
         "effect_type": "buy_consumable",
         "amount": 1,
         "cost_gold": 9
       },
       {
-        "offer_id": "buy_forager_knife",
-        "definition_id": "forager_knife",
+        "offer_id": "buy_bandit_hatchet",
+        "definition_id": "bandit_hatchet",
         "effect_type": "buy_weapon",
-        "cost_gold": 17
+        "cost_gold": 18
       },
       {
-        "offer_id": "buy_watchman_mace",
-        "definition_id": "watchman_mace",
-        "effect_type": "buy_weapon",
+        "offer_id": "buy_pilgrim_board",
+        "definition_id": "pilgrim_board",
+        "effect_type": "buy_shield",
         "cost_gold": 20
       }
     ]

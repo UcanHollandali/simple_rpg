@@ -1,0 +1,38 @@
+{
+    "schema_version":  1,
+    "definition_id":  "sturdy_stance",
+    "authoring_order":  20,
+    "family":  "CharacterPerks",
+    "tags":  [
+                 "perk",
+                 "defense",
+                 "combat"
+             ],
+    "display":  {
+                    "name":  "Sturdy Stance",
+                    "short_description":  "A defensive perk that reduces incoming combat damage by 1.",
+                    "icon_key":  "passive_sturdy_wraps"
+                },
+    "rules":  {
+                  "behaviors":  [
+                                    {
+                                        "trigger":  "passive",
+                                        "condition":  {
+                                                          "op":  "always"
+                                                      },
+                                        "target":  "self",
+                                        "effects":  [
+                                                        {
+                                                            "type":  "modify_stat",
+                                                            "params":  {
+                                                                           "stat":  "incoming_damage_flat_reduction",
+                                                                           "amount":  1
+                                                                       }
+                                                        }
+                                                    ]
+                                    }
+                                ],
+                  "perk_family":  "defense"
+              }
+}
+

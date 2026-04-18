@@ -30,10 +30,11 @@ Current validator commands:
 - macOS/Linux asset validator: `python3 Tools/validate_assets.py`
 - Windows architecture guard validator: `py -3 Tools/validate_architecture_guards.py`
 - macOS/Linux architecture guard validator: `python3 Tools/validate_architecture_guards.py`
-  - current guard scope: deprecated `dispatch()` growth, runtime-side `RunState` compatibility creep, test-side inventory compatibility creep, new runtime-side `current_node_index` spread, and scene/UI direct gameplay-truth mutation creep
+  - current guard scope: deprecated `dispatch()` growth, runtime-side `RunState` compatibility creep, test-side inventory compatibility creep, new runtime-side `current_node_index` spread, scene/UI direct gameplay-truth mutation creep, combat inventory slot-id compatibility bridge spread, stale `RunSummaryCard` tree-scan workaround growth, Application/Infrastructure presentation-node coupling, hotspot large-file line-count creep on the current extraction-first slices, and `AppBootstrap` / `RunSessionCoordinator` public-surface growth
 Current bounded-time regression runner:
 - Windows: `Tools/run_godot_tests.ps1` or `Tools/run_godot_tests.cmd`
 - Default `Tools/run_godot_tests.*` behavior is a bounded subset only when no explicit test list is passed; do not treat that default lane as the full `Tests/test_*.gd` union.
+- Current helper runner clears stale local `_godot_profile/logs/*.log` files before each run and treats generic `SCRIPT ERROR:` rows as hidden failures.
 Current explicit full-suite Windows command:
 
 ```powershell
@@ -46,6 +47,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_full_suite.p
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_scene_isolation.ps1 -ScenePath scenes/map_explore.tscn
 ```
+
+Current limitation:
+- there is no dedicated image-diff regression harness in the repo yet
+- Windows portrait screenshot review can now be generated through `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_portrait_review_capture.ps1`
+- the default portrait review set covers the always-meaningful playtest scenes (`main_menu`, `map_explore`, `combat`, `run_end`) instead of state-empty overlays
+- visual screenshot confidence still depends on human review of those captures or live scene/editor/device checks layered on top of the automated suite
 
 ## Pure Core Tests
 
@@ -92,7 +99,7 @@ Current exploration-graph coverage includes:
   - revisiting a merchant preserves remaining stock, sold-out state, and prices
 - one-shot support persistence
   - revisiting `rest` or `blacksmith` reopens inert local state instead of minting repeat value
-- side-mission contract flow
+- hamlet contract flow
   - accepting a contract marks one combat node and one enemy deterministically
   - defeating that marked enemy completes the contract without changing combat reward cadence
   - returning to the contract node exposes claim offers exactly once
@@ -109,7 +116,7 @@ Save tests should cover:
 - standalone file-backed `save_game` / `load_game` roundtrip
 - schema/content version handling
 - ownership invariants after load
-- side-mission node-state roundtrip inside `RunState` and file-backed save/load
+- hamlet node-state roundtrip inside `RunState` and file-backed save/load
 
 ## Godot Smoke Tests
 

@@ -77,128 +77,90 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 1
+theme_override_constants/separation = 6
 
 [node name="TopRow" type="HBoxContainer" parent="Margin/VBox"]
 z_index = 3
-theme_override_constants/separation = 0
+theme_override_constants/separation = 8
 alignment = 0
 size_flags_horizontal = 3
 size_flags_vertical = 1
-
-[node name="SettingsMenuAnchor" type="Control" parent="Margin/VBox/TopRow"]
-custom_minimum_size = Vector2(48, 40)
-size_flags_horizontal = 0
-size_flags_vertical = 1
-mouse_filter = 2
 
 [node name="HeaderCard" type="PanelContainer" parent="Margin/VBox/TopRow"]
 size_flags_horizontal = 3
 size_flags_vertical = 1
 size_flags_stretch_ratio = 1.0
 
-[node name="HeaderStack" type="VBoxContainer" parent="Margin/VBox/TopRow/HeaderCard"]
-theme_override_constants/separation = 1
+[node name="HeaderRow" type="HBoxContainer" parent="Margin/VBox/TopRow/HeaderCard"]
+theme_override_constants/separation = 12
 
-[node name="TitleLabel" type="Label" parent="Margin/VBox/TopRow/HeaderCard/HeaderStack"]
+[node name="StageBadge" type="PanelContainer" parent="Margin/VBox/TopRow/HeaderCard/HeaderRow"]
+custom_minimum_size = Vector2(62, 62)
+size_flags_vertical = 1
+
+[node name="StageBadgeLabel" type="Label" parent="Margin/VBox/TopRow/HeaderCard/HeaderRow/StageBadge"]
+text = "I"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="HeaderStack" type="VBoxContainer" parent="Margin/VBox/TopRow/HeaderCard/HeaderRow"]
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="TitleLabel" type="Label" parent="Margin/VBox/TopRow/HeaderCard/HeaderRow/HeaderStack"]
 text = "Route Board"
 autowrap_mode = 0
 clip_text = true
 max_lines_visible = 1
 
-[node name="ProgressLabel" type="Label" parent="Margin/VBox/TopRow/HeaderCard/HeaderStack"]
+[node name="ProgressLabel" type="Label" parent="Margin/VBox/TopRow/HeaderCard/HeaderRow/HeaderStack"]
 text = "Node 0 | Seen 0/0 | Cleared 0"
 autowrap_mode = 0
 clip_text = true
 max_lines_visible = 1
 
+[node name="RouteReadLabel" type="Label" parent="Margin/VBox/TopRow/HeaderCard/HeaderRow/HeaderStack"]
+text = "At Start | Key ahead | Boss locked"
+autowrap_mode = 3
+clip_text = true
+max_lines_visible = 2
+
+[node name="TopRowDivider" type="ColorRect" parent="Margin/VBox/TopRow"]
+custom_minimum_size = Vector2(2, 0)
+size_flags_vertical = 3
+mouse_filter = 2
+color = Color(0.568627, 0.486275, 0.341176, 0.22)
+
 [node name="RunSummaryCard" type="PanelContainer" parent="Margin/VBox/TopRow"]
 custom_minimum_size = Vector2(0, 0)
 size_flags_horizontal = 3
 size_flags_vertical = 1
-size_flags_stretch_ratio = 1.0
+size_flags_stretch_ratio = 1.15
 
-[node name="StatsStack" type="VBoxContainer" parent="Margin/VBox/TopRow/RunSummaryCard"]
-theme_override_constants/separation = 1
-
-[node name="StatusRows" type="VBoxContainer" parent="Margin/VBox/TopRow/RunSummaryCard/StatsStack"]
-theme_override_constants/separation = 1
-
-[node name="HpRow" type="HBoxContainer" parent="Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows"]
-alignment = 0
-theme_override_constants/separation = 3
-
-[node name="HpStatusIcon" type="TextureRect" parent="Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HpRow"]
-custom_minimum_size = Vector2(14, 14)
-mouse_filter = 2
-expand_mode = 1
-stretch_mode = 5
-
-[node name="HpStatusLabel" type="Label" parent="Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HpRow"]
-text = "HP 0"
-horizontal_alignment = 2
-
-[node name="HpSpacer" type="Control" parent="Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HpRow"]
-size_flags_horizontal = 3
+[node name="RunStatusLabel" type="Label" parent="Margin/VBox/TopRow/RunSummaryCard"]
+text = "HP 0 | Hunger 0 | Gold 0 | Durability 0"
+autowrap_mode = 3
 mouse_filter = 2
 
-[node name="GoldStatusIcon" type="TextureRect" parent="Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HpRow"]
-custom_minimum_size = Vector2(14, 14)
+[node name="SettingsMenuAnchor" type="Control" parent="Margin/VBox/TopRow"]
+custom_minimum_size = Vector2(96, 40)
+size_flags_horizontal = 0
+size_flags_vertical = 1
 mouse_filter = 2
-expand_mode = 1
-stretch_mode = 5
-
-[node name="GoldStatusValueLabel" type="Label" parent="Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HpRow"]
-text = "Gold 0"
-horizontal_alignment = 2
-
-[node name="HungerRow" type="HBoxContainer" parent="Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows"]
-alignment = 0
-theme_override_constants/separation = 3
-
-[node name="HungerStatusIcon" type="TextureRect" parent="Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HungerRow"]
-custom_minimum_size = Vector2(14, 14)
-mouse_filter = 2
-expand_mode = 1
-stretch_mode = 5
-
-[node name="HungerStatusLabel" type="Label" parent="Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HungerRow"]
-text = "Hunger 0"
-horizontal_alignment = 2
-
-[node name="DurabilityRow" type="HBoxContainer" parent="Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows"]
-alignment = 0
-theme_override_constants/separation = 3
-
-[node name="DurabilityStatusIcon" type="TextureRect" parent="Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/DurabilityRow"]
-custom_minimum_size = Vector2(14, 14)
-mouse_filter = 2
-expand_mode = 1
-stretch_mode = 5
-
-[node name="DurabilityStatusLabel" type="Label" parent="Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/DurabilityRow"]
-text = "Dur 0"
-horizontal_alignment = 2
-
-[node name="XpRow" type="HBoxContainer" parent="Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows"]
-alignment = 0
-theme_override_constants/separation = 3
-
-[node name="XpProgressBar" type="ProgressBar" parent="Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/XpRow"]
-size_flags_horizontal = 3
-max_value = 20.0
-value = 0.0
-custom_minimum_size = Vector2(0, 14)
-
-[node name="XpLabel" type="Label" parent="Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/XpRow"]
-text = "XP 0/20"
-horizontal_alignment = 2
 
 [node name="RouteGrid" type="Control" parent="Margin/VBox"]
 custom_minimum_size = Vector2(0, 0)
 size_flags_horizontal = 3
 size_flags_vertical = 3
 clip_contents = true
+
+[node name="BoardFrame" type="PanelContainer" parent="Margin/VBox/RouteGrid"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
 
 [node name="BoardBackdrop" type="TextureRect" parent="Margin/VBox/RouteGrid"]
 anchors_preset = 15
@@ -215,7 +177,7 @@ stretch_mode = 6
 
 [node name="CombatNodeButton" type="Button" parent="Margin/VBox/RouteGrid"]
 flat = true
-text = "Combat\nReachable"
+text = "Combat\nOpen Route"
 
 [node name="RestNodeMarker" type="TextureRect" parent="Margin/VBox/RouteGrid"]
 mouse_filter = 2
@@ -224,7 +186,7 @@ stretch_mode = 6
 
 [node name="RestNodeButton" type="Button" parent="Margin/VBox/RouteGrid"]
 flat = true
-text = "Rest\nReachable"
+text = "Rest\nOpen Route"
 
 [node name="RewardNodeMarker" type="TextureRect" parent="Margin/VBox/RouteGrid"]
 mouse_filter = 2
@@ -233,7 +195,7 @@ stretch_mode = 6
 
 [node name="RewardNodeButton" type="Button" parent="Margin/VBox/RouteGrid"]
 flat = true
-text = "Reward\nReachable"
+text = "Reward\nOpen Route"
 
 [node name="MerchantNodeMarker" type="TextureRect" parent="Margin/VBox/RouteGrid"]
 mouse_filter = 2
@@ -242,7 +204,7 @@ stretch_mode = 6
 
 [node name="MerchantNodeButton" type="Button" parent="Margin/VBox/RouteGrid"]
 flat = true
-text = "Merchant\nReachable"
+text = "Merchant\nOpen Route"
 
 [node name="BlacksmithNodeMarker" type="TextureRect" parent="Margin/VBox/RouteGrid"]
 mouse_filter = 2
@@ -251,7 +213,7 @@ stretch_mode = 6
 
 [node name="BlacksmithNodeButton" type="Button" parent="Margin/VBox/RouteGrid"]
 flat = true
-text = "Blacksmith\nReachable"
+text = "Blacksmith\nOpen Route"
 
 [node name="BossNodeMarker" type="TextureRect" parent="Margin/VBox/RouteGrid"]
 mouse_filter = 2
@@ -265,20 +227,6 @@ disabled = true
 
 [node name="KeyMarkerCard" type="TextureRect" parent="Margin/VBox/RouteGrid"]
 mouse_filter = 2
-
-[node name="InventorySection" type="VBoxContainer" parent="Margin/VBox"]
-z_index = 3
-theme_override_constants/separation = 4
-
-[node name="InventoryTitleLabel" type="Label" parent="Margin/VBox/InventorySection"]
-text = "Inventory"
-
-[node name="InventoryCard" type="PanelContainer" parent="Margin/VBox/InventorySection"]
-custom_minimum_size = Vector2(0, 152)
-size_flags_horizontal = 3
-
-[node name="InventoryCardsFlow" type="HBoxContainer" parent="Margin/VBox/InventorySection/InventoryCard"]
-theme_override_constants/separation = 6
 
 [node name="BottomRow" type="VBoxContainer" parent="Margin/VBox"]
 z_index = 3
@@ -298,9 +246,47 @@ autowrap_mode = 3
 text = "Node 0 | Key ahead | 3 open"
 autowrap_mode = 3
 
+[node name="CurrentAnchorHintLabel" type="Label" parent="Margin/VBox/BottomRow/CurrentAnchorCard/VBox"]
+text = "Push into a route to reveal the next pocket."
+autowrap_mode = 3
+
 [node name="StatusCard" type="PanelContainer" parent="Margin/VBox/BottomRow"]
 size_flags_horizontal = 3
 
 [node name="StatusLabel" type="Label" parent="Margin/VBox/BottomRow/StatusCard"]
 text = "Status"
 autowrap_mode = 3
+
+[node name="InventorySection" type="VBoxContainer" parent="Margin/VBox"]
+z_index = 3
+theme_override_constants/separation = 4
+
+[node name="EquipmentTitleLabel" type="Label" parent="Margin/VBox/InventorySection"]
+text = "Equipment"
+
+[node name="EquipmentHintLabel" type="Label" parent="Margin/VBox/InventorySection"]
+text = "Right/Left hand, armor, and belt stay outside the backpack."
+autowrap_mode = 3
+mouse_filter = 2
+
+[node name="EquipmentCard" type="PanelContainer" parent="Margin/VBox/InventorySection"]
+custom_minimum_size = Vector2(0, 144)
+size_flags_horizontal = 3
+
+[node name="EquipmentCardsFlow" type="HBoxContainer" parent="Margin/VBox/InventorySection/EquipmentCard"]
+theme_override_constants/separation = 6
+
+[node name="InventoryTitleLabel" type="Label" parent="Margin/VBox/InventorySection"]
+text = "Backpack"
+
+[node name="InventoryHintLabel" type="Label" parent="Margin/VBox/InventorySection"]
+text = "Carry 0/0 | No weapon"
+autowrap_mode = 3
+mouse_filter = 2
+
+[node name="InventoryCard" type="PanelContainer" parent="Margin/VBox/InventorySection"]
+custom_minimum_size = Vector2(0, 144)
+size_flags_horizontal = 3
+
+[node name="InventoryCardsFlow" type="HBoxContainer" parent="Margin/VBox/InventorySection/InventoryCard"]
+theme_override_constants/separation = 6

@@ -17,7 +17,7 @@ Most new content should be added by new data, not new special-case code.
 ## Content Growth Discipline
 
 - Most future growth should come from new content data inside the current grammar.
-- Adding new `Weapons`, `Consumables`, `PassiveItems`, `Rewards`, and `Enemies` inside the current grammar should be relatively easy.
+- Adding new `Weapons`, `Shields`, `Armors`, `Belts`, `Consumables`, `PassiveItems`, `ShieldAttachments`, `CharacterPerks`, `Rewards`, `EventTemplates`, and `Enemies` inside the current grammar should be relatively easy.
 - The current starter run loadout and current merchant stock slices are now content-backed through narrow dedicated families, not hardcoded runtime tables.
 - Broader support-table growth still is not a generic runtime surface; widening it requires explicit implementation work.
 - Adding a new resource axis, slot type, combat verb, currency, node family, trigger matrix, or progression track is not routine content work and requires explicit contract review.
@@ -32,10 +32,14 @@ Most new content should be added by new data, not new special-case code.
 ## Supported Families
 
 - `Weapons`
+- `Shields`
 - `Armors`
 - `Belts`
 - `Consumables`
 - `PassiveItems`
+- `QuestItems`
+- `ShieldAttachments`
+- `CharacterPerks`
 - `Enemies`
 - `Statuses`
 - `Effects`
@@ -69,16 +73,17 @@ Families currently without authored content: Effects, RouteConditions.
 
 The current prototype has two runtime surfaces where authored definition order is gameplay-relevant:
 - normal combat enemy rotation
-- level-up passive offer windows
+- level-up perk offer windows
 
 `authoring_order` rules:
 - top-level integer field
 - required for every `Enemies` definition
-- required for every `PassiveItems` definition
+- required for every `CharacterPerks` definition
 - must be a positive integer
 - must be unique within its family
 - purpose:
   - locks deterministic authored order without depending on file-name sort
+  - `Enemies.authoring_order` remains the canonical base order for stage-tagged minor-enemy pools even when live combat setup applies a deterministic run-seeded stage offset before node-index mapping
   - is not a display sort hint or UI label
 
 ### RunLoadouts
@@ -86,22 +91,39 @@ The current prototype has two runtime surfaces where authored definition order i
 The current prototype uses one authored starter run loadout for new-run inventory setup.
 
 `RunLoadouts` rules:
-- `rules.weapon_definition_id`
-  - required non-empty string
-  - references a canonical `Weapons/` definition
-- `rules.consumable_slots`
+- supported explicit equipment keys:
+  - `rules.right_hand_definition_id`
+  - optional `rules.left_hand_definition_id`
+  - optional `rules.armor_definition_id`
+  - optional `rules.belt_definition_id`
+- at least one explicit equipment key must be present
+- equipment keys reference their canonical family:
+  - `right_hand_definition_id` -> `Weapons/`
+  - `left_hand_definition_id` -> `Weapons/` or `Shields/`
+  - `armor_definition_id` -> `Armors/`
+  - `belt_definition_id` -> `Belts/`
+- `rules.backpack_items`
   - required array
-  - each entry uses:
+  - each entry requires:
+    - `inventory_family`
     - `definition_id`
-    - `current_stack`
-  - each `definition_id` references a canonical `Consumables/` definition
+  - `inventory_family` currently supports:
+    - `weapon`
+    - `shield`
+    - `armor`
+    - `belt`
+    - `consumable`
+    - `passive`
+    - `quest_item`
+    - `shield_attachment`
+  - consumable entries also require positive integer `current_stack`
 - current status:
-  - runtime-backed for the starter weapon instance and starter consumables inside the shared inventory owner
-  - armor, belt, and passive starter emptiness remain part of the narrow fixed starter baseline, not a broader generic authored loadout system
+  - runtime-backed for explicit starter equipment plus starter backpack contents
+  - equipment slots are no longer inferred from a shared-bag baseline
 
 ### MerchantStocks
 
-The current prototype uses deterministic stage-indexed authored merchant stock definitions for merchant-node offer generation.
+The current prototype uses deterministic stage-local authored merchant stock definitions for merchant-node offer generation.
 
 `MerchantStocks` rules:
 - `rules.stock`
@@ -119,17 +141,41 @@ The current prototype uses deterministic stage-indexed authored merchant stock d
   - `buy_weapon`
     - does not use `amount`
     - `definition_id` references `Weapons/`
+  - `buy_shield`
+    - does not use `amount`
+    - `definition_id` references `Shields/`
+  - `buy_armor`
+    - does not use `amount`
+    - `definition_id` references `Armors/`
+  - `buy_belt`
+    - does not use `amount`
+    - `definition_id` references `Belts/`
+  - `buy_passive_item`
+    - does not use `amount`
+    - `definition_id` references `PassiveItems/`
 - current status:
   - runtime-backed only for the merchant-node stock slice
-  - current runtime chooses one authored stock by `RunState.stage_index`
+  - current runtime chooses one authored stock from the current stage-local pool using deterministic run-seeded selection over `RunState.stage_index` plus source node id
   - labels remain derived from referenced item definitions
-  - seeded shop generation or generic support-table routing remains deferred
+  - current live stage-local stock pools currently include:
+    - stage `1`: `basic_merchant_stock`, `stage_1_merchant_stock_roadpack`, `stage_1_merchant_stock_scout`
+    - stage `2`: `stage_2_merchant_stock`, `stage_2_merchant_stock_kit`, `stage_2_merchant_stock_forgegear`
+    - stage `3`: `stage_3_merchant_stock`, `stage_3_merchant_stock_bulwark`, `stage_3_merchant_stock_convoy`
+  - generic weighted shop generation or broader support-table routing remains deferred
 
 ### EventTemplates
 
-The current prototype uses authored event templates for dedicated event-node resolution.
+The current prototype uses authored event templates for the dedicated `Event` flow.
 
 `EventTemplates` rules:
+- optional `rules.trigger_condition`
+  - current runtime-backed use is roadside-only eligibility filtering for roadside-tagged templates
+  - current supported stat names:
+    - `hunger`
+    - `hp_percent`
+    - `gold`
+    - `has_empty_backpack_slot`
+  - current supported operators stay inside the existing condition grammar
 - `rules.choices`
   - required array with exactly `2` entries
   - each entry requires:
@@ -142,6 +188,19 @@ The current prototype uses authored event templates for dedicated event-node res
     - requires positive integer `amount`
   - `grant_xp`
     - requires positive integer `amount`
+  - `grant_item`
+    - requires:
+      - `inventory_family`
+      - `definition_id`
+    - current supported `inventory_family` values:
+      - `consumable`
+      - `weapon`
+      - `shield`
+      - `armor`
+      - `belt`
+      - `passive`
+      - `shield_attachment`
+    - consumable item grants may also include positive integer `amount`
   - `heal`
     - requires positive integer `amount`
   - `modify_hunger`
@@ -150,18 +209,22 @@ The current prototype uses authored event templates for dedicated event-node res
     - does not use `amount`
   - `damage_player`
     - requires positive integer `amount`
-- current status:
+  - current status:
   - runtime-backed only for the dedicated `Event` flow slice
-  - template selection is currently deterministic stage-scoped rotation over stable-id sort
+  - current runtime uses that same flow for both planned map `event` nodes and movement-triggered roadside interruptions, distinguished by `EventState.source_context`
+  - current roadside selection may filter the roadside-tagged pool by optional `rules.trigger_condition` before deterministic seeded template selection
+  - template selection is currently deterministic run-seeded context selection over the filtered stable-id pool, while `selection_seed = 1` keeps the old stage-offset lane for compatibility-style tests/tools
+  - item-grant event choices do not silently evict older backpack loot; when the chosen item would need a new slot, runtime opens a discard-or-leave prompt against the current backpack
   - no generic multi-effect event matrix, weighted event table, or authored event-graph routing exists in the current truthful slice
 
 ### MapTemplates
 
-The current prototype uses authored scaffold templates for stage-local exploration topology.
+The current prototype uses authored map-template files as stage-profile identifiers plus compatibility/reference data for stage-local exploration.
 
 `MapTemplates` rules:
 - `rules.nodes`
-  - required non-empty array
+  - still supported in canonical content for legacy fixed templates and reference/profile data
+  - current live runtime no longer treats authored `rules.nodes[*].adjacent_node_ids` as the active new-run graph source
   - each entry requires:
     - `node_id`
     - `adjacent_node_ids`
@@ -173,6 +236,7 @@ The current prototype uses authored scaffold templates for stage-local explorati
   - `combat`
   - `event`
   - `reward`
+  - `hamlet`
   - `rest`
   - `merchant`
   - `blacksmith`
@@ -182,25 +246,39 @@ The current prototype uses authored scaffold templates for stage-local explorati
   - `opening_support`
   - `late_primary`
   - `late_event`
-  - `late_side_mission`
+  - `late_hamlet`
 - current status:
-  - runtime-backed for the current scaffold-based procedural map v1 slice
+  - active runtime stage profiles are `procedural_stage_corridor_v1`, `procedural_stage_openfield_v1`, and `procedural_stage_loop_v1`
   - `MapRuntimeState` still owns node discovery, resolution, locking, current position, and support-node revisit state
-  - current scaffold fill keeps fixed opening readability while randomizing late-slot family placement under fixed quotas
-  - current scaffold fill now also resolves one dedicated `late_event` slot into the `event` node family without reducing the existing stage floor
-  - current scaffold fill now also resolves one dedicated `late_side_mission` slot into the `side_mission` node family without reducing the existing stage floor
+  - new-run graph topology is now generated inside `MapRuntimeState` through controlled scatter plus post-topology family placement, not by reading authored scaffold adjacency directly
+  - current content files still carry the narrow scaffold/reference grammar and legacy fixed-template data, but exact realized graph restore now lives in save data
   - exact realized graph restore now lives in save data
   - legacy fixed templates remain in `MapTemplates/` only for backward-compatible schema-1 load reconstruction
 
 ### SideMissions
 
-The current prototype uses authored side-mission definitions for contract-board detours that mark one combat target and later pay out one piece of gear.
+The current prototype uses authored side-quest definitions for hamlet contract-board detours and marked-objective requests.
 
 `SideMissions` rules:
 - `rules.mission_type`
   - required non-empty string
-  - current supported value:
+  - current supported values:
     - `hunt_marked_enemy`
+    - `deliver_supplies`
+    - `rescue_missing_scout`
+    - `bring_proof`
+- `rules.quest_item_definition_id`
+  - required non-empty `QuestItems` definition for `deliver_supplies`
+  - optional supported hook for `bring_proof`
+- `rules.target_families`
+  - optional non-empty array
+  - current supported values:
+    - `combat`
+    - `event`
+    - `reward`
+    - `rest`
+    - `merchant`
+    - `blacksmith`
 - required non-empty text fields:
   - `briefing_text`
   - `accept_label`
@@ -213,15 +291,30 @@ The current prototype uses authored side-mission definitions for contract-board 
   - required array with at least `2` entries
   - each entry requires:
     - `offer_id`
-    - `inventory_family`
-    - `definition_id`
-  - current supported `inventory_family` values:
-    - `weapon`
-    - `armor`
+    - `effect_type`
+  - current supported `effect_type` values:
+    - `grant_gold`
+      - requires positive integer `amount`
+    - `grant_item`
+      - requires:
+        - `inventory_family`
+        - `definition_id`
+      - current supported `inventory_family` values:
+        - `weapon`
+        - `shield`
+        - `armor`
+        - `belt`
+        - `passive`
+        - `shield_attachment`
+        - `consumable`
+      - consumable item grants may also include positive integer `amount`
 - current status:
-  - runtime-backed only for the dedicated side-mission contract slice
-  - current runtime picks exactly `1` combat node target and exactly `1` enemy definition when the contract is accepted
+  - runtime-backed only for the dedicated hamlet side-quest slice
+  - current runtime chooses one authored request definition from the current stage-local pool using deterministic run-seeded selection over `RunState.stage_index` plus source node id
+  - current runtime picks exactly `1` valid target node when the request is accepted
+  - `hunt_marked_enemy` also picks exactly `1` enemy definition
   - current runtime presents exactly `2` reward offers from the authored reward pool when the contract is completed
+  - current authored content now covers all four mission hooks with multiple stage-local request definitions
   - generic multi-step quest chains, multiple objectives, and non-gear contract rewards remain deferred
 
 ### Enemies
@@ -274,16 +367,16 @@ Optional reserved enemy metadata:
 | Area | Supported now | Reserved later / not truthful yet |
 |---|---|---|
 | top-level schema | required top-level fields, family/path match, stable ID/file-name match, non-empty `display.name` | richer schema families and reference graphs |
-| event content surface | `EventTemplates.rules.choices` with exactly 2 authored choices, deterministic stage-scoped template rotation, dedicated `Event` flow resolution, and the narrow event outcome list `grant_gold` / `grant_xp` / `heal` / `modify_hunger` / `repair_weapon` / `damage_player` | weighted event pools, generic multi-effect events, authored event graph routing, or broader effect matrices |
+| event content surface | `EventTemplates.rules.choices` with exactly 2 authored choices, deterministic stage-scoped template rotation, dedicated `Event` flow resolution, and the narrow event outcome list `grant_gold` / `grant_xp` / `grant_item` / `heal` / `modify_hunger` / `repair_weapon` / `damage_player` | weighted event pools, generic multi-effect events, authored event graph routing, or broader effect matrices |
 | enemy metadata | `design_intent_question`, optional `encounter_tier` enum check | `encounter_tier`-driven flow behavior |
 | enemy intent selection | first intent on setup, then sequential advance by index; boss-only optional `rules.boss_phases[*].intent_pool` with turn-end threshold swaps | weighted or authored-random intent selection |
 | enemy `intent_pool` effects | `deal_damage`, narrow `apply_status` for combat-local player-status definitions using current DoT and supported stat-modifier keys | broader non-damage intent effects, buff/heal/status resolution beyond the current small player-status slice |
-| behavior triggers in canonical runtime-backed content | `passive` on enemy, passive-item, armor, and belt definitions | generic trigger families such as `on_turn_start`, `on_turn_end`, `on_damage_taken`, `on_use`, `on_equip`, `on_break` |
-| behavior effects in canonical runtime-backed content | `modify_stat` on passive enemy, passive-item, armor, and belt behaviors | `heal`, `apply_status`, `remove_status`, `reduce_durability`, `restore_durability`, generic multi-family effect routing |
-| deterministic authored ordering | top-level `authoring_order` on `Enemies` and `PassiveItems` for the current deterministic rotation/window surfaces | file-name sort or any implicit directory order affecting gameplay |
-| run-start loadout | narrow `RunLoadouts.rules.weapon_definition_id` plus `consumable_slots` for the current starter baseline | broader authored equipment/passive start profiles or a generic run-setup system |
-| merchant stock | narrow `MerchantStocks.rules.stock` array with `buy_consumable` / `buy_weapon` entries | seeded shop generation, generic support-table families, or richer merchant effect types |
-| map template topology | narrow `MapTemplates.rules.nodes` scaffold grammar for the current bounded procedural map v1 slice, including one dedicated `late_event` slot resolved into the runtime-backed `event` node family | broader authored graph libraries, free-form graph generation, or generic runtime-authored event-node placement |
+| behavior triggers in canonical runtime-backed content | `passive` on enemy, passive-item, armor, and shield-attachment definitions | generic trigger families such as `on_turn_start`, `on_turn_end`, `on_damage_taken`, `on_use`, `on_equip`, `on_break` |
+| behavior effects in canonical runtime-backed content | `modify_stat` on passive enemy, passive-item, armor, and shield-attachment behaviors | `heal`, `apply_status`, `remove_status`, `reduce_durability`, `restore_durability`, generic multi-family effect routing |
+| deterministic authored ordering | top-level `authoring_order` on `Enemies` and `CharacterPerks` for the current deterministic rotation/window surfaces | file-name sort or any implicit directory order affecting gameplay |
+| run-start loadout | explicit `RunLoadouts.rules.<equipment slot>` entries plus `backpack_items` for the current starter baseline | broader authored perk start packages or a generic run-setup system |
+| merchant stock | narrow `MerchantStocks.rules.stock` array with authored stage-indexed `buy_consumable` / `buy_weapon` / `buy_shield` / `buy_armor` / `buy_belt` / `buy_passive_item` entries | seeded shop generation, generic support-table families, or richer merchant effect types |
+| map template topology | narrow `MapTemplates.rules.nodes` grammar retained for legacy fixed templates plus profile/reference data, while active bounded procedural generation now lives in `MapRuntimeState` and exact graph restore lives in save payload | broader authored graph libraries, free-form graph generation, or generic runtime-authored event-node placement |
 | condition support | direct source/target dictionary comparisons with `always`, `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `has_tag`, `not_has_tag` | nested path lookups, global queries, broad computed-stat library |
 | target semantics | authoring field may be present as `self` or `enemy` for current rule-block shape; first status slice implicitly targets the player from enemy intent | generic runtime target dispatch, `equipped_weapon`, arbitrary target routing |
 | `random_roll_percent` | internal placeholder value injected as `100` by current combat flow | authored proc-chance contract, real RNG-driven combat authoring |
@@ -291,7 +384,7 @@ Optional reserved enemy metadata:
 | `use_effect` helper | `Consumables.rules.use_effect` with `trigger = on_use`, `target = self`, and `effects[*].type = heal` or `modify_hunger` for the current self-food slice | broader consumable effect families, multi-target use rules |
 | status definitions | `Statuses.rules.stats.duration_turns`, `max_stacks`, plus either `damage_per_turn` or narrow `stat_modifiers` keys `attack_power_bonus` / `incoming_damage_flat_reduction` / `durability_cost_flat_reduction` / `skip_player_action` for the current combat-local player-status pool | generic status behavior blocks, broader modifier families, enemy-side status ownership, status-driven routing |
 | boss phase authoring | boss-only optional `Enemies.rules.boss_phases[*]` with ordered threshold swaps and phase-local intent pools | phase-persistent save state, generic enemy phase graphs, or non-boss phase routing |
-| reward generation from content | deterministic seeded reward generation through `Rewards.rules.offer_pool`, `present_count`, and `selection_mode = seeded_reward_rng` using current reward effect types plus run-level `reward_rng` continuity | richer eligibility graphs and broader generic reward-pool routing |
+| reward generation from content | deterministic seeded reward generation through `Rewards.rules.offer_pool`, `present_count`, and `selection_mode = seeded_reward_rng` using the current reward effect types (`heal` / `repair_weapon` / `grant_xp` / `grant_gold` / `grant_item`) plus run-level `reward_rng` continuity, narrow `stage_min` / `stage_max` gating, and optional combat-victory `preferred_enemy_tags_any` tone bias | richer eligibility graphs and broader generic reward-pool routing |
 
 ## Current Runtime-Backed Combat Slice
 
@@ -323,24 +416,65 @@ Current canonical combat-backed content should stay inside this narrow slice:
   - current supported effect type: `modify_stat`
   - current supported condition shape:
     - omit `condition`, or use `{"op": "always"}`
+- `CharacterPerks.rules.perk_family`
+  - current supported values:
+    - `offense`
+    - `defense`
+    - `survival`
+    - `economy_route`
+- `CharacterPerks.rules.behaviors[*]`
+  - current supported trigger: `passive`
+  - current supported target: `self`
+  - current supported effect type: `modify_stat`
+  - current supported condition shape:
+    - omit `condition`, or use `{"op": "always"}`
 - `Armors.rules.behaviors[*]`
   - current supported trigger: `passive`
   - current supported target: `self`
   - current supported effect type: `modify_stat`
   - current supported condition shape:
     - omit `condition`, or use `{"op": "always"}`
-- `Belts.rules.behaviors[*]`
-  - current supported trigger: `passive`
-  - current supported target: `self`
-  - current supported effect type: `modify_stat`
-  - current supported condition shape:
-    - omit `condition`, or use `{"op": "always"}`
+- `Belts.rules.backpack_capacity_bonus`
+  - required positive integer
+  - current runtime truth:
+    - belts are backpack-utility equipment, not a combat-stat behavior surface
+- `ShieldAttachments.rules`
+  - current supported fields:
+    - `attachment_target = shield`
+    - `max_per_shield = 1`
+    - `behaviors[*]` using the same passive self-target `modify_stat` slice as armor/passive content
+  - current runtime truth:
+    - detached attachments are backpack items
+    - attached attachments live as `attachment_definition_id` on shield slot state
+    - only shields support attachments in V1
+- `Weapons.rules.slot_compatibility`
+  - current supported keys:
+    - `right_hand`
+    - `left_hand`
+    - `offhand_capable`
+  - current runtime truth:
+    - all live weapons must stay right-hand compatible
+    - `left_hand` / `offhand_capable` enable live offhand-weapon equip compatibility
+    - offhand weapons feed the current dual-wield modifier surface, not a second independent attack engine
+- `Weapons.rules.stats.durability_profile`
+  - current supported values:
+    - `sturdy`
+    - `standard`
+    - `fragile`
+    - `heavy`
+  - current runtime truth:
+    - this field multiplies `durability_cost_per_attack`
+    - the current live multipliers are `0.5x / 1x / 1.5x / 2x`
+    - profile scaling stays inside the narrow durability-cost calculation; it does not add a new combat verb or effect family
 - weapon and enemy `rules.stats`
   - current runtime reads basic numeric combat stats from this block
 - `Consumables.rules.use_effect`
   - current supported trigger: `on_use`
   - current supported target: `self`
-  - current supported effect type: `heal`
+  - current supported effect types:
+    - `heal`
+    - `modify_hunger`
+    - `repair_weapon`
   - current supported condition shape:
     - omit `condition`, or use `{"op": "always"}`
 - `Statuses.rules.stats`
@@ -369,12 +503,17 @@ Current canonical combat-backed content should stay inside this narrow slice:
     - `offer_id`
     - `label`
     - `effect_type`
-    - `amount` for numeric reward effects
+    - `amount` for numeric reward effects and consumable item grants
+    - `inventory_family` for item grants
+    - `definition_id` for item grants
+    - optional `stage_min` / `stage_max`
+    - optional `preferred_enemy_tags_any`
   - current supported reward effect types:
     - `heal`
     - `repair_weapon`
     - `grant_xp`
     - `grant_gold`
+    - `grant_item`
   - current canonical runtime-backed reward definitions:
     - `combat_victory`
     - `reward_node`
@@ -384,10 +523,13 @@ Current canonical combat-backed content should stay inside this narrow slice:
     - `label`
     - `summary`
     - `effect_type`
-    - `amount` for numeric event outcomes
+    - `amount` for numeric event outcomes and consumable item grants
+    - `inventory_family` for item grants
+    - `definition_id` for item grants
   - current supported event effect types:
     - `grant_gold`
     - `grant_xp`
+    - `grant_item`
     - `heal`
     - `modify_hunger`
     - `repair_weapon`
@@ -397,6 +539,7 @@ Current canonical combat-backed content should stay inside this narrow slice:
     - `ghost_lantern_bargain`
     - `moss_waystone_tithe`
     - `trickster_stump_feast`
+    - `wrenched_supply_cart`
 
 ## Condition and State Lookup Truth
 
@@ -426,11 +569,12 @@ Current canonical combat-backed content should stay inside this narrow slice:
 
 - The current intended build engine is intentionally narrow.
 - Current carried inventory capacity stays intentionally small:
-  - base shared inventory: `5`
-  - equipped belt bonus: `+2`
-- Level-up passives consume shared inventory space and may displace the oldest carried non-active item when the bag is full.
-- Current level-up passive offer generation reads `PassiveItems.authoring_order` for deterministic authored windows.
-- Build identity should mostly come from equipment direction, `1-2` passive synergies, and consumable/resource planning.
+  - base backpack: `5`
+  - equipped belt bonus comes from authored `Belts.rules.backpack_capacity_bonus`
+- Level-up character perks do not consume backpack space.
+- Current level-up perk offer generation reads `CharacterPerks.authoring_order` for deterministic authored windows.
+- Passive items remain backpack-carried bonuses and are not the canonical progression track.
+- Build identity should mostly come from equipment direction, `1-2` perk synergies, passive backpack support, and consumable/resource planning.
 - Intended synergies should stay small and linear.
 - Build variety should come from strong content combinations inside the current grammar, not from expanding that grammar.
 
@@ -469,11 +613,19 @@ Runtime-aligned examples:
 - `ContentDefinitions/Consumables/cured_meat.json`
 - `ContentDefinitions/RunLoadouts/starter_loadout.json`
 - `ContentDefinitions/MerchantStocks/basic_merchant_stock.json`
+- `ContentDefinitions/MerchantStocks/stage_1_merchant_stock_roadpack.json`
+- `ContentDefinitions/MerchantStocks/stage_1_merchant_stock_scout.json`
 - `ContentDefinitions/MerchantStocks/stage_2_merchant_stock.json`
+- `ContentDefinitions/MerchantStocks/stage_2_merchant_stock_kit.json`
+- `ContentDefinitions/MerchantStocks/stage_2_merchant_stock_forgegear.json`
 - `ContentDefinitions/MerchantStocks/stage_3_merchant_stock.json`
-- `ContentDefinitions/MapTemplates/procedural_stage_cluster_v1.json`
-- `ContentDefinitions/MapTemplates/procedural_stage_detour_v1.json`
+- `ContentDefinitions/MerchantStocks/stage_3_merchant_stock_bulwark.json`
+- `ContentDefinitions/MerchantStocks/stage_3_merchant_stock_convoy.json`
+- `ContentDefinitions/MapTemplates/procedural_stage_corridor_v1.json`
+- `ContentDefinitions/MapTemplates/procedural_stage_openfield_v1.json`
+- `ContentDefinitions/MapTemplates/procedural_stage_loop_v1.json`
 - `ContentDefinitions/MapTemplates/fixed_stage_cluster.json` (legacy load compatibility)
+- `ContentDefinitions/MapTemplates/fixed_stage_detour.json` (legacy load compatibility)
 - `ContentDefinitions/Statuses/poison.json`
 - `ContentDefinitions/Statuses/bleed.json`
 - `ContentDefinitions/Statuses/weakened.json`
@@ -483,6 +635,12 @@ Runtime-aligned examples:
 - `ContentDefinitions/EventTemplates/ghost_lantern_bargain.json`
 - `ContentDefinitions/EventTemplates/moss_waystone_tithe.json`
 - `ContentDefinitions/EventTemplates/trickster_stump_feast.json`
+- `ContentDefinitions/EventTemplates/zz_ash_tree_ledger.json`
+- `ContentDefinitions/EventTemplates/zz_dry_well_cache.json`
+- `ContentDefinitions/EventTemplates/zz_watch_post_embers.json`
+- `ContentDefinitions/EventTemplates/zz_barrow_crows.json`
+- `ContentDefinitions/EventTemplates/zz_split_axle_verge.json`
+- `ContentDefinitions/EventTemplates/zz_sunken_toll_fire.json`
 
 Reference-only forward examples:
 - none currently
@@ -523,13 +681,14 @@ Current validator actively checks:
 - current enemy rule-block shape for the prototype combat slice
 - current narrow `apply_status(<dot_status_id>)` intent-effect shape
 - current consumable `use_effect` shape for the prototype self-target heal/hunger slice
-- current passive-item rule-block shape for the prototype level-up slice
-- current `RunLoadouts.rules.weapon_definition_id` / `consumable_slots` shape for starter inventory setup
+- current passive-item and character-perk rule-block shape for the prototype progression slice
+- current explicit `RunLoadouts.rules.<equipment slot>` plus `backpack_items` shape for starter inventory setup
 - current `MerchantStocks.rules.stock` shape for fixed merchant-node offer generation
 - current `EventTemplates.rules.choices` shape for the dedicated event-node slice
-- current `MapTemplates.rules.nodes` shape for the scaffold-based stage-local exploration template plus legacy fixed-template compatibility, including the dedicated `late_event` slot
+- current `SideMissions.rules.reward_pool` shape for hamlet contract payouts
+- current `MapTemplates.rules.nodes` and slot metadata shape for stage-profile/reference data plus legacy fixed-template compatibility, including the dedicated `late_event` slot
 - current `Statuses.rules.stats` shape for the combat-local mixed DoT/debuff pool
-- current `Rewards.rules.offer_pool` / `present_count` / `selection_mode` shape for deterministic reward generation
+- current `Rewards.rules.offer_pool` / `present_count` / `selection_mode` shape for deterministic reward generation, including narrow `stage_min` / `stage_max` gating and `preferred_enemy_tags_any` arrays
 
 Current validator does not yet fully validate:
 - global tag vocabulary

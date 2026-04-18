@@ -24,7 +24,7 @@ Do not use this file for:
 ### Combat Variants
 
 - additional status families
-- alternate `Brace` payoffs
+- alternate `Defend` / `Guard` payoffs
 - niche enemy behaviors
 - boss threshold behavior beyond the baseline
 
@@ -42,7 +42,7 @@ Do not use this file for:
 
 ### Build Identity Hypotheses
 
-- `Iron Wall`: durable, brace-friendly, low-risk build; succeeds only if defense play stays distinct without slowing the game too much.
+- `Iron Wall`: durable, defend-first, low-risk build; succeeds only if shield/guard play stays distinct without slowing the game too much.
 - `Glass Edge`: aggressive, tempo-first build; succeeds only if intent reading creates real payoff instead of pure stat racing.
 - `Scavenger`: consumable-centered build; succeeds only if local hold-vs-use and consumable slot decisions remain stronger than simple hoarding.
 - `Scrap Keeper`: durability-economy build; succeeds only if repair and long-route planning become meaningful without turning into bookkeeping.

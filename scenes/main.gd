@@ -2,22 +2,37 @@
 extends Control
 
 const LaunchIntroPresenterScript = preload("res://Game/UI/launch_intro_presenter.gd")
-const SceneAudioPlayersScript = preload("res://Game/UI/scene_audio_players.gd")
 const SceneAudioCleanupScript = preload("res://Game/UI/scene_audio_cleanup.gd")
+const SceneAudioPlayersScript = preload("res://Game/UI/scene_audio_players.gd")
+const SceneLayoutHelperScript = preload("res://Game/UI/scene_layout_helper.gd")
 const TempScreenThemeScript = preload("res://Game/UI/temp_screen_theme.gd")
-const UI_CONFIRM_SFX_PATH := "res://Assets/Audio/SFX/sfx_ui_confirm_01.ogg"
-const PANEL_OPEN_SFX_PATH := "res://Assets/Audio/SFX/sfx_panel_open_01.ogg"
-const INTRO_MUSIC_LOOP_PATH := "res://Assets/Audio/Music/music_ui_hub_loop_temp_01.ogg"
 const MIN_SKIP_DELAY_SECONDS := 0.18
 const AUTO_CONTINUE_SECONDS := 1.45
 const UI_TRANSITION_LEAD_IN_SECONDS := 0.06
 const PLAYTEST_LAUNCH_SMOKE_ARG := "--playtest-launch-smoke"
 const PLAYTEST_LAUNCH_SMOKE_QUIT_DELAY_SECONDS := 0.35
-const AUDIO_PLAYER_NODE_NAMES: Array[String] = [
-	"UiConfirmSfxPlayer",
-	"PanelOpenSfxPlayer",
-	"IntroMusicPlayer",
-]
+const PORTRAIT_SAFE_MAX_WIDTH := 760
+const PORTRAIT_SAFE_MIN_SIDE_MARGIN := 24
+const AUDIO_PLAYER_CONFIG := {
+	"UiConfirmSfxPlayer": {"path": "res://Assets/Audio/SFX/sfx_ui_confirm_01.ogg"},
+	"PanelOpenSfxPlayer": {"path": "res://Assets/Audio/SFX/sfx_panel_open_01.ogg"},
+	"IntroMusicPlayer": {"path": "res://Assets/Audio/Music/music_ui_hub_loop_proto_01.ogg", "music": true, "loop": true},
+}
+const PORTRAIT_LAYOUT_CONFIG := {
+	"max_width": PORTRAIT_SAFE_MAX_WIDTH,
+	"min_side_margin": PORTRAIT_SAFE_MIN_SIDE_MARGIN,
+	"top_margin": 40,
+	"bottom_margin": 40,
+	"margin_steps": [
+		{"max_height": 1080.0, "top_margin": 28, "bottom_margin": 28},
+		{"max_height": 760.0, "top_margin": 22, "bottom_margin": 22},
+	],
+	"bands": {
+		"large": {"min_width": 520.0, "min_height": 940.0, "panel_width": 520.0, "vbox_separation": 12, "title_font_size": 46, "mood_font_size": 22, "body_font_size": 18, "hint_font_size": 18},
+		"medium": {"min_width": 420.0, "min_height": 760.0, "panel_width": 460.0, "vbox_separation": 10, "title_font_size": 40, "mood_font_size": 20, "body_font_size": 17, "hint_font_size": 16},
+		"compact": {"panel_width": 0.0, "vbox_separation": 10, "title_font_size": 34, "mood_font_size": 18, "body_font_size": 16, "hint_font_size": 15},
+	},
+}
 
 var _bootstrap
 var _presenter: LaunchIntroPresenter
@@ -28,8 +43,10 @@ var _transition_started: bool = false
 func _ready() -> void:
 	_bootstrap = get_node_or_null("/root/AppBootstrap")
 	_presenter = LaunchIntroPresenterScript.new()
-	_configure_audio_players()
+	SceneAudioPlayersScript.configure_from_config(self, AUDIO_PLAYER_CONFIG)
 	_apply_temp_theme()
+	SceneLayoutHelperScript.bind_viewport_size_changed(self, Callable(self, "_apply_portrait_safe_layout"))
+	_apply_portrait_safe_layout()
 	_refresh_ui()
 	SceneAudioPlayersScript.play(self, "PanelOpenSfxPlayer")
 	SceneAudioPlayersScript.start_looping(self, "IntroMusicPlayer")
@@ -43,7 +60,8 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
-	SceneAudioCleanupScript.release_players(self, AUDIO_PLAYER_NODE_NAMES)
+	SceneLayoutHelperScript.unbind_viewport_size_changed(self, Callable(self, "_apply_portrait_safe_layout"))
+	SceneAudioCleanupScript.release_players(self, SceneAudioPlayersScript.node_names_from_config(AUDIO_PLAYER_CONFIG))
 
 
 func _notification(what: int) -> void:
@@ -83,12 +101,6 @@ func _refresh_ui() -> void:
 		hint_label.text = _presenter.build_continue_hint_text()
 
 
-func _configure_audio_players() -> void:
-	SceneAudioPlayersScript.assign_stream_from_path(self, "UiConfirmSfxPlayer", UI_CONFIRM_SFX_PATH)
-	SceneAudioPlayersScript.assign_stream_from_path(self, "PanelOpenSfxPlayer", PANEL_OPEN_SFX_PATH)
-	SceneAudioPlayersScript.assign_music_stream_from_path(self, "IntroMusicPlayer", INTRO_MUSIC_LOOP_PATH, true)
-
-
 func _apply_temp_theme() -> void:
 	TempScreenThemeScript.apply_panel(
 		get_node_or_null("Margin/Center/Panel") as PanelContainer,
@@ -101,22 +113,32 @@ func _apply_temp_theme() -> void:
 		get_node_or_null("Margin/Center/Panel/VBox/ChipCard/ChipLabel") as Label,
 		TempScreenThemeScript.TEAL_ACCENT_COLOR
 	)
-	TempScreenThemeScript.apply_label(get_node_or_null("Margin/Center/Panel/VBox/TitleLabel") as Label, "title")
-	TempScreenThemeScript.apply_label(get_node_or_null("Margin/Center/Panel/VBox/MoodLabel") as Label, "accent")
-	TempScreenThemeScript.apply_label(get_node_or_null("Margin/Center/Panel/VBox/DetailLabel") as Label)
-	TempScreenThemeScript.apply_label(get_node_or_null("Margin/Center/Panel/VBox/HintLabel") as Label, "muted")
+	SceneLayoutHelperScript.apply_label_tones(self, [
+		{"path": "Margin/Center/Panel/VBox/TitleLabel", "tone": "title"},
+		{"path": "Margin/Center/Panel/VBox/MoodLabel", "tone": "accent"},
+		{"path": "Margin/Center/Panel/VBox/DetailLabel", "tone": "body"},
+		{"path": "Margin/Center/Panel/VBox/HintLabel", "tone": "muted"},
+	])
+	SceneLayoutHelperScript.apply_control_overrides(self, {}, [
+		{"path": "Margin/Center/Panel/VBox/TitleLabel", "font_size": 46},
+		{"path": "Margin/Center/Panel/VBox/MoodLabel", "font_size": 22},
+		{"path": "Margin/Center/Panel/VBox/DetailLabel", "font_size": 18},
+	])
 
-	var title_label: Label = get_node_or_null("Margin/Center/Panel/VBox/TitleLabel") as Label
-	if title_label != null:
-		title_label.add_theme_font_size_override("font_size", 46)
 
-	var mood_label: Label = get_node_or_null("Margin/Center/Panel/VBox/MoodLabel") as Label
-	if mood_label != null:
-		mood_label.add_theme_font_size_override("font_size", 22)
-
-	var detail_label: Label = get_node_or_null("Margin/Center/Panel/VBox/DetailLabel") as Label
-	if detail_label != null:
-		detail_label.add_theme_font_size_override("font_size", 18)
+func _apply_portrait_safe_layout() -> void:
+	var values: Dictionary = SceneLayoutHelperScript.apply_portrait_layout(self, PORTRAIT_LAYOUT_CONFIG)
+	if values.is_empty():
+		return
+	values["panel_width"] = min(float(values.get("safe_width", 0.0)), float(values.get("panel_width", 0.0)))
+	SceneLayoutHelperScript.apply_control_overrides(self, values, [
+		{"path": "Margin/Center/Panel", "custom_minimum_size": {"x": "panel_width", "y": 0.0}},
+		{"path": "Margin/Center/Panel/VBox", "theme_constants": {"separation": "vbox_separation"}},
+		{"path": "Margin/Center/Panel/VBox/TitleLabel", "font_size": "title_font_size"},
+		{"path": "Margin/Center/Panel/VBox/MoodLabel", "font_size": "mood_font_size"},
+		{"path": "Margin/Center/Panel/VBox/DetailLabel", "font_size": "body_font_size"},
+		{"path": "Margin/Center/Panel/VBox/HintLabel", "font_size": "hint_font_size"},
+	])
 
 
 func _play_open_tween() -> void:

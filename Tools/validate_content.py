@@ -21,10 +21,14 @@ REQUIRED_TOP_LEVEL_FIELDS = (
 
 SUPPORTED_FAMILIES = {
     "Weapons",
+    "Shields",
     "Armors",
     "Belts",
     "Consumables",
     "PassiveItems",
+    "QuestItems",
+    "ShieldAttachments",
+    "CharacterPerks",
     "Enemies",
     "Statuses",
     "Effects",
@@ -39,7 +43,7 @@ SUPPORTED_FAMILIES = {
 
 ENEMY_ENCOUNTER_TIERS = {"minor", "elite"}
 ENEMY_INTENT_CATEGORIES = {
-    "brace_test",
+    "guard_test",
     "dps_race",
     "item_window",
     "attrition_pressure",
@@ -58,23 +62,25 @@ SUPPORTED_EQUIPMENT_BEHAVIOR_EFFECTS = {"modify_stat"}
 SUPPORTED_INTENT_EFFECTS = {"deal_damage", "apply_status"}
 SUPPORTED_CONSUMABLE_USE_TRIGGER = "on_use"
 SUPPORTED_CONSUMABLE_USE_TARGET = "self"
-SUPPORTED_CONSUMABLE_EFFECTS = {"heal", "modify_hunger"}
-SUPPORTED_EVENT_EFFECT_TYPES = {"grant_gold", "grant_xp", "heal", "modify_hunger", "repair_weapon", "damage_player"}
-SUPPORTED_REWARD_EFFECT_TYPES = {"heal", "repair_weapon", "grant_xp", "grant_gold"}
+SUPPORTED_CONSUMABLE_EFFECTS = {"heal", "modify_hunger", "repair_weapon"}
+SUPPORTED_EVENT_EFFECT_TYPES = {"grant_gold", "grant_xp", "heal", "modify_hunger", "repair_weapon", "damage_player", "grant_item"}
+SUPPORTED_EVENT_TRIGGER_STATS = {"hunger", "hp_percent", "gold", "has_empty_backpack_slot"}
+SUPPORTED_REWARD_EFFECT_TYPES = {"heal", "repair_weapon", "grant_xp", "grant_gold", "grant_item"}
 SUPPORTED_REWARD_SELECTION_MODES = {"rotate_by_context", "seeded_reward_rng"}
+SUPPORTED_REWARD_STAGE_RANGE = range(1, 4)
 SUPPORTED_STATUS_MODIFIER_KEYS = {
     "attack_power_bonus",
     "incoming_damage_flat_reduction",
     "durability_cost_flat_reduction",
     "skip_player_action",
 }
-SUPPORTED_MERCHANT_STOCK_EFFECT_TYPES = {"buy_consumable", "buy_weapon"}
+SUPPORTED_MERCHANT_STOCK_EFFECT_TYPES = {"buy_consumable", "buy_weapon", "buy_shield", "buy_armor", "buy_belt", "buy_passive_item"}
 SUPPORTED_MAP_TEMPLATE_NODE_FAMILIES = {
     "start",
     "combat",
     "event",
     "reward",
-    "side_mission",
+    "hamlet",
     "rest",
     "merchant",
     "blacksmith",
@@ -85,11 +91,20 @@ SUPPORTED_MAP_TEMPLATE_SLOT_TYPES = {
     "opening_support",
     "late_primary",
     "late_event",
-    "late_side_mission",
+    "late_hamlet",
 }
-SUPPORTED_SIDE_MISSION_TYPES = {"hunt_marked_enemy"}
-ORDERED_AUTHORING_FAMILIES = {"Enemies", "PassiveItems"}
+SUPPORTED_SIDE_MISSION_TYPES = {
+    "hunt_marked_enemy",
+    "deliver_supplies",
+    "rescue_missing_scout",
+    "bring_proof",
+}
+SUPPORTED_WEAPON_DURABILITY_PROFILES = {"sturdy", "standard", "fragile", "heavy"}
+ORDERED_AUTHORING_FAMILIES = {"Enemies", "PassiveItems", "CharacterPerks"}
 ORDERING_FIELD_NAME = "authoring_order"
+SUPPORTED_EVENT_ITEM_FAMILIES = {"consumable", "weapon", "shield", "armor", "belt", "passive", "shield_attachment"}
+SUPPORTED_REWARD_ITEM_FAMILIES = {"consumable", "weapon", "shield", "armor", "belt", "passive", "shield_attachment"}
+SUPPORTED_SIDE_MISSION_REWARD_ITEM_FAMILIES = {"weapon", "shield", "armor", "belt", "consumable", "passive", "shield_attachment"}
 
 
 def main(argv: list[str]) -> int:
@@ -422,16 +437,32 @@ def validate_runtime_support(
         validate_passive_item_runtime_support(json_path, rules, errors)
         return
 
-    if family in {"Armors", "Belts"}:
+    if family == "QuestItems":
+        validate_quest_item_runtime_support(json_path, rules, errors)
+        return
+
+    if family == "CharacterPerks":
+        validate_character_perk_runtime_support(json_path, rules, errors)
+        return
+
+    if family == "Belts":
+        validate_belt_runtime_support(json_path, rules, errors)
+        return
+
+    if family == "ShieldAttachments":
+        validate_shield_attachment_runtime_support(json_path, rules, errors)
+        return
+
+    if family in {"Shields", "Armors"}:
         validate_equipment_runtime_support(json_path, family, rules, errors)
         return
 
     if family == "Rewards":
-        validate_reward_runtime_support(json_path, rules, errors)
+        validate_reward_runtime_support(json_path, rules, errors, content_root)
         return
 
     if family == "EventTemplates":
-        validate_event_template_runtime_support(json_path, rules, errors)
+        validate_event_template_runtime_support(json_path, rules, errors, content_root)
         return
 
     if family == "Statuses":
@@ -707,6 +738,69 @@ def validate_reserved_weapon_rules(
     rules: dict,
     errors: list["ValidationIssue"],
 ) -> None:
+    slot_compatibility = rules.get("slot_compatibility", {})
+    if not isinstance(slot_compatibility, dict):
+        errors.append(
+            ValidationError(
+                json_path,
+                "invalid_weapon_slot_compatibility",
+                "Weapons.rules.slot_compatibility must be an object.",
+            )
+        )
+    else:
+        right_hand = slot_compatibility.get("right_hand")
+        left_hand = slot_compatibility.get("left_hand")
+        offhand_capable = slot_compatibility.get("offhand_capable")
+        for field_name, field_value in [
+            ("right_hand", right_hand),
+            ("left_hand", left_hand),
+            ("offhand_capable", offhand_capable),
+        ]:
+            if not isinstance(field_value, bool):
+                errors.append(
+                    ValidationError(
+                        json_path,
+                        "invalid_weapon_slot_compatibility_field",
+                        f"Weapons.rules.slot_compatibility.{field_name} must be a boolean.",
+                    )
+                )
+        if isinstance(right_hand, bool) and not right_hand:
+            errors.append(
+                ValidationError(
+                    json_path,
+                    "invalid_weapon_right_hand_compatibility",
+                    "Weapons must remain right-hand compatible in the current canonical slice.",
+                )
+            )
+        if isinstance(left_hand, bool) and isinstance(offhand_capable, bool) and offhand_capable and not left_hand:
+            errors.append(
+                ValidationError(
+                    json_path,
+                    "inconsistent_weapon_offhand_compatibility",
+                "Weapons.rules.slot_compatibility.offhand_capable requires left_hand compatibility.",
+            )
+            )
+
+    stats = rules.get("stats", {})
+    if stats and not isinstance(stats, dict):
+        errors.append(
+            ValidationError(
+                json_path,
+                "invalid_weapon_stats",
+                "Weapons.rules.stats must be an object when present.",
+            )
+        )
+    elif isinstance(stats, dict):
+        durability_profile = stats.get("durability_profile", "standard")
+        if not isinstance(durability_profile, str) or durability_profile not in SUPPORTED_WEAPON_DURABILITY_PROFILES:
+            errors.append(
+                ValidationError(
+                    json_path,
+                    "invalid_weapon_durability_profile",
+                    "Weapons.rules.stats.durability_profile must be one of: sturdy, standard, fragile, heavy.",
+                )
+            )
+
     behaviors = rules.get("behaviors", [])
     if not behaviors:
         return
@@ -847,6 +941,15 @@ def validate_consumable_runtime_support(
                         f"Consumables.rules.use_effect.effects[{index}].params.amount must be a negative integer.",
                     )
                 )
+        elif effect_type == "repair_weapon":
+            if params not in [{}, None]:
+                errors.append(
+                    ValidationError(
+                        json_path,
+                        "unexpected_repair_weapon_params",
+                        f"Consumables.rules.use_effect.effects[{index}].params must be empty for repair_weapon entries.",
+                    )
+                )
         else:
             errors.append(
                 ValidationError(
@@ -968,43 +1071,97 @@ def validate_run_loadout_runtime_support(
     errors: list["ValidationIssue"],
     content_root: Path,
 ) -> None:
-    weapon_definition_id = rules.get("weapon_definition_id")
-    if not isinstance(weapon_definition_id, str) or not weapon_definition_id.strip():
-        errors.append(
-            ValidationError(
-                json_path,
-                "invalid_run_loadout_weapon_definition_id",
-                "RunLoadouts.rules.weapon_definition_id must be a non-empty string.",
+    equipment_keys = [
+        ("right_hand_definition_id", "Weapons"),
+        ("armor_definition_id", "Armors"),
+        ("belt_definition_id", "Belts"),
+    ]
+    has_any_equipment_entry = False
+    for key_name, family_name in equipment_keys:
+        definition_id = rules.get(key_name, "")
+        if definition_id in [None, ""]:
+            continue
+        has_any_equipment_entry = True
+        if not isinstance(definition_id, str) or not definition_id.strip():
+            errors.append(
+                ValidationError(
+                    json_path,
+                    "invalid_run_loadout_equipment_definition_id",
+                    f"RunLoadouts.rules.{key_name} must be a non-empty string when present.",
+                )
             )
-        )
-    else:
+            continue
         validate_cross_family_reference(
             json_path,
             content_root,
-            "Weapons",
-            weapon_definition_id,
-            "RunLoadouts.rules.weapon_definition_id",
+            family_name,
+            definition_id,
+            f"RunLoadouts.rules.{key_name}",
             errors,
         )
 
-    consumable_slots = rules.get("consumable_slots", [])
-    if not isinstance(consumable_slots, list):
+    left_hand_definition_id = rules.get("left_hand_definition_id", "")
+    if left_hand_definition_id not in [None, ""]:
+        has_any_equipment_entry = True
+        if not isinstance(left_hand_definition_id, str) or not left_hand_definition_id.strip():
+            errors.append(
+                ValidationError(
+                    json_path,
+                    "invalid_run_loadout_equipment_definition_id",
+                    "RunLoadouts.rules.left_hand_definition_id must be a non-empty string when present.",
+                )
+            )
+        else:
+            weapon_path = content_root / "Weapons" / f"{left_hand_definition_id}.json"
+            shield_path = content_root / "Shields" / f"{left_hand_definition_id}.json"
+            if not weapon_path.exists() and not shield_path.exists():
+                errors.append(
+                    ValidationError(
+                        json_path,
+                        "missing_content_reference",
+                        "RunLoadouts.rules.left_hand_definition_id references missing Weapons or Shields definition '%s'."
+                        % left_hand_definition_id,
+                    )
+                )
+
+    backpack_items = rules.get("backpack_items", [])
+    if not isinstance(backpack_items, list):
         errors.append(
             ValidationError(
                 json_path,
-                "invalid_run_loadout_consumable_slots",
-                "RunLoadouts.rules.consumable_slots must be an array.",
+                "invalid_run_loadout_backpack_items",
+                "RunLoadouts.rules.backpack_items must be an array.",
             )
         )
         return
 
-    for index, slot in enumerate(consumable_slots):
+    if not has_any_equipment_entry:
+        errors.append(
+            ValidationError(
+                json_path,
+                "missing_run_loadout_equipment_entry",
+                "RunLoadouts.rules must define at least one explicit equipment slot entry.",
+            )
+        )
+
+    for index, slot in enumerate(backpack_items):
         if not isinstance(slot, dict):
             errors.append(
                 ValidationError(
                     json_path,
-                    "invalid_run_loadout_consumable_slot_entry",
-                    f"RunLoadouts.rules.consumable_slots[{index}] must be an object.",
+                    "invalid_run_loadout_backpack_entry",
+                    f"RunLoadouts.rules.backpack_items[{index}] must be an object.",
+                )
+            )
+            continue
+
+        inventory_family = slot.get("inventory_family")
+        if not isinstance(inventory_family, str) or inventory_family not in {"weapon", "shield", "armor", "belt", "consumable", "passive", "quest_item", "shield_attachment"}:
+            errors.append(
+                ValidationError(
+                    json_path,
+                    "invalid_run_loadout_backpack_family",
+                    f"RunLoadouts.rules.backpack_items[{index}].inventory_family must be one of: weapon, shield, armor, belt, consumable, passive, quest_item, shield_attachment.",
                 )
             )
             continue
@@ -1014,29 +1171,41 @@ def validate_run_loadout_runtime_support(
             errors.append(
                 ValidationError(
                     json_path,
-                    "invalid_run_loadout_consumable_definition_id",
-                    f"RunLoadouts.rules.consumable_slots[{index}].definition_id must be a non-empty string.",
+                    "invalid_run_loadout_backpack_definition_id",
+                    f"RunLoadouts.rules.backpack_items[{index}].definition_id must be a non-empty string.",
                 )
             )
-        else:
-            validate_cross_family_reference(
-                json_path,
-                content_root,
-                "Consumables",
-                definition_id,
-                f"RunLoadouts.rules.consumable_slots[{index}].definition_id",
-                errors,
-            )
+            continue
 
-        current_stack = slot.get("current_stack")
-        if isinstance(current_stack, bool) or not isinstance(current_stack, int) or current_stack <= 0:
-            errors.append(
-                ValidationError(
-                    json_path,
-                    "invalid_run_loadout_consumable_stack",
-                    f"RunLoadouts.rules.consumable_slots[{index}].current_stack must be a positive integer.",
+        family_by_inventory_family = {
+            "weapon": "Weapons",
+            "shield": "Shields",
+            "armor": "Armors",
+            "belt": "Belts",
+            "consumable": "Consumables",
+            "passive": "PassiveItems",
+            "quest_item": "QuestItems",
+            "shield_attachment": "ShieldAttachments",
+        }
+        validate_cross_family_reference(
+            json_path,
+            content_root,
+            family_by_inventory_family[inventory_family],
+            definition_id,
+            f"RunLoadouts.rules.backpack_items[{index}].definition_id",
+            errors,
+        )
+
+        if inventory_family == "consumable":
+            current_stack = slot.get("current_stack")
+            if isinstance(current_stack, bool) or not isinstance(current_stack, int) or current_stack <= 0:
+                errors.append(
+                    ValidationError(
+                        json_path,
+                        "invalid_run_loadout_consumable_stack",
+                        f"RunLoadouts.rules.backpack_items[{index}].current_stack must be a positive integer for consumables.",
+                    )
                 )
-            )
 
 
 def validate_merchant_stock_runtime_support(
@@ -1407,7 +1576,13 @@ def validate_event_template_runtime_support(
     json_path: Path,
     rules: dict,
     errors: list["ValidationIssue"],
+    content_root: Path,
 ) -> None:
+    trigger_condition = rules.get("trigger_condition", None)
+    if trigger_condition is not None:
+        validate_rule_condition(json_path, trigger_condition, "EventTemplates.rules.trigger_condition", errors)
+        validate_event_trigger_condition(json_path, trigger_condition, errors)
+
     choices = rules.get("choices", [])
     if not isinstance(choices, list) or len(choices) != 2:
         errors.append(
@@ -1502,6 +1677,15 @@ def validate_event_template_runtime_support(
                         f"EventTemplates.rules.choices[{index}].amount must be a non-zero integer for effect_type '{effect_type}'.",
                     )
                 )
+        elif effect_type == "grant_item":
+            validate_item_grant_entry(
+                json_path,
+                choice,
+                content_root,
+                f"EventTemplates.rules.choices[{index}]",
+                SUPPORTED_EVENT_ITEM_FAMILIES,
+                errors,
+            )
         elif amount is not None:
             errors.append(
                 ValidationError(
@@ -1509,7 +1693,69 @@ def validate_event_template_runtime_support(
                     "unexpected_event_amount",
                     f"EventTemplates.rules.choices[{index}] must not define amount for effect_type '{effect_type}'.",
                 )
+                )
+
+
+def validate_event_trigger_condition(
+    json_path: Path,
+    trigger_condition: object,
+    errors: list["ValidationIssue"],
+) -> None:
+    if not isinstance(trigger_condition, dict):
+        return
+
+    op = trigger_condition.get("op")
+    if not isinstance(op, str) or op == "always":
+        return
+
+    stat_name = trigger_condition.get("stat")
+    if not isinstance(stat_name, str) or stat_name not in SUPPORTED_EVENT_TRIGGER_STATS:
+        errors.append(
+            ValidationError(
+                json_path,
+                "unsupported_event_trigger_stat",
+                "EventTemplates.rules.trigger_condition.stat must be one of: %s."
+                % ", ".join(sorted(SUPPORTED_EVENT_TRIGGER_STATS)),
             )
+        )
+        return
+
+    value = trigger_condition.get("value", None)
+    if stat_name == "has_empty_backpack_slot":
+        if op not in {"eq", "neq"}:
+            errors.append(
+                ValidationError(
+                    json_path,
+                    "unsupported_event_trigger_op",
+                    "EventTemplates.rules.trigger_condition for has_empty_backpack_slot must use op 'eq' or 'neq'.",
+                )
+            )
+        if not isinstance(value, bool):
+            errors.append(
+                ValidationError(
+                    json_path,
+                    "invalid_event_trigger_value",
+                    "EventTemplates.rules.trigger_condition.value must be a boolean for has_empty_backpack_slot.",
+                )
+            )
+        return
+
+    if op not in {"eq", "neq", "gt", "gte", "lt", "lte"}:
+        errors.append(
+            ValidationError(
+                json_path,
+                "unsupported_event_trigger_op",
+                "EventTemplates.rules.trigger_condition for numeric roadside stats must use a comparison operator.",
+            )
+        )
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        errors.append(
+            ValidationError(
+                json_path,
+                "invalid_event_trigger_value",
+                "EventTemplates.rules.trigger_condition.value must be numeric for hunger, hp_percent, and gold roadside stats.",
+            )
+        )
 
 
 def validate_map_scaffold_runtime_support(
@@ -1534,7 +1780,7 @@ def validate_map_scaffold_runtime_support(
                 )
             )
 
-    for disallowed_fixed_family in ("rest", "merchant", "blacksmith", "side_mission", "key", "event"):
+    for disallowed_fixed_family in ("rest", "merchant", "blacksmith", "hamlet", "key", "event"):
         if family_counts.get(disallowed_fixed_family, 0) != 0:
             errors.append(
                 ValidationError(
@@ -1547,7 +1793,7 @@ def validate_map_scaffold_runtime_support(
     required_slot_counts = {
         "opening_support": 1,
         "late_event": 1,
-        "late_side_mission": 1,
+        "late_hamlet": 1,
     }
     for slot_type, expected_count in required_slot_counts.items():
         if slot_type_counts.get(slot_type, 0) != expected_count:
@@ -1605,6 +1851,58 @@ def validate_side_mission_runtime_support(
                 )
             )
 
+    quest_item_definition_id = rules.get("quest_item_definition_id")
+    if mission_type == "deliver_supplies":
+        if not isinstance(quest_item_definition_id, str) or not quest_item_definition_id.strip():
+            errors.append(
+                ValidationError(
+                    json_path,
+                    "missing_side_mission_quest_item_definition",
+                    "SideMissions.rules.quest_item_definition_id must be a non-empty QuestItems definition for deliver_supplies missions.",
+                )
+            )
+        else:
+            validate_cross_family_reference(
+                json_path,
+                content_root,
+                "QuestItems",
+                quest_item_definition_id,
+                "SideMissions.rules.quest_item_definition_id",
+                errors,
+            )
+    elif isinstance(quest_item_definition_id, str) and quest_item_definition_id.strip():
+        validate_cross_family_reference(
+            json_path,
+            content_root,
+            "QuestItems",
+            quest_item_definition_id,
+            "SideMissions.rules.quest_item_definition_id",
+            errors,
+        )
+
+    target_families = rules.get("target_families", [])
+    if target_families not in ([], None):
+        if not isinstance(target_families, list) or not target_families:
+            errors.append(
+                ValidationError(
+                    json_path,
+                    "invalid_side_mission_target_families",
+                    "SideMissions.rules.target_families must be a non-empty array when provided.",
+                )
+            )
+        else:
+            allowed_target_families = {"combat", "event", "reward", "rest", "merchant", "blacksmith"}
+            for index, family_name in enumerate(target_families):
+                if not isinstance(family_name, str) or family_name not in allowed_target_families:
+                    errors.append(
+                        ValidationError(
+                            json_path,
+                            "invalid_side_mission_target_family",
+                            "SideMissions.rules.target_families[%d] must be one of: %s."
+                            % (index, ", ".join(sorted(allowed_target_families))),
+                        )
+                    )
+
     reward_pool = rules.get("reward_pool", [])
     if not isinstance(reward_pool, list) or len(reward_pool) < 2:
         errors.append(
@@ -1648,34 +1946,35 @@ def validate_side_mission_runtime_support(
         else:
             seen_offer_ids.add(offer_id)
 
-        inventory_family = reward_offer.get("inventory_family")
-        if not isinstance(inventory_family, str) or inventory_family not in {"weapon", "armor"}:
+        effect_type = reward_offer.get("effect_type", "grant_item")
+        if not isinstance(effect_type, str) or effect_type not in {"grant_item", "grant_gold"}:
             errors.append(
                 ValidationError(
                     json_path,
-                    "invalid_side_mission_reward_family",
-                    "SideMissions.rules.reward_pool[%d].inventory_family must be 'weapon' or 'armor'." % index,
+                    "invalid_side_mission_reward_effect_type",
+                    "SideMissions.rules.reward_pool[%d].effect_type must be 'grant_item' or 'grant_gold'." % index,
                 )
             )
             continue
 
-        definition_id = reward_offer.get("definition_id")
-        if not isinstance(definition_id, str) or not definition_id.strip():
-            errors.append(
-                ValidationError(
-                    json_path,
-                    "invalid_side_mission_reward_definition_id",
-                    f"SideMissions.rules.reward_pool[{index}].definition_id must be a non-empty string.",
+        if effect_type == "grant_gold":
+            amount = reward_offer.get("amount")
+            if not isinstance(amount, int) or amount <= 0:
+                errors.append(
+                    ValidationError(
+                        json_path,
+                        "invalid_side_mission_reward_gold_amount",
+                        f"SideMissions.rules.reward_pool[{index}].amount must be a positive integer for grant_gold entries.",
+                    )
                 )
-            )
             continue
 
-        validate_cross_family_reference(
+        validate_item_grant_entry(
             json_path,
+            reward_offer,
             content_root,
-            "Weapons" if inventory_family == "weapon" else "Armors",
-            definition_id,
-            f"SideMissions.rules.reward_pool[{index}].definition_id",
+            f"SideMissions.rules.reward_pool[{index}]",
+            SUPPORTED_SIDE_MISSION_REWARD_ITEM_FAMILIES,
             errors,
         )
 
@@ -1705,6 +2004,7 @@ def validate_reward_runtime_support(
     json_path: Path,
     rules: dict,
     errors: list["ValidationIssue"],
+    content_root: Path,
 ) -> None:
     offers = rules.get("offers", [])
     offer_pool = rules.get("offer_pool", [])
@@ -1758,6 +2058,8 @@ def validate_reward_runtime_support(
                     "Rewards.rules.present_count must not exceed the number of entries in offer_pool.",
                 )
             )
+        else:
+            validate_reward_stage_coverage(json_path, offer_pool, present_count, errors)
 
     seen_offer_ids: set[str] = set()
     for index, offer in enumerate(reward_entries):
@@ -1801,6 +2103,8 @@ def validate_reward_runtime_support(
                 )
             )
 
+        validate_reward_offer_context_filters(json_path, offer, index, errors)
+
         effect_type = offer.get("effect_type")
         if not isinstance(effect_type, str) or effect_type not in SUPPORTED_REWARD_EFFECT_TYPES:
             errors.append(
@@ -1823,12 +2127,109 @@ def validate_reward_runtime_support(
                         f"Rewards reward entry [{index}].amount must be a positive integer for effect_type '{effect_type}'.",
                     )
                 )
+        elif effect_type == "grant_item":
+            validate_item_grant_entry(
+                json_path,
+                offer,
+                content_root,
+                f"Rewards reward entry [{index}]",
+                SUPPORTED_REWARD_ITEM_FAMILIES,
+                errors,
+            )
         elif amount is not None:
             errors.append(
                 ValidationError(
                     json_path,
                     "unexpected_reward_amount",
                     f"Rewards reward entry [{index}] must not define amount for effect_type '{effect_type}'.",
+                )
+            )
+
+
+def validate_reward_stage_coverage(
+    json_path: Path,
+    offer_pool: list[dict],
+    present_count: int,
+    errors: list["ValidationIssue"],
+) -> None:
+    if not any("stage_min" in offer or "stage_max" in offer for offer in offer_pool if isinstance(offer, dict)):
+        return
+
+    for stage_index in SUPPORTED_REWARD_STAGE_RANGE:
+        eligible_count = 0
+        for offer in offer_pool:
+            if not isinstance(offer, dict):
+                continue
+            stage_min = offer.get("stage_min")
+            stage_max = offer.get("stage_max")
+            if isinstance(stage_min, int) and stage_min > stage_index:
+                continue
+            if isinstance(stage_max, int) and stage_max > 0 and stage_max < stage_index:
+                continue
+            eligible_count += 1
+        if eligible_count < present_count:
+            errors.append(
+                ValidationError(
+                    json_path,
+                    "insufficient_stage_reward_coverage",
+                    "Rewards.rules.offer_pool leaves stage %d with only %d eligible offers; present_count is %d."
+                    % (stage_index, eligible_count, present_count),
+                )
+            )
+
+
+def validate_reward_offer_context_filters(
+    json_path: Path,
+    offer: dict,
+    index: int,
+    errors: list["ValidationIssue"],
+) -> None:
+    stage_min = offer.get("stage_min")
+    stage_max = offer.get("stage_max")
+    if stage_min is not None and (isinstance(stage_min, bool) or not isinstance(stage_min, int) or stage_min <= 0):
+        errors.append(
+            ValidationError(
+                json_path,
+                "invalid_reward_stage_min",
+                f"Rewards reward entry [{index}].stage_min must be a positive integer when present.",
+            )
+        )
+    if stage_max is not None and (isinstance(stage_max, bool) or not isinstance(stage_max, int) or stage_max <= 0):
+        errors.append(
+            ValidationError(
+                json_path,
+                "invalid_reward_stage_max",
+                f"Rewards reward entry [{index}].stage_max must be a positive integer when present.",
+            )
+        )
+    if isinstance(stage_min, int) and isinstance(stage_max, int) and stage_max < stage_min:
+        errors.append(
+            ValidationError(
+                json_path,
+                "invalid_reward_stage_window",
+                f"Rewards reward entry [{index}] must not use stage_max lower than stage_min.",
+            )
+        )
+
+    preferred_enemy_tags_any = offer.get("preferred_enemy_tags_any")
+    if preferred_enemy_tags_any is None:
+        return
+    if not isinstance(preferred_enemy_tags_any, list) or not preferred_enemy_tags_any:
+        errors.append(
+            ValidationError(
+                json_path,
+                "invalid_reward_preferred_enemy_tags",
+                f"Rewards reward entry [{index}].preferred_enemy_tags_any must be a non-empty array when present.",
+            )
+        )
+        return
+    for tag_index, tag_value in enumerate(preferred_enemy_tags_any):
+        if not isinstance(tag_value, str) or not tag_value.strip():
+            errors.append(
+                ValidationError(
+                    json_path,
+                    "invalid_reward_preferred_enemy_tag_entry",
+                    f"Rewards reward entry [{index}].preferred_enemy_tags_any[{tag_index}] must be a non-empty string.",
                 )
             )
 
@@ -1913,6 +2314,81 @@ def validate_passive_item_runtime_support(
         validate_passive_item_behavior(json_path, behavior, index, errors)
 
 
+def validate_character_perk_runtime_support(
+    json_path: Path,
+    rules: dict,
+    errors: list["ValidationIssue"],
+) -> None:
+    perk_family = rules.get("perk_family", None)
+    if not isinstance(perk_family, str) or perk_family not in {"offense", "defense", "survival", "economy_route"}:
+        errors.append(
+            ValidationError(
+                json_path,
+                "invalid_character_perk_family",
+                "CharacterPerks.rules.perk_family must be one of: offense, defense, survival, economy_route.",
+            )
+        )
+    behaviors = rules.get("behaviors", [])
+    if not isinstance(behaviors, list) or not behaviors:
+        errors.append(
+            ValidationError(
+                json_path,
+                "missing_character_perk_behaviors",
+                "CharacterPerks.rules.behaviors must be a non-empty array in the current runtime-backed slice.",
+            )
+        )
+        return
+
+    for index, behavior in enumerate(behaviors):
+        validate_character_perk_behavior(json_path, behavior, index, errors)
+
+
+def validate_character_perk_behavior(
+    json_path: Path,
+    behavior: object,
+    index: int,
+    errors: list["ValidationIssue"],
+) -> None:
+    if not isinstance(behavior, dict):
+        errors.append(
+            ValidationError(
+                json_path,
+                "invalid_character_perk_behavior_entry",
+                f"CharacterPerks.rules.behaviors[{index}] must be an object.",
+            )
+        )
+        return
+
+    trigger = behavior.get("trigger")
+    if not isinstance(trigger, str) or trigger not in SUPPORTED_PASSIVE_ITEM_BEHAVIOR_TRIGGERS:
+        errors.append(
+            ValidationError(
+                json_path,
+                "unsupported_character_perk_behavior_trigger",
+                f"CharacterPerks.rules.behaviors[{index}].trigger must be one of: {', '.join(sorted(SUPPORTED_PASSIVE_ITEM_BEHAVIOR_TRIGGERS))}.",
+            )
+        )
+
+    validate_rule_condition(json_path, behavior.get("condition", None), f"CharacterPerks.rules.behaviors[{index}].condition", errors)
+    target_value = behavior.get("target", None)
+    validate_rule_target(json_path, target_value, f"CharacterPerks.rules.behaviors[{index}].target", errors)
+    if target_value is not None and str(target_value) != "self":
+        errors.append(
+            ValidationError(
+                json_path,
+                "unsupported_character_perk_target",
+                f"CharacterPerks.rules.behaviors[{index}].target must be 'self' in the current runtime-backed slice.",
+            )
+        )
+    validate_effect_array(
+        json_path,
+        behavior.get("effects", []),
+        SUPPORTED_PASSIVE_ITEM_BEHAVIOR_EFFECTS,
+        f"CharacterPerks.rules.behaviors[{index}].effects",
+        errors,
+    )
+
+
 def validate_passive_item_behavior(
     json_path: Path,
     behavior: object,
@@ -1959,6 +2435,80 @@ def validate_passive_item_behavior(
     )
 
 
+def validate_quest_item_runtime_support(
+    json_path: Path,
+    rules: dict,
+    errors: list["ValidationIssue"],
+) -> None:
+    if "behaviors" in rules and rules.get("behaviors", []) not in [None, []]:
+        errors.append(
+            ValidationError(
+                json_path,
+                "unsupported_quest_item_behaviors",
+                "QuestItems must not use rules.behaviors in the current canonical taxonomy slice.",
+            )
+        )
+    if "use_effect" in rules:
+        errors.append(
+            ValidationError(
+                json_path,
+                "unsupported_quest_item_use_effect",
+                "QuestItems must not use rules.use_effect in the current canonical taxonomy slice.",
+            )
+        )
+
+
+def validate_belt_runtime_support(
+    json_path: Path,
+    rules: dict,
+    errors: list["ValidationIssue"],
+) -> None:
+    backpack_capacity_bonus = rules.get("backpack_capacity_bonus", None)
+    if isinstance(backpack_capacity_bonus, bool) or not isinstance(backpack_capacity_bonus, int) or backpack_capacity_bonus <= 0:
+        errors.append(
+            ValidationError(
+                json_path,
+                "invalid_belt_backpack_capacity_bonus",
+                "Belts.rules.backpack_capacity_bonus must be a positive integer in the current canonical taxonomy slice.",
+            )
+        )
+    behaviors = rules.get("behaviors", [])
+    if behaviors not in [None, []]:
+        errors.append(
+            ValidationError(
+                json_path,
+                "unsupported_belt_behaviors",
+                "Belts must not use combat-stat rules.behaviors in the current canonical taxonomy slice.",
+            )
+        )
+
+
+def validate_shield_attachment_runtime_support(
+    json_path: Path,
+    rules: dict,
+    errors: list["ValidationIssue"],
+) -> None:
+    attachment_target = rules.get("attachment_target", None)
+    if attachment_target != "shield":
+        errors.append(
+            ValidationError(
+                json_path,
+                "invalid_attachment_target",
+                "ShieldAttachments.rules.attachment_target must be 'shield'.",
+            )
+        )
+    max_per_shield = rules.get("max_per_shield", None)
+    if max_per_shield != 1:
+        errors.append(
+            ValidationError(
+                json_path,
+                "invalid_shield_attachment_capacity",
+                "ShieldAttachments.rules.max_per_shield must be 1 in V1.",
+            )
+        )
+    validate_equipment_runtime_support(json_path, "ShieldAttachments", rules, errors)
+
+
 def validate_equipment_runtime_support(
     json_path: Path,
     family: str,
@@ -1966,6 +2516,8 @@ def validate_equipment_runtime_support(
     errors: list["ValidationIssue"],
 ) -> None:
     behaviors = rules.get("behaviors", [])
+    if family == "Shields" and behaviors in [None, []]:
+        return
     if not isinstance(behaviors, list) or not behaviors:
         errors.append(
             ValidationError(
@@ -2183,7 +2735,90 @@ def validate_cross_family_reference(
 def family_for_merchant_stock_entry(effect_type: str) -> str:
     if effect_type == "buy_consumable":
         return "Consumables"
-    return "Weapons"
+    if effect_type == "buy_weapon":
+        return "Weapons"
+    if effect_type == "buy_shield":
+        return "Shields"
+    if effect_type == "buy_armor":
+        return "Armors"
+    if effect_type == "buy_belt":
+        return "Belts"
+    if effect_type == "buy_passive_item":
+        return "PassiveItems"
+    return ""
+
+
+def family_for_inventory_family(inventory_family: str) -> str:
+    mapping = {
+        "weapon": "Weapons",
+        "shield": "Shields",
+        "armor": "Armors",
+        "belt": "Belts",
+        "consumable": "Consumables",
+        "passive": "PassiveItems",
+        "quest_item": "QuestItems",
+        "shield_attachment": "ShieldAttachments",
+    }
+    return mapping.get(inventory_family, "")
+
+
+def validate_item_grant_entry(
+    json_path: Path,
+    entry: dict,
+    content_root: Path,
+    location: str,
+    supported_families: set[str],
+    errors: list["ValidationIssue"],
+) -> None:
+    inventory_family = entry.get("inventory_family")
+    if not isinstance(inventory_family, str) or inventory_family not in supported_families:
+        errors.append(
+            ValidationError(
+                json_path,
+                "invalid_item_grant_family",
+                f"{location}.inventory_family must be one of: {', '.join(sorted(supported_families))}.",
+            )
+        )
+        return
+
+    definition_id = entry.get("definition_id")
+    if not isinstance(definition_id, str) or not definition_id.strip():
+        errors.append(
+            ValidationError(
+                json_path,
+                "invalid_item_grant_definition_id",
+                f"{location}.definition_id must be a non-empty string.",
+            )
+        )
+        return
+
+    validate_cross_family_reference(
+        json_path,
+        content_root,
+        family_for_inventory_family(inventory_family),
+        definition_id,
+        f"{location}.definition_id",
+        errors,
+    )
+
+    amount = entry.get("amount")
+    if inventory_family == "consumable":
+        if not isinstance(amount, int) or amount <= 0:
+            errors.append(
+                ValidationError(
+                    json_path,
+                    "invalid_item_grant_amount",
+                    f"{location}.amount must be a positive integer for consumable grants.",
+                )
+            )
+    elif amount is not None:
+        errors.append(
+            ValidationError(
+                json_path,
+                "unexpected_item_grant_amount",
+                f"{location} must not define amount for non-consumable grants.",
+            )
+        )
 
 
 def is_shorthand_intent_value(value: str) -> bool:

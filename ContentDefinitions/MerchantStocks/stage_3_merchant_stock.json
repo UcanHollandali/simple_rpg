@@ -15,23 +15,22 @@
   "rules": {
     "stock": [
       {
-        "offer_id": "buy_hunter_stew_x1",
-        "definition_id": "hunter_stew",
-        "effect_type": "buy_consumable",
-        "amount": 1,
-        "cost_gold": 11
+        "offer_id": "buy_gatebreaker_club",
+        "definition_id": "gatebreaker_club",
+        "effect_type": "buy_weapon",
+        "cost_gold": 25
       },
       {
-        "offer_id": "buy_salvage_cleaver",
-        "definition_id": "salvage_cleaver",
-        "effect_type": "buy_weapon",
-        "cost_gold": 22
+        "offer_id": "buy_gatewall_kite_shield",
+        "definition_id": "gatewall_kite_shield",
+        "effect_type": "buy_shield",
+        "cost_gold": 26
       },
       {
-        "offer_id": "buy_thorn_rapier",
-        "definition_id": "thorn_rapier",
-        "effect_type": "buy_weapon",
-        "cost_gold": 24
+        "offer_id": "buy_lean_pack_token",
+        "definition_id": "lean_pack_token",
+        "effect_type": "buy_passive_item",
+        "cost_gold": 27
       }
     ]
   }

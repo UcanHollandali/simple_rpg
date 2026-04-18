@@ -7,6 +7,7 @@ const SceneRouterScript = preload("res://Game/Infrastructure/scene_router.gd")
 const FlowStateScript = preload("res://Game/Application/flow_state.gd")
 const RunStateScript = preload("res://Game/RuntimeState/run_state.gd")
 const SaveServiceScript = preload("res://Game/Infrastructure/save_service.gd")
+const TestExitCleanupHelperScript = preload("res://Tests/_exit_cleanup_helper.gd")
 
 const SAVE_PATH: String = SaveServiceScript.DEFAULT_SAVE_PATH
 const CONTENT_VERSION_MISMATCH_PATH: String = "user://test_save_content_version_mismatch.json"
@@ -21,6 +22,7 @@ const RUN_END_RETURN_BUTTON_PATH := "Margin/Center/ContentCard/VBox/ReturnButton
 
 var _phase: int = 0
 var _phase_frame_count: int = 0
+var _is_finishing: bool = false
 
 
 func _init() -> void:
@@ -54,7 +56,8 @@ func _on_process_frame() -> void:
 				var summary_label: Label = current_scene.get_node(STAGE_SUMMARY_LABEL_PATH) as Label
 				_require(title_label != null, "Expected stage transition title label.")
 				_require(summary_label != null, "Expected stage transition summary label.")
-				_require(summary_label.text.contains("2"), "Expected stage transition summary to reflect the saved stage index.")
+				_require(title_label.text.contains("Stage 2"), "Expected stage transition title to reflect the saved stage index.")
+				_require(not summary_label.text.is_empty(), "Expected stage transition summary copy to stay populated after restore.")
 				_press(SAFE_MENU_SAVE_BUTTON_PATH)
 				_require(bool(_get_bootstrap().call("has_save_game", SAVE_PATH)), "Expected stage transition save to create a save file.")
 				_press(STAGE_CONTINUE_BUTTON_PATH)
@@ -68,8 +71,12 @@ func _on_process_frame() -> void:
 				_advance_phase(3)
 		3:
 			if _is_scene("StageTransition"):
+				var restored_title_label: Label = current_scene.get_node(STAGE_TITLE_LABEL_PATH) as Label
 				var restored_summary_label: Label = current_scene.get_node(STAGE_SUMMARY_LABEL_PATH) as Label
-				_require(restored_summary_label.text.contains("2"), "Expected stage transition load to restore the saved stage index.")
+				_require(restored_title_label != null, "Expected restored stage transition title label.")
+				_require(restored_summary_label != null, "Expected restored stage transition summary label.")
+				_require(restored_title_label.text.contains("Stage 2"), "Expected stage transition load to restore the saved stage index.")
+				_require(not restored_summary_label.text.is_empty(), "Expected stage transition load to keep the summary copy populated.")
 				_press(STAGE_CONTINUE_BUTTON_PATH)
 				_advance_phase(4)
 		4:
@@ -84,7 +91,7 @@ func _on_process_frame() -> void:
 				_require(title_label != null, "Expected RunEnd title label.")
 				_require(result_label != null, "Expected RunEnd result label.")
 				_require(title_label.text == "Journey's End", "Expected RunEnd title to show the saved defeat heading.")
-				_require(result_label.text == "The road took this run.", "Expected RunEnd label to show the saved defeat result copy.")
+				_require(result_label.text == "The ashwood closed over this run.", "Expected RunEnd label to show the saved defeat result copy.")
 				_press(SAFE_MENU_SAVE_BUTTON_PATH)
 				_require(bool(_get_bootstrap().call("has_save_game", SAVE_PATH)), "Expected RunEnd save to create a save file.")
 				_press(RUN_END_RETURN_BUTTON_PATH)
@@ -98,12 +105,11 @@ func _on_process_frame() -> void:
 				var restored_title_label: Label = current_scene.get_node(STAGE_TITLE_LABEL_PATH) as Label
 				var restored_result_label: Label = current_scene.get_node(RUN_END_RESULT_LABEL_PATH) as Label
 				_require(restored_title_label.text == "Journey's End", "Expected RunEnd load to restore the defeat heading.")
-				_require(restored_result_label.text == "The road took this run.", "Expected RunEnd load to restore the defeat result label.")
+				_require(restored_result_label.text == "The ashwood closed over this run.", "Expected RunEnd load to restore the defeat result label.")
 				var delete_result_after_load: Dictionary = _get_bootstrap().call("delete_save_game", SAVE_PATH)
 				_require(bool(delete_result_after_load.get("ok", false)), "Expected terminal save cleanup to succeed.")
 				_require(not bool(_get_bootstrap().call("has_save_game", SAVE_PATH)), "Expected terminal save file to be removed.")
-				print("test_save_terminal_states: all assertions passed")
-				quit()
+				await _finish_success("test_save_terminal_states")
 
 	_assert_phase_timeout()
 
@@ -151,6 +157,17 @@ func _press(node_path: String) -> void:
 func _advance_phase(new_phase: int) -> void:
 	_phase = new_phase
 	_phase_frame_count = 0
+
+
+func _finish_success(test_name: String) -> void:
+	if _is_finishing:
+		return
+	_is_finishing = true
+	var process_frame_handler := Callable(self, "_on_process_frame")
+	if process_frame.is_connected(process_frame_handler):
+		process_frame.disconnect(process_frame_handler)
+	print("%s: all assertions passed" % test_name)
+	await TestExitCleanupHelperScript.cleanup_and_quit(self)
 
 
 func _assert_phase_timeout() -> void:

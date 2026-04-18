@@ -6,7 +6,18 @@ const FALLBACK_ATTACK_DAMAGE: int = 1
 const MAX_HUNGER: int = RunState.DEFAULT_HUNGER
 const HUNGRY_THRESHOLD: int = 6
 const STARVING_THRESHOLD: int = 2
-const BRACE_DAMAGE_MULTIPLIER: float = 0.5
+const BASE_DEFEND_GUARD: int = 2
+const SHIELD_DEFEND_BONUS: int = 2
+const DUAL_WIELD_ATTACK_POWER_BONUS: int = 1
+const DUAL_WIELD_DEFEND_GUARD_PENALTY: int = 1
+const GUARD_DECAY_RATE: float = 0.75
+const WEAPON_DURABILITY_PROFILE_STANDARD: String = "standard"
+const WEAPON_DURABILITY_PROFILE_MULTIPLIERS := {
+	"sturdy": 0.5,
+	"standard": 1.0,
+	"fragile": 1.5,
+	"heavy": 2.0,
+}
 
 
 func resolve_player_attack(attacker_state: Dictionary, defender_state: Dictionary, weapon_def: Dictionary) -> Dictionary:
@@ -17,7 +28,11 @@ func resolve_player_attack(attacker_state: Dictionary, defender_state: Dictionar
 	var used_fallback_attack: bool = _is_weapon_broken(updated_weapon_instance)
 	var base_damage: int = FALLBACK_ATTACK_DAMAGE
 	var bonus_damage: int = 0
-	var attack_power_bonus: int = int(working_attacker.get("attack_power_bonus", 0)) + _resolve_attack_power_bonus(working_attacker)
+	var attack_power_bonus: int = (
+		int(working_attacker.get("attack_power_bonus", 0))
+		+ _resolve_attack_power_bonus(working_attacker)
+		+ _resolve_dual_wield_attack_bonus(working_attacker)
+	)
 	var defense_reduction: int = int(working_defender.get("incoming_damage_flat_reduction", 0))
 	var dodge_chance: int = int(working_defender.get("dodge_chance", 0))
 	var dodged: bool = _roll_is_within_percent(working_attacker, dodge_chance)
@@ -27,7 +42,7 @@ func resolve_player_attack(attacker_state: Dictionary, defender_state: Dictionar
 	if not used_fallback_attack:
 		var weapon_stats: Dictionary = _extract_stats(weapon_def)
 		base_damage = int(weapon_stats.get("base_damage", FALLBACK_ATTACK_DAMAGE))
-		var durability_cost: int = int(weapon_stats.get("durability_cost_per_attack", 1))
+		var durability_cost: int = resolve_weapon_base_durability_cost(weapon_def)
 		durability_cost = max(0, durability_cost - int(working_attacker.get("durability_cost_flat_reduction", 0)))
 		updated_weapon_instance = reduce_durability(updated_weapon_instance, durability_cost)
 		if not dodged:
@@ -76,34 +91,62 @@ func resolve_enemy_action(enemy_state: Dictionary, player_state: Dictionary, int
 	var working_enemy: Dictionary = _prepare_combatant_state(enemy_state)
 	var working_player: Dictionary = _prepare_combatant_state(player_state)
 	var intent_effects: Array = _extract_effects(intent)
-	var damage_applied: int = _extract_damage_from_effects(intent_effects)
+	var raw_damage: int = _extract_damage_from_effects(intent_effects)
 
-	if damage_applied <= 0:
-		damage_applied = int(working_enemy.get("base_damage", 0))
+	if raw_damage <= 0:
+		raw_damage = int(working_enemy.get("base_damage", 0))
 
-	damage_applied += int(working_enemy.get("attack_power_bonus", 0))
-	damage_applied = max(0, damage_applied - int(working_player.get("incoming_damage_flat_reduction", 0)))
-	var brace_applied: bool = bool(working_player.get("brace_active", false))
-	var unblocked_damage: int = damage_applied
-	if brace_applied:
-		damage_applied = _apply_brace_reduction(damage_applied)
+	raw_damage += int(working_enemy.get("attack_power_bonus", 0))
+	var armor_reduction_applied: int = min(raw_damage, max(0, int(working_player.get("incoming_damage_flat_reduction", 0))))
+	var post_armor_damage: int = max(0, raw_damage - armor_reduction_applied)
+	var guard_before: int = max(0, int(working_player.get("guard_points", 0)))
+	var guard_absorbed: int = min(guard_before, post_armor_damage)
+	var damage_applied: int = max(0, post_armor_damage - guard_absorbed)
+	working_player["guard_points"] = max(0, guard_before - guard_absorbed)
 	working_player = apply_damage(working_player, damage_applied)
-	working_player["brace_active"] = false
 
 	return {
 		"updated_enemy_state": working_enemy,
 		"updated_player_state": working_player,
+		"raw_damage": raw_damage,
+		"armor_reduction_applied": armor_reduction_applied,
+		"guard_before": guard_before,
+		"guard_absorbed": guard_absorbed,
+		"guard_remaining": int(working_player.get("guard_points", 0)),
 		"damage_applied": damage_applied,
-		"brace_applied": brace_applied,
-		"brace_reduced_damage_from": unblocked_damage,
 		"player_defeated": check_defeat(working_player),
 		"events": [{
 			"type": "enemy_action_resolved",
 			"intent_id": String(intent.get("intent_id", "")),
 			"damage_applied": damage_applied,
-			"brace_applied": brace_applied,
+			"guard_absorbed": guard_absorbed,
 		}],
 	}
+
+
+func resolve_player_defend(player_state: Dictionary) -> Dictionary:
+	var working_player: Dictionary = _prepare_combatant_state(player_state)
+	var existing_guard: int = max(0, int(working_player.get("guard_points", 0)))
+	var guard_generated: int = _resolve_defend_guard_amount(working_player)
+	var guard_total: int = existing_guard + guard_generated
+	working_player["guard_points"] = guard_total
+	return {
+		"updated_player_state": working_player,
+		"guard_generated": guard_generated,
+		"guard_points": guard_total,
+		"shield_bonus_applied": _left_hand_inventory_family(working_player) == "shield",
+		"dual_wield_penalty_applied": _left_hand_inventory_family(working_player) == "weapon",
+		"events": [{
+			"type": "player_defend_resolved",
+			"guard_generated": guard_generated,
+		}],
+	}
+
+
+static func resolve_turn_end_guard_carryover(current_guard: int) -> int:
+	var clamped_decay_rate: float = clampf(GUARD_DECAY_RATE, 0.0, 1.0)
+	var retained_fraction: float = 1.0 - clamped_decay_rate
+	return max(0, int(round(float(max(0, current_guard)) * retained_fraction)))
 
 
 static func apply_turn_end_hunger_tick(combat_state) -> void:
@@ -159,6 +202,24 @@ func reduce_durability(weapon_instance: Dictionary, amount: int) -> Dictionary:
 	var current_durability: int = int(updated_instance.get("current_durability", 0))
 	updated_instance["current_durability"] = max(0, current_durability - max(0, amount))
 	return updated_instance
+
+
+static func resolve_weapon_durability_profile(weapon_def: Dictionary) -> String:
+	var stats: Dictionary = weapon_def.get("rules", {}).get("stats", {})
+	var profile: String = String(stats.get("durability_profile", WEAPON_DURABILITY_PROFILE_STANDARD)).strip_edges().to_lower()
+	if not WEAPON_DURABILITY_PROFILE_MULTIPLIERS.has(profile):
+		return WEAPON_DURABILITY_PROFILE_STANDARD
+	return profile
+
+
+static func resolve_weapon_base_durability_cost(weapon_def: Dictionary) -> int:
+	var stats: Dictionary = weapon_def.get("rules", {}).get("stats", {})
+	var authored_cost: int = max(0, int(stats.get("durability_cost_per_attack", 1)))
+	if authored_cost <= 0:
+		return 0
+	var profile: String = resolve_weapon_durability_profile(weapon_def)
+	var multiplier: float = float(WEAPON_DURABILITY_PROFILE_MULTIPLIERS.get(profile, 1.0))
+	return max(1, ceili(float(authored_cost) * multiplier))
 
 
 func _prepare_combatant_state(state: Dictionary) -> Dictionary:
@@ -352,10 +413,25 @@ func _extract_damage_from_effects(effects: Array) -> int:
 	return total_damage
 
 
-func _apply_brace_reduction(incoming_damage: int) -> int:
-	if incoming_damage <= 0:
-		return 0
-	return int(ceili(float(incoming_damage) * BRACE_DAMAGE_MULTIPLIER))
+func _resolve_defend_guard_amount(player_state: Dictionary) -> int:
+	var guard_amount: int = BASE_DEFEND_GUARD
+	var left_hand_inventory_family: String = _left_hand_inventory_family(player_state)
+	if left_hand_inventory_family == "shield":
+		guard_amount += SHIELD_DEFEND_BONUS
+	elif left_hand_inventory_family == "weapon":
+		guard_amount = max(0, guard_amount - DUAL_WIELD_DEFEND_GUARD_PENALTY)
+	return guard_amount
+
+
+func _resolve_dual_wield_attack_bonus(attacker_state: Dictionary) -> int:
+	return DUAL_WIELD_ATTACK_POWER_BONUS if _left_hand_inventory_family(attacker_state) == "weapon" else 0
+
+
+func _left_hand_inventory_family(state: Dictionary) -> String:
+	var left_hand_variant: Variant = state.get("left_hand_instance", {})
+	if typeof(left_hand_variant) != TYPE_DICTIONARY:
+		return ""
+	return String((left_hand_variant as Dictionary).get("inventory_family", ""))
 
 
 static func _refresh_boss_phase(combat_state) -> Dictionary:

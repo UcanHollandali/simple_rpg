@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "definition_id": "lantern_tea",
+  "family": "Consumables",
+  "tags": [
+    "consumable",
+    "food",
+    "route",
+    "hunger"
+  ],
+  "display": {
+    "name": "Lantern Tea",
+    "short_description": "A sharp roadside brew that does little for wounds but pushes 5 hunger off the next march.",
+    "icon_key": "consumable_lantern_tea"
+  },
+  "rules": {
+    "stats": {
+      "max_stack": 2
+    },
+    "use_effect": {
+      "trigger": "on_use",
+      "condition": {
+        "op": "always"
+      },
+      "target": "self",
+      "effects": [
+        {
+          "type": "modify_hunger",
+          "params": {
+            "amount": -5
+          }
+        }
+      ]
+    }
+  }
+}

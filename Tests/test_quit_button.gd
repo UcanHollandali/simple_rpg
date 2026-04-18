@@ -12,8 +12,6 @@ const PHASE_TIMEOUT_MS := 6000
 
 var _phase: int = 0
 var _phase_started_at_ms: int = 0
-
-
 func _init() -> void:
 	print("test_quit_button: setup")
 	_ensure_autoload_like_nodes()
@@ -39,6 +37,10 @@ func _on_process_frame() -> void:
 				var quit_button: Button = current_scene.get_node(MAP_SETTINGS_QUIT_BUTTON_PATH) as Button
 				_require(quit_button != null, "Expected quit button inside settings drawer.")
 				quit_button.emit_signal("pressed")
+				_advance_phase(3)
+		3:
+			if _phase_started_at_ms > 0 and (Time.get_ticks_msec() - _phase_started_at_ms) > 800:
+				_fail("Expected the quit action to terminate the scene tree within the safe-menu shutdown lead-in.")
 
 	_assert_phase_timeout()
 
@@ -93,6 +95,9 @@ func _require(condition: bool, message: String) -> void:
 
 
 func _fail(message: String) -> void:
+	var process_frame_handler := Callable(self, "_on_process_frame")
+	if process_frame.is_connected(process_frame_handler):
+		process_frame.disconnect(process_frame_handler)
 	push_error(message)
 	print(message)
 	quit(1)

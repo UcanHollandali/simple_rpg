@@ -20,6 +20,7 @@ This file locks the technical baseline that should not stay ambiguous.
 - Godot scenes are for presentation and composition.
 - Core gameplay rule logic does not live in scene scripts.
 - Signals may coordinate UI and presentation, but must not hide critical gameplay contracts.
+- UI design reference remains `1080x1920` portrait. Desktop development preview should use a smaller windowed size or a safe fitted window, not force a full `1080x1920` window on every display.
 - On Windows, keep the current renderer baseline unless a test proves otherwise:
   - `rendering_device/driver.windows="d3d12"`
   - `renderer/rendering_method="mobile"`
@@ -44,8 +45,9 @@ This file locks the technical baseline that should not stay ambiguous.
 - macOS/Linux asset validator: `python3 Tools/validate_assets.py`
 - Windows architecture guard validator: `py -3 Tools/validate_architecture_guards.py`
 - macOS/Linux architecture guard validator: `python3 Tools/validate_architecture_guards.py`
-  - current guard scope: no new in-repo `dispatch()` callers, no new runtime-side `RunState` compatibility reads, no new test-side inventory compatibility reads, no new runtime-side `current_node_index` creep outside explicit compatibility files, and no new scene/UI direct gameplay-truth mutation creep
+  - current guard scope: no new in-repo `dispatch()` callers, no new runtime-side `RunState` compatibility reads, no new test-side inventory compatibility reads, no new runtime-side `current_node_index` creep outside explicit compatibility files, no new scene/UI direct gameplay-truth mutation creep, no new combat inventory slot-id compatibility bridge spread, no new stale `RunSummaryCard` tree-scan workaround growth, no new Application/Infrastructure presentation-node coupling, no new hotspot large-file line-count creep on the current extraction-first slices, and no new `AppBootstrap` / `RunSessionCoordinator` public-surface growth
 - Windows playtest export: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/export_windows_playtest.ps1`
+- Windows portrait screenshot review capture: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_portrait_review_capture.ps1`
 - Windows local cache/build cleanup: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/clean_local_artifacts.ps1`
 - Windows bounded regression runner (default bounded subset only): `Tools/run_godot_tests.ps1` or `Tools/run_godot_tests.cmd`
 - Windows explicit full `Tests/test_*.gd` suite:
@@ -55,6 +57,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_full_suite.p
 ```
 
 - Windows smoke runner: `Tools/run_godot_smoke.ps1` or `Tools/run_godot_smoke.cmd`
+  - smoke parse lanes should ignore both `.godot/` and `_godot_profile/` because neither cache tree is repo source of truth
 - Windows scene isolation runner: `Tools/run_godot_scene_isolation.ps1` or `Tools/run_godot_scene_isolation.cmd`
   - example: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_scene_isolation.ps1 -ScenePath scenes/map_explore.tscn`
 - macOS smoke runner: `Tools/run_godot_smoke.sh`
@@ -106,6 +109,8 @@ Layer-oriented suffixes are encouraged:
 - Python `3.8+` for validator scripts
 - A Godot `4.6.x` editor binary available on `PATH`, via `GODOT` / `GODOT_BIN` / `GODOT_EXECUTABLE`, or discoverable by helper scripts
 - Windows playtest export additionally requires the matching Windows export template for the active Godot `4.6.x` editor binary
+  - current export helper first checks local template lanes and then attempts the official `4.6.2` export-template archive download automatically when local templates are missing
+  - fully offline machines still need a local template copy
 - `GdUnit4` is not required for the current runnable test suite
 
 ## Cross-Platform Rules
@@ -136,6 +141,6 @@ Layer-oriented suffixes are encouraged:
 
 - UI source of truth: `Figma`
 - Character and enemy prototype format: `bust + token`
-- Prototype music policy: `library only`
+- Prototype music policy: `safe-first free library music first; if no acceptable safe-first prototype replacement is available, repo-authored generated temp loops are allowed with truthful manifest provenance`
 - All runtime visual/audio assets must be tracked in `AssetManifest/asset_manifest.csv`
 - Shipped product must not rely on live-generated AI

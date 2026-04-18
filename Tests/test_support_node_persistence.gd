@@ -22,6 +22,7 @@ func test_support_node_snapshot_roundtrip_preserves_merchant_local_state() -> vo
 
 	var run_state: RunState = RunStateScript.new()
 	run_state.reset_for_new_run()
+	run_state.configure_run_seed(1)
 	run_state.gold = 20
 	run_state.inventory_state.set_consumable_slots([
 		{

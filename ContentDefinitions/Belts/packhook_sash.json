@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "definition_id": "packhook_sash",
+  "family": "Belts",
+  "tags": [
+    "belt",
+    "utility",
+    "field",
+    "pack"
+  ],
+  "display": {
+    "name": "Packhook Sash",
+    "short_description": "A hooked field sash that opens 2 extra backpack slots for trail salvage and spare gear.",
+    "icon_key": "belt_packhook_sash"
+  },
+  "rules": {
+    "backpack_capacity_bonus": 2
+  }
+}

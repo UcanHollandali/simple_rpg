@@ -103,7 +103,7 @@ func restore_from_snapshot(snapshot: Dictionary) -> Dictionary:
 	if typeof(snapshot_run_state) != TYPE_DICTIONARY:
 		return {"ok": false, "error": "missing_run_state"}
 
-	run_state.load_from_save_dict(snapshot_run_state)
+	run_state.load_from_save_dict(snapshot_run_state, int(snapshot.get("save_schema_version", -1)))
 
 	var session_restore_result: Dictionary = run_session_coordinator.restore_pending_states_for_snapshot(active_flow_state, snapshot)
 	if not bool(session_restore_result.get("ok", false)):

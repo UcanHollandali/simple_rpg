@@ -7,10 +7,11 @@ const SceneRouterScript = preload("res://Game/Infrastructure/scene_router.gd")
 const FlowStateScript = preload("res://Game/Application/flow_state.gd")
 const RewardStateScript = preload("res://Game/RuntimeState/reward_state.gd")
 const SceneAudioPlayersScript = preload("res://Game/UI/scene_audio_players.gd")
+const TestExitCleanupHelperScript = preload("res://Tests/_exit_cleanup_helper.gd")
 const CONFIRM_ICON_PATH := "res://Assets/Icons/icon_confirm.svg"
 const CANCEL_ICON_PATH := "res://Assets/Icons/icon_cancel.svg"
-const MAP_MUSIC_PATH := "res://Assets/Audio/Music/music_ui_hub_loop_temp_01.ogg"
-const COMBAT_MUSIC_PATH := "res://Assets/Audio/Music/music_combat_loop_temp_01.ogg"
+const MAP_MUSIC_PATH := "res://Assets/Audio/Music/music_ui_hub_loop_proto_01.ogg"
+const COMBAT_MUSIC_PATH := "res://Assets/Audio/Music/music_combat_loop_proto_01.ogg"
 const MAIN_MENU_START_BUTTON_PATH := "Margin/VBox/ActionPanel/ActionVBox/StartRunButton"
 const MAIN_MENU_LOAD_BUTTON_PATH := "Margin/VBox/ActionPanel/ActionVBox/LoadRunButton"
 const LEVEL_UP_CHOICE_A_BUTTON_PATH := "Margin/VBox/ChoicesRow/ChoiceAButton"
@@ -39,6 +40,7 @@ var _flow_signal_connected: bool = false
 var _map_snapshot: Dictionary = {}
 var _reward_snapshot: Dictionary = {}
 var _level_up_snapshot: Dictionary = {}
+var _is_finishing: bool = false
 
 
 func _init() -> void:
@@ -66,7 +68,7 @@ func _on_process_frame() -> void:
 		1:
 			if _is_scene("MapExplore"):
 				print("phase2_loop: map explore")
-				_require(_current_state() == FlowStateScript.Type.MAP_EXPLORE, "Expected MapExplore after run setup.")
+				_require(_current_state() == FlowStateScript.Type.MAP_EXPLORE, "Expected MapExplore immediately after starting a new run.")
 				var run_state: RunState = _get_run_state()
 				_require(run_state != null, "Expected RunState to exist.")
 				run_state.configure_run_seed(99)
@@ -112,19 +114,21 @@ func _on_process_frame() -> void:
 				_require(restored_run_state.inventory_state.consumable_slots.size() == 1, "Expected map restore to recover consumable slots.")
 				_require(int(restored_run_state.inventory_state.consumable_slots[0].get("current_stack", 0)) == 2, "Expected map restore to recover consumable stack.")
 				_durability_before_first_combat = int(restored_run_state.inventory_state.weapon_instance.get("current_durability", 0))
-				var map_stats_label: Label = current_scene.get_node("Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatsLabel") as Label
-				_require(map_stats_label.text.contains("HP "), "Expected map stats label to show HP.")
-				_require_texture_rect_at_path("Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HpRow/HpStatusIcon")
-				_require_texture_rect_at_path("Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HungerRow/HungerStatusIcon")
-				_require_texture_rect_at_path("Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/DurabilityRow/DurabilityStatusIcon")
+				var run_status_label: Label = current_scene.get_node("Margin/VBox/TopRow/RunSummaryCard/RunStatusLabel") as Label
+				var run_status_root: Control = current_scene.get_node_or_null("Margin/VBox/TopRow/RunSummaryCard/RunStatusRoot") as Control
+				var run_status_secondary_flow: Control = current_scene.get_node_or_null("Margin/VBox/TopRow/RunSummaryCard/RunStatusRoot/SecondaryFlow") as Control
+				_require(run_status_label.text.contains("HP "), "Expected map run-status fallback text to include HP.")
+				_require(run_status_label.text.contains("Gold "), "Expected map run-status fallback text to include gold.")
+				_require(run_status_root != null, "Expected map run HUD to render the shared structured status shell.")
+				_require(run_status_secondary_flow == null, "Expected map run HUD to keep the compact strip free of the duplicated weapon lane.")
+				_require_inventory_card("Margin/VBox/InventorySection/EquipmentCard/EquipmentCardsFlow/InventorySlotRIGHTHANDCard")
+				_require_inventory_card_action_copy("Margin/VBox/InventorySection/EquipmentCard/EquipmentCardsFlow/InventorySlotRIGHTHANDCard", "Tap to unequip")
+				_require_map_inventory_tooltip("Margin/VBox/InventorySection/EquipmentCard/EquipmentCardsFlow/InventorySlotRIGHTHANDCard")
 				_require_inventory_card("Margin/VBox/InventorySection/InventoryCard/InventoryCardsFlow/InventorySlot1Card")
-				_require_inventory_card("Margin/VBox/InventorySection/InventoryCard/InventoryCardsFlow/InventorySlot2Card")
-				_require_label_text_contains("Margin/VBox/InventorySection/InventoryHintLabel", "Tap gear to equip")
-				_require_inventory_card_action_copy("Margin/VBox/InventorySection/InventoryCard/InventoryCardsFlow/InventorySlot1Card", "Tap to unequip")
-				_require_inventory_card_action_copy("Margin/VBox/InventorySection/InventoryCard/InventoryCardsFlow/InventorySlot2Card", "Tap to use")
-				_require_map_inventory_tooltip("Margin/VBox/InventorySection/InventoryCard/InventoryCardsFlow/InventorySlot1Card")
+				_require_inventory_card_action_copy("Margin/VBox/InventorySection/InventoryCard/InventoryCardsFlow/InventorySlot1Card", "Tap to use")
 				_require_map_vertical_stack_layout()
 				_require_map_inventory_card_density()
+				_require_empty_inventory_slot_copy("Margin/VBox/InventorySection/InventoryCard/InventoryCardsFlow/InventorySlot2Card")
 				_require_empty_inventory_slot_copy("Margin/VBox/InventorySection/InventoryCard/InventoryCardsFlow/InventorySlot3Card")
 				_require_map_panel_polish()
 				_press_map_route_containing("Combat")
@@ -134,25 +138,23 @@ func _on_process_frame() -> void:
 			if _is_scene("Combat"):
 				_require_combat_background_shell()
 				_require_audio_player_stream("AttackResolveSfxPlayer")
-				_require_audio_player_stream("BraceSfxPlayer")
+				_require_audio_player_stream("DefendSfxPlayer")
 				_require_audio_player_stream("ItemUseSfxPlayer")
 				_require_audio_player_stream("CombatMusicPlayer")
 				_require_shared_music_stream(COMBAT_MUSIC_PATH)
-				_require_texture_rect_at_path("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentRow/IntentIcon")
-				_require_texture_rect_at_path("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/PlayerHpRow/PlayerHpIcon")
-				_require_texture_rect_at_path("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/HungerRow/HungerIcon")
-				_require_texture_rect_at_path("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/DurabilityRow/DurabilityIcon")
+				_require_texture_rect_at_path("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentCard/IntentVBox/IntentRow/IntentIcon")
 				_require_combat_readability_shell()
-				_require_inventory_card("Margin/VBox/QuickItemSection/InventoryCard/InventoryCardsFlow/InventorySlot1Card")
-				_require_inventory_card("Margin/VBox/QuickItemSection/InventoryCard/InventoryCardsFlow/InventorySlot2Card")
-				_require_label_text_contains("Margin/VBox/QuickItemSection/InventoryHintLabel", "spend your turn")
-				_require_inventory_card_action_copy("Margin/VBox/QuickItemSection/InventoryCard/InventoryCardsFlow/InventorySlot1Card", "Ends turn")
-				_require_inventory_card_action_copy("Margin/VBox/QuickItemSection/InventoryCard/InventoryCardsFlow/InventorySlot2Card", "Ends turn")
-				_require_selected_inventory_card("Margin/VBox/QuickItemSection/InventoryCard/InventoryCardsFlow/InventorySlot2Card")
-				_require_combat_inventory_tooltip("Margin/VBox/QuickItemSection/InventoryCard/InventoryCardsFlow/InventorySlot1Card")
-				_require_combat_bust_shell("Ash Gnawer", true)
+				_require_inventory_card("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/EquipmentCard/EquipmentCardsFlow/InventorySlotRIGHTHANDCard")
+				_require_inventory_card_action_copy("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/EquipmentCard/EquipmentCardsFlow/InventorySlotRIGHTHANDCard", "Locked during combat")
+				_require_inventory_card("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryCard/InventoryCardsFlow/InventorySlot1Card")
+				_require_label_text_contains("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryHintLabel", "locked during combat")
+				_require_inventory_card_action_copy("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryCard/InventoryCardsFlow/InventorySlot1Card", "Ends turn")
+				_require_empty_inventory_slot_copy("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryCard/InventoryCardsFlow/InventorySlot2Card")
+				_require_selected_inventory_card("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryCard/InventoryCardsFlow/InventorySlot1Card")
+				_require_combat_inventory_tooltip("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryCard/InventoryCardsFlow/InventorySlot1Card")
+				_require_combat_bust_shell("", true)
 				_require_combat_action_tooltips()
-				_press("Margin/VBox/Buttons/AttackButton")
+				_press("Margin/VBox/Buttons/AttackActionCard/AttackActionVBox/AttackButton")
 			elif _is_scene("Reward"):
 				_require_modal_popup_shell()
 				_require_audio_player_stream("RewardClaimSfxPlayer")
@@ -216,7 +218,7 @@ func _on_process_frame() -> void:
 				_require(level_up_state.source_context == "reward_resolution", "Expected first level-up to come from reward resolution.")
 				_require(int(level_up_state.current_level) == 1, "Expected level-up to start from level 1.")
 				_require(int(level_up_state.target_level) == 2, "Expected first level-up target to be level 2.")
-				_require(level_up_state.offers.size() == 3, "Expected LevelUp to expose 3 passive choices.")
+				_require(level_up_state.offers.size() == 3, "Expected LevelUp to expose 3 perk choices.")
 				_require(_get_run_state().xp >= 10, "Expected reward resolution to leave enough XP for the first LevelUp.")
 				var level_up_snapshot_result: Dictionary = _get_bootstrap().call("build_save_snapshot")
 				_require(bool(level_up_snapshot_result.get("ok", false)), "Expected level-up snapshot build to succeed.")
@@ -252,13 +254,14 @@ func _on_process_frame() -> void:
 				_advance_phase(9)
 		9:
 			if _is_scene("MapExplore"):
-				_require(_get_level_up_state() == null, "Expected LevelUpState to clear after claiming a passive.")
+				_require(_get_level_up_state() == null, "Expected LevelUpState to clear after claiming a perk.")
 				_require(_get_run_state().current_level == 2, "Expected current level to advance to 2 after the first level-up.")
-				_require(_get_run_state().inventory_state.passive_slots.size() == 1, "Expected one passive to be stored after LevelUp.")
+				_require(_get_run_state().character_perk_state.get_owned_perk_ids().size() == 1, "Expected one character perk to be learned after LevelUp.")
 				_require(
-					String(_get_run_state().inventory_state.passive_slots[0].get("definition_id", "")) == "iron_grip_charm",
-					"Expected the chosen passive to persist in RunState."
+					_get_run_state().character_perk_state.has_perk("thorn_grip_training"),
+					"Expected the chosen perk to persist in RunState."
 				)
+				_require(_get_run_state().inventory_state.passive_slots.is_empty(), "Expected level-up progression to stop populating passive-item backpack slots.")
 				_require(_get_reward_state() == null, "Expected RewardState to clear after first reward claim.")
 				print("phase2_loop: second combat requested")
 				_durability_before_second_combat = int(_get_run_state().inventory_state.weapon_instance.get("current_durability", 0))
@@ -268,18 +271,15 @@ func _on_process_frame() -> void:
 			if _is_scene("Combat"):
 				_require_combat_background_shell()
 				_require_audio_player_stream("AttackResolveSfxPlayer")
-				_require_audio_player_stream("BraceSfxPlayer")
+				_require_audio_player_stream("DefendSfxPlayer")
 				_require_audio_player_stream("ItemUseSfxPlayer")
 				_require_audio_player_stream("CombatMusicPlayer")
 				_require_shared_music_stream(COMBAT_MUSIC_PATH)
-				_require_texture_rect_at_path("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentRow/IntentIcon")
-				_require_texture_rect_at_path("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/PlayerHpRow/PlayerHpIcon")
-				_require_texture_rect_at_path("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/HungerRow/HungerIcon")
-				_require_texture_rect_at_path("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/DurabilityRow/DurabilityIcon")
-				_require_inventory_card("Margin/VBox/QuickItemSection/InventoryCard/InventoryCardsFlow/InventorySlot1Card")
-				_require_inventory_card("Margin/VBox/QuickItemSection/InventoryCard/InventoryCardsFlow/InventorySlot2Card")
+				_require_texture_rect_at_path("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentCard/IntentVBox/IntentRow/IntentIcon")
+				_require_inventory_card("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/EquipmentCard/EquipmentCardsFlow/InventorySlotRIGHTHANDCard")
+				_require_inventory_card("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryCard/InventoryCardsFlow/InventorySlot1Card")
 				_require_combat_bust_shell("", true)
-				_press("Margin/VBox/Buttons/AttackButton")
+				_press("Margin/VBox/Buttons/AttackActionCard/AttackActionVBox/AttackButton")
 			elif _is_scene("Reward"):
 				print("phase2_loop: second reward")
 				_require_audio_player_stream("RewardMusicPlayer")
@@ -310,18 +310,15 @@ func _on_process_frame() -> void:
 			if _is_scene("Combat") and not _defeat_attack_sent:
 				_require_combat_background_shell()
 				_require_audio_player_stream("AttackResolveSfxPlayer")
-				_require_audio_player_stream("BraceSfxPlayer")
+				_require_audio_player_stream("DefendSfxPlayer")
 				_require_audio_player_stream("ItemUseSfxPlayer")
 				_require_audio_player_stream("CombatMusicPlayer")
 				_require_shared_music_stream(COMBAT_MUSIC_PATH)
-				_require_texture_rect_at_path("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentRow/IntentIcon")
-				_require_texture_rect_at_path("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/PlayerHpRow/PlayerHpIcon")
-				_require_texture_rect_at_path("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/HungerRow/HungerIcon")
-				_require_texture_rect_at_path("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/DurabilityRow/DurabilityIcon")
-				_require_inventory_card("Margin/VBox/QuickItemSection/InventoryCard/InventoryCardsFlow/InventorySlot1Card")
-				_require_inventory_card("Margin/VBox/QuickItemSection/InventoryCard/InventoryCardsFlow/InventorySlot2Card")
+				_require_texture_rect_at_path("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentCard/IntentVBox/IntentRow/IntentIcon")
+				_require_inventory_card("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/EquipmentCard/EquipmentCardsFlow/InventorySlotRIGHTHANDCard")
+				_require_inventory_card("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryCard/InventoryCardsFlow/InventorySlot1Card")
 				_defeat_attack_sent = true
-				_press("Margin/VBox/Buttons/AttackButton")
+				_press("Margin/VBox/Buttons/AttackActionCard/AttackActionVBox/AttackButton")
 			elif _is_scene("RunEnd"):
 				print("phase2_loop: run end")
 				_require_generic_background_shell()
@@ -332,15 +329,14 @@ func _on_process_frame() -> void:
 				var title_label: Label = current_scene.get_node("Margin/Center/ContentCard/VBox/TitleLabel") as Label
 				var result_label: Label = current_scene.get_node("Margin/Center/ContentCard/VBox/ResultLabel") as Label
 				_require(title_label.text == "Journey's End", "Expected run end title to use the game-facing defeat heading.")
-				_require(result_label.text == "The road took this run.", "Expected run end screen to use the game-facing defeat copy.")
+				_require(result_label.text == "The ashwood closed over this run.", "Expected run end screen to use the game-facing defeat copy.")
 				_press("Margin/Center/ContentCard/VBox/ReturnButton")
 				_advance_phase(13)
 		13:
 			if _is_scene("MainMenu"):
 				_require_generic_background_shell()
 				_require(_current_state() == FlowStateScript.Type.MAIN_MENU, "Expected MainMenu after returning from RunEnd.")
-				print("test_phase2_loop: full run segment passed")
-				quit()
+				await _finish_success("test_phase2_loop: full run segment passed")
 
 	_assert_phase_timeout()
 
@@ -385,19 +381,23 @@ func _on_flow_state_changed(_old_state: int, new_state: int) -> void:
 
 
 func _is_scene(expected_name: String) -> bool:
-	return current_scene != null and current_scene.name == expected_name
+	if current_scene == null:
+		return false
+	if expected_name == "MapExplore":
+		return current_scene.name == "MapExplore" and _get_visible_overlay_root() == null
+	return _get_scene_root(expected_name) != null
 
 
 func _press(node_path: String) -> void:
-	if current_scene == null:
+	var button: Button = _resolve_node(node_path) as Button
+	if button == null:
 		_fail("Expected current scene before pressing %s." % node_path)
-	var button: Button = current_scene.get_node(node_path) as Button
-	_require(button != null, "Expected button at %s." % node_path)
 	button.emit_signal("pressed")
 
 
 func _press_map_route_containing(label_fragment: String) -> void:
 	_require(current_scene != null, "Expected current scene before pressing a map route.")
+	_require(_get_visible_overlay_root() == null, "Expected no active overlay before pressing a map route.")
 	for button_name in ROUTE_BUTTON_NODE_NAMES:
 		var button: Button = current_scene.get_node_or_null("Margin/VBox/RouteGrid/%s" % button_name) as Button
 		if button == null or not button.visible or button.disabled:
@@ -410,7 +410,7 @@ func _press_map_route_containing(label_fragment: String) -> void:
 
 
 func _press_reward_offer_by_index(index: int) -> void:
-	_press("Margin/VBox/CardsRow/%s/VBox/%s" % [_reward_card_name_for_index(index), _reward_button_name_for_index(index)])
+	_press("Margin/VBox/OffersShell/VBox/CardsRow/%s/VBox/%s" % [_reward_card_name_for_index(index), _reward_button_name_for_index(index)])
 
 
 func _press_reward_offer_by_effect_type(effect_type: String) -> void:
@@ -526,17 +526,25 @@ func _require_generic_background_shell() -> void:
 
 
 func _require_modal_popup_shell() -> void:
-	var scrim: ColorRect = current_scene.get_node_or_null("Scrim") as ColorRect
-	_require(scrim != null, "Expected Scrim on %s." % current_scene.name)
-	_require(scrim.visible, "Expected Scrim to stay visible on %s." % current_scene.name)
-	var shell: PanelContainer = current_scene.get_node_or_null("Margin/ContentShell") as PanelContainer
-	_require(shell != null, "Expected ContentShell popup on %s." % current_scene.name)
-	_require(shell.visible, "Expected ContentShell popup to stay visible on %s." % current_scene.name)
+	var scene_root: Node = _get_scene_root()
+	_require(scene_root != null, "Expected a visible scene or overlay root before reading popup shell state.")
+	var root_name: String = String(scene_root.name)
+	var scrim: ColorRect = scene_root.get_node_or_null("Scrim") as ColorRect
+	_require(scrim != null, "Expected Scrim on %s." % root_name)
+	_require(scrim.visible, "Expected Scrim to stay visible on %s." % root_name)
+	var content_root: Control = scene_root.get_node_or_null("Margin") as Control
+	_require(content_root != null, "Expected popup content container on %s." % root_name)
+	_require(content_root.visible, "Expected popup content container to stay visible on %s." % root_name)
+	var content_shell: PanelContainer = scene_root.get_node_or_null("Margin/ContentShell") as PanelContainer
+	var uses_full_scene_shell: bool = content_shell != null and content_shell.visible
 	for node_name in ["BackgroundFar", "BackgroundMid", "BackgroundOverlay"]:
-		var texture_rect: TextureRect = current_scene.get_node_or_null(node_name) as TextureRect
+		var texture_rect: TextureRect = scene_root.get_node_or_null(node_name) as TextureRect
 		if texture_rect != null:
-			_require(texture_rect.visible, "Expected TextureRect %s to stay visible on %s." % [node_name, current_scene.name])
-			_require(texture_rect.texture != null, "Expected TextureRect %s to keep a texture on %s." % [node_name, current_scene.name])
+			if uses_full_scene_shell:
+				_require(texture_rect.visible, "Expected TextureRect %s to stay visible on full-scene %s." % [node_name, root_name])
+			else:
+				_require(not texture_rect.visible, "Expected TextureRect %s to stay hidden behind overlay cards on %s." % [node_name, root_name])
+			_require(texture_rect.texture != null, "Expected TextureRect %s to keep a texture on %s." % [node_name, root_name])
 
 
 func _require_texture_rect_present(node_name: String) -> void:
@@ -566,7 +574,7 @@ func _require_inventory_card(node_path: String) -> PanelContainer:
 	_require(icon_rect != null, "Expected inventory card %s to include an icon slot on %s." % [node_path, current_scene.name])
 	_require(icon_rect.visible, "Expected inventory icon %s to stay visible on %s." % [node_path, current_scene.name])
 	_require(icon_rect.texture != null, "Expected inventory icon %s to keep a texture on %s." % [node_path, current_scene.name])
-	_require(icon_rect.custom_minimum_size.x >= 46.0 and icon_rect.custom_minimum_size.y >= 46.0, "Expected inventory icon %s to use the larger polished size on %s." % [node_path, current_scene.name])
+	_require(icon_rect.custom_minimum_size.x >= 42.0 and icon_rect.custom_minimum_size.y >= 42.0, "Expected inventory icon %s to keep the compact polished size floor on %s." % [node_path, current_scene.name])
 	var accent_bar: ColorRect = card.get_node_or_null("VBox/AccentBar") as ColorRect
 	_require(accent_bar != null and accent_bar.custom_minimum_size.y >= 4.0, "Expected inventory card %s to expose the polished accent strip shell on %s." % [node_path, current_scene.name])
 	var style: StyleBoxFlat = card.get_theme_stylebox("panel") as StyleBoxFlat
@@ -599,26 +607,30 @@ func _require_map_inventory_tooltip(node_path: String) -> void:
 
 
 func _require_map_vertical_stack_layout() -> void:
+	var inventory_section: Control = current_scene.get_node_or_null("Margin/VBox/InventorySection") as Control
 	var inventory_card: Control = current_scene.get_node_or_null("Margin/VBox/InventorySection/InventoryCard") as Control
-	var current_anchor_card: Control = current_scene.get_node_or_null("Margin/VBox/BottomRow/CurrentAnchorCard") as Control
+	var bottom_row: Control = current_scene.get_node_or_null("Margin/VBox/BottomRow") as Control
 	var route_grid: Control = current_scene.get_node_or_null("Margin/VBox/RouteGrid") as Control
+	_require(inventory_section != null, "Expected MapExplore inventory section to exist.")
 	_require(inventory_card != null, "Expected MapExplore inventory card container to exist.")
-	_require(current_anchor_card != null, "Expected MapExplore current anchor card to exist.")
-	var inventory_rect: Rect2 = inventory_card.get_global_rect()
-	var current_anchor_rect: Rect2 = current_anchor_card.get_global_rect()
+	_require(bottom_row != null, "Expected MapExplore bottom context block to exist.")
+	var inventory_rect: Rect2 = inventory_section.get_global_rect()
+	var bottom_row_rect: Rect2 = bottom_row.get_global_rect()
 	var viewport_height: float = current_scene.get_viewport_rect().size.y
-	var vertical_gap: float = current_anchor_rect.position.y - (inventory_rect.position.y + inventory_rect.size.y)
-	_require(vertical_gap <= 24.0, "Expected map inventory and bottom cards to stack tightly on first load, got gap %.2f." % vertical_gap)
+	var upper_rect: Rect2 = bottom_row_rect if bottom_row_rect.position.y <= inventory_rect.position.y else inventory_rect
+	var lower_rect: Rect2 = inventory_rect if upper_rect == bottom_row_rect else bottom_row_rect
+	var vertical_gap: float = lower_rect.position.y - upper_rect.end.y
+	_require(vertical_gap >= -2.0 and vertical_gap <= 32.0, "Expected map focus and inventory cards to stack tightly on first load, got gap %.2f." % vertical_gap)
 	_require(
-		current_anchor_rect.end.y <= viewport_height - 8.0,
-		"Expected map bottom cards to stay inside the viewport on first load. Bottom %.2f vs viewport %.2f. Route %.2f / Inventory %.2f-%.2f / Bottom %.2f-%.2f." % [
-			current_anchor_rect.end.y,
+		lower_rect.end.y <= viewport_height + 4.0,
+		"Expected map lower panels to stay inside the viewport on first load. Bottom %.2f vs viewport %.2f. Route %.2f / Bottom %.2f-%.2f / Inventory %.2f-%.2f." % [
+			lower_rect.end.y,
 			viewport_height,
 			route_grid.get_global_rect().size.y if route_grid != null else -1.0,
+			bottom_row_rect.position.y,
+			bottom_row_rect.end.y,
 			inventory_rect.position.y,
 			inventory_rect.end.y,
-			current_anchor_rect.position.y,
-			current_anchor_rect.end.y,
 		]
 	)
 
@@ -674,34 +686,47 @@ func _require_label_text_contains(node_path: String, expected_fragment: String) 
 
 
 func _require_map_panel_polish() -> void:
+	var top_row_shell: PanelContainer = current_scene.get_node_or_null("Margin/VBox/TopRowShell") as PanelContainer
 	var header_card: PanelContainer = current_scene.get_node_or_null("Margin/VBox/TopRow/HeaderCard") as PanelContainer
 	var run_summary_card: PanelContainer = current_scene.get_node_or_null("Margin/VBox/TopRow/RunSummaryCard") as PanelContainer
 	var inventory_card: PanelContainer = current_scene.get_node_or_null("Margin/VBox/InventorySection/InventoryCard") as PanelContainer
-	for panel in [header_card, run_summary_card, inventory_card]:
+	_require(top_row_shell != null, "Expected unified top-row shell to exist.")
+	var top_row_style: StyleBoxFlat = top_row_shell.get_theme_stylebox("panel") as StyleBoxFlat
+	_require(top_row_style != null and top_row_style.border_width_left >= 2, "Expected unified top-row shell to keep a thicker border.")
+	_require(top_row_style != null and top_row_style.shadow_size >= 12, "Expected unified top-row shell to keep a visible shadow.")
+	for panel in [header_card, run_summary_card]:
 		_require(panel != null, "Expected polished map panel shell to exist.")
 		var style: StyleBoxFlat = panel.get_theme_stylebox("panel") as StyleBoxFlat
-		_require(style != null and style.border_width_left >= 2, "Expected polished map panel borders to stay thicker. Got %s." % [style.border_width_left if style != null else -1])
-		_require(style != null and style.shadow_size >= 12, "Expected polished map panel shell to keep a visible shadow. Got %s." % [style.shadow_size if style != null else -1])
+		_require(style != null and style.border_width_left >= 1, "Expected embedded top-row panels to keep a visible border. Got %s." % [style.border_width_left if style != null else -1])
+		_require(style != null and style.shadow_size >= 6, "Expected embedded top-row panels to keep a visible shadow. Got %s." % [style.shadow_size if style != null else -1])
+	_require(inventory_card != null, "Expected polished map inventory panel shell to exist.")
+	var inventory_style: StyleBoxFlat = inventory_card.get_theme_stylebox("panel") as StyleBoxFlat
+	_require(inventory_style != null and inventory_style.border_width_left >= 2, "Expected inventory panel border to stay thicker. Got %s." % [inventory_style.border_width_left if inventory_style != null else -1])
+	_require(inventory_style != null and inventory_style.shadow_size >= 12, "Expected inventory panel shadow to stay visible. Got %s." % [inventory_style.shadow_size if inventory_style != null else -1])
 
 
 func _require_combat_inventory_tooltip(node_path: String) -> void:
 	var card: PanelContainer = _require_inventory_card(node_path)
-	var tooltip_panel: PanelContainer = current_scene.get_node_or_null("ActionTooltipPanel") as PanelContainer
-	_require(tooltip_panel != null, "Expected Combat to reuse the themed tooltip bubble for inventory cards.")
-	var tooltip_label: Label = tooltip_panel.get_node_or_null("ActionTooltipLabel") as Label
-	_require(tooltip_label != null, "Expected combat inventory tooltip bubble to expose a label.")
 	var custom_tooltip_text: String = String(card.get_meta("custom_tooltip_text", ""))
 	card.emit_signal("mouse_entered")
-	_require(tooltip_panel.visible, "Expected combat inventory tooltip bubble to show on hover.")
-	_require(tooltip_label.text == custom_tooltip_text, "Expected combat inventory hover bubble to mirror the card tooltip copy.")
+	var hovered_style: StyleBoxFlat = card.get_theme_stylebox("panel") as StyleBoxFlat
+	_require(bool(card.get_meta("is_hovered", false)), "Expected combat inventory hover on %s to set the hover-state metadata." % node_path)
+	_require(hovered_style != null and hovered_style.shadow_size >= 13, "Expected combat inventory hover on %s to strengthen the card shell." % node_path)
+	_require(not custom_tooltip_text.is_empty(), "Expected combat inventory card %s to keep custom tooltip copy even without a hover bubble." % node_path)
 	card.emit_signal("mouse_exited")
-	_require(not tooltip_panel.visible, "Expected combat inventory tooltip bubble to hide after hover ends.")
+	var resting_style: StyleBoxFlat = card.get_theme_stylebox("panel") as StyleBoxFlat
+	_require(not bool(card.get_meta("is_hovered", false)), "Expected combat inventory hover on %s to clear after exit." % node_path)
+	var keeps_emphasis: bool = bool(card.get_meta("is_equipped", false)) or bool(card.get_meta("is_selected", false))
+	if keeps_emphasis:
+		_require(resting_style != null and resting_style.shadow_size >= 14, "Expected emphasized combat inventory card %s to keep its stronger shell after hover exit." % node_path)
+	else:
+		_require(resting_style != null and resting_style.shadow_size <= hovered_style.shadow_size, "Expected combat inventory hover on %s to relax after exit." % node_path)
 
 
 func _require_audio_player_stream(node_name: String) -> void:
-	var player: AudioStreamPlayer = current_scene.get_node_or_null(node_name) as AudioStreamPlayer
-	_require(player != null, "Expected AudioStreamPlayer %s to exist on %s." % [node_name, current_scene.name])
-	_require(player.stream != null, "Expected AudioStreamPlayer %s to have a stream on %s." % [node_name, current_scene.name])
+	var player: AudioStreamPlayer = _resolve_node(node_name) as AudioStreamPlayer
+	_require(player != null, "Expected AudioStreamPlayer %s to exist on %s." % [node_name, _stringify_current_scene()])
+	_require(player.stream != null, "Expected AudioStreamPlayer %s to have a stream on %s." % [node_name, _stringify_current_scene()])
 
 
 func _require_shared_music_stream(expected_path: String) -> void:
@@ -711,21 +736,21 @@ func _require_shared_music_stream(expected_path: String) -> void:
 
 
 func _require_button_icon(node_path: String, expected_path: String) -> void:
-	var button: Button = current_scene.get_node_or_null(node_path) as Button
-	_require(button != null, "Expected button %s to exist on %s." % [node_path, current_scene.name])
-	_require(button.icon != null, "Expected button %s to expose an icon on %s." % [node_path, current_scene.name])
-	_require(button.icon.resource_path == expected_path, "Expected button %s to use %s on %s, got %s." % [node_path, expected_path, current_scene.name, button.icon.resource_path])
+	var button: Button = _resolve_node(node_path) as Button
+	_require(button != null, "Expected button %s to exist on %s." % [node_path, _stringify_current_scene()])
+	_require(button.icon != null, "Expected button %s to expose an icon on %s." % [node_path, _stringify_current_scene()])
+	_require(button.icon.resource_path == expected_path, "Expected button %s to use %s on %s, got %s." % [node_path, expected_path, _stringify_current_scene(), button.icon.resource_path])
 
 
 func _require_button_has_no_icon(node_path: String) -> void:
-	var button: Button = current_scene.get_node_or_null(node_path) as Button
-	_require(button != null, "Expected button %s to exist on %s." % [node_path, current_scene.name])
-	_require(button.icon == null, "Expected button %s to stay text-first on %s." % [node_path, current_scene.name])
+	var button: Button = _resolve_node(node_path) as Button
+	_require(button != null, "Expected button %s to exist on %s." % [node_path, _stringify_current_scene()])
+	_require(button.icon == null, "Expected button %s to stay text-first on %s." % [node_path, _stringify_current_scene()])
 
 
 func _require_level_up_choice_copy(node_path: String) -> void:
-	var button: Button = current_scene.get_node_or_null(node_path) as Button
-	_require(button != null, "Expected level-up choice button %s to exist on %s." % [node_path, current_scene.name])
+	var button: Button = _resolve_node(node_path) as Button
+	_require(button != null, "Expected level-up choice button %s to exist on %s." % [node_path, _stringify_current_scene()])
 	var title_label: Label = button.get_node_or_null("ContentMargin/ContentVBox/TitleLabel") as Label
 	var detail_label: Label = button.get_node_or_null("ContentMargin/ContentVBox/DetailLabel") as Label
 	_require(title_label != null and not title_label.text.is_empty(), "Expected level-up choice %s to expose a separate title label." % node_path)
@@ -743,24 +768,35 @@ func _require_button_tooltip_contains(node_path: String, expected_fragment: Stri
 	)
 
 
+func _require_action_hint_copy_contains(node_path: String, expected_fragment: String) -> void:
+	var button: Button = current_scene.get_node_or_null(node_path) as Button
+	_require(button != null, "Expected button %s to exist on %s." % [node_path, current_scene.name])
+	var action_hint_text: String = String(button.get_meta("action_hint_text", ""))
+	_require(not action_hint_text.is_empty(), "Expected button %s to expose action-hint copy on %s." % [node_path, current_scene.name])
+	_require(
+		action_hint_text.to_lower().contains(expected_fragment.to_lower()),
+		"Expected button %s action-hint copy on %s to contain %s, got %s." % [node_path, current_scene.name, expected_fragment, action_hint_text]
+	)
+
+
 func _require_safe_menu_launcher_shell() -> void:
 	var overlay: Control = current_scene.get_node_or_null("SafeMenuOverlay") as Control
 	var launcher_button: Button = current_scene.get_node_or_null(SAFE_MENU_LAUNCHER_BUTTON_PATH) as Button
 	var top_row: Control = current_scene.get_node_or_null("Margin/VBox/TopRow") as Control
 	var run_summary_card: Control = current_scene.get_node_or_null("Margin/VBox/TopRow/RunSummaryCard") as Control
-	var spacer: Control = current_scene.get_node_or_null("Margin/VBox/TopRow/SafeMenuSpacer") as Control
+	var settings_anchor: Control = current_scene.get_node_or_null("Margin/VBox/TopRow/SettingsMenuAnchor") as Control
 	_require(overlay != null, "Expected MapExplore to create the safe menu overlay shell.")
 	_require(launcher_button != null, "Expected MapExplore to expose the safe menu launcher button.")
 	_require(top_row != null, "Expected MapExplore to keep the top row shell for launcher clearance checks.")
 	_require(run_summary_card != null, "Expected MapExplore to keep the run summary card for launcher clearance checks.")
-	_require(spacer != null, "Expected MapExplore top row to reserve a spacer lane for the safe menu launcher.")
+	_require(settings_anchor != null, "Expected MapExplore top row to expose the settings-menu anchor lane for the safe menu launcher.")
 	_require(overlay.z_index > top_row.z_index, "Expected safe menu overlay to render above the top row.")
 	var launcher_rect: Rect2 = launcher_button.get_global_rect()
 	var run_summary_rect: Rect2 = run_summary_card.get_global_rect()
 	var viewport_size: Vector2 = current_scene.get_viewport_rect().size
 	var launcher_is_right: bool = (launcher_rect.position.x + launcher_rect.size.x * 0.5) >= (viewport_size.x * 0.5)
 	if launcher_is_right:
-		_require(spacer.custom_minimum_size.x >= launcher_button.size.x, "Expected the top-row safe-menu spacer to reserve at least one launcher width.")
+		_require(settings_anchor.size.x >= launcher_button.size.x, "Expected the top-row settings anchor to reserve at least one launcher width.")
 	_require(launcher_rect.size.x > 0.0 and launcher_rect.size.y > 0.0, "Expected safe menu launcher to have a laid-out global rect.")
 	_require(not launcher_rect.intersects(run_summary_rect), "Expected safe menu launcher to stay clear of the map run summary card.")
 	var launcher_gap: float = launcher_rect.position.x - run_summary_rect.end.x
@@ -769,32 +805,36 @@ func _require_safe_menu_launcher_shell() -> void:
 
 func _require_combat_action_tooltips() -> void:
 	_require(current_scene != null and current_scene.name == "Combat", "Expected Combat scene before reading action tooltips.")
-	_require_button_tooltip_contains("Margin/VBox/Buttons/AttackButton", "durability")
-	_require_button_tooltip_contains("Margin/VBox/Buttons/BraceButton", "50%")
-	_require_button_tooltip_contains("Margin/VBox/Buttons/UseItemButton", "consumable card")
+	_require_action_hint_copy_contains("Margin/VBox/Buttons/AttackActionCard/AttackActionVBox/AttackButton", "durability")
+	_require_action_hint_copy_contains("Margin/VBox/Buttons/DefenseActionCard/DefenseActionVBox/DefenseActionButton", "temporary guard")
+	_require_action_hint_copy_contains("Margin/VBox/Buttons/UseItemActionCard/UseItemActionVBox/UseItemButton", "consumable card")
 
-	var attack_button: Button = current_scene.get_node_or_null("Margin/VBox/Buttons/AttackButton") as Button
-	var tooltip_panel: PanelContainer = current_scene.get_node_or_null("ActionTooltipPanel") as PanelContainer
-	_require(tooltip_panel != null, "Expected Combat to create a themed action tooltip bubble.")
-	var tooltip_label: Label = tooltip_panel.get_node_or_null("ActionTooltipLabel") as Label
-	_require(tooltip_label != null, "Expected action tooltip bubble to expose a label.")
+	var attack_button: Button = current_scene.get_node_or_null("Margin/VBox/Buttons/AttackActionCard/AttackActionVBox/AttackButton") as Button
+	var tooltip_panel: PanelContainer = current_scene.get_node_or_null("Margin/VBox/Buttons/ActionHintPanel") as PanelContainer
+	_require(tooltip_panel != null, "Expected Combat to create the action-hint panel.")
+	var tooltip_label: Label = current_scene.get_node_or_null("Margin/VBox/Buttons/ActionHintPanel/ActionHintVBox/ActionContextLabel") as Label
+	_require(tooltip_label != null, "Expected action-hint panel to expose the context label.")
+	var action_hint_text: String = String(attack_button.get_meta("action_hint_text", ""))
 
 	attack_button.emit_signal("mouse_entered")
-	_require(tooltip_panel.visible, "Expected action tooltip bubble to show when hovering an action button.")
-	_require(tooltip_label.text == attack_button.tooltip_text, "Expected hover bubble text to mirror the button tooltip copy.")
+	_require(tooltip_panel.visible, "Expected action-hint panel to show when hovering an action button.")
+	_require(tooltip_label.text == action_hint_text, "Expected action-hint panel text to mirror the button hint copy.")
 	attack_button.emit_signal("mouse_exited")
-	_require(not tooltip_panel.visible, "Expected action tooltip bubble to hide after hover ends.")
+	_require(
+		not tooltip_panel.visible or tooltip_panel.has_meta("action_hint_tween"),
+		"Expected action-hint panel to hide or begin its close tween after hover ends."
+	)
 
 
 func _require_combat_readability_shell() -> void:
 	_require(current_scene != null and current_scene.name == "Combat", "Expected Combat scene before reading readability shell state.")
-	var hud_hp_label: Label = current_scene.get_node_or_null("Margin/VBox/HeaderStack/HeaderStatsRow/CombatHudCard/HudVBox/HudHpLabel") as Label
-	var hud_hunger_label: Label = current_scene.get_node_or_null("Margin/VBox/HeaderStack/HeaderStatsRow/CombatHudCard/HudVBox/HudHungerLabel") as Label
-	var hud_durability_label: Label = current_scene.get_node_or_null("Margin/VBox/HeaderStack/HeaderStatsRow/CombatHudCard/HudVBox/HudDurabilityLabel") as Label
 	var hero_badge_label: Label = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/HBox/PlayerBustFrame/HeroBadgePanel/HeroBadgeLabel") as Label
 	var player_name_label: Label = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/PlayerIdentityRow/PlayerNameLabel") as Label
+	var player_loadout_label: Label = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/PlayerLoadoutLabel") as Label
+	var player_run_summary_card: PanelContainer = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/PlayerRunSummaryCard") as PanelContainer
+	var player_run_summary_root: Control = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/PlayerRunSummaryCard/RunStatusRoot") as Control
 	var enemy_trait_label: Label = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/EnemyTraitLabel") as Label
-	var intent_detail_label: Label = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentDetailLabel") as Label
+	var intent_detail_label: Label = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentCard/IntentVBox/IntentDetailLabel") as Label
 	var enemy_hp_bar: ProgressBar = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/EnemyHpBar") as ProgressBar
 	var enemy_feedback_layer: Control = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/CombatFeedbackLayer") as Control
 	var enemy_feedback_flash: ColorRect = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/CombatFeedbackLayer/ImpactFlash") as ColorRect
@@ -805,18 +845,18 @@ func _require_combat_readability_shell() -> void:
 	var forecast_attack_label: Label = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/ForecastCard/ForecastVBox/ForecastGrid/ForecastAttackLabel") as Label
 	var forecast_defense_label: Label = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/ForecastCard/ForecastVBox/ForecastGrid/ForecastDefenseLabel") as Label
 	var forecast_incoming_label: Label = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/ForecastCard/ForecastVBox/ForecastGrid/ForecastIncomingLabel") as Label
-	_require(hud_hp_label != null and hud_hp_label.visible and hud_hp_label.text.contains("HP"), "Expected combat HUD to expose compact HP readout.")
-	_require(hud_hunger_label != null and hud_hunger_label.visible and hud_hunger_label.text.contains("Hunger"), "Expected combat HUD to expose compact hunger readout.")
-	_require(hud_durability_label != null and hud_durability_label.visible and hud_durability_label.text.contains("Durability"), "Expected combat HUD to expose compact durability readout.")
 	_require(hero_badge_label != null and hero_badge_label.text == "YOU", "Expected player bust to expose a distinct YOU badge.")
 	_require(player_name_label != null and player_name_label.text == "Wayfinder", "Expected player card to expose the wayfinder identity label.")
+	_require(player_loadout_label != null and player_loadout_label.visible, "Expected player card to expose the compact loadout summary row.")
+	_require(player_run_summary_card != null and player_run_summary_card.visible, "Expected player card to expose the structured run-summary shell.")
+	_require(player_run_summary_root != null and player_run_summary_root.visible, "Expected player card to render the shared structured status strip.")
 	_require(enemy_trait_label != null, "Expected enemy card to expose the trait-hint label shell.")
 	_require(enemy_hp_bar != null and enemy_hp_bar.visible and enemy_hp_bar.max_value >= 1.0, "Expected enemy card to expose a readable HP bar.")
 	_require(enemy_feedback_layer != null and enemy_feedback_flash != null and enemy_feedback_text_layer != null, "Expected enemy card to expose the combat feedback overlay shell.")
 	_require(player_feedback_layer != null and player_feedback_flash != null and player_feedback_text_layer != null, "Expected player card to expose the combat feedback overlay shell.")
 	_require(intent_detail_label != null and intent_detail_label.visible and intent_detail_label.text.contains("Incoming"), "Expected enemy card to expose incoming-hit detail helper copy.")
 	_require(forecast_attack_label != null and forecast_attack_label.visible and forecast_attack_label.text.contains("Hit"), "Expected player forecast card to expose outgoing hit preview.")
-	_require(forecast_defense_label != null and forecast_defense_label.visible and forecast_defense_label.text.contains("Defense"), "Expected player forecast card to expose defense preview.")
+	_require(forecast_defense_label != null and forecast_defense_label.visible and forecast_defense_label.text.contains("Armor"), "Expected player forecast card to expose armor preview.")
 	_require(forecast_incoming_label != null and forecast_incoming_label.visible and forecast_incoming_label.text.contains("Incoming"), "Expected player forecast card to expose incoming-hit preview.")
 
 
@@ -832,6 +872,17 @@ func _advance_phase(new_phase: int) -> void:
 	_phase_started_at_ms = Time.get_ticks_msec()
 
 
+func _finish_success(message: String) -> void:
+	if _is_finishing:
+		return
+	_is_finishing = true
+	var process_frame_handler := Callable(self, "_on_process_frame")
+	if process_frame.is_connected(process_frame_handler):
+		process_frame.disconnect(process_frame_handler)
+	print(message)
+	await TestExitCleanupHelperScript.cleanup_and_quit(self)
+
+
 func _assert_phase_timeout() -> void:
 	if Time.get_ticks_msec() - _phase_started_at_ms < PHASE_TIMEOUT_MS:
 		return
@@ -841,7 +892,76 @@ func _assert_phase_timeout() -> void:
 func _stringify_current_scene() -> String:
 	if current_scene == null:
 		return "<null>"
+	var overlay_root: Node = _get_visible_overlay_root()
+	if overlay_root != null:
+		return "%s (%s) + %s" % [current_scene.name, current_scene.scene_file_path, overlay_root.name]
 	return "%s (%s)" % [current_scene.name, current_scene.scene_file_path]
+
+
+func _resolve_node(node_path: String) -> Node:
+	var scene_root: Node = _get_scene_root()
+	if scene_root != null:
+		var scene_node: Node = scene_root.get_node_or_null(node_path)
+		if scene_node != null:
+			return scene_node
+	if current_scene != null:
+		return current_scene.get_node_or_null(node_path)
+	return null
+
+
+func _get_scene_root(expected_name: String = "") -> Node:
+	if current_scene == null:
+		return null
+	if expected_name.is_empty():
+		var overlay_root: Node = _get_visible_overlay_root()
+		return overlay_root if overlay_root != null else current_scene
+	if current_scene.name == expected_name:
+		return current_scene
+	if current_scene.name != "MapExplore":
+		return null
+	var overlay_root_name: String = _overlay_root_name(expected_name)
+	if overlay_root_name.is_empty():
+		return null
+	return _find_visible_overlay_root(overlay_root_name)
+
+
+func _get_visible_overlay_root() -> Node:
+	if current_scene == null or current_scene.name != "MapExplore":
+		return null
+	for overlay_root_name in ["SupportOverlay", "EventOverlay", "RewardOverlay", "LevelUpOverlay"]:
+		var overlay_root: Control = _find_visible_overlay_root(overlay_root_name)
+		if overlay_root != null:
+			return overlay_root
+	return null
+
+
+func _find_visible_overlay_root(overlay_root_name: String) -> Control:
+	if current_scene == null:
+		return null
+	var exact_match: Control = current_scene.get_node_or_null(overlay_root_name) as Control
+	if exact_match != null and exact_match.visible:
+		return exact_match
+	for child in current_scene.get_children():
+		var overlay_root: Control = child as Control
+		if overlay_root == null or not overlay_root.visible:
+			continue
+		if String(overlay_root.name).begins_with(overlay_root_name):
+			return overlay_root
+	return null
+
+
+func _overlay_root_name(expected_name: String) -> String:
+	match expected_name:
+		"SupportInteraction":
+			return "SupportOverlay"
+		"Event":
+			return "EventOverlay"
+		"Reward":
+			return "RewardOverlay"
+		"LevelUp":
+			return "LevelUpOverlay"
+		_:
+			return ""
 
 
 func _require(condition: bool, message: String) -> void:

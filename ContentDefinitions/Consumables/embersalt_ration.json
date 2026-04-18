@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "definition_id": "embersalt_ration",
+  "family": "Consumables",
+  "tags": [
+    "consumable",
+    "food",
+    "road",
+    "sustain"
+  ],
+  "display": {
+    "name": "Embersalt Ration",
+    "short_description": "A hot-salted trail ration that steadies 5 HP and knocks 3 hunger off a rough road beat.",
+    "icon_key": "consumable_embersalt_ration"
+  },
+  "rules": {
+    "stats": {
+      "max_stack": 3,
+      "restore_hp": 5
+    },
+    "use_effect": {
+      "trigger": "on_use",
+      "condition": {
+        "op": "always"
+      },
+      "target": "self",
+      "effects": [
+        {
+          "type": "heal",
+          "params": {
+            "base": 5
+          }
+        },
+        {
+          "type": "modify_hunger",
+          "params": {
+            "amount": -3
+          }
+        }
+      ]
+    }
+  }
+}

@@ -3,15 +3,20 @@ extends Control
 
 const MapExplorePresenterScript = preload("res://Game/UI/map_explore_presenter.gd")
 const InventoryPresenterScript = preload("res://Game/UI/inventory_presenter.gd")
-const InventoryCardFactoryScript = preload("res://Game/UI/inventory_card_factory.gd")
+const InventoryCardInteractionHandlerScript = preload("res://Game/UI/inventory_card_interaction_handler.gd")
+const OverlayLifecycleHelperScript = preload("res://Game/UI/overlay_lifecycle_helper.gd")
 const MapBoardStyleScript = preload("res://Game/UI/map_board_style.gd")
 const MapBoardComposerV2Script = preload("res://Game/UI/map_board_composer_v2.gd")
 const MapExploreSceneUiScript = preload("res://Game/UI/map_explore_scene_ui.gd")
+const RunStatusStripScript = preload("res://Game/UI/run_status_strip.gd")
 const MapRuntimeStateScript = preload("res://Game/RuntimeState/map_runtime_state.gd")
 const SceneAudioPlayersScript = preload("res://Game/UI/scene_audio_players.gd")
 const SceneAudioCleanupScript = preload("res://Game/UI/scene_audio_cleanup.gd")
+const SceneLayoutHelperScript = preload("res://Game/UI/scene_layout_helper.gd")
+const HungerWarningToastScript = preload("res://Game/UI/hunger_warning_toast.gd")
 const RunMenuSceneHelperScript = preload("res://Game/UI/run_menu_scene_helper.gd")
 const TempScreenThemeScript = preload("res://Game/UI/temp_screen_theme.gd")
+const MapFocusHelperScript = preload("res://Game/UI/map_focus_helper.gd")
 const FlowStateScript = preload("res://Game/Application/flow_state.gd")
 const EventSceneScript: PackedScene = preload("res://scenes/event.tscn")
 const SupportInteractionSceneScript: PackedScene = preload("res://scenes/support_interaction.tscn")
@@ -27,17 +32,16 @@ const EVENT_OVERLAY_CLOSE_DURATION := 0.2
 const EVENT_OVERLAY_OPEN_SCALE := 0.985
 const EVENT_OVERLAY_CLOSED_SCALE := 0.965
 const EVENT_OVERLAY_Z_INDEX := 180
-const EVENT_OVERLAY_FAR_ALPHA := 0.04
-const EVENT_OVERLAY_MID_ALPHA := 0.08
-const EVENT_OVERLAY_OVERLAY_ALPHA := 0.03
-const EVENT_OVERLAY_SCRIM_ALPHA := 0.20
+const EVENT_OVERLAY_FAR_ALPHA := 0.0
+const EVENT_OVERLAY_MID_ALPHA := 0.0
+const EVENT_OVERLAY_OVERLAY_ALPHA := 0.0
+const EVENT_OVERLAY_SCRIM_ALPHA := 0.42
+const EVENT_OVERLAY_ROADSIDE_SCRIM_ALPHA := 0.54
 const EVENT_OVERLAY_TWEEN_TRANSITION := Tween.TRANS_EXPO
-const NODE_SELECT_SFX_PATH := "res://Assets/Audio/SFX/sfx_node_select_01.ogg"
-const MAP_MUSIC_LOOP_PATH := "res://Assets/Audio/Music/music_ui_hub_loop_temp_01.ogg"
-const AUDIO_PLAYER_NODE_NAMES: Array[String] = [
-	"NodeSelectSfxPlayer",
-	"MapMusicPlayer",
-]
+const AUDIO_PLAYER_CONFIG := {
+	"NodeSelectSfxPlayer": {"path": "res://Assets/Audio/SFX/sfx_node_select_01.ogg"},
+	"MapMusicPlayer": {"path": "res://Assets/Audio/Music/music_ui_hub_loop_proto_01.ogg", "music": true, "loop": true},
+}
 const INVENTORY_TOOLTIP_PANEL_NAME := "InventoryTooltipPanel"
 const INVENTORY_TOOLTIP_LABEL_NAME := "InventoryTooltipLabel"
 const INVENTORY_TOOLTIP_MARGIN := 16.0
@@ -47,8 +51,13 @@ const INVENTORY_TOOLTIP_META_KEY := "custom_tooltip_text"
 const INVENTORY_DRAG_THRESHOLD := 14.0
 const PORTRAIT_SAFE_MAX_WIDTH := 1120
 const PORTRAIT_SAFE_MIN_SIDE_MARGIN := 14
+const TOP_ROW_PATH := "Margin/VBox/TopRow"
+const HEADER_STACK_PATH := "Margin/VBox/TopRow/HeaderCard/HeaderRow/HeaderStack"
+const STAGE_BADGE_LABEL_PATH := "Margin/VBox/TopRow/HeaderCard/HeaderRow/StageBadge/StageBadgeLabel"
+const RUN_SUMMARY_CARD_PATH := "Margin/VBox/TopRow/RunSummaryCard"
+const ROUTE_GRID_PATH := "Margin/VBox/RouteGrid"
 const SETTINGS_MENU_ANCHOR_PATH := "Margin/VBox/TopRow/SettingsMenuAnchor"
-
+const OVERLAY_KEYS := ["event", "support", "reward", "level_up"]
 const ROUTE_BUTTON_NODE_NAMES: PackedStringArray = [
 	"CombatNodeButton",
 	"RewardNodeButton",
@@ -67,22 +76,38 @@ const ROUTE_MARKER_NODE_NAMES: PackedStringArray = [
 	"BossNodeMarker",
 ]
 
-const ROUTE_SLOT_TOP_LEFT := Vector2(0.38, 0.40)
-const ROUTE_SLOT_TOP_RIGHT := Vector2(0.62, 0.40)
-const ROUTE_SLOT_BOTTOM_LEFT := Vector2(0.40, 0.68)
-const ROUTE_SLOT_BOTTOM_RIGHT := Vector2(0.60, 0.68)
-const ROUTE_SLOT_LOWER_MID := Vector2(0.50, 0.80)
-const ROUTE_SLOT_FORWARD := Vector2(0.50, 0.24)
-const ROUTE_MARKER_SIZE := Vector2(164, 164)
-const ROUTE_HITBOX_SIZE := Vector2(180, 180)
+const EMERGENCY_ROUTE_SLOT_TOP_LEFT := Vector2(0.38, 0.40)
+const EMERGENCY_ROUTE_SLOT_TOP_RIGHT := Vector2(0.62, 0.40)
+const EMERGENCY_ROUTE_SLOT_BOTTOM_LEFT := Vector2(0.40, 0.68)
+const EMERGENCY_ROUTE_SLOT_BOTTOM_RIGHT := Vector2(0.60, 0.68)
+const EMERGENCY_ROUTE_SLOT_LOWER_MID := Vector2(0.50, 0.80)
+const EMERGENCY_ROUTE_SLOT_FORWARD := Vector2(0.50, 0.24)
+const ROUTE_MARKER_SIZE := Vector2(144, 144)
+const ROUTE_HITBOX_SIZE := Vector2(160, 160)
 const CURRENT_MARKER_SIZE := Vector2(36, 36)
 const BOARD_FOCUS_ANCHOR_FACTOR := Vector2(0.5, 0.55)
-const BOARD_MAX_OFFSET_FACTOR := Vector2(0.16, 0.18)
+const BOARD_MAX_OFFSET_FACTOR := Vector2(0.05, 0.06)
+const BOARD_FOCUS_DEADZONE_FACTOR := Vector2(0.18, 0.20)
+const BOARD_FOCUS_DAMPING := 0.42
+const BOARD_FOCUS_CONTEXT_BLEND_MIN := 0.08
+const BOARD_FOCUS_CONTEXT_BLEND_MAX := 0.24
 const WALKER_ROOT_SIZE := Vector2(122, 150)
 const WALKER_SHADOW_SIZE := Vector2(40, 10)
 const WALKER_SPRITE_SIZE := Vector2(100, 120)
-const NODE_PLATE_SIZE := Vector2(132, 132)
-const NODE_ICON_SIZE := Vector2(108, 108)
+const ROUTE_MOVE_MIN_DURATION := 0.30
+const ROUTE_MOVE_MAX_DURATION := 0.88
+const ROUTE_MOVE_BASE_DURATION := 0.20
+const ROUTE_MOVE_PIXELS_PER_SECOND := 820.0
+const ROUTE_MOVE_CAMERA_DELAY_RATIO := 0.12
+const WALKER_FRAME_INTERVAL_MIN := 0.075
+const WALKER_FRAME_INTERVAL_MAX := 0.12
+const WALKER_STRIDE_PIXELS_PER_CYCLE := 118.0
+const WALKER_STRIDE_BOB_MAX := 6.0
+const WALKER_ARRIVAL_PAUSE := 0.08
+const ROADSIDE_INTERRUPTION_PROGRESS := 0.58
+const ROADSIDE_CONTINUATION_CLOSE_LEAD_IN := 0.06
+const NODE_PLATE_SIZE := Vector2(116, 116)
+const NODE_ICON_SIZE := Vector2(92, 92)
 const KEY_MARKER_SIZE := Vector2(36, 36)
 const KEY_ICON_SIZE := Vector2(18, 18)
 const STATE_PIP_SIZE := Vector2(14, 14)
@@ -94,7 +119,6 @@ var _board_composer: RefCounted
 var _route_selection_in_flight: bool = false
 var _route_models_cache: Array[Dictionary] = []
 var _board_composition_cache: Dictionary = {}
-var _texture_cache: Dictionary = {}
 var _current_marker: TextureRect
 var _board_canvas: Control
 var _road_base_lines: Array[Line2D] = []
@@ -103,55 +127,77 @@ var _walker_root: Control
 var _walker_shadow: PanelContainer
 var _walker_sprite: TextureRect
 var _walker_cycle_token: int = 0
+var _walker_frame_interval: float = 0.1
+var _walker_facing_right: bool = true
 var _active_route_index: int = -1
 var _hovered_route_index: int = -1
 var _safe_menu: SafeMenuOverlay
 var _route_layout_offset: Vector2 = Vector2.ZERO
-var _route_move_start_center: Vector2 = Vector2.ZERO
-var _route_move_target_center: Vector2 = Vector2.ZERO
 var _route_move_start_offset: Vector2 = Vector2.ZERO
 var _route_move_target_offset: Vector2 = Vector2.ZERO
+var _route_move_world_path: PackedVector2Array = PackedVector2Array()
+var _route_move_path_length: float = 0.0
+var _route_move_stride_cycles: float = 0.0
+var _route_move_sample_start_progress: float = 0.0
+var _route_move_sample_end_progress: float = 1.0
 var _inventory_tooltip_panel: PanelContainer
 var _inventory_tooltip_label: Label
 var _hovered_inventory_card: Control
 var _hovered_inventory_accent: Color = TempScreenThemeScript.PANEL_BORDER_COLOR
-var _pressed_inventory_card: PanelContainer
-var _pressed_inventory_slot_id: int = -1
-var _pressed_inventory_slot_index: int = -1
-var _pressed_inventory_family: String = ""
-var _pressed_inventory_position: Vector2 = Vector2.ZERO
-var _inventory_drag_active: bool = false
-var _event_overlay: Control
-var _event_overlay_tween: Tween
-var _support_overlay: Control
-var _support_overlay_tween: Tween
-var _reward_overlay: Control
-var _reward_overlay_tween: Tween
-var _level_up_overlay: Control
-var _level_up_overlay_tween: Tween
+var _inventory_card_handler: InventoryCardInteractionHandler
+var _overlay_lifecycle: OverlayLifecycleHelper
 var _is_refreshing_ui: bool = false
 var _refresh_ui_pending: bool = false
-
+var _run_status_model_signature: String = ""
+var _equipment_cards_signature: String = ""
+var _backpack_cards_signature: String = ""
+var _roadside_visual_state: Dictionary = {}
+var _roadside_transition_in_flight: bool = false
+var _run_status_strip: RunStatusStrip
+var _hunger_warning_toast: HungerWarningToast
 
 func _ready() -> void:
 	_presenter = MapExplorePresenterScript.new()
 	_inventory_presenter = InventoryPresenterScript.new()
 	_board_composer = MapBoardComposerV2Script.new()
+	_run_status_strip = RunStatusStripScript.new()
+	if _run_status_strip != null and not _run_status_strip.is_connected("hunger_threshold_crossed", Callable(self, "_on_hunger_threshold_crossed")):
+		_run_status_strip.connect("hunger_threshold_crossed", Callable(self, "_on_hunger_threshold_crossed"))
+	_inventory_card_handler = InventoryCardInteractionHandlerScript.new()
+	_inventory_card_handler.configure(self, {
+		"click_handler": Callable(self, "_handle_inventory_card_click"),
+		"drag_complete_handler": Callable(self, "_handle_inventory_card_drag_completed"),
+		"drag_started_handler": Callable(self, "_on_inventory_card_drag_started"),
+		"mouse_entered_handler": Callable(self, "_on_inventory_card_mouse_entered"),
+		"mouse_exited_handler": Callable(self, "_on_inventory_card_mouse_exited"),
+		"drag_threshold": INVENTORY_DRAG_THRESHOLD,
+	})
+	_overlay_lifecycle = OverlayLifecycleHelperScript.new()
+	_overlay_lifecycle.configure(self, {
+		"overlay_z_index": EVENT_OVERLAY_Z_INDEX,
+		"open_duration": EVENT_OVERLAY_OPEN_DURATION,
+		"close_duration": EVENT_OVERLAY_CLOSE_DURATION,
+		"open_scale": EVENT_OVERLAY_OPEN_SCALE,
+		"closed_scale": EVENT_OVERLAY_CLOSED_SCALE,
+		"tween_transition": EVENT_OVERLAY_TWEEN_TRANSITION,
+		"before_show_handler": Callable(self, "_tune_event_overlay_visuals"),
+	})
 	_connect_route_buttons()
 	_apply_static_map_textures()
-	_configure_audio_players()
+	SceneAudioPlayersScript.configure_from_config(self, AUDIO_PLAYER_CONFIG)
 	_ensure_runtime_board_nodes()
 	_ensure_inventory_hint_label()
 	_apply_temp_theme()
+	_ensure_hunger_warning_toast()
 	_ensure_inventory_tooltip_shell()
 	_style_route_buttons_for_overlay_mode()
 	_apply_text_density_pass()
 	_setup_safe_menu()
-	_connect_viewport_layout_updates()
+	SceneLayoutHelperScript.bind_viewport_size_changed(self, Callable(self, "_on_viewport_size_changed"))
 	_apply_portrait_safe_layout()
 	SceneAudioPlayersScript.start_looping(self, "MapMusicPlayer")
 
-	var route_grid: Control = get_node_or_null("Margin/VBox/RouteGrid") as Control
+	var route_grid: Control = get_node_or_null(ROUTE_GRID_PATH) as Control
 	if route_grid != null:
 		var resized_handler := Callable(self, "_on_route_grid_resized")
 		if not route_grid.is_connected("resized", resized_handler):
@@ -167,40 +213,29 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	_stop_walker_walk_cycle()
-	_disconnect_viewport_layout_updates()
-	_stop_inventory_card_interaction()
+	if _hunger_warning_toast != null:
+		_hunger_warning_toast.release()
+	SceneLayoutHelperScript.unbind_viewport_size_changed(self, Callable(self, "_on_viewport_size_changed"))
+	if _inventory_card_handler != null:
+		_inventory_card_handler.stop_interaction()
 	_hide_inventory_tooltip(true)
 	close_event_overlay(true)
 	close_support_overlay(true)
 	close_reward_overlay(true)
 	close_level_up_overlay(true)
-	SceneAudioCleanupScript.release_players(self, AUDIO_PLAYER_NODE_NAMES)
+	SceneAudioCleanupScript.release_players(self, SceneAudioPlayersScript.node_names_from_config(AUDIO_PLAYER_CONFIG))
 
 
 func _input(event: InputEvent) -> void:
-	if _pressed_inventory_card == null:
+	if _inventory_card_handler == null:
 		return
-	if event is InputEventMouseMotion:
-		var motion_event: InputEventMouseMotion = event as InputEventMouseMotion
-		if not _inventory_drag_active and motion_event.position.distance_to(_pressed_inventory_position) >= INVENTORY_DRAG_THRESHOLD:
-			_inventory_drag_active = true
-			_hide_inventory_tooltip(true)
-			InventoryCardFactoryScript.set_card_dragging_state(_pressed_inventory_card, true)
-	elif event is InputEventMouseButton:
-		var mouse_event: InputEventMouseButton = event as InputEventMouseButton
-		if mouse_event.button_index != MOUSE_BUTTON_LEFT or mouse_event.pressed:
-			return
-		if _inventory_drag_active:
-			_complete_inventory_card_drag()
-		else:
-			_handle_inventory_card_click(_pressed_inventory_slot_id, _pressed_inventory_family)
-		_stop_inventory_card_interaction()
+	_inventory_card_handler.handle_root_input(event)
 
 
 func _on_route_button_pressed(button_node_name: String) -> void:
 	if _route_selection_in_flight:
 		return
-	var button: Button = get_node_or_null("Margin/VBox/RouteGrid/%s" % button_node_name) as Button
+	var button: Button = get_node_or_null("%s/%s" % [ROUTE_GRID_PATH, button_node_name]) as Button
 	if button == null:
 		return
 	var target_node_id: int = int(button.get_meta("target_node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
@@ -243,6 +278,13 @@ func _on_load_run_pressed() -> void:
 	_refresh_ui()
 
 
+func _on_return_to_main_menu_pressed() -> void:
+	var bootstrap = _get_app_bootstrap()
+	var flow_manager = bootstrap.get_flow_manager() if bootstrap != null else null
+	if flow_manager != null:
+		flow_manager.request_transition(FlowStateScript.Type.MAIN_MENU)
+
+
 func _move_to_node(node_reference: Variant) -> void:
 	var bootstrap = _get_app_bootstrap()
 	if bootstrap == null:
@@ -252,6 +294,7 @@ func _move_to_node(node_reference: Variant) -> void:
 
 	var result: Dictionary = bootstrap.choose_move_to_node(node_reference)
 	if not bool(result.get("ok", false)):
+		_clear_pending_roadside_visual_state()
 		_append_status_line("Move failed: %s" % String(result.get("error", "unknown")))
 		_refresh_ui()
 		return
@@ -259,6 +302,16 @@ func _move_to_node(node_reference: Variant) -> void:
 	var node_type: String = String(result.get("node_type", "node"))
 	var node_state: String = String(result.get("node_state", ""))
 	var target_state: int = int(result.get("target_state", FlowState.Type.MAP_EXPLORE))
+	if _is_roadside_interruption_result(result):
+		var run_state: RunState = _get_run_state()
+		if run_state != null and run_state.map_runtime_state != null:
+			_prime_roadside_visual_state(
+				int(run_state.map_runtime_state.current_node_id),
+				int(result.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
+			)
+		_append_status_line("Roadside encounter interrupts the trail before the destination.")
+	else:
+		_clear_pending_roadside_visual_state()
 	if target_state == FlowState.Type.NODE_RESOLVE:
 		_append_status_line("Entered %s node. Hunger: %d" % [node_type, int(result.get("hunger", 0))])
 	elif target_state == FlowState.Type.COMBAT:
@@ -282,69 +335,57 @@ func _refresh_ui() -> void:
 	_route_models_cache = _presenter.build_route_view_models(run_state, ROUTE_BUTTON_NODE_NAMES.size())
 	_board_composition_cache = _build_board_composition(run_state)
 	if not _route_selection_in_flight:
-		_route_layout_offset = Vector2(_board_composition_cache.get("focus_offset", Vector2.ZERO))
+		_route_layout_offset = _desired_focus_offset_for_world_position(
+			_get_node_world_position(int(run_state.map_runtime_state.current_node_id))
+		)
+	if _has_pending_roadside_visual_state() and not _roadside_transition_in_flight:
+		_route_layout_offset = Vector2(_roadside_visual_state.get("offset", _route_layout_offset))
 
 	_refresh_inventory_cards(run_state)
 
-	var title_label: Label = get_node_or_null("Margin/VBox/TopRow/HeaderCard/HeaderStack/TitleLabel") as Label
+	var title_label: Label = get_node_or_null("%s/TitleLabel" % HEADER_STACK_PATH) as Label
 	if title_label != null:
 		title_label.text = _presenter.build_title_text(run_state)
+	var stage_badge_label: Label = get_node_or_null(STAGE_BADGE_LABEL_PATH) as Label
+	if stage_badge_label != null:
+		stage_badge_label.text = _presenter.build_stage_badge_text(run_state)
 
-	var progress_label: Label = get_node_or_null("Margin/VBox/TopRow/HeaderCard/HeaderStack/ProgressLabel") as Label
+	var progress_label: Label = get_node_or_null("%s/ProgressLabel" % HEADER_STACK_PATH) as Label
 	if progress_label != null:
 		progress_label.text = _presenter.build_progress_text(run_state)
-	var hp_status_label: Label = get_node_or_null("Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HpRow/HpStatusLabel") as Label
-	if hp_status_label != null:
-		hp_status_label.text = _presenter.build_hp_status_text(run_state)
-	_apply_texture_rect_asset(
-		"Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HpRow/HpStatusIcon",
-		_presenter.build_hp_icon_texture_path()
-	)
-	var hunger_status_label: Label = get_node_or_null("Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HungerRow/HungerStatusLabel") as Label
-	if hunger_status_label != null:
-		hunger_status_label.text = _presenter.build_hunger_status_text(run_state)
-	_apply_texture_rect_asset(
-		"Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HungerRow/HungerStatusIcon",
-		_presenter.build_hunger_icon_texture_path()
-	)
-	var durability_status_label: Label = get_node_or_null("Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/DurabilityRow/DurabilityStatusLabel") as Label
-	if durability_status_label != null:
-		durability_status_label.text = _presenter.build_durability_status_text(run_state)
-	_apply_texture_rect_asset(
-		"Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/DurabilityRow/DurabilityStatusIcon",
-		_presenter.build_durability_icon_texture_path()
-	)
+	var route_read_label: Label = get_node_or_null("%s/RouteReadLabel" % HEADER_STACK_PATH) as Label
+	if route_read_label != null:
+		route_read_label.text = _presenter.build_route_overview_text(run_state)
+		route_read_label.visible = not route_read_label.text.is_empty()
+	var run_summary_card: PanelContainer = get_node_or_null(RUN_SUMMARY_CARD_PATH) as PanelContainer
+	var run_status_label: Label = get_node_or_null("%s/RunStatusLabel" % RUN_SUMMARY_CARD_PATH) as Label
+	var run_status_model: Dictionary = _presenter.build_run_status_model(run_state)
+	var run_status_signature: String = JSON.stringify(run_status_model)
+	if run_summary_card != null and run_status_signature != _run_status_model_signature:
+		_run_status_strip.render_into_with_hunger_signal(
+			run_summary_card,
+			run_status_label,
+			run_status_model,
+			TempScreenThemeScript.PANEL_BORDER_COLOR
+		)
+		_run_status_model_signature = run_status_signature
 
-	# Update Gold label (now in HpRow)
-	var gold_value_label: Label = get_node_or_null("Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HpRow/GoldStatusValueLabel") as Label
-	if gold_value_label != null:
-		gold_value_label.text = _presenter.build_gold_status_text(run_state)
-	_apply_texture_rect_asset(
-		"Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/HpRow/GoldStatusIcon",
-		_presenter.build_gold_icon_texture_path()
-	)
-
-	# Update XP bar
-	var xp_progress_bar: ProgressBar = get_node_or_null("Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/XpRow/XpProgressBar") as ProgressBar
-	var xp_label: Label = get_node_or_null("Margin/VBox/TopRow/RunSummaryCard/StatsStack/StatusRows/XpRow/XpLabel") as Label
-	if run_state != null:
-		var level_up_threshold: int = _presenter.get_level_up_threshold(run_state)
-		if xp_progress_bar != null:
-			xp_progress_bar.max_value = float(level_up_threshold)
-			xp_progress_bar.value = float(run_state.xp)
-		if xp_label != null:
-			xp_label.text = "XP %d/%d" % [run_state.xp, level_up_threshold]
-
+	var focus_model: Dictionary = _presenter.build_focus_panel_model(run_state, _resolve_focused_node_id(run_state))
 	var current_anchor_label: Label = get_node_or_null("Margin/VBox/BottomRow/CurrentAnchorCard/VBox/CurrentAnchorLabel") as Label
 	if current_anchor_label != null:
-		current_anchor_label.text = _presenter.build_current_anchor_text(run_state)
+		current_anchor_label.text = String(focus_model.get("title_text", ""))
 
 	var current_anchor_detail_label: Label = get_node_or_null("Margin/VBox/BottomRow/CurrentAnchorCard/VBox/CurrentAnchorDetailLabel") as Label
 	if current_anchor_detail_label != null:
-		current_anchor_detail_label.text = _presenter.build_current_anchor_detail_text(run_state)
+		current_anchor_detail_label.text = String(focus_model.get("detail_text", ""))
+
+	var current_anchor_hint_label: Label = get_node_or_null("Margin/VBox/BottomRow/CurrentAnchorCard/VBox/CurrentAnchorHintLabel") as Label
+	if current_anchor_hint_label != null:
+		current_anchor_hint_label.text = String(focus_model.get("hint_text", ""))
+		current_anchor_hint_label.visible = not current_anchor_hint_label.text.is_empty()
 
 	for index in range(ROUTE_BUTTON_NODE_NAMES.size()):
-		var route_button: Button = get_node_or_null("Margin/VBox/RouteGrid/%s" % ROUTE_BUTTON_NODE_NAMES[index]) as Button
+		var route_button: Button = get_node_or_null("%s/%s" % [ROUTE_GRID_PATH, ROUTE_BUTTON_NODE_NAMES[index]]) as Button
 		if route_button == null:
 			continue
 		var model: Dictionary = _route_models_cache[index]
@@ -357,8 +398,9 @@ func _refresh_ui() -> void:
 		_update_route_marker_view(index, model)
 
 	var status_label: Label = get_node_or_null("Margin/VBox/BottomRow/StatusCard/StatusLabel") as Label
+	var has_status_history: bool = not _status_lines.is_empty()
 	if status_label != null:
-		status_label.text = _presenter.build_status_log_text(_status_lines, run_state)
+		status_label.text = _presenter.build_status_log_text(_status_lines, run_state) if has_status_history else ""
 		status_label.visible = not status_label.text.is_empty()
 	var status_card: Control = get_node_or_null("Margin/VBox/BottomRow/StatusCard") as Control
 	if status_card != null and status_label != null:
@@ -374,25 +416,11 @@ func _refresh_ui() -> void:
 	_update_current_marker_view(run_state)
 	_refresh_route_roads()
 	if not _route_selection_in_flight:
-		_sync_walker_to_current_marker()
+		_sync_walker_visual_state()
 
 	_is_refreshing_ui = false
 	if _refresh_ui_pending:
 		call_deferred("_consume_pending_refresh_ui")
-
-
-func _remove_hp_from_run_status_text(raw_status_text: String) -> String:
-	var status_parts: PackedStringArray = raw_status_text.split(" | ", false)
-	if status_parts.is_empty():
-		return ""
-	var filtered_status_parts: PackedStringArray = []
-	for status_part in status_parts:
-		if status_part.begins_with("HP ") or status_part.begins_with("Hunger "):
-			continue
-		filtered_status_parts.append(status_part)
-	if filtered_status_parts.is_empty():
-		return ""
-	return " | ".join(filtered_status_parts)
 
 
 func _append_status_line(line: String) -> void:
@@ -402,103 +430,147 @@ func _append_status_line(line: String) -> void:
 
 
 func _refresh_inventory_cards(run_state: RunState) -> void:
-	var container: Container = get_node_or_null("Margin/VBox/InventorySection/InventoryCard/InventoryCardsFlow") as Container
-	if container == null or _inventory_presenter == null:
+	var equipment_container: Container = get_node_or_null("Margin/VBox/InventorySection/EquipmentCard/EquipmentCardsFlow") as Container
+	var backpack_container: Container = get_node_or_null("Margin/VBox/InventorySection/InventoryCard/InventoryCardsFlow") as Container
+	if _inventory_presenter == null or equipment_container == null or backpack_container == null:
 		return
 
 	_hide_inventory_tooltip(true)
+	if _inventory_card_handler != null:
+		_inventory_card_handler.stop_interaction()
+	var equipment_title_label: Label = get_node_or_null("Margin/VBox/InventorySection/EquipmentTitleLabel") as Label
+	if equipment_title_label != null:
+		equipment_title_label.text = _inventory_presenter.build_equipment_title_text()
+	var equipment_hint_label: Label = get_node_or_null("Margin/VBox/InventorySection/EquipmentHintLabel") as Label
+	if equipment_hint_label != null:
+		equipment_hint_label.text = _inventory_presenter.build_equipment_hint_text(false)
+		equipment_hint_label.visible = not equipment_hint_label.text.is_empty()
 	var inventory_title_label: Label = get_node_or_null("Margin/VBox/InventorySection/InventoryTitleLabel") as Label
 	if inventory_title_label != null:
 		inventory_title_label.text = _inventory_presenter.build_inventory_title_text(run_state.inventory_state if run_state != null else null)
 	var inventory_hint_label: Label = get_node_or_null("Margin/VBox/InventorySection/InventoryHintLabel") as Label
 	if inventory_hint_label != null:
-		inventory_hint_label.text = _inventory_presenter.build_run_inventory_hint_text()
-	var card_models: Array[Dictionary] = _inventory_presenter.build_run_inventory_cards(run_state)
-	for index in range(card_models.size()):
-		var card_model: Dictionary = card_models[index]
+		var pressure_text: String = _presenter.build_inventory_pressure_text(run_state)
+		inventory_hint_label.text = pressure_text if not pressure_text.is_empty() else _inventory_presenter.build_run_inventory_hint_text()
+		inventory_hint_label.visible = not inventory_hint_label.text.is_empty() and get_viewport_rect().size.y >= 2000.0
+	var equipment_card_models: Array[Dictionary] = _inventory_presenter.build_run_equipment_cards(run_state)
+	for index in range(equipment_card_models.size()):
+		var card_model: Dictionary = equipment_card_models[index]
 		var is_clickable: bool = _inventory_card_is_clickable(card_model)
 		var is_draggable: bool = _inventory_card_is_draggable(card_model)
 		card_model["is_clickable"] = is_clickable
 		card_model["is_draggable"] = is_draggable
-		card_models[index] = _inventory_presenter.decorate_card_interaction_state(
+		equipment_card_models[index] = _inventory_presenter.decorate_card_interaction_state(
 			card_model,
 			false,
 			is_clickable,
 			false,
 			is_draggable
 		)
-	var cards: Array[PanelContainer] = InventoryCardFactoryScript.rebuild_cards(container, card_models)
-	for index in range(min(cards.size(), card_models.size())):
-		_connect_inventory_card_interactions(cards[index], card_models[index])
-
-
-func _connect_inventory_card_interactions(card: PanelContainer, card_model: Dictionary) -> void:
-	if card == null:
-		return
-
-	var accent: Color = Color(card_model.get("accent_color", TempScreenThemeScript.PANEL_BORDER_COLOR))
-	var entered_handler := Callable(self, "_on_inventory_card_mouse_entered").bind(card, accent)
-	var exited_handler := Callable(self, "_on_inventory_card_mouse_exited").bind(card)
-	var input_handler := Callable(self, "_on_inventory_card_gui_input").bind(card)
-	
-	if not card.is_connected("mouse_entered", entered_handler):
-		card.connect("mouse_entered", entered_handler)
-	if not card.is_connected("mouse_exited", exited_handler):
-		card.connect("mouse_exited", exited_handler)
-	if not card.is_connected("gui_input", input_handler):
-		card.connect("gui_input", input_handler)
-		# Verify card can receive input
-		if card.mouse_filter != Control.MOUSE_FILTER_STOP:
-			card.mouse_filter = Control.MOUSE_FILTER_STOP
+	var backpack_card_models: Array[Dictionary] = _inventory_presenter.build_run_inventory_cards(run_state)
+	for index in range(backpack_card_models.size()):
+		var card_model: Dictionary = backpack_card_models[index]
+		var is_clickable: bool = _inventory_card_is_clickable(card_model)
+		var is_draggable: bool = _inventory_card_is_draggable(card_model)
+		card_model["is_clickable"] = is_clickable
+		card_model["is_draggable"] = is_draggable
+		backpack_card_models[index] = _inventory_presenter.decorate_card_interaction_state(
+			card_model,
+			false,
+			is_clickable,
+			false,
+			is_draggable
+		)
+	var equipment_signature: String = _inventory_card_models_signature(equipment_card_models)
+	var backpack_signature: String = _inventory_card_models_signature(backpack_card_models)
+	if _inventory_card_handler != null:
+		if equipment_signature != _equipment_cards_signature:
+			_inventory_card_handler.rebuild_cards(equipment_container, equipment_card_models)
+			_equipment_cards_signature = equipment_signature
+		if backpack_signature != _backpack_cards_signature:
+			_inventory_card_handler.rebuild_cards(backpack_container, backpack_card_models)
+			_backpack_cards_signature = backpack_signature
+	_apply_map_inventory_card_density(equipment_container)
+	_apply_map_inventory_card_density(backpack_container)
 
 
 func _inventory_card_is_clickable(card_model: Dictionary) -> bool:
 	var card_family: String = String(card_model.get("card_family", ""))
-	return card_family in ["weapon", "armor", "belt", "consumable"]
+	return card_family in ["weapon", "shield", "armor", "belt", "consumable", "shield_attachment"]
 
 
 func _inventory_card_is_draggable(card_model: Dictionary) -> bool:
-	return String(card_model.get("card_family", "")) != "empty"
+	return String(card_model.get("card_family", "")) != "empty" and int(card_model.get("inventory_slot_index", -1)) >= 0
 
-
-func _on_inventory_card_gui_input(event: InputEvent, card: PanelContainer) -> void:
-	if event == null or card == null:
+func _apply_map_inventory_card_density(container: Container) -> void:
+	if container == null:
 		return
-	if not (event is InputEventMouseButton):
-		return
-	var mouse_event: InputEventMouseButton = event as InputEventMouseButton
-	if mouse_event.button_index != MOUSE_BUTTON_LEFT:
-		return
-	if mouse_event.pressed:
-		_pressed_inventory_card = card
-		_pressed_inventory_slot_id = int(card.get_meta("inventory_slot_id", -1))
-		_pressed_inventory_slot_index = int(card.get_meta("inventory_slot_index", -1))
-		_pressed_inventory_family = String(card.get_meta("card_family", ""))
-		_pressed_inventory_position = mouse_event.position + card.get_global_rect().position
-		_inventory_drag_active = false
-	else:
-		# Mouse button released
-		if _inventory_drag_active:
-			_complete_inventory_card_drag()
-		else:
-			_handle_inventory_card_click(_pressed_inventory_slot_id, _pressed_inventory_family)
-		_stop_inventory_card_interaction()
+	var viewport_height: float = get_viewport_rect().size.y
+	var compact_viewport: bool = viewport_height < 1560.0
+	var very_compact_viewport: bool = viewport_height < 1360.0
+	for child in container.get_children():
+		var card: PanelContainer = child as PanelContainer
+		if card == null:
+			continue
+		card.custom_minimum_size = Vector2(
+			102.0 if very_compact_viewport else 112.0 if compact_viewport else 126.0,
+			116.0 if very_compact_viewport else 126.0 if compact_viewport else 142.0
+		)
+		var slot_label: Label = card.get_node_or_null("VBox/HeaderRow/SlotLabel") as Label
+		if slot_label != null:
+			slot_label.add_theme_font_size_override("font_size", 11 if very_compact_viewport else 12)
+		var count_label: Label = card.get_node_or_null("VBox/HeaderRow/CountLabel") as Label
+		if count_label != null:
+			count_label.add_theme_font_size_override("font_size", 12 if very_compact_viewport else 13)
+		var icon_rect: TextureRect = card.get_node_or_null("VBox/IconRect") as TextureRect
+		if icon_rect != null:
+			icon_rect.custom_minimum_size = Vector2(34.0, 34.0) if very_compact_viewport else Vector2(38.0, 38.0) if compact_viewport else Vector2(42.0, 42.0)
+		var placeholder_label: Label = card.get_node_or_null("VBox/PlaceholderLabel") as Label
+		if placeholder_label != null:
+			placeholder_label.add_theme_font_size_override("font_size", 20 if very_compact_viewport else 22 if compact_viewport else 24)
+		var title_label: Label = card.get_node_or_null("VBox/TitleLabel") as Label
+		if title_label != null:
+			title_label.add_theme_font_size_override("font_size", 14 if very_compact_viewport else 15 if compact_viewport else 16)
+		var detail_label: Label = card.get_node_or_null("VBox/DetailLabel") as Label
+		if detail_label != null:
+			detail_label.add_theme_font_size_override("font_size", 11 if very_compact_viewport else 12 if compact_viewport else 13)
+		var action_hint_label: Label = card.get_node_or_null("VBox/ActionHintLabel") as Label
+		if action_hint_label != null:
+			action_hint_label.add_theme_font_size_override("font_size", 10 if very_compact_viewport else 11 if compact_viewport else 12)
 
 
-func _handle_inventory_card_click(slot_id: int, card_family: String) -> void:
+func _inventory_card_models_signature(card_models: Array[Dictionary]) -> String:
+	var parts := PackedStringArray()
+	for card_model in card_models:
+		parts.append("%s|%s|%s|%s|%s|%d|%d|%s|%s|%s|%s|%s" % [
+			str(card_model.get("card_name", "")),
+			str(card_model.get("card_family", "")),
+			str(card_model.get("slot_label", "")),
+			str(card_model.get("title_text", "")),
+			str(card_model.get("detail_text", "")),
+			int(card_model.get("inventory_slot_id", -1)),
+			int(card_model.get("inventory_slot_index", -1)),
+			str(card_model.get("count_text", "")),
+			str(card_model.get("action_hint_text", "")),
+			str(card_model.get("action_hint_tone", "")),
+			str(card_model.get("accent_color", "")),
+			str(card_model.get("is_equipped", false)),
+		])
+	return "\n".join(parts)
+
+
+func _handle_inventory_card_click(_slot_index: int, slot_id: int, card_family: String) -> void:
 	var bootstrap = _get_app_bootstrap()
 	if bootstrap == null:
 		return
 
 	match card_family:
-		"weapon", "armor", "belt":
+		"weapon", "shield", "armor", "belt", "shield_attachment":
 			var toggle_result: Dictionary = bootstrap.toggle_inventory_equipment(slot_id)
 			if not bool(toggle_result.get("ok", false)):
 				_append_status_line(_build_inventory_failure_text(toggle_result))
 			else:
-				var definition_name: String = _build_inventory_result_name(toggle_result)
-				var action_label: String = "Equipped" if bool(toggle_result.get("equipped", false)) else "Unequipped"
-				_append_status_line("%s %s." % [action_label, definition_name])
+				_append_status_line(_build_inventory_toggle_result_text(toggle_result))
 		"consumable":
 			var use_result: Dictionary = bootstrap.use_inventory_consumable(slot_id)
 			if not bool(use_result.get("ok", false)):
@@ -511,48 +583,19 @@ func _handle_inventory_card_click(slot_id: int, card_family: String) -> void:
 	_refresh_ui()
 
 
-func _complete_inventory_card_drag() -> void:
-	if _pressed_inventory_card == null:
-		return
-	var viewport: Viewport = get_viewport()
-	if viewport == null:
-		return
-	var hovered_control: Control = viewport.gui_get_hovered_control()
-	var target_card: PanelContainer = _find_inventory_card_from_control(hovered_control)
-	if target_card == null:
-		return
+func _on_inventory_card_drag_started() -> void:
+	_hide_inventory_tooltip(true)
 
-	var target_index: int = int(target_card.get_meta("inventory_slot_index", -1))
-	if _pressed_inventory_slot_id <= 0 or target_index < 0:
-		return
+
+func _handle_inventory_card_drag_completed(slot_id: int, target_index: int) -> void:
 	var bootstrap = _get_app_bootstrap()
 	if bootstrap == null:
 		return
-	var move_result: Dictionary = bootstrap.move_inventory_slot(_pressed_inventory_slot_id, target_index)
+	var move_result: Dictionary = bootstrap.move_inventory_slot(slot_id, target_index)
 	if not bool(move_result.get("ok", false)):
 		_append_status_line(_build_inventory_failure_text(move_result))
 		return
 	_refresh_ui()
-
-
-func _find_inventory_card_from_control(control: Control) -> PanelContainer:
-	var cursor: Node = control
-	while cursor != null:
-		if cursor is PanelContainer and String((cursor as PanelContainer).name).begins_with("InventorySlot"):
-			return cursor as PanelContainer
-		cursor = cursor.get_parent()
-	return null
-
-
-func _stop_inventory_card_interaction() -> void:
-	if _pressed_inventory_card != null and is_instance_valid(_pressed_inventory_card):
-		InventoryCardFactoryScript.set_card_dragging_state(_pressed_inventory_card, false)
-	_pressed_inventory_card = null
-	_pressed_inventory_slot_id = -1
-	_pressed_inventory_slot_index = -1
-	_pressed_inventory_family = ""
-	_pressed_inventory_position = Vector2.ZERO
-	_inventory_drag_active = false
 
 
 func _build_inventory_result_name(result: Dictionary) -> String:
@@ -570,18 +613,38 @@ func _build_consumable_result_text(result: Dictionary) -> String:
 	return "Used %s. +%d HP." % [item_name, healed_amount]
 
 
+func _build_inventory_toggle_result_text(result: Dictionary) -> String:
+	var action_name: String = String(result.get("action", "")).strip_edges()
+	var definition_name: String = _build_inventory_result_name(result)
+	match action_name:
+		"attached_attachment":
+			return "Attached %s to the equipped shield." % definition_name
+		"detached_attachment":
+			return "Detached %s from the equipped shield." % definition_name
+		_:
+			var action_label: String = "Equipped" if bool(result.get("equipped", false)) else "Unequipped"
+			return "%s %s." % [action_label, definition_name]
+
+
 func _build_inventory_failure_text(result: Dictionary) -> String:
 	match String(result.get("error", "")):
 		"no_effect":
 			return "No need to use that item right now."
 		"belt_capacity_required":
-			return "Free 2 inventory space before unequipping that belt."
+			var overflow_slots: int = max(1, int(result.get("required_capacity", 0)) - int(result.get("next_capacity", 0)))
+			return "Free %d backpack slot%s before unequipping that belt." % [overflow_slots, "" if overflow_slots == 1 else "s"]
+		"missing_shield_target":
+			return "Equip a shield in the left hand before attaching that mod."
+		"shield_attachment_slot_occupied":
+			return "That shield already has a mod attached."
+		"missing_shield_attachment":
+			return "That shield has no attached mod to detach."
 		_:
 			return "Inventory action failed."
 
 
 func _get_app_bootstrap():
-	return get_node_or_null("/root/AppBootstrap")
+	return get_node_or_null("/root/AppBootstrap") if is_inside_tree() else null
 
 
 func _get_run_state() -> RunState:
@@ -593,7 +656,7 @@ func _get_run_state() -> RunState:
 
 func _connect_route_buttons() -> void:
 	for button_node_name in ROUTE_BUTTON_NODE_NAMES:
-		var route_button: Button = get_node_or_null("Margin/VBox/RouteGrid/%s" % button_node_name) as Button
+		var route_button: Button = get_node_or_null("%s/%s" % [ROUTE_GRID_PATH, button_node_name]) as Button
 		if route_button == null:
 			continue
 		var handler: Callable = Callable(self, "_on_route_button_pressed").bind(button_node_name)
@@ -654,13 +717,8 @@ func _refresh_route_visual_state() -> void:
 
 
 func _apply_static_map_textures() -> void:
-	_set_texture_rect_texture("Margin/VBox/RouteGrid/BoardBackdrop", MAP_BOARD_BACKDROP_TEXTURE)
-	_set_texture_rect_texture("Margin/VBox/RouteGrid/KeyMarkerCard", null)
-
-
-func _configure_audio_players() -> void:
-	SceneAudioPlayersScript.assign_stream_from_path(self, "NodeSelectSfxPlayer", NODE_SELECT_SFX_PATH)
-	SceneAudioPlayersScript.assign_music_stream_from_path(self, "MapMusicPlayer", MAP_MUSIC_LOOP_PATH, true)
+	_set_texture_rect_texture("%s/BoardBackdrop" % ROUTE_GRID_PATH, MAP_BOARD_BACKDROP_TEXTURE)
+	_set_texture_rect_texture("%s/KeyMarkerCard" % ROUTE_GRID_PATH, null)
 
 
 func _animate_route_selection(button_node_name: String, target_node_id: int) -> void:
@@ -673,6 +731,7 @@ func _animate_route_selection(button_node_name: String, target_node_id: int) -> 
 	_refresh_route_roads()
 	_sync_walker_to_current_marker()
 
+	var current_node_id: int = int(_board_composition_cache.get("current_node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
 	var start_center: Vector2 = _get_current_marker_center()
 	var target_center: Vector2 = _get_route_marker_center(route_index)
 	if start_center == Vector2.ZERO or target_center == Vector2.ZERO:
@@ -682,28 +741,34 @@ func _animate_route_selection(button_node_name: String, target_node_id: int) -> 
 		return
 
 	_set_walker_facing(target_center.x >= start_center.x)
-	_start_walker_walk_cycle()
-	_walker_root.visible = true
 
 	var target_world_position: Vector2 = _get_node_world_position(target_node_id)
 	var target_offset: Vector2 = _desired_focus_offset_for_world_position(target_world_position)
-	await _animate_route_move_camera_follow(start_center, target_center, target_offset)
+	await _animate_route_move_camera_follow(
+		start_center,
+		target_center,
+		target_offset,
+		current_node_id,
+		target_node_id
+	)
 
 	_stop_walker_walk_cycle()
 	_set_walker_texture(MAP_WALKER_IDLE_TEXTURE)
+	_reset_walker_stride_visuals()
 	if is_inside_tree():
-		await get_tree().create_timer(0.12).timeout
+		await get_tree().create_timer(WALKER_ARRIVAL_PAUSE).timeout
 
-	_active_route_index = -1
-	_refresh_route_roads()
 	_move_to_node(target_node_id)
+	if not _has_pending_roadside_visual_state():
+		_active_route_index = -1
+	_refresh_route_roads()
 
 	if is_inside_tree() and get_tree().current_scene == self:
-		_sync_walker_to_current_marker()
+		_sync_walker_visual_state()
 
 
 func _ensure_runtime_board_nodes() -> void:
-	var route_grid: Control = get_node_or_null("Margin/VBox/RouteGrid") as Control
+	var route_grid: Control = get_node_or_null(ROUTE_GRID_PATH) as Control
 	if route_grid == null:
 		return
 	var setup_result: Dictionary = MapExploreSceneUiScript.ensure_runtime_board_nodes(
@@ -731,7 +796,7 @@ func _update_route_marker_view(index: int, model: Dictionary) -> void:
 	if index < 0 or index >= ROUTE_MARKER_NODE_NAMES.size():
 		return
 
-	var marker_rect: TextureRect = get_node_or_null("Margin/VBox/RouteGrid/%s" % ROUTE_MARKER_NODE_NAMES[index]) as TextureRect
+	var marker_rect: TextureRect = get_node_or_null("%s/%s" % [ROUTE_GRID_PATH, ROUTE_MARKER_NODE_NAMES[index]]) as TextureRect
 	if marker_rect == null:
 		return
 
@@ -791,7 +856,7 @@ func _apply_marker_visual_state(marker_rect: TextureRect, icon_texture_path: Str
 	if icon_rect != null:
 		icon_rect.position = (marker_rect.size - NODE_ICON_SIZE) * 0.5
 		icon_rect.size = NODE_ICON_SIZE
-		icon_rect.texture = _load_texture_or_null(icon_texture_path)
+		icon_rect.texture = SceneLayoutHelperScript.load_texture_or_null(icon_texture_path)
 		icon_rect.visible = icon_rect.texture != null and state_semantic != "current"
 		icon_rect.modulate = MapBoardStyleScript.icon_modulate_for_semantic(node_family, state_semantic, is_disabled, is_preview_node)
 
@@ -858,16 +923,23 @@ func _refresh_route_board_offset() -> void:
 
 
 func _layout_route_grid() -> void:
-	var route_grid: Control = get_node_or_null("Margin/VBox/RouteGrid") as Control
+	var route_grid: Control = get_node_or_null(ROUTE_GRID_PATH) as Control
 	if route_grid == null:
 		return
 
+	var board_frame: PanelContainer = route_grid.get_node_or_null("BoardFrame") as PanelContainer
+	if board_frame != null:
+		board_frame.offset_left = 0.0
+		board_frame.offset_top = 0.0
+		board_frame.offset_right = 0.0
+		board_frame.offset_bottom = 0.0
+
 	var board_backdrop: TextureRect = route_grid.get_node_or_null("BoardBackdrop") as TextureRect
 	if board_backdrop != null:
-		board_backdrop.offset_left = 4.0
-		board_backdrop.offset_top = 4.0
-		board_backdrop.offset_right = -4.0
-		board_backdrop.offset_bottom = -4.0
+		board_backdrop.offset_left = 14.0
+		board_backdrop.offset_top = 14.0
+		board_backdrop.offset_right = -14.0
+		board_backdrop.offset_bottom = -14.0
 		board_backdrop.modulate = Color(1, 1, 1, 1.0)
 
 	var visible_route_indices: Array[int] = []
@@ -875,7 +947,9 @@ func _layout_route_grid() -> void:
 		if index < _route_models_cache.size() and bool(_route_models_cache[index].get("visible", false)):
 			visible_route_indices.append(index)
 
-	var slot_factors: Array[Vector2] = _route_slot_factors_for_visible_count(visible_route_indices.size())
+	var emergency_slot_factor_by_visible_index: Dictionary = {}
+	if _visible_routes_need_emergency_slot_layout(visible_route_indices):
+		emergency_slot_factor_by_visible_index = _build_emergency_route_slot_factor_map(visible_route_indices)
 
 	for index in range(ROUTE_MARKER_NODE_NAMES.size()):
 		var marker_rect: TextureRect = route_grid.get_node_or_null(ROUTE_MARKER_NODE_NAMES[index]) as TextureRect
@@ -888,7 +962,7 @@ func _layout_route_grid() -> void:
 			route_button.visible = false
 			continue
 		var marker_model: Dictionary = _route_models_cache[index]
-		var marker_position: Vector2 = _marker_position_for_route_model(marker_model, visible_slot_index, slot_factors, route_grid.size)
+		var marker_position: Vector2 = _marker_position_for_route_model(marker_model, visible_slot_index, emergency_slot_factor_by_visible_index, route_grid.size)
 		marker_rect.size = ROUTE_MARKER_SIZE
 		marker_rect.position = marker_position
 		route_button.size = ROUTE_HITBOX_SIZE
@@ -905,44 +979,54 @@ func _layout_route_grid() -> void:
 	_layout_auxiliary_board_cards(route_grid)
 
 
-func _route_slot_factors_for_visible_count(visible_count: int) -> Array[Vector2]:
+func _visible_routes_need_emergency_slot_layout(visible_route_indices: Array[int]) -> bool:
+	for visible_route_index in visible_route_indices:
+		if visible_route_index < 0 or visible_route_index >= _route_models_cache.size():
+			continue
+		var node_id: int = int(_route_models_cache[visible_route_index].get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
+		if _get_node_world_position(node_id) == Vector2.ZERO:
+			return true
+	return false
+
+
+func _build_emergency_route_slot_factors(visible_count: int) -> Array[Vector2]:
 	match visible_count:
 		0:
 			return []
 		1:
-			return [ROUTE_SLOT_FORWARD]
+			return [EMERGENCY_ROUTE_SLOT_FORWARD]
 		2:
-			return [ROUTE_SLOT_TOP_LEFT, ROUTE_SLOT_TOP_RIGHT]
+			return [EMERGENCY_ROUTE_SLOT_TOP_LEFT, EMERGENCY_ROUTE_SLOT_TOP_RIGHT]
 		3:
-			return [ROUTE_SLOT_FORWARD, ROUTE_SLOT_TOP_LEFT, ROUTE_SLOT_TOP_RIGHT]
+			return [EMERGENCY_ROUTE_SLOT_FORWARD, EMERGENCY_ROUTE_SLOT_TOP_LEFT, EMERGENCY_ROUTE_SLOT_TOP_RIGHT]
 		4:
-			return [ROUTE_SLOT_FORWARD, ROUTE_SLOT_TOP_LEFT, ROUTE_SLOT_TOP_RIGHT, ROUTE_SLOT_LOWER_MID]
+			return [EMERGENCY_ROUTE_SLOT_FORWARD, EMERGENCY_ROUTE_SLOT_TOP_LEFT, EMERGENCY_ROUTE_SLOT_TOP_RIGHT, EMERGENCY_ROUTE_SLOT_LOWER_MID]
 		5:
-			return [ROUTE_SLOT_FORWARD, ROUTE_SLOT_TOP_LEFT, ROUTE_SLOT_TOP_RIGHT, ROUTE_SLOT_BOTTOM_LEFT, ROUTE_SLOT_BOTTOM_RIGHT]
+			return [EMERGENCY_ROUTE_SLOT_FORWARD, EMERGENCY_ROUTE_SLOT_TOP_LEFT, EMERGENCY_ROUTE_SLOT_TOP_RIGHT, EMERGENCY_ROUTE_SLOT_BOTTOM_LEFT, EMERGENCY_ROUTE_SLOT_BOTTOM_RIGHT]
 		_:
-			return [ROUTE_SLOT_FORWARD, ROUTE_SLOT_TOP_LEFT, ROUTE_SLOT_TOP_RIGHT, ROUTE_SLOT_BOTTOM_LEFT, ROUTE_SLOT_BOTTOM_RIGHT, ROUTE_SLOT_LOWER_MID]
+			return [EMERGENCY_ROUTE_SLOT_FORWARD, EMERGENCY_ROUTE_SLOT_TOP_LEFT, EMERGENCY_ROUTE_SLOT_TOP_RIGHT, EMERGENCY_ROUTE_SLOT_BOTTOM_LEFT, EMERGENCY_ROUTE_SLOT_BOTTOM_RIGHT, EMERGENCY_ROUTE_SLOT_LOWER_MID]
 
 
-func _should_hold_map_after_move(run_state: RunState) -> bool:
-	if run_state == null:
-		return false
-	return String(run_state.map_runtime_state.get_current_node_family()) == "start"
+func _build_emergency_route_slot_factor_map(visible_route_indices: Array[int]) -> Dictionary:
+	var missing_visible_slot_indices: Array[int] = []
+	for visible_slot_index in range(visible_route_indices.size()):
+		var route_index: int = visible_route_indices[visible_slot_index]
+		if route_index < 0 or route_index >= _route_models_cache.size():
+			continue
+		var node_id: int = int(_route_models_cache[route_index].get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
+		if _get_node_world_position(node_id) != Vector2.ZERO:
+			continue
+		missing_visible_slot_indices.append(visible_slot_index)
 
-
-func _clamp_route_layout_offset(desired_offset: Vector2) -> Vector2:
-	var route_grid: Control = get_node_or_null("Margin/VBox/RouteGrid") as Control
-	if route_grid == null:
-		return desired_offset
-	var max_offset_x: float = route_grid.size.x * BOARD_MAX_OFFSET_FACTOR.x
-	var max_offset_y: float = route_grid.size.y * BOARD_MAX_OFFSET_FACTOR.y
-	return Vector2(
-		clamp(desired_offset.x, -max_offset_x, max_offset_x),
-		clamp(desired_offset.y, -max_offset_y, max_offset_y)
-	)
+	var slot_factors: Array[Vector2] = _build_emergency_route_slot_factors(missing_visible_slot_indices.size())
+	var slot_factor_by_visible_index: Dictionary = {}
+	for factor_index in range(min(missing_visible_slot_indices.size(), slot_factors.size())):
+		slot_factor_by_visible_index[missing_visible_slot_indices[factor_index]] = slot_factors[factor_index]
+	return slot_factor_by_visible_index
 
 
 func _build_board_composition(run_state: RunState) -> Dictionary:
-	var route_grid: Control = get_node_or_null("Margin/VBox/RouteGrid") as Control
+	var route_grid: Control = get_node_or_null(ROUTE_GRID_PATH) as Control
 	if route_grid == null or _board_composer == null:
 		return {}
 	return _board_composer.call(
@@ -956,17 +1040,17 @@ func _build_board_composition(run_state: RunState) -> Dictionary:
 
 func _marker_position_for_route_model(
 	model: Dictionary,
-	visible_slot_index: int,
-	slot_factors: Array[Vector2],
+	emergency_slot_index: int,
+	emergency_slot_factor_by_visible_index: Dictionary,
 	board_size: Vector2
 ) -> Vector2:
 	var node_id: int = int(model.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
 	var world_position: Vector2 = _get_node_world_position(node_id)
 	if world_position != Vector2.ZERO:
 		return world_position + _route_layout_offset - (ROUTE_MARKER_SIZE * 0.5)
-	if visible_slot_index >= 0 and visible_slot_index < slot_factors.size():
-		return board_size * slot_factors[visible_slot_index] - (ROUTE_MARKER_SIZE * 0.5) + _route_layout_offset
-	return board_size * BOARD_FOCUS_ANCHOR_FACTOR - (ROUTE_MARKER_SIZE * 0.5)
+	if emergency_slot_factor_by_visible_index.has(emergency_slot_index):
+		return _emergency_route_marker_position(board_size, Vector2(emergency_slot_factor_by_visible_index.get(emergency_slot_index, BOARD_FOCUS_ANCHOR_FACTOR)))
+	return _emergency_board_anchor_marker_position(board_size)
 
 
 func _get_node_world_position(node_id: int) -> Vector2:
@@ -976,17 +1060,36 @@ func _get_node_world_position(node_id: int) -> Vector2:
 	return world_positions.get(node_id, Vector2.ZERO)
 
 
+func _emergency_route_marker_position(board_size: Vector2, slot_factor: Vector2) -> Vector2:
+	# Composer world positions are authoritative for board layout; fixed slots remain only as a narrow safety fallback.
+	return board_size * slot_factor - (ROUTE_MARKER_SIZE * 0.5) + _route_layout_offset
+
+
+func _emergency_board_anchor_marker_position(board_size: Vector2) -> Vector2:
+	return board_size * BOARD_FOCUS_ANCHOR_FACTOR - (ROUTE_MARKER_SIZE * 0.5)
+
+
 func _desired_focus_offset_for_world_position(world_position: Vector2) -> Vector2:
-	var route_grid: Control = get_node_or_null("Margin/VBox/RouteGrid") as Control
-	if route_grid == null or world_position == Vector2.ZERO:
-		return _route_layout_offset
-	return _clamp_route_layout_offset(route_grid.size * BOARD_FOCUS_ANCHOR_FACTOR - world_position)
+	var route_grid: Control = get_node_or_null(ROUTE_GRID_PATH) as Control
+	var context_world_position: Vector2 = MapFocusHelperScript.focus_context_world_position(_board_composition_cache, world_position)
+	var context_blend: float = MapFocusHelperScript.context_blend_for_positions(route_grid, world_position, context_world_position, BOARD_FOCUS_CONTEXT_BLEND_MIN, BOARD_FOCUS_CONTEXT_BLEND_MAX)
+	return MapFocusHelperScript.desired_focus_offset(route_grid, _route_layout_offset, world_position, BOARD_FOCUS_ANCHOR_FACTOR, BOARD_MAX_OFFSET_FACTOR, BOARD_FOCUS_DEADZONE_FACTOR, BOARD_FOCUS_DAMPING, context_world_position, context_blend)
 
 
 func _active_target_node_id() -> int:
 	if _active_route_index < 0 or _active_route_index >= _route_models_cache.size():
 		return MapRuntimeStateScript.NO_PENDING_NODE_ID
 	return int(_route_models_cache[_active_route_index].get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
+
+
+func _resolve_focused_node_id(run_state: RunState) -> int:
+	if _active_route_index >= 0 and _active_route_index < _route_models_cache.size():
+		return int(_route_models_cache[_active_route_index].get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
+	if _hovered_route_index >= 0 and _hovered_route_index < _route_models_cache.size():
+		return int(_route_models_cache[_hovered_route_index].get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
+	if run_state == null or run_state.map_runtime_state == null:
+		return MapRuntimeStateScript.NO_PENDING_NODE_ID
+	return int(run_state.map_runtime_state.current_node_id)
 
 
 func _hovered_target_node_id() -> int:
@@ -1012,13 +1115,39 @@ func _layout_auxiliary_board_cards(route_grid: Control) -> void:
 			key_icon.modulate = Color(1, 1, 1, 0.96)
 
 
+func _sync_walker_visual_state() -> void:
+	if _has_pending_roadside_visual_state():
+		_sync_walker_to_pending_roadside_visual()
+		return
+	_sync_walker_to_current_marker()
+
+
 func _sync_walker_to_current_marker() -> void:
 	if _walker_root == null or _current_marker == null or not _current_marker.visible:
 		return
 	_set_walker_texture(MAP_WALKER_IDLE_TEXTURE)
-	_set_walker_facing(true)
+	_set_walker_facing(_walker_facing_right)
+	_reset_walker_stride_visuals()
 	_walker_root.visible = true
 	_walker_root.position = _position_for_walker_center(_get_current_marker_center())
+
+
+func _sync_walker_to_pending_roadside_visual() -> void:
+	if _walker_root == null:
+		return
+	var sample: Dictionary = _build_pending_roadside_visual_sample()
+	if sample.is_empty():
+		_sync_walker_to_current_marker()
+		return
+	_set_walker_texture(MAP_WALKER_IDLE_TEXTURE)
+	var direction: Vector2 = Vector2(sample.get("direction", Vector2.RIGHT))
+	if direction.length_squared() > 0.001 and absf(direction.x) >= 0.08:
+		_set_walker_facing(direction.x >= 0.0)
+	_reset_walker_stride_visuals()
+	_walker_root.visible = true
+	var offset: Vector2 = Vector2(sample.get("offset", _route_layout_offset))
+	var point: Vector2 = Vector2(sample.get("point", Vector2.ZERO))
+	_walker_root.position = _position_for_walker_center(point + offset)
 
 
 func _position_for_walker_center(center: Vector2) -> Vector2:
@@ -1026,6 +1155,7 @@ func _position_for_walker_center(center: Vector2) -> Vector2:
 
 
 func _set_walker_facing(facing_right: bool) -> void:
+	_walker_facing_right = facing_right
 	if _walker_sprite != null:
 		_walker_sprite.scale = Vector2(1, 1) if facing_right else Vector2(-1, 1)
 
@@ -1045,29 +1175,96 @@ func _run_walker_cycle(token: int) -> void:
 	while token == _walker_cycle_token and is_inside_tree():
 		_set_walker_texture(MAP_WALKER_WALK_A_TEXTURE if frame_index % 2 == 0 else MAP_WALKER_WALK_B_TEXTURE)
 		frame_index += 1
-		await get_tree().create_timer(0.1).timeout
+		await get_tree().create_timer(_walker_frame_interval).timeout
 
 
 func _stop_walker_walk_cycle() -> void:
 	_walker_cycle_token += 1
 
 
-func _animate_route_move_camera_follow(start_center: Vector2, target_center: Vector2, target_offset: Vector2) -> void:
-	var move_duration: float = _clamp_route_move_duration(start_center.distance_to(target_center))
-	_route_move_start_center = start_center
-	_route_move_target_center = target_center
+func _animate_route_move_camera_follow(
+	start_center: Vector2,
+	target_center: Vector2,
+	target_offset: Vector2,
+	current_node_id: int,
+	target_node_id: int
+) -> void:
+	_route_move_world_path = _build_route_move_world_path(
+		current_node_id,
+		target_node_id,
+		start_center - _route_layout_offset,
+		target_center - _route_layout_offset
+	)
+	_route_move_path_length = _polyline_length(_route_move_world_path)
+	var move_duration: float = _clamp_route_move_duration(_route_move_path_length)
+	_route_move_stride_cycles = _resolve_route_move_stride_cycles(_route_move_path_length)
+	_walker_frame_interval = _resolve_walker_frame_interval(_route_move_path_length, move_duration)
 	_route_move_start_offset = _route_layout_offset
 	_route_move_target_offset = target_offset
+	_route_move_sample_start_progress = 0.0
+	_route_move_sample_end_progress = 1.0
+	if _walker_root != null:
+		_walker_root.visible = true
+		_reset_walker_stride_visuals()
+	_start_walker_walk_cycle()
 
 	var tween: Tween = create_tween()
-	tween.set_ease(Tween.EASE_OUT)
-	tween.set_trans(Tween.TRANS_SINE)
+	tween.set_trans(Tween.TRANS_LINEAR)
+	tween.set_ease(Tween.EASE_IN_OUT)
+	tween.tween_method(Callable(self, "_update_route_move_progress"), 0.0, 1.0, move_duration)
+	await tween.finished
+
+
+func _animate_route_move_camera_follow_segment(
+	current_node_id: int,
+	target_node_id: int,
+	target_offset: Vector2,
+	start_progress: float,
+	end_progress: float
+) -> void:
+	_route_move_world_path = _build_route_move_world_path(
+		current_node_id,
+		target_node_id,
+		_get_node_world_position(current_node_id),
+		_get_node_world_position(target_node_id)
+	)
+	_route_move_path_length = _polyline_length(_route_move_world_path)
+	var segment_start: float = clampf(start_progress, 0.0, 1.0)
+	var segment_end: float = clampf(end_progress, 0.0, 1.0)
+	if _route_move_path_length <= 0.001 or is_equal_approx(segment_start, segment_end):
+		_route_layout_offset = target_offset
+		_layout_route_grid()
+		_refresh_route_board_offset()
+		return
+
+	var segment_length: float = _route_move_path_length * absf(segment_end - segment_start)
+	var move_duration: float = _clamp_route_move_duration(segment_length)
+	_route_move_stride_cycles = _resolve_route_move_stride_cycles(segment_length)
+	_walker_frame_interval = _resolve_walker_frame_interval(segment_length, move_duration)
+	_route_move_start_offset = _route_layout_offset
+	_route_move_target_offset = target_offset
+	_route_move_sample_start_progress = segment_start
+	_route_move_sample_end_progress = segment_end
+	if _walker_root != null:
+		_walker_root.visible = true
+		_reset_walker_stride_visuals()
+	_start_walker_walk_cycle()
+
+	var tween: Tween = create_tween()
+	tween.set_trans(Tween.TRANS_LINEAR)
+	tween.set_ease(Tween.EASE_IN_OUT)
 	tween.tween_method(Callable(self, "_update_route_move_progress"), 0.0, 1.0, move_duration)
 	await tween.finished
 
 
 func _update_route_move_progress(progress: float) -> void:
-	var current_offset: Vector2 = _route_move_start_offset.lerp(_route_move_target_offset, progress)
+	var travel_progress: float = lerpf(
+		_route_move_sample_start_progress,
+		_route_move_sample_end_progress,
+		_ease_in_out_sine(progress)
+	)
+	var camera_progress: float = _route_camera_follow_progress(progress)
+	var current_offset: Vector2 = _route_move_start_offset.lerp(_route_move_target_offset, camera_progress)
 	_route_layout_offset = current_offset
 	_layout_route_grid()
 	_refresh_route_board_offset()
@@ -1075,13 +1272,318 @@ func _update_route_move_progress(progress: float) -> void:
 	if _walker_root == null:
 		return
 
-	var path_center: Vector2 = _route_move_start_center.lerp(_route_move_target_center, progress)
-	var offset_delta: Vector2 = current_offset - _route_move_start_offset
-	_walker_root.position = _position_for_walker_center(path_center + offset_delta)
+	var sample: Dictionary = _sample_route_move_world_state(travel_progress)
+	var world_point: Vector2 = sample.get("point", Vector2.ZERO)
+	var direction: Vector2 = sample.get("direction", Vector2.RIGHT)
+	if direction.length_squared() > 0.001 and absf(direction.x) >= 0.08:
+		_set_walker_facing(direction.x >= 0.0)
+	var stride_offset: Vector2 = _walker_stride_offset(travel_progress)
+	_apply_walker_stride_visuals(stride_offset)
+	_walker_root.position = _position_for_walker_center(world_point + current_offset + stride_offset)
 
 
 func _clamp_route_move_duration(distance: float) -> float:
-	return clamp(distance / 480.0, 0.24, 0.5)
+	if distance <= 0.0:
+		return ROUTE_MOVE_MIN_DURATION
+	return clampf(
+		ROUTE_MOVE_BASE_DURATION + (distance / ROUTE_MOVE_PIXELS_PER_SECOND),
+		ROUTE_MOVE_MIN_DURATION,
+		ROUTE_MOVE_MAX_DURATION
+	)
+
+
+func _route_camera_follow_progress(progress: float) -> float:
+	var delayed_progress: float = clampf(
+		(progress - ROUTE_MOVE_CAMERA_DELAY_RATIO) / max(0.001, 1.0 - ROUTE_MOVE_CAMERA_DELAY_RATIO),
+		0.0,
+		1.0
+	)
+	return _ease_in_out_sine(delayed_progress)
+
+
+func begin_deferred_scene_transition(new_state: int, old_state: int) -> bool:
+	if _roadside_transition_in_flight or not _has_pending_roadside_visual_state():
+		return false
+	if new_state in [FlowStateScript.Type.REWARD, FlowStateScript.Type.COMBAT] and old_state in [FlowStateScript.Type.EVENT, FlowStateScript.Type.LEVEL_UP]:
+		_roadside_transition_in_flight = true
+		call_deferred("_run_roadside_continuation_transition", new_state, old_state)
+		return true
+	if new_state not in [FlowStateScript.Type.EVENT, FlowStateScript.Type.LEVEL_UP]:
+		_clear_pending_roadside_visual_state()
+	return false
+
+
+func _build_route_move_world_path(
+	current_node_id: int,
+	target_node_id: int,
+	fallback_start_world: Vector2,
+	fallback_target_world: Vector2
+) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	var start_world: Vector2 = _get_node_world_position(current_node_id)
+	if start_world == Vector2.ZERO:
+		start_world = fallback_start_world
+	var target_world: Vector2 = _get_node_world_position(target_node_id)
+	if target_world == Vector2.ZERO:
+		target_world = fallback_target_world
+	_append_route_move_world_point(points, start_world)
+
+	var visible_edge_points: PackedVector2Array = _visible_edge_points_for_route(current_node_id, target_node_id)
+	for point in visible_edge_points:
+		_append_route_move_world_point(points, point)
+
+	_append_route_move_world_point(points, target_world)
+	if points.size() >= 2:
+		return points
+	return PackedVector2Array([start_world, target_world])
+
+
+func _build_pending_roadside_visual_sample() -> Dictionary:
+	if not _has_pending_roadside_visual_state():
+		return {}
+	var current_node_id: int = int(_roadside_visual_state.get("current_node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
+	var target_node_id: int = int(_roadside_visual_state.get("target_node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
+	if current_node_id == MapRuntimeStateScript.NO_PENDING_NODE_ID or target_node_id == MapRuntimeStateScript.NO_PENDING_NODE_ID:
+		return {}
+	var start_world: Vector2 = _get_node_world_position(current_node_id)
+	var target_world: Vector2 = _get_node_world_position(target_node_id)
+	var route_path: PackedVector2Array = _build_route_move_world_path(
+		current_node_id,
+		target_node_id,
+		start_world,
+		target_world
+	)
+	var route_length: float = _polyline_length(route_path)
+	if route_length <= 0.001:
+		return {}
+	var progress: float = clampf(float(_roadside_visual_state.get("progress", ROADSIDE_INTERRUPTION_PROGRESS)), 0.0, 1.0)
+	var sample: Dictionary = _sample_polyline_at_distance(route_path, route_length * progress)
+	sample["offset"] = Vector2(_roadside_visual_state.get("offset", _route_layout_offset))
+	return sample
+
+
+func _visible_edge_points_for_route(current_node_id: int, target_node_id: int) -> PackedVector2Array:
+	for edge_variant in _board_composition_cache.get("visible_edges", []):
+		if typeof(edge_variant) != TYPE_DICTIONARY:
+			continue
+		var edge: Dictionary = edge_variant
+		var from_node_id: int = int(edge.get("from_node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
+		var to_node_id: int = int(edge.get("to_node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
+		if from_node_id == current_node_id and to_node_id == target_node_id:
+			return edge.get("points", PackedVector2Array())
+		if from_node_id == target_node_id and to_node_id == current_node_id:
+			var reversed_points := PackedVector2Array()
+			var points: PackedVector2Array = edge.get("points", PackedVector2Array())
+			for index in range(points.size() - 1, -1, -1):
+				reversed_points.append(points[index])
+			return reversed_points
+	return PackedVector2Array()
+
+
+func _append_route_move_world_point(points: PackedVector2Array, point: Vector2) -> void:
+	if point == Vector2.ZERO:
+		return
+	if points.is_empty() or points[points.size() - 1].distance_to(point) > 0.5:
+		points.append(point)
+
+
+func _polyline_length(points: PackedVector2Array) -> float:
+	if points.size() < 2:
+		return 0.0
+	var total_length: float = 0.0
+	for index in range(points.size() - 1):
+		total_length += points[index].distance_to(points[index + 1])
+	return total_length
+
+
+func _sample_route_move_world_state(progress: float) -> Dictionary:
+	if _route_move_world_path.size() < 2:
+		var fallback_point: Vector2 = _route_move_world_path[0] if not _route_move_world_path.is_empty() else Vector2.ZERO
+		return {
+			"point": fallback_point,
+			"direction": Vector2.RIGHT,
+		}
+
+	var travel_distance: float = _route_move_path_length * clampf(progress, 0.0, 1.0)
+	var current_sample: Dictionary = _sample_polyline_at_distance(_route_move_world_path, travel_distance)
+	var lookahead_distance: float = min(
+		_route_move_path_length,
+		travel_distance + max(18.0, _route_move_path_length * 0.05)
+	)
+	var lookahead_sample: Dictionary = _sample_polyline_at_distance(_route_move_world_path, lookahead_distance)
+	var direction: Vector2 = Vector2(lookahead_sample.get("point", Vector2.ZERO)) - Vector2(current_sample.get("point", Vector2.ZERO))
+	if direction.length_squared() <= 0.001:
+		direction = Vector2(current_sample.get("direction", Vector2.RIGHT))
+	return {
+		"point": current_sample.get("point", Vector2.ZERO),
+		"direction": direction.normalized() if direction.length_squared() > 0.001 else Vector2.RIGHT,
+	}
+
+
+func _sample_polyline_at_distance(points: PackedVector2Array, distance: float) -> Dictionary:
+	if points.is_empty():
+		return {
+			"point": Vector2.ZERO,
+			"direction": Vector2.RIGHT,
+		}
+	if points.size() == 1:
+		return {
+			"point": points[0],
+			"direction": Vector2.RIGHT,
+		}
+
+	var remaining_distance: float = max(0.0, distance)
+	for index in range(points.size() - 1):
+		var from_point: Vector2 = points[index]
+		var to_point: Vector2 = points[index + 1]
+		var segment: Vector2 = to_point - from_point
+		var segment_length: float = segment.length()
+		if segment_length <= 0.001:
+			continue
+		if remaining_distance <= segment_length:
+			var segment_progress: float = remaining_distance / segment_length
+			return {
+				"point": from_point.lerp(to_point, segment_progress),
+				"direction": segment / segment_length,
+			}
+		remaining_distance -= segment_length
+
+	var last_segment: Vector2 = points[points.size() - 1] - points[points.size() - 2]
+	return {
+		"point": points[points.size() - 1],
+		"direction": last_segment.normalized() if last_segment.length_squared() > 0.001 else Vector2.RIGHT,
+	}
+
+
+func _prime_roadside_visual_state(current_node_id: int, target_node_id: int) -> void:
+	if current_node_id == MapRuntimeStateScript.NO_PENDING_NODE_ID or target_node_id == MapRuntimeStateScript.NO_PENDING_NODE_ID:
+		_clear_pending_roadside_visual_state()
+		return
+	var target_world_position: Vector2 = _get_node_world_position(target_node_id)
+	var target_offset: Vector2 = _desired_focus_offset_for_world_position(target_world_position)
+	var interruption_offset: Vector2 = _route_layout_offset.lerp(
+		target_offset,
+		_route_camera_follow_progress(ROADSIDE_INTERRUPTION_PROGRESS)
+	)
+	_roadside_visual_state = {
+		"current_node_id": current_node_id,
+		"target_node_id": target_node_id,
+		"progress": ROADSIDE_INTERRUPTION_PROGRESS,
+		"offset": interruption_offset,
+		"target_offset": target_offset,
+	}
+
+
+func _clear_pending_roadside_visual_state() -> void:
+	_roadside_visual_state = {}
+	_roadside_transition_in_flight = false
+	if not _route_selection_in_flight:
+		_active_route_index = -1
+
+
+func _has_pending_roadside_visual_state() -> bool:
+	return not _roadside_visual_state.is_empty() and int(_roadside_visual_state.get("target_node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID)) != MapRuntimeStateScript.NO_PENDING_NODE_ID
+
+
+func _is_roadside_interruption_result(result: Dictionary) -> bool:
+	if int(result.get("target_state", -1)) != FlowStateScript.Type.EVENT:
+		return false
+	var bootstrap = _get_app_bootstrap()
+	if bootstrap == null:
+		return false
+	var active_event_state: EventState = bootstrap.get_event_state()
+	if active_event_state == null or String(active_event_state.source_context) != "roadside_encounter":
+		return false
+	var run_state: RunState = _get_run_state()
+	if run_state == null or run_state.map_runtime_state == null or not run_state.map_runtime_state.has_pending_node():
+		return false
+	return int(run_state.map_runtime_state.current_node_id) != int(result.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
+
+
+func _run_roadside_continuation_transition(target_state: int, old_state: int) -> void:
+	await _play_roadside_continuation_transition(target_state, old_state)
+
+
+func _play_roadside_continuation_transition(target_state: int, old_state: int) -> void:
+	match old_state:
+		FlowStateScript.Type.EVENT:
+			close_event_overlay(false)
+		FlowStateScript.Type.LEVEL_UP:
+			close_level_up_overlay(false)
+	if is_inside_tree():
+		await get_tree().create_timer(ROADSIDE_CONTINUATION_CLOSE_LEAD_IN).timeout
+	await _animate_pending_roadside_continuation()
+	_clear_pending_roadside_visual_state()
+	_refresh_ui()
+	var scene_router: Node = get_node_or_null("/root/SceneRouter")
+	if scene_router != null:
+		scene_router.call_deferred("route_to_state_for_restore", target_state)
+
+
+func _animate_pending_roadside_continuation() -> void:
+	if not _has_pending_roadside_visual_state():
+		return
+	var current_node_id: int = int(_roadside_visual_state.get("current_node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
+	var target_node_id: int = int(_roadside_visual_state.get("target_node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
+	if current_node_id == MapRuntimeStateScript.NO_PENDING_NODE_ID or target_node_id == MapRuntimeStateScript.NO_PENDING_NODE_ID:
+		return
+	var target_offset: Vector2 = Vector2(_roadside_visual_state.get("target_offset", _route_layout_offset))
+	await _animate_route_move_camera_follow_segment(
+		current_node_id,
+		target_node_id,
+		target_offset,
+		float(_roadside_visual_state.get("progress", ROADSIDE_INTERRUPTION_PROGRESS)),
+		1.0
+	)
+	_stop_walker_walk_cycle()
+	_set_walker_texture(MAP_WALKER_IDLE_TEXTURE)
+	_reset_walker_stride_visuals()
+	if is_inside_tree():
+		await get_tree().create_timer(WALKER_ARRIVAL_PAUSE).timeout
+
+
+func _resolve_route_move_stride_cycles(path_length: float) -> float:
+	return clampf(path_length / WALKER_STRIDE_PIXELS_PER_CYCLE, 1.0, 4.25)
+
+
+func _resolve_walker_frame_interval(path_length: float, move_duration: float) -> float:
+	if path_length <= 0.0 or move_duration <= 0.0:
+		return WALKER_FRAME_INTERVAL_MAX
+	var travel_speed: float = path_length / move_duration
+	return clampf(44.0 / max(1.0, travel_speed), WALKER_FRAME_INTERVAL_MIN, WALKER_FRAME_INTERVAL_MAX)
+
+
+func _walker_stride_offset(progress: float) -> Vector2:
+	if _route_move_path_length <= 0.0:
+		return Vector2.ZERO
+	var stride_envelope: float = sin(clampf(progress, 0.0, 1.0) * PI)
+	if stride_envelope <= 0.0:
+		return Vector2.ZERO
+	var bob_wave: float = absf(sin(clampf(progress, 0.0, 1.0) * TAU * _route_move_stride_cycles))
+	var bob_amplitude: float = min(
+		WALKER_STRIDE_BOB_MAX,
+		WALKER_STRIDE_BOB_MAX * clampf(_route_move_path_length / 220.0, 0.45, 1.0)
+	)
+	return Vector2(0.0, -bob_wave * bob_amplitude * stride_envelope)
+
+
+func _apply_walker_stride_visuals(stride_offset: Vector2) -> void:
+	if _walker_shadow == null:
+		return
+	var lift_strength: float = clampf(absf(stride_offset.y) / max(0.001, WALKER_STRIDE_BOB_MAX), 0.0, 1.0)
+	_walker_shadow.scale = Vector2(1.0 - lift_strength * 0.16, 1.0 - lift_strength * 0.22)
+	_walker_shadow.modulate = Color(1, 1, 1, 1.0 - lift_strength * 0.24)
+
+
+func _reset_walker_stride_visuals() -> void:
+	if _walker_shadow != null:
+		_walker_shadow.scale = Vector2.ONE
+		_walker_shadow.modulate = Color.WHITE
+
+
+func _ease_in_out_sine(value: float) -> float:
+	var clamped_value: float = clampf(value, 0.0, 1.0)
+	return 0.5 - (cos(clamped_value * PI) * 0.5)
 
 
 func _get_current_marker_center() -> Vector2:
@@ -1093,7 +1595,7 @@ func _get_current_marker_center() -> Vector2:
 func _get_route_marker_center(index: int) -> Vector2:
 	if index < 0 or index >= ROUTE_MARKER_NODE_NAMES.size():
 		return Vector2.ZERO
-	var marker_rect: TextureRect = get_node_or_null("Margin/VBox/RouteGrid/%s" % ROUTE_MARKER_NODE_NAMES[index]) as TextureRect
+	var marker_rect: TextureRect = get_node_or_null("%s/%s" % [ROUTE_GRID_PATH, ROUTE_MARKER_NODE_NAMES[index]]) as TextureRect
 	if marker_rect == null:
 		return Vector2.ZERO
 	return marker_rect.position + (marker_rect.size * 0.5)
@@ -1110,24 +1612,9 @@ func _apply_texture_rect_asset(node_path: String, asset_path: String) -> void:
 	if texture_rect == null:
 		return
 
-	var texture: Texture2D = _load_texture_or_null(asset_path)
+	var texture: Texture2D = SceneLayoutHelperScript.load_texture_or_null(asset_path)
 	texture_rect.texture = texture
 	texture_rect.visible = texture != null
-
-
-func _load_texture_or_null(asset_path: String) -> Texture2D:
-	if asset_path.is_empty():
-		return null
-
-	if _texture_cache.has(asset_path):
-		return _texture_cache[asset_path] as Texture2D
-
-	var resource: Resource = load(asset_path)
-	if resource is Texture2D:
-		var texture: Texture2D = resource as Texture2D
-		_texture_cache[asset_path] = texture
-		return texture
-	return null
 
 
 func _apply_temp_theme() -> void:
@@ -1135,7 +1622,7 @@ func _apply_temp_theme() -> void:
 
 
 func _style_route_buttons_for_overlay_mode() -> void:
-	var route_grid: Control = get_node_or_null("Margin/VBox/RouteGrid") as Control
+	var route_grid: Control = get_node_or_null(ROUTE_GRID_PATH) as Control
 	MapExploreSceneUiScript.style_route_buttons_for_overlay_mode(route_grid, ROUTE_BUTTON_NODE_NAMES)
 
 
@@ -1148,10 +1635,7 @@ func _on_route_grid_resized() -> void:
 		return
 	_refresh_ui_pending = true
 	call_deferred("_consume_pending_refresh_ui")
-	_position_overlay(_event_overlay)
-	_position_overlay(_support_overlay)
-	_position_overlay(_reward_overlay)
-	_position_overlay(_level_up_overlay)
+	_position_active_overlays()
 
 
 func _consume_pending_refresh_ui() -> void:
@@ -1164,32 +1648,12 @@ func _consume_pending_refresh_ui() -> void:
 	_refresh_ui()
 
 
-func _connect_viewport_layout_updates() -> void:
-	var viewport: Viewport = get_viewport()
-	if viewport == null:
-		return
-	var size_changed_handler := Callable(self, "_on_viewport_size_changed")
-	if not viewport.is_connected("size_changed", size_changed_handler):
-		viewport.connect("size_changed", size_changed_handler)
-
-
-func _disconnect_viewport_layout_updates() -> void:
-	var viewport: Viewport = get_viewport()
-	if viewport == null:
-		return
-	var size_changed_handler := Callable(self, "_on_viewport_size_changed")
-	if viewport.is_connected("size_changed", size_changed_handler):
-		viewport.disconnect("size_changed", size_changed_handler)
-
-
 func _on_viewport_size_changed() -> void:
 	_apply_portrait_safe_layout()
 	call_deferred("_refresh_safe_menu_anchor_layout")
 	_refresh_hovered_inventory_tooltip()
-	_position_overlay(_event_overlay)
-	_position_overlay(_support_overlay)
-	_position_overlay(_reward_overlay)
-	_position_overlay(_level_up_overlay)
+	_position_hunger_warning_toast()
+	_position_active_overlays()
 
 
 func _sync_overlays_with_flow_state() -> void:
@@ -1202,7 +1666,6 @@ func _sync_overlays_with_flow_state() -> void:
 		return
 
 	var current_state: int = flow_manager.get_current_state()
-
 	# Handle event overlay
 	if current_state == FlowStateScript.Type.EVENT:
 		open_event_overlay()
@@ -1228,392 +1691,56 @@ func _sync_overlays_with_flow_state() -> void:
 		close_level_up_overlay(false)
 
 
+func _position_active_overlays() -> void:
+	if _overlay_lifecycle != null:
+		_overlay_lifecycle.position_overlays(OVERLAY_KEYS)
+
+
 func open_event_overlay() -> void:
-	if _event_overlay_tween != null and is_instance_valid(_event_overlay_tween):
-		_event_overlay_tween.kill()
-		_event_overlay_tween = null
-
-	if _event_overlay != null and not is_instance_valid(_event_overlay):
-		_event_overlay = null
-	if _event_overlay != null and _event_overlay.is_queued_for_deletion():
-		_event_overlay = null
-	if _event_overlay == null:
-		var overlay_instance: Node = EventSceneScript.instantiate()
-		if overlay_instance == null:
-			return
-		var overlay_control: Control = overlay_instance as Control
-		if overlay_control == null:
-			push_error("Event overlay must inherit Control.")
-			overlay_instance.queue_free()
-			return
-
-		overlay_control.name = "EventOverlay"
-		overlay_control.top_level = true
-		overlay_control.z_as_relative = false
-		overlay_control.z_index = EVENT_OVERLAY_Z_INDEX
-		overlay_control.visible = false
-		overlay_control.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		overlay_control.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		overlay_control.anchor_right = 1.0
-		overlay_control.anchor_bottom = 1.0
-		overlay_control.grow_horizontal = Control.GROW_DIRECTION_BOTH
-		overlay_control.grow_vertical = Control.GROW_DIRECTION_BOTH
-		add_child(overlay_control)
-		_event_overlay = overlay_control
-
-	if _event_overlay == null or not is_instance_valid(_event_overlay):
-		return
-
-	_event_overlay.visible = true
-	_event_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
-	_tune_event_overlay_visuals(_event_overlay)
-	_event_overlay.modulate = Color(1, 1, 1, 0)
-	_event_overlay.scale = Vector2(EVENT_OVERLAY_OPEN_SCALE, EVENT_OVERLAY_OPEN_SCALE)
-	_position_event_overlay()
-
-	var tween: Tween = create_tween()
-	_event_overlay_tween = tween
-	tween.set_ease(Tween.EASE_OUT)
-	tween.set_trans(EVENT_OVERLAY_TWEEN_TRANSITION)
-	tween.tween_property(_event_overlay, "modulate", Color(1, 1, 1, 1), EVENT_OVERLAY_OPEN_DURATION)
-	tween.parallel().tween_property(_event_overlay, "scale", Vector2.ONE, EVENT_OVERLAY_OPEN_DURATION)
-	tween.finished.connect(func() -> void:
-		if _event_overlay_tween == tween:
-			_event_overlay_tween = null
-	)
+	if _overlay_lifecycle != null:
+		_overlay_lifecycle.open_overlay("event", EventSceneScript, "EventOverlay", "Event")
 
 
 func close_event_overlay(immediate: bool = false) -> void:
-	if _event_overlay == null or not is_instance_valid(_event_overlay):
-		_event_overlay = null
-		_event_overlay_tween = null
-		return
-
-	if _event_overlay_tween != null and is_instance_valid(_event_overlay_tween):
-		_event_overlay_tween.kill()
-		_event_overlay_tween = null
-
-	if immediate:
-		_remove_event_overlay()
-		return
-
-	var overlay: Control = _event_overlay
-	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var tween: Tween = create_tween()
-	_event_overlay_tween = tween
-	tween.set_ease(Tween.EASE_IN)
-	tween.set_trans(EVENT_OVERLAY_TWEEN_TRANSITION)
-	tween.tween_property(overlay, "modulate", Color(1, 1, 1, 0), EVENT_OVERLAY_CLOSE_DURATION)
-	tween.parallel().tween_property(overlay, "scale", Vector2(EVENT_OVERLAY_CLOSED_SCALE, EVENT_OVERLAY_CLOSED_SCALE), EVENT_OVERLAY_CLOSE_DURATION)
-	tween.finished.connect(func() -> void:
-		if overlay != null and is_instance_valid(overlay):
-			_remove_event_overlay()
-		if _event_overlay_tween == tween:
-			_event_overlay_tween = null
-	)
-
-
-func _remove_event_overlay() -> void:
-	if _event_overlay != null and is_instance_valid(_event_overlay):
-		_event_overlay.queue_free()
-	_event_overlay = null
-
-
-func _position_overlay(overlay: Control) -> void:
-	if overlay == null or not is_instance_valid(overlay):
-		return
-	var viewport_rect: Rect2 = get_viewport_rect()
-	overlay.position = viewport_rect.position
-	overlay.size = viewport_rect.size
-
-	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	overlay.anchor_right = 1.0
-	overlay.anchor_bottom = 1.0
-	overlay.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	overlay.grow_vertical = Control.GROW_DIRECTION_BOTH
-	overlay.pivot_offset = viewport_rect.size * 0.5
-
-
-func _position_event_overlay() -> void:
-	_position_overlay(_event_overlay)
+	if _overlay_lifecycle != null:
+		_overlay_lifecycle.close_overlay("event", immediate)
 
 
 func open_support_overlay() -> void:
-	if _support_overlay_tween != null and is_instance_valid(_support_overlay_tween):
-		_support_overlay_tween.kill()
-		_support_overlay_tween = null
-
-	if _support_overlay != null and not is_instance_valid(_support_overlay):
-		_support_overlay = null
-	if _support_overlay != null and _support_overlay.is_queued_for_deletion():
-		_support_overlay = null
-	if _support_overlay == null:
-		var overlay_instance: Node = SupportInteractionSceneScript.instantiate()
-		if overlay_instance == null:
-			return
-		var overlay_control: Control = overlay_instance as Control
-		if overlay_control == null:
-			push_error("Support interaction overlay must inherit Control.")
-			overlay_instance.queue_free()
-			return
-
-		overlay_control.name = "SupportOverlay"
-		overlay_control.top_level = true
-		overlay_control.z_as_relative = false
-		overlay_control.z_index = EVENT_OVERLAY_Z_INDEX
-		overlay_control.visible = false
-		overlay_control.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		overlay_control.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		overlay_control.anchor_right = 1.0
-		overlay_control.anchor_bottom = 1.0
-		overlay_control.grow_horizontal = Control.GROW_DIRECTION_BOTH
-		overlay_control.grow_vertical = Control.GROW_DIRECTION_BOTH
-		add_child(overlay_control)
-		_support_overlay = overlay_control
-
-	if _support_overlay == null or not is_instance_valid(_support_overlay):
-		return
-
-	_support_overlay.visible = true
-	_support_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
-	_tune_event_overlay_visuals(_support_overlay)
-	_support_overlay.modulate = Color(1, 1, 1, 0)
-	_support_overlay.scale = Vector2(EVENT_OVERLAY_OPEN_SCALE, EVENT_OVERLAY_OPEN_SCALE)
-	_position_overlay(_support_overlay)
-
-	var tween: Tween = create_tween()
-	_support_overlay_tween = tween
-	tween.set_ease(Tween.EASE_OUT)
-	tween.set_trans(EVENT_OVERLAY_TWEEN_TRANSITION)
-	tween.tween_property(_support_overlay, "modulate", Color(1, 1, 1, 1), EVENT_OVERLAY_OPEN_DURATION)
-	tween.parallel().tween_property(_support_overlay, "scale", Vector2.ONE, EVENT_OVERLAY_OPEN_DURATION)
-	tween.finished.connect(func() -> void:
-		if _support_overlay_tween == tween:
-			_support_overlay_tween = null
-	)
+	if _overlay_lifecycle != null:
+		_overlay_lifecycle.open_overlay("support", SupportInteractionSceneScript, "SupportOverlay", "Support interaction")
 
 
 func close_support_overlay(immediate: bool = false) -> void:
-	if _support_overlay == null or not is_instance_valid(_support_overlay):
-		_support_overlay = null
-		_support_overlay_tween = null
-		return
-
-	if _support_overlay_tween != null and is_instance_valid(_support_overlay_tween):
-		_support_overlay_tween.kill()
-		_support_overlay_tween = null
-
-	if immediate:
-		_remove_support_overlay()
-		return
-
-	var overlay: Control = _support_overlay
-	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var tween: Tween = create_tween()
-	_support_overlay_tween = tween
-	tween.set_ease(Tween.EASE_IN)
-	tween.set_trans(EVENT_OVERLAY_TWEEN_TRANSITION)
-	tween.tween_property(overlay, "modulate", Color(1, 1, 1, 0), EVENT_OVERLAY_CLOSE_DURATION)
-	tween.parallel().tween_property(overlay, "scale", Vector2(EVENT_OVERLAY_CLOSED_SCALE, EVENT_OVERLAY_CLOSED_SCALE), EVENT_OVERLAY_CLOSE_DURATION)
-	tween.finished.connect(func() -> void:
-		if overlay != null and is_instance_valid(overlay):
-			_remove_support_overlay()
-		if _support_overlay_tween == tween:
-			_support_overlay_tween = null
-	)
-
-
-func _remove_support_overlay() -> void:
-	if _support_overlay != null and is_instance_valid(_support_overlay):
-		_support_overlay.queue_free()
-	_support_overlay = null
+	if _overlay_lifecycle != null:
+		_overlay_lifecycle.close_overlay("support", immediate)
 
 
 func open_reward_overlay() -> void:
-	if _reward_overlay_tween != null and is_instance_valid(_reward_overlay_tween):
-		_reward_overlay_tween.kill()
-		_reward_overlay_tween = null
-
-	if _reward_overlay != null and not is_instance_valid(_reward_overlay):
-		_reward_overlay = null
-	if _reward_overlay != null and _reward_overlay.is_queued_for_deletion():
-		_reward_overlay = null
-	if _reward_overlay == null:
-		var overlay_instance: Node = RewardSceneScript.instantiate()
-		if overlay_instance == null:
-			return
-		var overlay_control: Control = overlay_instance as Control
-		if overlay_control == null:
-			push_error("Reward overlay must inherit Control.")
-			overlay_instance.queue_free()
-			return
-
-		overlay_control.name = "RewardOverlay"
-		overlay_control.top_level = true
-		overlay_control.z_as_relative = false
-		overlay_control.z_index = EVENT_OVERLAY_Z_INDEX
-		overlay_control.visible = false
-		overlay_control.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		overlay_control.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		overlay_control.anchor_right = 1.0
-		overlay_control.anchor_bottom = 1.0
-		overlay_control.grow_horizontal = Control.GROW_DIRECTION_BOTH
-		overlay_control.grow_vertical = Control.GROW_DIRECTION_BOTH
-		add_child(overlay_control)
-		_reward_overlay = overlay_control
-
-	if _reward_overlay == null or not is_instance_valid(_reward_overlay):
-		return
-
-	_reward_overlay.visible = true
-	_reward_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
-	_tune_event_overlay_visuals(_reward_overlay)
-	_reward_overlay.modulate = Color(1, 1, 1, 0)
-	_reward_overlay.scale = Vector2(EVENT_OVERLAY_OPEN_SCALE, EVENT_OVERLAY_OPEN_SCALE)
-	_position_overlay(_reward_overlay)
-
-	var tween: Tween = create_tween()
-	_reward_overlay_tween = tween
-	tween.set_ease(Tween.EASE_OUT)
-	tween.set_trans(EVENT_OVERLAY_TWEEN_TRANSITION)
-	tween.tween_property(_reward_overlay, "modulate", Color(1, 1, 1, 1), EVENT_OVERLAY_OPEN_DURATION)
-	tween.parallel().tween_property(_reward_overlay, "scale", Vector2.ONE, EVENT_OVERLAY_OPEN_DURATION)
-	tween.finished.connect(func() -> void:
-		if _reward_overlay_tween == tween:
-			_reward_overlay_tween = null
-	)
+	if _overlay_lifecycle != null:
+		_overlay_lifecycle.open_overlay("reward", RewardSceneScript, "RewardOverlay", "Reward")
 
 
 func close_reward_overlay(immediate: bool = false) -> void:
-	if _reward_overlay == null or not is_instance_valid(_reward_overlay):
-		_reward_overlay = null
-		_reward_overlay_tween = null
-		return
-
-	if _reward_overlay_tween != null and is_instance_valid(_reward_overlay_tween):
-		_reward_overlay_tween.kill()
-		_reward_overlay_tween = null
-
-	if immediate:
-		_remove_reward_overlay()
-		return
-
-	var overlay: Control = _reward_overlay
-	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var tween: Tween = create_tween()
-	_reward_overlay_tween = tween
-	tween.set_ease(Tween.EASE_IN)
-	tween.set_trans(EVENT_OVERLAY_TWEEN_TRANSITION)
-	tween.tween_property(overlay, "modulate", Color(1, 1, 1, 0), EVENT_OVERLAY_CLOSE_DURATION)
-	tween.parallel().tween_property(overlay, "scale", Vector2(EVENT_OVERLAY_CLOSED_SCALE, EVENT_OVERLAY_CLOSED_SCALE), EVENT_OVERLAY_CLOSE_DURATION)
-	tween.finished.connect(func() -> void:
-		if overlay != null and is_instance_valid(overlay):
-			_remove_reward_overlay()
-		if _reward_overlay_tween == tween:
-			_reward_overlay_tween = null
-	)
-
-
-func _remove_reward_overlay() -> void:
-	if _reward_overlay != null and is_instance_valid(_reward_overlay):
-		_reward_overlay.queue_free()
-	_reward_overlay = null
+	if _overlay_lifecycle != null:
+		_overlay_lifecycle.close_overlay("reward", immediate)
 
 
 func open_level_up_overlay() -> void:
-	if _level_up_overlay_tween != null and is_instance_valid(_level_up_overlay_tween):
-		_level_up_overlay_tween.kill()
-		_level_up_overlay_tween = null
-
-	if _level_up_overlay != null and not is_instance_valid(_level_up_overlay):
-		_level_up_overlay = null
-	if _level_up_overlay != null and _level_up_overlay.is_queued_for_deletion():
-		_level_up_overlay = null
-	if _level_up_overlay == null:
-		var overlay_instance: Node = LevelUpSceneScript.instantiate()
-		if overlay_instance == null:
-			return
-		var overlay_control: Control = overlay_instance as Control
-		if overlay_control == null:
-			push_error("Level up overlay must inherit Control.")
-			overlay_instance.queue_free()
-			return
-
-		overlay_control.name = "LevelUpOverlay"
-		overlay_control.top_level = true
-		overlay_control.z_as_relative = false
-		overlay_control.z_index = EVENT_OVERLAY_Z_INDEX
-		overlay_control.visible = false
-		overlay_control.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		overlay_control.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		overlay_control.anchor_right = 1.0
-		overlay_control.anchor_bottom = 1.0
-		overlay_control.grow_horizontal = Control.GROW_DIRECTION_BOTH
-		overlay_control.grow_vertical = Control.GROW_DIRECTION_BOTH
-		add_child(overlay_control)
-		_level_up_overlay = overlay_control
-
-	if _level_up_overlay == null or not is_instance_valid(_level_up_overlay):
-		return
-
-	_level_up_overlay.visible = true
-	_level_up_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
-	_tune_event_overlay_visuals(_level_up_overlay)
-	_level_up_overlay.modulate = Color(1, 1, 1, 0)
-	_level_up_overlay.scale = Vector2(EVENT_OVERLAY_OPEN_SCALE, EVENT_OVERLAY_OPEN_SCALE)
-	_position_overlay(_level_up_overlay)
-
-	var tween: Tween = create_tween()
-	_level_up_overlay_tween = tween
-	tween.set_ease(Tween.EASE_OUT)
-	tween.set_trans(EVENT_OVERLAY_TWEEN_TRANSITION)
-	tween.tween_property(_level_up_overlay, "modulate", Color(1, 1, 1, 1), EVENT_OVERLAY_OPEN_DURATION)
-	tween.parallel().tween_property(_level_up_overlay, "scale", Vector2.ONE, EVENT_OVERLAY_OPEN_DURATION)
-	tween.finished.connect(func() -> void:
-		if _level_up_overlay_tween == tween:
-			_level_up_overlay_tween = null
-	)
+	if _overlay_lifecycle != null:
+		_overlay_lifecycle.open_overlay("level_up", LevelUpSceneScript, "LevelUpOverlay", "Level up")
 
 
 func close_level_up_overlay(immediate: bool = false) -> void:
-	if _level_up_overlay == null or not is_instance_valid(_level_up_overlay):
-		_level_up_overlay = null
-		_level_up_overlay_tween = null
-		return
-
-	if _level_up_overlay_tween != null and is_instance_valid(_level_up_overlay_tween):
-		_level_up_overlay_tween.kill()
-		_level_up_overlay_tween = null
-
-	if immediate:
-		_remove_level_up_overlay()
-		return
-
-	var overlay: Control = _level_up_overlay
-	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var tween: Tween = create_tween()
-	_level_up_overlay_tween = tween
-	tween.set_ease(Tween.EASE_IN)
-	tween.set_trans(EVENT_OVERLAY_TWEEN_TRANSITION)
-	tween.tween_property(overlay, "modulate", Color(1, 1, 1, 0), EVENT_OVERLAY_CLOSE_DURATION)
-	tween.parallel().tween_property(overlay, "scale", Vector2(EVENT_OVERLAY_CLOSED_SCALE, EVENT_OVERLAY_CLOSED_SCALE), EVENT_OVERLAY_CLOSE_DURATION)
-	tween.finished.connect(func() -> void:
-		if overlay != null and is_instance_valid(overlay):
-			_remove_level_up_overlay()
-		if _level_up_overlay_tween == tween:
-			_level_up_overlay_tween = null
-	)
-
-
-func _remove_level_up_overlay() -> void:
-	if _level_up_overlay != null and is_instance_valid(_level_up_overlay):
-		_level_up_overlay.queue_free()
-	_level_up_overlay = null
+	if _overlay_lifecycle != null:
+		_overlay_lifecycle.close_overlay("level_up", immediate)
 
 
 func _tune_event_overlay_visuals(event_overlay: Control) -> void:
 	if event_overlay == null or not is_instance_valid(event_overlay):
 		return
+	var event_state = event_overlay.get("_event_state")
+	var roadside_overlay: bool = event_state != null and String(event_state.source_context) == "roadside_encounter"
 
 	var background_far: CanvasItem = event_overlay.get_node_or_null("BackgroundFar") as CanvasItem
 	if background_far != null:
@@ -1627,7 +1754,8 @@ func _tune_event_overlay_visuals(event_overlay: Control) -> void:
 	var scrim: ColorRect = event_overlay.get_node_or_null("Scrim") as ColorRect
 	if scrim != null:
 		scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		scrim.color = Color(scrim.color.r, scrim.color.g, scrim.color.b, EVENT_OVERLAY_SCRIM_ALPHA)
+		var scrim_alpha: float = EVENT_OVERLAY_ROADSIDE_SCRIM_ALPHA if roadside_overlay else EVENT_OVERLAY_SCRIM_ALPHA
+		scrim.color = Color(scrim.color.r, scrim.color.g, scrim.color.b, scrim_alpha)
 
 
 func _apply_portrait_safe_layout() -> void:
@@ -1635,27 +1763,51 @@ func _apply_portrait_safe_layout() -> void:
 
 
 func _setup_safe_menu() -> void:
-	_safe_menu = RunMenuSceneHelperScript.ensure_safe_menu(
-		self,
-		_safe_menu,
-		"Settings",
-		"Save your run, mute music, or quit.",
-		"Settings",
-		Callable(self, "_on_save_run_pressed"),
-		Callable(self, "_on_load_run_pressed")
-	)
+	_safe_menu = RunMenuSceneHelperScript.ensure_safe_menu(self, _safe_menu, "Settings", "Save, load, return to menu, mute music, or quit.", "Settings", Callable(self, "_on_save_run_pressed"), Callable(self, "_on_load_run_pressed"), Callable(self, "_on_return_to_main_menu_pressed"))
 	_refresh_safe_menu_anchor_layout()
 
 
 func _refresh_safe_menu_anchor_layout() -> void:
 	if _safe_menu != null and _safe_menu.has_method("set_launcher_corner"):
-		_safe_menu.set_launcher_corner("top_left")
+		_safe_menu.set_launcher_corner("top_right")
 	if _safe_menu != null and _safe_menu.has_method("set_launcher_alignment_target"):
 		var settings_anchor: Control = get_node_or_null(SETTINGS_MENU_ANCHOR_PATH) as Control
 		if settings_anchor == null:
-			settings_anchor = get_node_or_null("Margin/VBox/TopRow")
+			settings_anchor = get_node_or_null(TOP_ROW_PATH)
 		if settings_anchor != null:
 			_safe_menu.set_launcher_alignment_target(settings_anchor)
+
+
+func _ensure_hunger_warning_toast() -> void:
+	if _hunger_warning_toast == null:
+		_hunger_warning_toast = HungerWarningToastScript.new()
+	_hunger_warning_toast.setup(self, TOP_ROW_PATH, 130)
+
+
+func _on_hunger_threshold_crossed(_old_threshold: int, new_threshold: int) -> void:
+	var warning_text: String = RunStatusStripScript.build_hunger_threshold_warning_text(new_threshold)
+	if warning_text.is_empty():
+		return
+	_show_hunger_warning(warning_text, new_threshold)
+
+
+func _show_hunger_warning(warning_text: String, threshold: int) -> void:
+	_ensure_hunger_warning_toast()
+	if _hunger_warning_toast == null:
+		return
+	_hunger_warning_toast.show_warning(warning_text, threshold)
+
+
+func _position_hunger_warning_toast() -> void:
+	if _hunger_warning_toast == null:
+		return
+	_hunger_warning_toast.position_toast()
+
+
+func _finish_hiding_hunger_warning() -> void:
+	if _hunger_warning_toast == null:
+		return
+	_hunger_warning_toast.finish_hide()
 
 func _ensure_inventory_tooltip_shell() -> void:
 	if _inventory_tooltip_panel != null and is_instance_valid(_inventory_tooltip_panel):

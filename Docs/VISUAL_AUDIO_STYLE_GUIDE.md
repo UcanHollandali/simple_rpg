@@ -323,7 +323,7 @@ Do not build:
 
 - audio should be short, readable, and repeat-safe
 - UI sounds must clearly differ from combat sounds
-- prototype music uses library loops only
+- prototype music should prefer safe-first free library loops, but repo-authored generated temp loops are allowed when no acceptable safe-first replacement exists and manifest provenance stays truthful
 - avoid overproduced or cinematic audio that promises more polish than the prototype can support
 
 ## Visual Errors To Avoid

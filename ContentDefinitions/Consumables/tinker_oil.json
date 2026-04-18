@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "definition_id": "tinker_oil",
+  "family": "Consumables",
+  "tags": [
+    "consumable",
+    "repair",
+    "combat",
+    "field_kit"
+  ],
+  "display": {
+    "name": "Tinker Oil",
+    "short_description": "A compact repair oil that coaxes one more clean edge out of a damaged weapon.",
+    "icon_key": "consumable_tinker_oil"
+  },
+  "rules": {
+    "stats": {
+      "max_stack": 2
+    },
+    "use_effect": {
+      "trigger": "on_use",
+      "condition": {
+        "op": "always"
+      },
+      "target": "self",
+      "effects": [
+        {
+          "type": "repair_weapon",
+          "params": {}
+        }
+      ]
+    }
+  }
+}

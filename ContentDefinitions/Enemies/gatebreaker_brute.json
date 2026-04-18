@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "definition_id": "gatebreaker_brute",
+  "authoring_order": 175,
+  "family": "Enemies",
+  "encounter_tier": "minor",
+  "design_intent_question": "Can the player respect a slow brute's telegraphed overhand, using Defend on the correct turn instead of racing every beat?",
+  "tags": [
+    "enemy",
+    "brute",
+    "stage_3",
+    "high_threat",
+    "telegraphed"
+  ],
+  "display": {
+    "name": "Gatebreaker Brute",
+    "short_description": "A hammering siege brute that lumbers through setup beats before one crushing overhand tries to end the exchange.",
+    "icon_key": "enemy_gatebreaker_brute"
+  },
+  "rules": {
+    "stats": {
+      "base_hp": 34,
+      "base_damage": 6
+    },
+    "intent_pool": [
+      {
+        "intent_id": "chain_drag",
+        "action_family": "attack",
+        "threat_level": "low",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 2,
+              "damage_kind": "physical"
+            }
+          }
+        ]
+      },
+      {
+        "intent_id": "shoulder_check",
+        "action_family": "attack",
+        "threat_level": "medium",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 4,
+              "damage_kind": "physical"
+            }
+          }
+        ]
+      },
+      {
+        "intent_id": "gatebreak_overhand",
+        "action_family": "attack",
+        "threat_level": "high",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 8,
+              "damage_kind": "physical"
+            }
+          }
+        ]
+      }
+    ],
+    "behaviors": []
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "definition_id": "yew_guard_hut",
+  "family": "EventTemplates",
+  "tags": [
+    "event",
+    "roadside",
+    "guard",
+    "stage_2",
+    "prototype"
+  ],
+  "display": {
+    "name": "Broken Guard Hut",
+    "short_description": "A watch hut has slumped into the roadside ditch. One wall still holds against the wind, and a collapsed shield rack shows a glint under the dust."
+  },
+  "rules": {
+    "choices": [
+      {
+        "choice_id": "search_the_shield_rack",
+        "label": "Search the shield rack",
+        "summary": "Pry one last usable fitting out from the rotten boards before the whole rack folds over.",
+        "effect_type": "grant_item",
+        "inventory_family": "shield_attachment",
+        "definition_id": "lantern_crest"
+      },
+      {
+        "choice_id": "wait_under_the_eaves",
+        "label": "Wait under the eaves",
+        "summary": "Take one short dry minute under the leaning roof and let the sting go out of your ribs.",
+        "effect_type": "heal",
+        "amount": 6
+      }
+    ]
+  }
+}

@@ -21,6 +21,9 @@ func test_state_text_reflects_combat_snapshot() -> void:
 	combat_state.player_hp = 18
 	combat_state.player_hunger = 7
 	combat_state.weapon_instance = {"definition_id": "iron_sword", "current_durability": 11, "upgrade_level": 2}
+	combat_state.left_hand_instance = {"definition_id": "weathered_buckler", "inventory_family": "shield"}
+	combat_state.armor_instance = {"definition_id": "watcher_mail", "upgrade_level": 1}
+	combat_state.belt_instance = {"definition_id": "trailhook_bandolier"}
 	combat_state.consumable_slots = [
 		{"definition_id": "traveler_bread", "current_stack": 2},
 		{"definition_id": "wild_berries", "current_stack": 1},
@@ -31,7 +34,7 @@ func test_state_text_reflects_combat_snapshot() -> void:
 			"remaining_turns": 2,
 		},
 	]
-	combat_state.brace_active = true
+	combat_state.current_guard = 3
 	combat_state.enemy_hp = 14
 
 	assert(presenter.build_turn_text(combat_state) == "Turn 3", "Expected turn text to mirror current turn.")
@@ -66,7 +69,7 @@ func test_state_text_reflects_combat_snapshot() -> void:
 		"Expected high-threat attack intents to resolve to the heavy intent icon."
 	)
 	assert(
-		presenter.build_state_text(combat_state) == "Player HP: 18 | Hunger: 7 | Durability: 11 | Items: 3 | Status: Poison(2) | Brace: on | Enemy HP: 14",
+		presenter.build_state_text(combat_state) == "Player HP: 18 | Hunger: 7 | Durability: 11 | Guard: 3 | Items: 3 | Status: Poison(2) | Enemy HP: 14",
 		"Expected presenter state line to summarize combat-local truth."
 	)
 	combat_state.enemy_definition = {
@@ -153,6 +156,20 @@ func test_state_text_reflects_combat_snapshot() -> void:
 		"Expected forest_brigand to resolve once a matching runtime bust file exists."
 	)
 	assert(
+		presenter.call("build_enemy_bust_texture_path_from_definition_id", "carrion_runner") == "res://Assets/Enemies/enemy_venom_scavenger_bust.png",
+		"Expected live enemies without bespoke busts to fall back to the closest readable prototype silhouette."
+	)
+	var early_boss_combat_state: CombatState = CombatState.new()
+	early_boss_combat_state.enemy_definition = {
+		"definition_id": "tollhouse_captain",
+		"display": {"icon_key": "enemy_tollhouse_captain"},
+		"tags": ["enemy", "boss"],
+	}
+	assert(
+		presenter.call("build_enemy_token_texture_path", early_boss_combat_state) == "res://Assets/Enemies/enemy_gate_warden_token.png",
+		"Expected early bosses without a bespoke token to reuse the current prototype boss token fallback."
+	)
+	assert(
 		presenter.call("build_enemy_bust_texture_path_from_definition_id", "").is_empty(),
 		"Expected empty definition ids to preserve the text-only fallback."
 	)
@@ -164,6 +181,33 @@ func test_state_text_reflects_combat_snapshot() -> void:
 		presenter.call("build_active_weapon_text", combat_state) == "Active Weapon: Iron Sword +2",
 		"Expected active weapon text to include forged weapon tiers."
 	)
+	var player_status_model: Dictionary = presenter.call("build_player_status_model", combat_state)
+	var primary_items: Array = player_status_model.get("primary_items", [])
+	var secondary_items: Array = player_status_model.get("secondary_items", [])
+	assert(String(player_status_model.get("variant", "")) == "compact", "Expected combat status strip model to stay compact by default.")
+	assert(primary_items.size() == 4, "Expected combat status strip primary lane to expose HP, hunger, durability, and guard.")
+	assert(String((primary_items[0] as Dictionary).get("value_text", "")) == "18/60", "Expected combat status strip HP metric to expose current and max values.")
+	assert(String((primary_items[1] as Dictionary).get("value_text", "")) == "7/20", "Expected combat status strip hunger metric to expose current and max values.")
+	assert(int((primary_items[1] as Dictionary).get("current_value", -1)) == 7 and int((primary_items[1] as Dictionary).get("max_value", -1)) == 20, "Expected combat hunger metrics to expose numeric values for threshold warning presentation.")
+	assert(String((primary_items[2] as Dictionary).get("value_text", "")) == "11/11", "Expected combat status strip durability metric to expose current and max values.")
+	assert(String((primary_items[3] as Dictionary).get("value_text", "")) == "3", "Expected combat status strip to expose current guard.")
+	assert(secondary_items.size() == 4, "Expected combat status strip secondary lane to expose weapon, left-hand, armor, and belt context.")
+	assert(String((secondary_items[0] as Dictionary).get("value_text", "")) == "Iron Sword +2", "Expected combat status strip to surface the active weapon summary.")
+	assert(String((secondary_items[1] as Dictionary).get("value_text", "")) == "Weathered Buckler", "Expected combat status strip to surface equipped left-hand summary.")
+	assert(String((secondary_items[2] as Dictionary).get("value_text", "")) == "Watcher Mail +1", "Expected combat status strip to surface equipped armor summary.")
+	assert(String((secondary_items[3] as Dictionary).get("value_text", "")) == "Trailhook Bandolier", "Expected combat status strip to surface equipped belt summary.")
+	assert(
+		presenter.call("build_player_loadout_text", combat_state) == "Shield Weathered Buckler | Armor Watcher Mail +1 | Belt Trailhook Bandolier",
+		"Expected combat presenter to expose a concise player loadout summary row."
+	)
+	assert(
+		presenter.call("build_defensive_action_label", combat_state) == "Defend",
+		"Expected combat presenter to keep the current defensive action label while the slot stays generic."
+	)
+	assert(
+		presenter.call("build_guard_badge_text", 3) == "Guard: 3",
+		"Expected combat presenter to own the compact player-card guard badge copy."
+	)
 	var preview_texts: Dictionary = presenter.call("build_preview_texts", {
 		"attack_damage_preview": 5,
 		"attack_dodge_chance": 10,
@@ -171,16 +215,19 @@ func test_state_text_reflects_combat_snapshot() -> void:
 		"durability_spend_preview": 1,
 		"defense_preview": 2,
 		"incoming_damage_preview": 4,
-		"brace_damage_preview": 2,
+		"guard_gain_preview": 2,
+		"guard_absorb_preview": 2,
+		"guard_damage_preview": 2,
 		"hunger_tick_preview": 1,
 	})
 	assert(String(preview_texts.get("attack", "")) == "Hit 5 | Dodge 10%", "Expected preview text to show expected outgoing damage and dodge risk.")
-	assert(String(preview_texts.get("defense", "")) == "Defense 2", "Expected preview text to expose defense readout.")
+	assert(String(preview_texts.get("defense", "")) == "Armor 2", "Expected preview text to expose armor readout.")
 	assert(String(preview_texts.get("incoming", "")) == "Incoming 4", "Expected preview text to expose incoming damage readout.")
-	assert(String(preview_texts.get("brace", "")) == "Brace 2", "Expected preview text to expose brace mitigation readout.")
+	assert(String(preview_texts.get("defend", "")) == "Guard 2", "Expected preview text to expose defend guard readout.")
+	assert(String(preview_texts.get("guard_result", "")) == "Guard 2 | HP 2", "Expected preview text to expose guard-vs-HP fallout.")
 	assert(String(preview_texts.get("hunger_tick", "")) == "Tick -1 hunger", "Expected preview text to expose the hunger tick cost.")
 	assert(String(preview_texts.get("durability_spend", "")) == "Swing -1 durability", "Expected preview text to expose durability spend.")
-	assert(String(preview_texts.get("intent_detail", "")) == "Incoming 4 | Brace 2", "Expected preview text to expose the enemy hit detail helper.")
+	assert(String(preview_texts.get("intent_detail", "")) == "Incoming 4 | Guard 2", "Expected preview text to expose the enemy hit detail helper.")
 	assert(
 		presenter.call("build_weapon_slot_body_text", combat_state) == "Iron Sword +2",
 		"Expected weapon quick-slot body text to resolve forged weapon display names outside the scene."
@@ -192,6 +239,27 @@ func test_state_text_reflects_combat_snapshot() -> void:
 	assert(
 		presenter.call("build_consumable_slot_body_text", {}) == "No Item",
 		"Expected empty consumable slots to keep the no-item fallback."
+	)
+	assert(
+		presenter.call("build_action_card_preview_text", "attack", combat_state, {}, {
+			"attack_damage_preview": 5,
+			"attack_dodge_chance": 10,
+			"durability_spend_preview": 1,
+		}) == "Hit 5 | Dodge 10% | Swing -1 durability",
+		"Expected attack action card preview to combine the outgoing hit and durability-spend forecast."
+	)
+	assert(
+		presenter.call("build_action_card_preview_text", "defend", combat_state, {}, {
+			"incoming_damage_preview": 4,
+			"guard_gain_preview": 2,
+			"guard_absorb_preview": 2,
+			"guard_damage_preview": 2,
+		}) == "Guard 2 | HP 2",
+		"Expected defensive action card preview to expose guard generation versus the remaining HP leak."
+	)
+	assert(
+		presenter.call("build_action_card_preview_text", "use_item", combat_state, {"definition_id": "traveler_bread", "current_stack": 1}, {}) == "Traveler Bread | +8 HP | +2 hunger",
+		"Expected item action card preview to summarize the ready consumable effect."
 	)
 	var chip_texts: PackedStringArray = presenter.call("build_status_chip_texts", combat_state.player_statuses, "No Player Status")
 	assert(chip_texts.size() == 1 and chip_texts[0] == "Poison 2T", "Expected status chip text formatting for combat placeholder UI.")
@@ -227,20 +295,16 @@ func test_domain_event_and_turn_end_lines_are_human_readable() -> void:
 		"Expected enemy phase line to reuse the enemy action summary."
 	)
 	assert(
-		presenter.format_domain_event_line("BraceMitigated", {"raw_damage": 5, "reduced_damage": 3}) == "Brace reduced damage from 5 to 3.",
-		"Expected brace mitigation line to stay presenter-owned."
+		presenter.format_domain_event_line("GuardGained", {"guard_points": 4, "shield_bonus_applied": true}) == "Defend raised 4 guard with shield support.",
+		"Expected defend event lines to stay presenter-owned."
+	)
+	assert(
+		presenter.format_domain_event_line("GuardAbsorbed", {"guard_absorbed": 3, "hp_damage": 1}) == "Guard absorbed 3 damage. 1 still reached HP.",
+		"Expected guard-absorb event lines to stay presenter-owned."
 	)
 	assert(
 		presenter.format_domain_event_line("ConsumableUsed", {"display_name": "Traveler Bread", "healed_amount": 8, "hunger_restored_amount": 10}) == "Used Traveler Bread and healed 8 HP while restoring hunger by 10.",
 		"Expected consumable event lines to surface mixed HP and hunger recovery."
-	)
-	assert(
-		presenter.format_domain_event_line("EquipmentChanged", {"display_name": "Iron Sword", "inventory_family": "weapon", "equipped": true}) == "Equipped Iron Sword as weapon. The enemy still acts this turn.",
-		"Expected combat presenter to describe turn-consuming equipment swaps in player-facing language."
-	)
-	assert(
-		presenter.format_domain_event_line("EquipmentChanged", {"display_name": "Iron Sword", "inventory_family": "weapon", "equipped": false}) == "Unequipped Iron Sword from weapon. The enemy still acts this turn.",
-		"Expected combat presenter to describe turn-consuming unequip actions in player-facing language."
 	)
 	assert(
 		presenter.format_domain_event_line("EnemyIntentRevealed", {"intent": {"intent_id": "jab", "threat_level": "low"}}) == "Enemy intends: jab (low)",
@@ -279,18 +343,19 @@ func test_action_tooltips_describe_real_effects() -> void:
 		"Expected attack tooltip to call out the weak fallback once durability hits zero."
 	)
 
-	var brace_tooltip: String = presenter.call("build_action_tooltip_text", "brace", combat_state)
+	var defend_tooltip: String = presenter.call("build_action_tooltip_text", "defend", combat_state)
 	assert(
-		brace_tooltip.contains("50%") and brace_tooltip.contains("does not spend durability"),
-		"Expected brace tooltip to describe the mitigation rule and no-durability behavior."
+		defend_tooltip.contains("temporary guard") and defend_tooltip.contains("shield") and defend_tooltip.contains("carry"),
+		"Expected defend tooltip to describe guard order, carryover decay, and shield synergy."
 	)
-	var projected_brace_tooltip: String = presenter.call("build_action_tooltip_text", "brace", combat_state, {}, {
-		"incoming_damage_preview": 4,
-		"brace_damage_preview": 2,
+	var projected_defend_tooltip: String = presenter.call("build_action_tooltip_text", "defend", combat_state, {}, {
+		"guard_gain_preview": 2,
+		"guard_absorb_preview": 2,
+		"guard_damage_preview": 2,
 	})
 	assert(
-		projected_brace_tooltip.contains("incoming 4") and projected_brace_tooltip.contains("brace 2"),
-		"Expected brace tooltip to include the incoming-hit forecast when a preview snapshot is available."
+		projected_defend_tooltip.contains("guard 2") and projected_defend_tooltip.contains("hp 2"),
+		"Expected defend tooltip to include the guard forecast when a preview snapshot is available."
 	)
 
 	var item_slot := {
@@ -315,9 +380,17 @@ func test_feedback_models_expose_layered_intensity() -> void:
 	assert(String(medium_model.get("text", "")) == "-4", "Expected feedback text to expose the damage amount.")
 	assert(float(heavy_model.get("flash_alpha", 0.0)) > float(medium_model.get("flash_alpha", 1.0)), "Expected heavy hits to flash harder than medium hits.")
 	assert(int(heavy_model.get("font_size", 0)) > int(light_model.get("font_size", 99)), "Expected heavy hits to render larger floating text than light hits.")
-	var brace_model: Dictionary = presenter.call("build_brace_feedback_model", 6, 2)
-	assert(String(brace_model.get("text", "")) == "Brace 6->2", "Expected brace feedback to expose the mitigated damage readout.")
+	assert(int(heavy_model.get("flash_cycles", 0)) == 2, "Expected impact feedback to use the double-flash timing from the style guide.")
+	var guard_model: Dictionary = presenter.call("build_guard_feedback_model", 4)
+	assert(String(guard_model.get("text", "")) == "Guard +4", "Expected guard feedback to expose the generated guard readout.")
+	var guard_delta_model: Dictionary = presenter.call("build_guard_delta_feedback_model", 4, "guard")
+	assert(String(guard_delta_model.get("text", "")) == "+4 guard", "Expected guard delta feedback to use the signed gain readout requested by combat UI.")
+	var guard_decay_model: Dictionary = presenter.call("build_guard_decay_feedback_model", 1)
+	assert(String(guard_decay_model.get("text", "")) == "-1 decay", "Expected guard decay feedback to surface turn-end carryover loss.")
+	var guard_absorb_model: Dictionary = presenter.call("build_guard_absorb_feedback_model", 3)
+	assert(String(guard_absorb_model.get("text", "")) == "Block 3", "Expected guard absorption feedback to read as mitigation instead of guard gain.")
 	var recovery_models: Array[Dictionary] = presenter.call("build_recovery_feedback_models", 5, 16)
 	assert(recovery_models.size() == 2, "Expected mixed HP and hunger recovery to emit two readable feedback bursts.")
 	assert(String(recovery_models[0].get("text", "")) == "+5 HP", "Expected the first recovery burst to surface the HP gain.")
 	assert(String(recovery_models[1].get("text", "")) == "+16 H", "Expected the second recovery burst to surface the hunger gain.")
+	assert(int(recovery_models[0].get("flash_cycles", 0)) == 1, "Expected recovery feedback to stay softer than impact hits.")

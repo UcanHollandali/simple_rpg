@@ -8,13 +8,15 @@ signal flow_state_changed(old_state: int, new_state: int)
 
 var transitions: Dictionary = {
 	FlowStateScript.Type.BOOT: PackedInt32Array([FlowStateScript.Type.MAIN_MENU]),
-	FlowStateScript.Type.MAIN_MENU: PackedInt32Array([FlowStateScript.Type.RUN_SETUP]),
-	FlowStateScript.Type.RUN_SETUP: PackedInt32Array([FlowStateScript.Type.MAP_EXPLORE]),
+	FlowStateScript.Type.MAIN_MENU: PackedInt32Array([FlowStateScript.Type.MAP_EXPLORE]),
 	FlowStateScript.Type.MAP_EXPLORE: PackedInt32Array([
 		FlowStateScript.Type.NODE_RESOLVE,
+		FlowStateScript.Type.EVENT,
+		FlowStateScript.Type.REWARD,
 		FlowStateScript.Type.SUPPORT_INTERACTION,
 		FlowStateScript.Type.COMBAT,
 		FlowStateScript.Type.RUN_END,
+		FlowStateScript.Type.MAIN_MENU,
 	]),
 	FlowStateScript.Type.NODE_RESOLVE: PackedInt32Array([
 		FlowStateScript.Type.COMBAT,
@@ -28,39 +30,14 @@ var transitions: Dictionary = {
 	]),
 	FlowStateScript.Type.EVENT: PackedInt32Array([FlowStateScript.Type.LEVEL_UP, FlowStateScript.Type.MAP_EXPLORE, FlowStateScript.Type.RUN_END]),
 	FlowStateScript.Type.COMBAT: PackedInt32Array([FlowStateScript.Type.REWARD, FlowStateScript.Type.STAGE_TRANSITION, FlowStateScript.Type.RUN_END]),
-	FlowStateScript.Type.REWARD: PackedInt32Array([FlowStateScript.Type.LEVEL_UP, FlowStateScript.Type.MAP_EXPLORE, FlowStateScript.Type.RUN_END]),
-	FlowStateScript.Type.LEVEL_UP: PackedInt32Array([FlowStateScript.Type.MAP_EXPLORE]),
-	FlowStateScript.Type.SUPPORT_INTERACTION: PackedInt32Array([FlowStateScript.Type.MAP_EXPLORE]),
-	FlowStateScript.Type.STAGE_TRANSITION: PackedInt32Array([FlowStateScript.Type.MAP_EXPLORE, FlowStateScript.Type.RUN_END]),
-	FlowStateScript.Type.RUN_END: PackedInt32Array([FlowStateScript.Type.MAIN_MENU, FlowStateScript.Type.RUN_SETUP]),
+	FlowStateScript.Type.REWARD: PackedInt32Array([FlowStateScript.Type.LEVEL_UP, FlowStateScript.Type.MAP_EXPLORE, FlowStateScript.Type.RUN_END, FlowStateScript.Type.MAIN_MENU]),
+	FlowStateScript.Type.LEVEL_UP: PackedInt32Array([FlowStateScript.Type.MAP_EXPLORE, FlowStateScript.Type.MAIN_MENU]),
+	FlowStateScript.Type.SUPPORT_INTERACTION: PackedInt32Array([FlowStateScript.Type.MAP_EXPLORE, FlowStateScript.Type.MAIN_MENU]),
+	FlowStateScript.Type.STAGE_TRANSITION: PackedInt32Array([FlowStateScript.Type.MAP_EXPLORE, FlowStateScript.Type.RUN_END, FlowStateScript.Type.MAIN_MENU]),
+	FlowStateScript.Type.RUN_END: PackedInt32Array([FlowStateScript.Type.MAIN_MENU]),
 }
 
 var current_state: int = FlowStateScript.Type.BOOT
-
-
-# Deprecated compatibility shim for older call sites only.
-# Current repo truth: there are no in-repo runtime callers that should be using this path.
-# New flow work should call request_transition() directly instead of widening this surface.
-func dispatch(command: Dictionary) -> Dictionary:
-	var command_type: String = String(command.get("type", ""))
-
-	match command_type:
-		"request_transition":
-			if not command.has("target_state"):
-				push_error("GameFlowManager.dispatch missing 'target_state' for request_transition.")
-				return {
-					"ok": false,
-					"error": "missing_target_state",
-				}
-			# Deprecated compatibility shim only. request_transition() is the active formal surface.
-			return request_transition(int(command.get("target_state", current_state)))
-		_:
-			push_error("Unknown deprecated GameFlowManager.dispatch command type: %s" % command_type)
-			return {
-				"ok": false,
-				"error": "unknown_command_type",
-				"command_type": command_type,
-			}
 
 
 func request_transition(new_state: int) -> Dictionary:

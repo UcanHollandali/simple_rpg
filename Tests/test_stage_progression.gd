@@ -34,11 +34,7 @@ func test_boss_node_resolution_opens_combat_with_boss_setup() -> void:
 
 	var boss_move: Dictionary = coordinator.call("choose_move_to_node", "boss")
 	assert(bool(boss_move.get("ok", false)), "Expected unlocked boss traversal to remain available.")
-	assert(int(boss_move.get("target_state", -1)) == FlowStateScript.Type.NODE_RESOLVE, "Expected boss traversal to route through NodeResolve before combat.")
-
-	var boss_resolve: Dictionary = coordinator.call("resolve_pending_node")
-	assert(String(boss_resolve.get("pending_node_type", "")) == "boss", "Expected boss resolve payload to preserve the pending boss family.")
-	assert(int(boss_resolve.get("target_state", -1)) == FlowStateScript.Type.COMBAT, "Expected live boss node resolution to enter Combat.")
+	assert(int(boss_move.get("target_state", -1)) == FlowStateScript.Type.COMBAT, "Expected boss traversal to enter Combat directly.")
 	assert(int(flow_manager.call("get_current_state")) == FlowStateScript.Type.COMBAT, "Expected flow state to enter Combat after resolving a boss node.")
 	assert(run_state.map_runtime_state.get_current_node_family() == "boss", "Expected the runtime map position to stay on the boss node during combat setup.")
 
@@ -64,9 +60,7 @@ func test_stage_specific_boss_selection_uses_authored_stage_bosses() -> void:
 
 		var boss_move: Dictionary = coordinator.call("choose_move_to_node", "boss")
 		assert(bool(boss_move.get("ok", false)), "Expected unlocked boss traversal to remain available on stage %d." % stage_index)
-
-		var boss_resolve: Dictionary = coordinator.call("resolve_pending_node")
-		assert(int(boss_resolve.get("target_state", -1)) == FlowStateScript.Type.COMBAT, "Expected stage %d boss resolution to enter Combat." % stage_index)
+		assert(int(boss_move.get("target_state", -1)) == FlowStateScript.Type.COMBAT, "Expected stage %d boss traversal to enter Combat directly." % stage_index)
 
 		var combat_setup: Dictionary = coordinator.call("build_combat_setup_data")
 		assert(bool(combat_setup.get("ok", false)), "Expected stage %d boss combat setup payload to build." % stage_index)
@@ -231,6 +225,8 @@ func _free_node(node: Node) -> void:
 
 func _expected_boss_enemy_definition_id(stage_index: int) -> String:
 	match stage_index:
+		1:
+			return "tollhouse_captain"
 		2:
 			return "chain_herald"
 		3:

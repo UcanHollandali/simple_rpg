@@ -2,18 +2,19 @@
 extends RefCounted
 class_name MapExplorePresenter
 
-const ContentLoaderScript = preload("res://Game/Infrastructure/content_loader.gd")
 const MapRuntimeStateScript = preload("res://Game/RuntimeState/map_runtime_state.gd")
 const LevelUpStateScript = preload("res://Game/RuntimeState/level_up_state.gd")
+const RunStatusPresenterScript = preload("res://Game/UI/run_status_presenter.gd")
 const UiAssetPathsScript = preload("res://Game/UI/ui_asset_paths.gd")
+const UiFormattingScript = preload("res://Game/UI/ui_formatting.gd")
 const DEFAULT_ROUTE_BUTTON_COUNT: int = 6
 
 const FAMILY_DISPLAY_NAMES: Dictionary = {
 	"start": "Start",
 	"combat": "Combat",
-	"event": "Roadside Encounter",
+	"event": "Trail Event",
 	"reward": "Reward",
-	"side_mission": "Village Request",
+	"hamlet": "Hamlet",
 	"rest": "Rest",
 	"merchant": "Merchant",
 	"blacksmith": "Blacksmith",
@@ -26,7 +27,7 @@ const FAMILY_SORT_ORDER: Dictionary = {
 	"combat": 1,
 	"event": 2,
 	"reward": 3,
-	"side_mission": 4,
+	"hamlet": 4,
 	"rest": 5,
 	"merchant": 6,
 	"blacksmith": 7,
@@ -34,79 +35,35 @@ const FAMILY_SORT_ORDER: Dictionary = {
 	"boss": 9,
 }
 
-var _loader: ContentLoader = ContentLoaderScript.new()
-
-
 func build_title_text(run_state: RunState) -> String:
 	if run_state == null:
 		return "Route Board"
-	return "Stage %d Route" % run_state.stage_index
+	return "Stage %d" % run_state.stage_index
+
+
+func build_stage_badge_text(run_state: RunState) -> String:
+	if run_state == null:
+		return "I"
+	return _to_roman_stage(max(1, int(run_state.stage_index)))
 
 
 func build_progress_text(run_state: RunState) -> String:
 	if run_state == null:
 		return ""
 	var map_runtime_state: RefCounted = run_state.map_runtime_state
-	return "Open %d | Seen %d | Cleared %d" % [
+	return "Open Routes %d | Seen %d | Cleared %d" % [
 		map_runtime_state.get_discovered_adjacent_node_ids().size(),
 		map_runtime_state.get_discovered_node_count(),
 		map_runtime_state.get_resolved_node_count(),
 	]
 
 
-func build_run_status_text(run_state: RunState) -> String:
-	if run_state == null:
-		return ""
-
-	var inventory_state: RefCounted = run_state.inventory_state
-	var weapon_name: String = _build_weapon_display_name(inventory_state.weapon_instance)
-	return "HP %d | Hunger %d | Gold %d | %s (%d)" % [
-		run_state.player_hp,
-		run_state.hunger,
-		run_state.gold,
-		weapon_name,
-		int(inventory_state.weapon_instance.get("current_durability", 0)),
-	]
-
-
-func build_gold_status_text(run_state: RunState) -> String:
-	if run_state == null:
-		return "Gold 0"
-	return "Gold %d" % run_state.gold
-
-
-func build_hp_status_text(run_state: RunState) -> String:
-	if run_state == null:
-		return "HP 0"
-	return "HP %d" % run_state.player_hp
-
-
-func build_hunger_status_text(run_state: RunState) -> String:
-	if run_state == null:
-		return "Hunger 0"
-	return "Hunger %d" % run_state.hunger
-
-
-func build_durability_status_text(run_state: RunState) -> String:
-	if run_state == null:
-		return "Durability 0"
-	return "Durability %d" % int(run_state.inventory_state.weapon_instance.get("current_durability", 0))
-
-
-func build_hp_icon_texture_path() -> String:
-	return UiAssetPathsScript.HP_ICON_TEXTURE_PATH
-
-
-func build_hunger_icon_texture_path() -> String:
-	return UiAssetPathsScript.HUNGER_ICON_TEXTURE_PATH
-
-
-func build_durability_icon_texture_path() -> String:
-	return UiAssetPathsScript.DURABILITY_ICON_TEXTURE_PATH
-
-
-func build_gold_icon_texture_path() -> String:
-	return UiAssetPathsScript.GOLD_ICON_TEXTURE_PATH
+func build_run_status_model(run_state: RunState) -> Dictionary:
+	return RunStatusPresenterScript.build_status_model(run_state, {
+		"variant": RunStatusPresenterScript.VARIANT_COMPACT,
+		"include_weapon": false,
+		"include_xp": true,
+	})
 
 
 func get_level_up_threshold(run_state: RunState) -> int:
@@ -141,11 +98,73 @@ func build_current_anchor_detail_text(run_state: RunState) -> String:
 		"Key %s" % ("taken" if map_runtime_state.is_stage_key_resolved() else "ahead"),
 		"Boss %s" % ("open" if map_runtime_state.is_stage_key_resolved() else "locked"),
 	])
-	var side_mission_read: String = _build_side_mission_highlight_read_text(map_runtime_state)
-	if not side_mission_read.is_empty():
-		detail_parts.append(side_mission_read)
+	var side_quest_read: String = _build_side_quest_highlight_read_text(map_runtime_state)
+	if not side_quest_read.is_empty():
+		detail_parts.append(side_quest_read)
 	detail_parts.append("%d open" % map_runtime_state.get_discovered_adjacent_node_ids().size())
 	return " | ".join(detail_parts)
+
+
+func build_route_overview_text(run_state: RunState) -> String:
+	if run_state == null:
+		return ""
+	var map_runtime_state: RefCounted = run_state.map_runtime_state
+	var detail_parts := PackedStringArray()
+	detail_parts.append(build_current_anchor_text(run_state))
+	detail_parts.append("Key %s" % ("taken" if map_runtime_state.is_stage_key_resolved() else "ahead"))
+	detail_parts.append("Boss %s" % ("open" if map_runtime_state.is_stage_key_resolved() else "locked"))
+	var side_quest_read: String = _build_side_quest_highlight_read_text(map_runtime_state)
+	if not side_quest_read.is_empty():
+		detail_parts.append(side_quest_read)
+	detail_parts.append("%d routes" % map_runtime_state.get_discovered_adjacent_node_ids().size())
+	return " | ".join(detail_parts)
+
+
+func build_inventory_pressure_text(run_state: RunState) -> String:
+	if run_state == null or run_state.inventory_state == null:
+		return ""
+	var inventory_state: RefCounted = run_state.inventory_state
+	var used_capacity: int = inventory_state.get_used_capacity()
+	var total_capacity: int = inventory_state.get_total_capacity()
+	var pressure_text: String = "Carry %d/%d" % [used_capacity, total_capacity]
+	var weapon_summary: String = UiFormattingScript.build_weapon_summary(inventory_state.weapon_instance, true)
+	if weapon_summary == "No weapon":
+		return pressure_text
+	return "%s | %s" % [pressure_text, weapon_summary]
+
+
+func build_focus_panel_model(run_state: RunState, focused_node_id: int = MapRuntimeStateScript.NO_PENDING_NODE_ID) -> Dictionary:
+	if run_state == null:
+		return {
+			"title_text": "Current Stop",
+			"detail_text": "",
+			"hint_text": "",
+		}
+
+	var map_runtime_state: RefCounted = run_state.map_runtime_state
+	var resolved_focus_node_id: int = focused_node_id
+	if resolved_focus_node_id == MapRuntimeStateScript.NO_PENDING_NODE_ID:
+		resolved_focus_node_id = int(map_runtime_state.current_node_id)
+	var node_snapshot: Dictionary = _find_node_snapshot_by_id(map_runtime_state, resolved_focus_node_id)
+	if node_snapshot.is_empty():
+		return {
+			"title_text": build_current_anchor_text(run_state),
+			"detail_text": build_current_anchor_detail_text(run_state),
+			"hint_text": build_cluster_read_text(run_state),
+		}
+
+	var is_current: bool = resolved_focus_node_id == int(map_runtime_state.current_node_id)
+	var family_name: String = _display_name_for_family(String(node_snapshot.get("node_family", "")))
+	var detail_parts := PackedStringArray(["Node %d" % resolved_focus_node_id])
+	var state_phrase: String = _build_focus_state_phrase(run_state, node_snapshot, is_current)
+	if not state_phrase.is_empty():
+		detail_parts.append(state_phrase)
+	var title_prefix: String = "Current Stop" if is_current else "Route Ahead"
+	return {
+		"title_text": "%s: %s" % [title_prefix, family_name],
+		"detail_text": " | ".join(detail_parts),
+		"hint_text": _build_focus_hint_text(run_state, node_snapshot, is_current),
+	}
 
 
 func build_cluster_read_text(run_state: RunState) -> String:
@@ -208,8 +227,8 @@ func build_route_icon_texture_path(node_family: String) -> String:
 			return UiAssetPathsScript.EVENT_ICON_TEXTURE_PATH
 		"reward":
 			return UiAssetPathsScript.REWARD_ICON_TEXTURE_PATH
-		"side_mission":
-			return UiAssetPathsScript.SIDE_MISSION_ICON_TEXTURE_PATH
+		"hamlet":
+			return UiAssetPathsScript.HAMLET_ICON_TEXTURE_PATH
 		"rest":
 			return UiAssetPathsScript.REST_ICON_TEXTURE_PATH
 		"merchant":
@@ -296,24 +315,29 @@ func _build_route_button_text(node_snapshot: Dictionary, is_adjacent: bool = tru
 
 	match node_state:
 		MapRuntimeStateScript.NODE_STATE_LOCKED:
+			if node_family == "boss":
+				return "%s\nNeed Key" % family_name
 			return "%s\nLocked" % family_name
 		MapRuntimeStateScript.NODE_STATE_RESOLVED:
 			if node_family == "start":
-				return "%s\nSpent Path" % family_name
-			return "%s\nSpent" % family_name
+				return "%s\nBacktrack" % family_name
+			return "%s\nCleared" % family_name
 		_:
-			return "%s\nReachable" % family_name
+			return "%s\nOpen Route" % family_name
 
 
 func _build_route_state_chip_text(node_snapshot: Dictionary, is_adjacent: bool = true) -> String:
 	if not is_adjacent:
 		return ""
 	var node_state: String = String(node_snapshot.get("node_state", MapRuntimeStateScript.NODE_STATE_UNDISCOVERED))
+	var node_family: String = String(node_snapshot.get("node_family", ""))
 	match node_state:
 		MapRuntimeStateScript.NODE_STATE_LOCKED:
+			if node_family == "boss":
+				return "KEY"
 			return "LOCK"
 		MapRuntimeStateScript.NODE_STATE_RESOLVED:
-			return "SPENT"
+			return "CLEAR"
 		_:
 			return "OPEN"
 
@@ -357,20 +381,6 @@ func _display_name_for_family(node_family: String) -> String:
 	return String(FAMILY_DISPLAY_NAMES.get(node_family, node_family.capitalize()))
 
 
-func _build_weapon_display_name(weapon_instance: Dictionary) -> String:
-	var definition_id: String = String(weapon_instance.get("definition_id", "none"))
-	if definition_id.is_empty() or definition_id == "none":
-		return "None"
-
-	var weapon_definition: Dictionary = _loader.load_definition("Weapons", definition_id)
-	var display: Dictionary = weapon_definition.get("display", {})
-	var display_name: String = String(display.get("name", definition_id))
-	var upgrade_level: int = max(0, int(weapon_instance.get("upgrade_level", 0)))
-	if upgrade_level <= 0:
-		return display_name
-	return "%s +%d" % [display_name, upgrade_level]
-
-
 func _format_cluster_node_label(node_snapshot: Dictionary) -> String:
 	var node_family: String = String(node_snapshot.get("node_family", ""))
 	var node_state: String = String(node_snapshot.get("node_state", MapRuntimeStateScript.NODE_STATE_UNDISCOVERED))
@@ -382,10 +392,10 @@ func _format_cluster_node_label(node_snapshot: Dictionary) -> String:
 	return family_name
 
 
-func _build_side_mission_highlight_read_text(map_runtime_state: RefCounted) -> String:
-	if map_runtime_state == null or not map_runtime_state.has_method("build_side_mission_highlight_snapshot"):
+func _build_side_quest_highlight_read_text(map_runtime_state: RefCounted) -> String:
+	if map_runtime_state == null or not map_runtime_state.has_method("build_side_quest_highlight_snapshot"):
 		return ""
-	var highlight_snapshot: Dictionary = map_runtime_state.build_side_mission_highlight_snapshot()
+	var highlight_snapshot: Dictionary = map_runtime_state.build_side_quest_highlight_snapshot()
 	match String(highlight_snapshot.get("highlight_state", "")):
 		"target":
 			return "Marked target"
@@ -393,3 +403,72 @@ func _build_side_mission_highlight_read_text(map_runtime_state: RefCounted) -> S
 			return "Return marked"
 		_:
 			return ""
+
+
+func _find_node_snapshot_by_id(map_runtime_state: RefCounted, node_id: int) -> Dictionary:
+	if map_runtime_state == null:
+		return {}
+	for node_snapshot in map_runtime_state.build_node_snapshots():
+		if int(node_snapshot.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID)) == node_id:
+			return node_snapshot
+	return {}
+
+
+func _build_focus_state_phrase(run_state: RunState, node_snapshot: Dictionary, is_current: bool) -> String:
+	var node_state: String = String(node_snapshot.get("node_state", MapRuntimeStateScript.NODE_STATE_UNDISCOVERED))
+	var node_family: String = String(node_snapshot.get("node_family", ""))
+	if is_current:
+		return "%d routes open" % run_state.map_runtime_state.get_discovered_adjacent_node_ids().size()
+	match node_state:
+		MapRuntimeStateScript.NODE_STATE_LOCKED:
+			if node_family == "boss":
+				return "Need key first"
+			return "Locked for now"
+		MapRuntimeStateScript.NODE_STATE_RESOLVED:
+			return "Already cleared"
+		_:
+			return "Open route"
+
+
+func _build_focus_hint_text(run_state: RunState, node_snapshot: Dictionary, is_current: bool) -> String:
+	var node_family: String = String(node_snapshot.get("node_family", ""))
+	var key_resolved: bool = bool(run_state.map_runtime_state.is_stage_key_resolved())
+	match node_family:
+		"combat":
+			return "Fight through this pocket to keep pushing outward." if not is_current else "You are on a combat pocket. Review the next route before moving."
+		"reward":
+			return "One immediate pickup lane for gear, recovery, or momentum."
+		"event":
+			return "Planned trail discovery with a choice, not a travel interruption."
+		"rest":
+			return "Safe utility stop for HP and hunger."
+		"merchant":
+			return "Spend gold here for supplies, repairs, or a steadier next leg."
+		"blacksmith":
+			return "Repair or improve gear before the outer push."
+		"hamlet":
+			return "Accept or turn in a hamlet request here for marked-objective rewards."
+		"key":
+			return "Secure the stage key before committing to the boss lane."
+		"boss":
+			return "Boss gate is ready once the key is secured." if key_resolved else "Boss lane stays locked until the stage key is secured."
+		"start":
+			return "Trailhead revisit. Use it to re-center before choosing another branch."
+		_:
+			return ""
+
+
+func _to_roman_stage(stage_index: int) -> String:
+	match stage_index:
+		1:
+			return "I"
+		2:
+			return "II"
+		3:
+			return "III"
+		4:
+			return "IV"
+		5:
+			return "V"
+		_:
+			return str(stage_index)

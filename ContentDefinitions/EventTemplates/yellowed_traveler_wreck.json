@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "definition_id": "yellowed_traveler_wreck",
+  "family": "EventTemplates",
+  "tags": [
+    "event",
+    "roadside",
+    "traveler",
+    "stage_1",
+    "prototype"
+  ],
+  "display": {
+    "name": "Traveler Under the Wreck",
+    "short_description": "A light wagon has rolled on its side in the ditch. Someone is still pinned under the frame, one hand stretched toward a split medicine satchel."
+  },
+  "rules": {
+    "choices": [
+      {
+        "choice_id": "haul_up_the_beam",
+        "label": "Haul the beam clear",
+        "summary": "Wrench the frame up just long enough to drag the traveler free and keep what they press into your hand.",
+        "effect_type": "grant_item",
+        "inventory_family": "consumable",
+        "definition_id": "quick_clot_poultice",
+        "amount": 1
+      },
+      {
+        "choice_id": "rifle_the_spilled_purse",
+        "label": "Rifle the spilled purse",
+        "summary": "Take the road coins from the mud and leave the wagon to settle on its own.",
+        "effect_type": "grant_gold",
+        "amount": 9
+      }
+    ]
+  }
+}

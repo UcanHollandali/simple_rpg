@@ -17,11 +17,17 @@
   },
   "design_intent_question": "Can a balanced knife support the Scavenger line by keeping attack pressure steady enough that the player can spend consumables aggressively instead of hoarding them for safety?",
   "rules": {
+    "slot_compatibility": {
+      "right_hand": true,
+      "left_hand": true,
+      "offhand_capable": true
+    },
     "stats": {
       "weapon_type": "knife",
       "base_damage": 6,
       "max_durability": 18,
-      "durability_cost_per_attack": 1
+      "durability_cost_per_attack": 1,
+      "durability_profile": "standard"
     }
   }
 }

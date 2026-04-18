@@ -12,6 +12,7 @@ $ErrorActionPreference = "Stop"
 try {
     $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
     $profilePaths = Initialize-GodotLocalProfile -ProjectRoot $projectRoot
+    Clear-GodotTestLogs -LogsPath $profilePaths.Logs
     Assert-NoRunningGodot -Reason "running automated tests"
     $godotExe = Get-GodotExecutable
     $importLogFile = Get-GodotLogFilePath -ProjectRoot $projectRoot -Name "godot_tests_import.log"

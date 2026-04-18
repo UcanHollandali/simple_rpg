@@ -82,7 +82,7 @@
       },
       {
         "node_id": 13,
-        "slot_type": "late_side_mission",
+        "slot_type": "late_hamlet",
         "adjacent_node_ids": [5, 11]
       }
     ]

@@ -4,7 +4,7 @@
   "authoring_order": 90,
   "family": "Enemies",
   "encounter_tier": "elite",
-  "design_intent_question": "Can the player read a heavier stage-end telegraph and save Brace or healing for the correct turn?",
+  "design_intent_question": "Can the player read a heavier stage-end telegraph and save Defend or healing for the correct turn?",
   "tags": [
     "enemy",
     "boss",

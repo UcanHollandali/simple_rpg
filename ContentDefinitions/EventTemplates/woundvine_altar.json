@@ -11,21 +11,21 @@
   ],
   "display": {
     "name": "Woundvine Altar",
-    "short_description": "An altar stone has disappeared under woundvine roots. Clear sap runs down the carvings and gathers in a cup of cracked bone."
+    "short_description": "An altar stone has nearly disappeared under woundvine roots. Clear sap beads along one side while darker resin clots around a cup of cracked bone."
   },
   "rules": {
     "choices": [
       {
         "choice_id": "bind_with_clean_sap",
-        "label": "Bind with clean sap",
-        "summary": "Use the clear resin like a bandage and seal what the road has opened.",
+        "label": "Bind with the clear sap",
+        "summary": "Use the pale resin like a bandage and seal what the road has opened before the bitter vines reach it.",
         "effect_type": "heal",
         "amount": 7
       },
       {
         "choice_id": "bottle_the_bitter_resin",
-        "label": "Bottle the bitter resin",
-        "summary": "Take the harsher sap instead and trust the lesson to pay off later.",
+        "label": "Cut the bitter vines free",
+        "summary": "Take the harsher resin instead, learn how the altar fed itself, and trust the lesson to pay off later.",
         "effect_type": "grant_xp",
         "amount": 6
       }

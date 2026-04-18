@@ -21,6 +21,7 @@ $NonBlockingShutdownWarningPatterns = @(
 
 $GodotTemplateVersion = "4.6.2.stable"
 $GodotTemplateArchiveName = "Godot_v4.6.2-stable_export_templates.tpz"
+$GodotTemplateDownloadUrl = "https://downloads.godotengine.org/?flavor=stable&platform=templates&slug=export_templates.tpz&version=4.6.2"
 $RequiredTemplateFileNames = @(
     "windows_debug_x86_64.exe",
     "windows_release_x86_64.exe",
@@ -323,7 +324,35 @@ function Ensure-ExportTemplatesAvailable {
         }
     }
 
-    throw "Missing Windows export templates for Godot $GodotTemplateVersion. Install them globally, set GODOT_EXPORT_TEMPLATES_DIR, or place $GodotTemplateArchiveName next to the Godot executable, in your Downloads folder, or in the project root."
+    $downloadArchivePath = Join-Path $ProjectRoot $GodotTemplateArchiveName
+    try {
+        Write-Host "Downloading official Godot export templates from $GodotTemplateDownloadUrl"
+        Invoke-WebRequest -Uri $GodotTemplateDownloadUrl -OutFile $downloadArchivePath -MaximumRedirection 5
+        if (Test-Path -LiteralPath $downloadArchivePath -PathType Leaf) {
+            Write-Host "Extracting downloaded export templates from $downloadArchivePath"
+            New-Item -ItemType Directory -Force -Path $requiredTemplateDirectory | Out-Null
+            Expand-Archive -LiteralPath $downloadArchivePath -DestinationPath $requiredTemplateDirectory -Force
+
+            $nestedTemplateDirectory = Join-Path $requiredTemplateDirectory "templates"
+            if (-not (Test-RequiredTemplateFilesPresent -TemplateDirectory $requiredTemplateDirectory) -and
+                (Test-RequiredTemplateFilesPresent -TemplateDirectory $nestedTemplateDirectory)) {
+                Copy-SelectedFiles `
+                    -SourceDirectory $nestedTemplateDirectory `
+                    -DestinationDirectory $requiredTemplateDirectory `
+                    -FileNames $RequiredTemplateFileNames
+            }
+
+            if ((Test-Path -LiteralPath $requiredDebugTemplate -PathType Leaf) -and (Test-Path -LiteralPath $requiredReleaseTemplate -PathType Leaf)) {
+                Remove-UnneededTemplateFiles -TemplateDirectory $requiredTemplateDirectory -KeepFileNames $RequiredTemplateFileNames
+                return
+            }
+        }
+    }
+    catch {
+        Write-Warning "Automatic export-template download failed: $($_.Exception.Message)"
+    }
+
+    throw "Missing Windows export templates for Godot $GodotTemplateVersion. Install them globally, set GODOT_EXPORT_TEMPLATES_DIR, place $GodotTemplateArchiveName next to the Godot executable, in your Downloads folder, or in the project root, or allow the helper to download the official archive from $GodotTemplateDownloadUrl."
 }
 
 try {

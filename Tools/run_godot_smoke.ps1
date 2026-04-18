@@ -83,7 +83,10 @@ try {
     Assert-NoHiddenLogFailures -LogFile $logFile -ContextLabel "project import smoke"
 
     $scriptFiles = Get-ChildItem -Path $projectRoot -Recurse -File -Filter *.gd |
-        Where-Object { $_.FullName -notlike (Join-Path $projectRoot ".godot\*") } |
+        Where-Object {
+            $_.FullName -notlike (Join-Path $projectRoot ".godot\*") -and
+            $_.FullName -notlike (Join-Path $projectRoot "_godot_profile\*")
+        } |
         Sort-Object FullName
 
     if (-not $scriptFiles) {

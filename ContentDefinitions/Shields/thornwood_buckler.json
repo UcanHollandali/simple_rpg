@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "definition_id": "thornwood_buckler",
+  "family": "Shields",
+  "tags": [
+    "shield",
+    "defense",
+    "aggressive",
+    "light"
+  ],
+  "display": {
+    "name": "Thornwood Buckler",
+    "short_description": "A rough buckler of thornwood that trades pure comfort for a sharper counterfighting stance.",
+    "icon_key": "shield_thornwood_buckler"
+  },
+  "rules": {
+    "behaviors": [
+      {
+        "trigger": "passive",
+        "condition": {
+          "op": "always"
+        },
+        "target": "self",
+        "effects": [
+          {
+            "type": "modify_stat",
+            "params": {
+              "stat": "attack_power_bonus",
+              "amount": 1
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

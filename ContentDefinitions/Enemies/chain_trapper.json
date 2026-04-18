@@ -4,17 +4,18 @@
   "authoring_order": 140,
   "family": "Enemies",
   "encounter_tier": "minor",
-  "design_intent_question": "Can the player read that a weakening setup turn is the warning for a stronger bleed punish on the next beat, instead of treating both turns the same?",
+  "design_intent_question": "Can the player spot that the trapper is not racing for raw damage, but trying to foul preparation turns until one chained punish lands clean?",
   "tags": [
     "enemy",
     "raider",
     "stage_2",
+    "control",
     "bleed",
     "combo"
   ],
   "display": {
     "name": "Chain Trapper",
-    "short_description": "A path hunter who softens the player with a hooked drag before cashing in with a bleeding rake.",
+    "short_description": "A path hunter who ruins clean tempo with hook drags and snagged chain before cashing in with one bleeding rake.",
     "icon_key": "enemy_chain_trapper"
   },
   "rules": {
@@ -31,7 +32,7 @@
           {
             "type": "deal_damage",
             "params": {
-              "base": 3,
+              "base": 2,
               "damage_kind": "physical"
             }
           },
@@ -39,6 +40,26 @@
             "type": "apply_status",
             "params": {
               "definition_id": "weakened"
+            }
+          }
+        ]
+      },
+      {
+        "intent_id": "snagged_chain",
+        "action_family": "attack",
+        "threat_level": "medium",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 2,
+              "damage_kind": "physical"
+            }
+          },
+          {
+            "type": "apply_status",
+            "params": {
+              "definition_id": "corroded"
             }
           }
         ]
@@ -59,20 +80,6 @@
             "type": "apply_status",
             "params": {
               "definition_id": "bleed"
-            }
-          }
-        ]
-      },
-      {
-        "intent_id": "weight_shift",
-        "action_family": "attack",
-        "threat_level": "low",
-        "effects": [
-          {
-            "type": "deal_damage",
-            "params": {
-              "base": 2,
-              "damage_kind": "physical"
             }
           }
         ]

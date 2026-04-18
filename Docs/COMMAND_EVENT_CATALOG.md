@@ -9,7 +9,6 @@ It records implemented surface names plus reserved naming guidance, not every pa
 
 Current prototype note:
 - the only implemented formal generic command-style path today is `GameFlowManager.request_transition`
-- `GameFlowManager.dispatch` still exists only as a compatibility shim for `request_transition`; it is not a general command bus
 - prototype loop mutations currently route through explicit `AppBootstrap` / `RunSessionCoordinator` methods instead of scene-owned state writes
 - reward-specific and level-up-specific domain events below are still intended names, not current runtime signals
 
@@ -19,12 +18,6 @@ Current prototype note:
 
 - `GameFlowManager.request_transition(target_state)`
 
-Current compatibility shim:
-- `GameFlowManager.dispatch({ "type": "request_transition", ... })`
-
-Current repo truth: no in-repo runtime caller should depend on this shim.
-This shim is kept only as a temporary compatibility stopgap. New code should prefer `request_transition(...)` directly.
-
 ### Explicit Application Action Surface (Implemented Methods)
 
 These are implemented methods, not generic command messages:
@@ -32,8 +25,12 @@ These are implemented methods, not generic command messages:
 - `AppBootstrap.resolve_pending_node`
 - `AppBootstrap.resolve_combat_result`
 - `AppBootstrap.choose_reward_option`
+  - optional overflow-resolution args: `discard_slot_id`, `leave_item`
 - `AppBootstrap.choose_level_up_option`
 - `AppBootstrap.choose_support_action`
+  - optional overflow-resolution arg: `discard_slot_id`
+- `AppBootstrap.choose_event_option`
+  - optional overflow-resolution args: `discard_slot_id`, `leave_item`
 - `AppBootstrap.save_game`
 - `AppBootstrap.load_game`
 
@@ -54,8 +51,8 @@ Current emitted `domain_event_emitted` names:
 - `StatusExpired`
 - `DurabilityReduced`
 - `WeaponBroken`
-- `BraceActivated`
-- `BraceMitigated`
+- `GuardGained`
+- `GuardAbsorbed`
 - `ConsumableUsed`
 - `EnemyDefeated`
 
@@ -82,7 +79,7 @@ They are not active runtime surface, not proof of a generic command bus, and not
 #### Combat
 
 - `ChooseAttack`
-- `ChooseBrace`
+- `ChooseDefend`
 - `ChooseUseItem`
 
 ### Reserved Event Family Names

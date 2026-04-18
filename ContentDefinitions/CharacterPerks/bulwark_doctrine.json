@@ -1,0 +1,45 @@
+{
+    "schema_version":  1,
+    "definition_id":  "bulwark_doctrine",
+    "authoring_order":  35,
+    "family":  "CharacterPerks",
+    "tags":  [
+                 "perk",
+                 "defense",
+                 "tradeoff"
+             ],
+    "display":  {
+                    "name":  "Bulwark Doctrine",
+                    "short_description":  "A defensive doctrine that cuts incoming damage by 2, but trims 1 attack power from your swings.",
+                    "icon_key":  "passive_bulwark_reliquary"
+                },
+    "rules":  {
+                  "behaviors":  [
+                                    {
+                                        "trigger":  "passive",
+                                        "condition":  {
+                                                          "op":  "always"
+                                                      },
+                                        "target":  "self",
+                                        "effects":  [
+                                                        {
+                                                            "type":  "modify_stat",
+                                                            "params":  {
+                                                                           "stat":  "incoming_damage_flat_reduction",
+                                                                           "amount":  2
+                                                                       }
+                                                        },
+                                                        {
+                                                            "type":  "modify_stat",
+                                                            "params":  {
+                                                                           "stat":  "attack_power_bonus",
+                                                                           "amount":  -1
+                                                                       }
+                                                        }
+                                                    ]
+                                    }
+                                ],
+                  "perk_family":  "defense"
+              }
+}
+

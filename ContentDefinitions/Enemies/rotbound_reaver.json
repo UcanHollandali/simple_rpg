@@ -19,7 +19,7 @@
   },
   "rules": {
     "stats": {
-      "base_hp": 26,
+      "base_hp": 28,
       "base_damage": 5,
       "dodge_chance": 10
     },

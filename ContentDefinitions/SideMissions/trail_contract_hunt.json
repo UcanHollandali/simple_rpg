@@ -3,44 +3,44 @@
   "definition_id": "trail_contract_hunt",
   "family": "SideMissions",
   "tags": [
-    "side_mission",
+    "hamlet",
+    "side_quest",
     "contract",
     "hunt",
     "prototype"
   ],
   "display": {
-    "name": "Village Request",
-    "short_description": "A yolcu asks for help: a köylü in a küçük mezra needs a strong hand after a harap kulübe raid by an avcı."
+    "name": "Hunt Marked Brigand",
+    "short_description": "A weathered board at the edge of the hamlet names one brigand who has been bleeding the nearby road dry."
   },
   "rules": {
     "mission_type": "hunt_marked_enemy",
-    "briefing_text": "A köylü at the harap kulübe by the small path marks a hunter. Track the avcı, end the trouble, and return for a help reward.",
-    "accept_label": "Accept the request",
-    "accepted_text": "The avcı mark is lit on the trail. Kill the marked threat, then come back for your next step.",
-    "reminder_label": "Marked hunter ahead",
-    "completed_text": "The avcı is down. Choose one aid reward, then return to the village and report back.",
-    "claimed_text": "This request post is quiet now; only torn nails and cold ash remain by the harap kulübe.",
-    "claimed_label": "Request fulfilled",
+    "briefing_text": "A marked brigand is working the stage pockets. Run the thief down, end the threat, and the hamlet will open its stores.",
+    "accept_label": "Take the brigand mark",
+    "accepted_text": "The brigand is marked on the map now. Finish the hunt, then return to the hamlet for aid.",
+    "reminder_label": "Marked brigand ahead",
+    "completed_text": "The marked brigand is down. Choose one hamlet reward before you move on.",
+    "claimed_text": "The brigand's board entry is already crossed out. This request is settled.",
+    "claimed_label": "Brigand settled",
     "reward_pool": [
       {
-        "offer_id": "claim_emberhook_blade",
+        "offer_id": "claim_bandit_hatchet",
+        "effect_type": "grant_item",
         "inventory_family": "weapon",
-        "definition_id": "emberhook_blade"
+        "definition_id": "bandit_hatchet"
       },
       {
-        "offer_id": "claim_moonspur_pike",
-        "inventory_family": "weapon",
-        "definition_id": "moonspur_pike"
+        "offer_id": "claim_trailhook_bandolier",
+        "effect_type": "grant_item",
+        "inventory_family": "belt",
+        "definition_id": "trailhook_bandolier"
       },
       {
-        "offer_id": "claim_gravehide_plates",
-        "inventory_family": "armor",
-        "definition_id": "gravehide_plates"
-      },
-      {
-        "offer_id": "claim_trailwarden_cloak",
-        "inventory_family": "armor",
-        "definition_id": "trailwarden_cloak"
+        "offer_id": "claim_war_biscuit",
+        "effect_type": "grant_item",
+        "inventory_family": "consumable",
+        "definition_id": "war_biscuit",
+        "amount": 1
       }
     ]
   }

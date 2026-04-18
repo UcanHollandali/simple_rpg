@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "definition_id": "stage_1_merchant_stock_roadpack",
+  "family": "MerchantStocks",
+  "tags": [
+    "merchant_stock",
+    "support",
+    "stage_1",
+    "prototype"
+  ],
+  "display": {
+    "name": "Stage 1 Roadpack Stock",
+    "short_description": "A lighter stage-one wagon stock built around simple recovery and a little backpack stability."
+  },
+  "rules": {
+    "stock": [
+      {
+        "offer_id": "buy_quick_clot_poultice_x1",
+        "definition_id": "quick_clot_poultice",
+        "effect_type": "buy_consumable",
+        "amount": 1,
+        "cost_gold": 7
+      },
+      {
+        "offer_id": "buy_trailhook_bandolier",
+        "definition_id": "trailhook_bandolier",
+        "effect_type": "buy_belt",
+        "cost_gold": 14
+      },
+      {
+        "offer_id": "buy_thornwood_buckler",
+        "definition_id": "thornwood_buckler",
+        "effect_type": "buy_shield",
+        "cost_gold": 12
+      }
+    ]
+  }
+}

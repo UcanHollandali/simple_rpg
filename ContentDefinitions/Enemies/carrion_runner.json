@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "definition_id": "carrion_runner",
+  "authoring_order": 210,
+  "family": "Enemies",
+  "encounter_tier": "minor",
+  "design_intent_question": "Can the player learn that even an early scavenger can create a real bleed problem if every small bite is ignored?",
+  "tags": [
+    "enemy",
+    "beast",
+    "stage_1",
+    "scavenger",
+    "bleed"
+  ],
+  "display": {
+    "name": "Carrion Runner",
+    "short_description": "A rag-thin road scavenger that keeps darting in for shallow cuts until one raking bite opens a bleed clock.",
+    "icon_key": "enemy_carrion_runner"
+  },
+  "rules": {
+    "stats": {
+      "base_hp": 19,
+      "base_damage": 3,
+      "dodge_chance": 10
+    },
+    "intent_pool": [
+      {
+        "intent_id": "nipping_feint",
+        "action_family": "attack",
+        "threat_level": "low",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 2,
+              "damage_kind": "physical"
+            }
+          }
+        ]
+      },
+      {
+        "intent_id": "raking_teeth",
+        "action_family": "attack",
+        "threat_level": "medium",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 2,
+              "damage_kind": "physical"
+            }
+          },
+          {
+            "type": "apply_status",
+            "params": {
+              "definition_id": "bleed"
+            }
+          }
+        ]
+      },
+      {
+        "intent_id": "lunging_maul",
+        "action_family": "attack",
+        "threat_level": "high",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 4,
+              "damage_kind": "physical"
+            }
+          }
+        ]
+      }
+    ],
+    "behaviors": []
+  }
+}

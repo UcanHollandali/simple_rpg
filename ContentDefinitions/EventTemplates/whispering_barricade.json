@@ -10,22 +10,22 @@
     "prototype"
   ],
   "display": {
-    "name": "Whispering Barricade",
-    "short_description": "A fallen barricade is packed with torn travel sacks and damp ledgers. Wind through the bottle-neck gaps makes the whole thing murmur."
+    "name": "Half-Spent Campfire",
+    "short_description": "A campfire has collapsed into wet ash beside the road. One ration sack still smokes at the edge of the coals, and somebody scratched route marks into the blackened stones."
   },
   "rules": {
     "choices": [
       {
         "choice_id": "dig_out_the_ration_wax",
-        "label": "Dig out the ration wax",
-        "summary": "Scrape the waxed crumbs from an old field ration and eat on the move.",
+        "label": "Wake the coals and eat",
+        "summary": "Blow the ash alive just long enough to warm the stubborn ration scrap still sealed in the soot.",
         "effect_type": "modify_hunger",
         "amount": -3
       },
       {
         "choice_id": "follow_the_names",
-        "label": "Follow the names",
-        "summary": "Read the ruined ledger until the route patterns click into place in your head.",
+        "label": "Read the soot-marked stones",
+        "summary": "Trace the half-burned route marks until the road's next bad turn makes sense to you.",
         "effect_type": "grant_xp",
         "amount": 6
       }

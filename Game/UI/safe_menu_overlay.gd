@@ -3,6 +3,7 @@ extends Control
 class_name SafeMenuOverlay
 
 const AudioPreferencesScript = preload("res://Game/UI/audio_preferences.gd")
+const SceneAudioCleanupScript = preload("res://Game/UI/scene_audio_cleanup.gd")
 const TempScreenThemeScript = preload("res://Game/UI/temp_screen_theme.gd")
 const CONFIRM_ICON = preload("res://Assets/Icons/icon_confirm.svg")
 const CANCEL_ICON = preload("res://Assets/Icons/icon_cancel.svg")
@@ -13,21 +14,22 @@ const OVERLAY_BASE_Z_INDEX := 140
 const LAUNCHER_Z_INDEX := 4
 const TOAST_Z_INDEX := 3
 const MENU_LAYER_Z_INDEX := 10
-const LAUNCHER_CORNER_TOP_LEFT := "top_left"
 const LAUNCHER_CORNER_TOP_RIGHT := "top_right"
+const LAUNCHER_CORNER_TOP_LEFT := "top_left"
 const LAUNCHER_CORNER_BOTTOM_LEFT := "bottom_left"
 
 signal save_requested
 signal load_requested
+signal return_to_main_menu_requested
 
 var _title_text: String = "Run Menu"
-var _subtitle_text: String = "Save, load, mute music, or quit."
+var _subtitle_text: String = "Save, load, return to menu, mute music, or quit."
 var _launcher_text: String = "Settings"
 var _load_available: bool = false
 var _status_text: String = ""
 var _menu_open: bool = false
 var _status_cycle_token: int = 0
-var _launcher_corner: String = LAUNCHER_CORNER_TOP_LEFT
+var _launcher_corner: String = LAUNCHER_CORNER_TOP_RIGHT
 
 var _launcher_button: Button
 var _menu_layer: Control
@@ -36,9 +38,7 @@ var _title_label: Label
 var _subtitle_label: Label
 var _save_button: Button
 var _load_button: Button
-var _display_label: Label
-var _resolution_option: OptionButton
-var _fullscreen_toggle: CheckButton
+var _main_menu_button: Button
 var _music_toggle_button: Button
 var _quit_button: Button
 var _close_button: Button
@@ -109,12 +109,11 @@ func set_launcher_alignment_target(target: Control) -> void:
 
 
 func set_launcher_corner(corner: String) -> void:
+	_launcher_corner = LAUNCHER_CORNER_TOP_LEFT
 	if corner == LAUNCHER_CORNER_BOTTOM_LEFT:
 		_launcher_corner = LAUNCHER_CORNER_BOTTOM_LEFT
 	elif corner == LAUNCHER_CORNER_TOP_RIGHT:
 		_launcher_corner = LAUNCHER_CORNER_TOP_RIGHT
-	else:
-		_launcher_corner = LAUNCHER_CORNER_TOP_LEFT
 	if is_inside_tree():
 		_apply_viewport_layout()
 
@@ -139,6 +138,8 @@ func open_menu() -> void:
 		_save_button.grab_focus()
 	elif _load_button != null and not _load_button.disabled and _load_button.visible:
 		_load_button.grab_focus()
+	elif _main_menu_button != null and _main_menu_button.visible:
+		_main_menu_button.grab_focus()
 	elif _close_button != null:
 		_close_button.grab_focus()
 
@@ -155,14 +156,7 @@ func close_menu() -> void:
 	tween.set_ease(Tween.EASE_IN)
 	tween.tween_property(_menu_layer, "modulate", Color(1, 1, 1, 0), 0.12)
 	tween.parallel().tween_property(_menu_panel, "scale", Vector2(0.98, 0.98), 0.12)
-	tween.finished.connect(func() -> void:
-		if _menu_layer != null:
-			_menu_layer.visible = false
-			_menu_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			_menu_panel.scale = Vector2.ONE
-		if _launcher_button != null:
-			_launcher_button.grab_focus()
-	)
+	tween.finished.connect(Callable(self, "_finish_menu_close"), CONNECT_ONE_SHOT)
 
 
 func is_menu_open() -> bool:
@@ -309,64 +303,22 @@ func _build_ui() -> void:
 	actions_vbox.add_theme_constant_override("separation", 5)
 	panel_vbox.add_child(actions_vbox)
 
-	_save_button = Button.new()
-	_save_button.name = "SaveRunButton"
-	_save_button.text = "Save Progress"
-	_save_button.icon = CONFIRM_ICON
-	_save_button.custom_minimum_size = Vector2(0, 42)
-	_save_button.pressed.connect(func() -> void:
-		emit_signal("save_requested")
-	)
+	_save_button = _build_menu_button("SaveRunButton", "Save Progress", CONFIRM_ICON, "_emit_save_requested")
 	actions_vbox.add_child(_save_button)
 
-	_load_button = Button.new()
-	_load_button.name = "LoadRunButton"
-	_load_button.text = "Load Save"
-	_load_button.icon = CONFIRM_ICON
-	_load_button.custom_minimum_size = Vector2(0, 42)
-	_load_button.pressed.connect(func() -> void:
-		emit_signal("load_requested")
-	)
+	_load_button = _build_menu_button("LoadRunButton", "Load Save", CONFIRM_ICON, "_emit_load_requested")
 	actions_vbox.add_child(_load_button)
 
-	_display_label = Label.new()
-	_display_label.name = "DisplayLabel"
-	_display_label.text = "Display"
-	actions_vbox.add_child(_display_label)
+	_main_menu_button = _build_menu_button("ReturnToMainMenuButton", "Return to Main Menu", CONFIRM_ICON, "_emit_return_to_main_menu_requested")
+	actions_vbox.add_child(_main_menu_button)
 
-	_resolution_option = OptionButton.new()
-	_resolution_option.name = "ResolutionOption"
-	_resolution_option.custom_minimum_size = Vector2(0, 42)
-	_resolution_option.item_selected.connect(Callable(self, "_on_resolution_option_selected"))
-	actions_vbox.add_child(_resolution_option)
-
-	_fullscreen_toggle = CheckButton.new()
-	_fullscreen_toggle.name = "FullscreenToggle"
-	_fullscreen_toggle.text = "Tam Ekran"
-	_fullscreen_toggle.custom_minimum_size = Vector2(0, 42)
-	_fullscreen_toggle.toggled.connect(Callable(self, "_on_fullscreen_toggled"))
-	actions_vbox.add_child(_fullscreen_toggle)
-
-	_music_toggle_button = Button.new()
-	_music_toggle_button.name = "MusicToggleButton"
-	_music_toggle_button.custom_minimum_size = Vector2(0, 42)
-	_music_toggle_button.pressed.connect(Callable(self, "_on_music_toggle_pressed"))
+	_music_toggle_button = _build_menu_button("MusicToggleButton", "", null, "_on_music_toggle_pressed")
 	actions_vbox.add_child(_music_toggle_button)
 
-	_quit_button = Button.new()
-	_quit_button.name = "QuitGameButton"
-	_quit_button.text = "Quit Game"
-	_quit_button.icon = CANCEL_ICON
-	_quit_button.custom_minimum_size = Vector2(0, 42)
-	_quit_button.pressed.connect(Callable(self, "_on_quit_pressed"))
+	_quit_button = _build_menu_button("QuitGameButton", "Quit Game", CANCEL_ICON, "_on_quit_pressed")
 	actions_vbox.add_child(_quit_button)
 
-	_close_button = Button.new()
-	_close_button.name = "CloseButton"
-	_close_button.text = "Close"
-	_close_button.icon = CANCEL_ICON
-	_close_button.custom_minimum_size = Vector2(0, 42)
-	_close_button.pressed.connect(Callable(self, "close_menu"))
+	_close_button = _build_menu_button("CloseButton", "Close", CANCEL_ICON, "close_menu")
 	actions_vbox.add_child(_close_button)
 
 	_status_label = Label.new()
@@ -389,7 +341,6 @@ func _refresh() -> void:
 	if _status_label != null:
 		_status_label.text = _status_text
 		_status_label.visible = not _status_text.is_empty()
-	_refresh_display_controls()
 	if _load_button != null:
 		_load_button.disabled = not _load_available
 	if _music_toggle_button != null:
@@ -401,19 +352,7 @@ func _refresh() -> void:
 	TempScreenThemeScript.apply_label(_subtitle_label, "muted")
 	TempScreenThemeScript.apply_small_button(_save_button, TempScreenThemeScript.PANEL_BORDER_COLOR, false)
 	TempScreenThemeScript.apply_small_button(_load_button, TempScreenThemeScript.TEAL_ACCENT_COLOR, true)
-	TempScreenThemeScript.apply_label(_display_label, "muted")
-	TempScreenThemeScript.apply_small_button(_resolution_option, TempScreenThemeScript.PANEL_BORDER_COLOR, true)
-	TempScreenThemeScript.apply_small_button(
-		_fullscreen_toggle,
-		TempScreenThemeScript.TEAL_ACCENT_COLOR if _fullscreen_toggle != null and _fullscreen_toggle.button_pressed else TempScreenThemeScript.PANEL_BORDER_COLOR,
-		true
-	)
-	if _fullscreen_toggle != null:
-		_fullscreen_toggle.visible = false
-	if _display_label != null:
-		_display_label.visible = false
-	if _resolution_option != null:
-		_resolution_option.visible = false
+	TempScreenThemeScript.apply_small_button(_main_menu_button, TempScreenThemeScript.REWARD_ACCENT_COLOR, true)
 	TempScreenThemeScript.apply_small_button(
 		_music_toggle_button,
 		TempScreenThemeScript.TEAL_ACCENT_COLOR if AudioPreferencesScript.is_music_enabled() else TempScreenThemeScript.RUST_ACCENT_COLOR,
@@ -447,29 +386,35 @@ func _on_music_toggle_pressed() -> void:
 	_refresh()
 
 
-func _on_resolution_option_selected(index: int) -> void:
-	var bootstrap = _get_bootstrap()
-	if bootstrap == null:
-		return
-	var result: Dictionary = bootstrap.apply_resolution_by_index(index)
-	set_status_text(_build_resolution_status_text(result))
-	_refresh_display_controls()
-
-
-func _on_fullscreen_toggled(toggled: bool) -> void:
-	var bootstrap = _get_bootstrap()
-	if bootstrap == null:
-		return
-	var result: Dictionary = bootstrap.apply_fullscreen_mode(toggled)
-	set_status_text(_build_fullscreen_status_text(result))
-	_refresh_display_controls()
-
-
 func _on_quit_pressed() -> void:
 	var tree: SceneTree = get_tree()
 	if tree == null:
 		return
+	var root_window: Window = tree.root
+	if root_window != null:
+		SceneAudioCleanupScript.release_all_audio_players(root_window)
+	await tree.process_frame
+	await tree.process_frame
+	await tree.create_timer(0.05).timeout
 	tree.quit()
+
+
+func _emit_save_requested() -> void: emit_signal("save_requested")
+func _emit_load_requested() -> void: emit_signal("load_requested")
+
+
+func _emit_return_to_main_menu_requested() -> void:
+	close_menu()
+	emit_signal("return_to_main_menu_requested")
+
+
+func _finish_menu_close() -> void:
+	if _menu_layer != null:
+		_menu_layer.visible = false
+		_menu_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_menu_panel.scale = Vector2.ONE
+	if _launcher_button != null:
+		_launcher_button.grab_focus()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -488,8 +433,7 @@ func _on_viewport_size_changed() -> void:
 	_apply_viewport_layout()
 
 
-func _sync_full_rect() -> void:
-	set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+func _sync_full_rect() -> void: set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 
 
 func _apply_launcher_button_style() -> void:
@@ -545,6 +489,10 @@ func _apply_viewport_layout() -> void:
 	var launcher_size: float = 58.0 if large_layout else 52.0 if medium_layout else 44.0
 	var launcher_inset: float = 18.0 if large_layout else 16.0 if medium_layout else 12.0
 	var launcher_top: float = 18.0 if large_layout else 14.0 if medium_layout else 10.0
+	if _launcher_alignment_target != null and is_instance_valid(_launcher_alignment_target) and _launcher_corner != LAUNCHER_CORNER_BOTTOM_LEFT:
+		var target_rect: Rect2 = _launcher_alignment_target.get_global_rect()
+		if target_rect.size.y > 0.0:
+			launcher_top = target_rect.position.y + max(0.0, (target_rect.size.y - launcher_size) * 0.5)
 	var launcher_left: float = _resolve_launcher_left_edge(viewport_size.x, launcher_inset)
 	var is_top_right: bool = _launcher_corner == LAUNCHER_CORNER_TOP_RIGHT
 	if is_top_right:
@@ -590,7 +538,7 @@ func _apply_viewport_layout() -> void:
 		actions_vbox.add_theme_constant_override("separation", 8 if large_layout else 7 if medium_layout else 5)
 
 	var button_height: float = 54.0 if large_layout else 50.0 if medium_layout else 42.0
-	for button in [_save_button, _load_button, _resolution_option, _fullscreen_toggle, _music_toggle_button, _quit_button, _close_button]:
+	for button in [_save_button, _load_button, _main_menu_button, _music_toggle_button, _quit_button, _close_button]:
 		if button != null:
 			button.custom_minimum_size = Vector2(0.0, button_height)
 			button.add_theme_font_size_override("font_size", 18 if large_layout else 17 if medium_layout else 15)
@@ -602,8 +550,6 @@ func _apply_viewport_layout() -> void:
 		_title_label.add_theme_font_size_override("font_size", 22 if large_layout else 20 if medium_layout else 18)
 	if _subtitle_label != null:
 		_subtitle_label.add_theme_font_size_override("font_size", 15 if large_layout else 14 if medium_layout else 12)
-	if _display_label != null:
-		_display_label.add_theme_font_size_override("font_size", 14 if large_layout else 13 if medium_layout else 12)
 	if _status_label != null:
 		_status_label.add_theme_font_size_override("font_size", 15 if large_layout else 14 if medium_layout else 12)
 
@@ -620,9 +566,9 @@ func _resolve_launcher_right_edge(_viewport_width: float, launcher_inset: float,
 	if _launcher_alignment_target != null and is_instance_valid(_launcher_alignment_target):
 		var target_rect: Rect2 = _launcher_alignment_target.get_global_rect()
 		if target_rect.size.x > 0.0:
-			var target_width: float = max(0.0, target_rect.size.x)
-			var effective_launcher_size: float = clamp(launcher_size, 34.0, max(34.0, target_width - (launcher_inset * 2.0)))
-			var aligned_left: float = target_rect.position.x + target_width - launcher_inset - effective_launcher_size
+			var target_width: float = max(34.0, target_rect.size.x)
+			var effective_launcher_size: float = clamp(launcher_size, 34.0, target_width)
+			var aligned_left: float = target_rect.position.x + target_width - effective_launcher_size
 			return clamp(aligned_left, launcher_inset, max(launcher_inset, _viewport_width - launcher_inset - effective_launcher_size))
 	var fallback_x: float = _viewport_width - launcher_inset - launcher_size
 	return clamp(fallback_x, launcher_inset, max(launcher_inset, _viewport_width - launcher_inset - launcher_size))
@@ -635,6 +581,16 @@ func _set_launcher_button_icon_alignment() -> void:
 		if String(property_meta.get("name", "")) == "icon_alignment":
 			_launcher_button.set("icon_alignment", HORIZONTAL_ALIGNMENT_CENTER)
 			return
+
+
+func _build_menu_button(name: String, text: String, icon: Texture2D, handler_name: String) -> Button:
+	var button := Button.new()
+	button.name = name
+	button.text = text
+	button.icon = icon
+	button.custom_minimum_size = Vector2(0, 42)
+	button.pressed.connect(Callable(self, handler_name))
+	return button
 
 
 func _refresh_status_toast() -> void:
@@ -656,11 +612,7 @@ func _refresh_status_toast() -> void:
 	tween.set_trans(Tween.TRANS_SINE)
 	tween.set_ease(Tween.EASE_OUT)
 	tween.tween_property(_toast_panel, "modulate", Color(1, 1, 1, 1), 0.12)
-	tween.finished.connect(func() -> void:
-		if local_token != _status_cycle_token or not is_inside_tree():
-			return
-		_schedule_status_toast_hide(local_token)
-	)
+	tween.finished.connect(Callable(self, "_on_status_toast_fade_in_finished").bind(local_token), CONNECT_ONE_SHOT)
 
 
 func _schedule_status_toast_hide(local_token: int) -> void:
@@ -671,81 +623,21 @@ func _schedule_status_toast_hide(local_token: int) -> void:
 	fade_tween.set_trans(Tween.TRANS_SINE)
 	fade_tween.set_ease(Tween.EASE_IN)
 	fade_tween.tween_property(_toast_panel, "modulate", Color(1, 1, 1, 0), 0.18)
-	fade_tween.finished.connect(func() -> void:
-		if local_token != _status_cycle_token or _toast_panel == null:
-			return
-		_toast_panel.visible = false
-		_toast_label.text = ""
-		_status_text = ""
-		if _status_label != null:
-			_status_label.text = ""
-			_status_label.visible = false
-	)
+	fade_tween.finished.connect(Callable(self, "_on_status_toast_fade_out_finished").bind(local_token), CONNECT_ONE_SHOT)
 
 
-func _refresh_display_controls() -> void:
-	var bootstrap = _get_bootstrap()
-	if _resolution_option != null:
-		_resolution_option.clear()
-	if bootstrap == null:
-		if _resolution_option != null:
-			_resolution_option.disabled = true
-			_resolution_option.visible = false
-		if _fullscreen_toggle != null:
-			_fullscreen_toggle.disabled = true
-			_fullscreen_toggle.visible = false
-			_fullscreen_toggle.set_pressed_no_signal(false)
-		if _display_label != null:
-			_display_label.visible = false
+func _on_status_toast_fade_in_finished(local_token: int) -> void:
+	if local_token != _status_cycle_token or not is_inside_tree():
 		return
-
-	var options: Array[String] = bootstrap.get_supported_resolution_options()
-	if _resolution_option != null:
-		for option_index in range(options.size()):
-			_resolution_option.add_item(options[option_index], option_index)
-		_resolution_option.disabled = options.is_empty()
-		if not options.is_empty():
-			var selected_index: int = clamp(int(bootstrap.get_active_resolution_index()), 0, options.size() - 1)
-			_resolution_option.select(selected_index)
-	if _fullscreen_toggle != null:
-		_fullscreen_toggle.disabled = false
-		_fullscreen_toggle.visible = false
-		_fullscreen_toggle.text = "Tam Ekran"
-		_fullscreen_toggle.set_pressed_no_signal(bool(bootstrap.is_fullscreen_enabled()))
-	if _display_label != null:
-		_display_label.visible = false
-	if _resolution_option != null:
-		_resolution_option.visible = false
+	_schedule_status_toast_hide(local_token)
 
 
-func _get_bootstrap():
-	return get_node_or_null("/root/AppBootstrap")
-
-
-func _active_resolution_label() -> String:
-	var bootstrap = _get_bootstrap()
-	if bootstrap == null:
-		return "Resolution"
-	var options: Array[String] = bootstrap.get_supported_resolution_options()
-	if options.is_empty():
-		return "Resolution"
-	var selected_index: int = clamp(int(bootstrap.get_active_resolution_index()), 0, options.size() - 1)
-	return options[selected_index]
-
-
-func _build_resolution_status_text(result: Dictionary) -> String:
-	if not bool(result.get("ok", false)):
-		return "Resolution change failed: %s" % String(result.get("error", "unknown"))
-	var resolution_label: String = _active_resolution_label()
-	if bool(result.get("deferred_until_windowed", false)):
-		return "%s saved. It will apply after leaving fullscreen." % resolution_label
-	var window_size: Vector2i = result.get("window_size", Vector2i.ZERO) as Vector2i
-	if window_size.x > 0 and window_size.y > 0:
-		return "%s applied at %dx%d." % [resolution_label, window_size.x, window_size.y]
-	return "%s applied." % resolution_label
-
-
-func _build_fullscreen_status_text(result: Dictionary) -> String:
-	if not bool(result.get("ok", false)):
-		return "Display mode change failed: %s" % String(result.get("error", "unknown"))
-	return "Fullscreen enabled." if bool(result.get("fullscreen", false)) else "Windowed mode restored."
+func _on_status_toast_fade_out_finished(local_token: int) -> void:
+	if local_token != _status_cycle_token or _toast_panel == null:
+		return
+	_toast_panel.visible = false
+	_toast_label.text = ""
+	_status_text = ""
+	if _status_label != null:
+		_status_label.text = ""
+		_status_label.visible = false

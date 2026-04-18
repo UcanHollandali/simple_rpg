@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "definition_id": "rescue_missing_scout",
+  "family": "SideMissions",
+  "tags": [
+    "hamlet",
+    "side_quest",
+    "rescue",
+    "prototype"
+  ],
+  "display": {
+    "name": "Rescue Missing Scout",
+    "short_description": "A scout has failed to return. Find the marked pocket, pull them out, and come back for the hamlet's thanks."
+  },
+  "rules": {
+    "mission_type": "rescue_missing_scout",
+    "target_families": [
+      "combat",
+      "event",
+      "reward"
+    ],
+    "briefing_text": "The hamlet scout vanished near the marked trail pocket. Reach the mark, get them clear, and return for aid.",
+    "accept_label": "Go after the scout",
+    "accepted_text": "The marked pocket now stands out on the map. Reach it, resolve the danger, then return for your reward.",
+    "reminder_label": "Scout still missing",
+    "completed_text": "The scout is back alive. Choose one gratitude reward before you leave.",
+    "claimed_text": "The rescued scout is already home. This request is settled.",
+    "claimed_label": "Scout recovered",
+    "reward_pool": [
+      {
+        "offer_id": "claim_watchman_shield",
+        "effect_type": "grant_item",
+        "inventory_family": "shield",
+        "definition_id": "watchman_shield"
+      },
+      {
+        "offer_id": "claim_mossbound_wraps",
+        "effect_type": "grant_item",
+        "inventory_family": "passive",
+        "definition_id": "sturdy_wraps"
+      },
+      {
+        "offer_id": "claim_hunter_stew",
+        "effect_type": "grant_item",
+        "inventory_family": "consumable",
+        "definition_id": "hunter_stew",
+        "amount": 1
+      },
+      {
+        "offer_id": "claim_scout_bounty",
+        "effect_type": "grant_gold",
+        "amount": 10
+      },
+      {
+        "offer_id": "claim_hearth_knot_charm",
+        "effect_type": "grant_item",
+        "inventory_family": "passive",
+        "definition_id": "hearth_knot_charm"
+      },
+      {
+        "offer_id": "claim_warden_boss_plate",
+        "effect_type": "grant_item",
+        "inventory_family": "shield_attachment",
+        "definition_id": "warden_boss_plate"
+      }
+    ]
+  }
+}
