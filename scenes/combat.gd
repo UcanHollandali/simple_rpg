@@ -1,6 +1,7 @@
 # Layer: Scenes - presentation only
 extends Control
 
+const FlowStateScript = preload("res://Game/Application/flow_state.gd")
 const CombatFlowScript = preload("res://Game/Application/combat_flow.gd")
 const CombatPresenterScript = preload("res://Game/UI/combat_presenter.gd")
 const CombatSceneUiScript = preload("res://Game/UI/combat_scene_ui.gd")
@@ -8,6 +9,7 @@ const CombatSceneShellScript = preload("res://Game/UI/combat_scene_shell.gd")
 const CombatFeedbackLaneScript = preload("res://Game/UI/combat_feedback_lane.gd")
 const ActionHintControllerScript = preload("res://Game/UI/action_hint_controller.gd")
 const RunInventoryPanelScript = preload("res://Game/UI/run_inventory_panel.gd")
+const RunMenuSceneHelperScript = preload("res://Game/UI/run_menu_scene_helper.gd")
 const RunStatusStripScript = preload("res://Game/UI/run_status_strip.gd")
 const RunSummaryCleanupHelperScript = preload("res://Game/UI/run_summary_cleanup_helper.gd")
 const SceneAudioPlayersScript = preload("res://Game/UI/scene_audio_players.gd")
@@ -32,7 +34,11 @@ const HUNGER_WARNING_PANEL_NAME := "HungerWarningToast"
 const HUNGER_WARNING_LABEL_NAME := "HungerWarningLabel"
 const ATTACK_BUTTON_PATH := "Margin/VBox/Buttons/ActionCardsRow/AttackActionCard/AttackActionVBox/AttackButton"
 const DEFENSE_BUTTON_PATH := "Margin/VBox/Buttons/ActionCardsRow/DefenseActionCard/DefenseActionVBox/DefenseActionButton"
-const USE_ITEM_BUTTON_PATH := "Margin/VBox/Buttons/ActionCardsRow/UseItemActionCard/UseItemActionVBox/UseItemButton"
+const COMBAT_LOG_TITLE_PATH := "CombatLogCard/CombatLogVBox/CombatLogTitleLabel"
+const COMBAT_LOG_ENTRIES_PATH := "CombatLogCard/CombatLogVBox/CombatLogEntries"
+const LOG_TONE_PLAYER := "player"
+const LOG_TONE_ENEMY := "enemy"
+const LOG_TONE_NEUTRAL := "neutral"
 const INVENTORY_DRAG_THRESHOLD := 14.0
 const ENEMY_HP_BAR_NAME := "EnemyHpBar"
 const BAR_TWEEN_META_KEY := "bar_tween"
@@ -53,6 +59,7 @@ var _presenter: RefCounted
 var _run_inventory_panel: RunInventoryPanel
 var _run_state: RunState
 var _status_lines: PackedStringArray = []
+var _status_line_tones: PackedStringArray = []
 var _transition_requested: bool = false
 var _feedback_lane: CombatFeedbackLane
 var _action_hint_controller: ActionHintController
@@ -64,6 +71,7 @@ var _is_compact_layout: bool = false
 var _last_rendered_guard: int = -1
 var _guard_before_turn_end_phase: int = -1
 var _run_status_strip: RunStatusStrip
+var _safe_menu: SafeMenuOverlay
 var _hunger_warning_panel: PanelContainer
 var _hunger_warning_label: Label
 var _hunger_warning_tween: Tween
@@ -75,7 +83,6 @@ var _scene_node_cache: Dictionary = {}
 @onready var _turn_label: Label = _scene_node("Margin/VBox/HeaderStack/TurnLabel") as Label
 @onready var _attack_button: Button = _scene_node(ATTACK_BUTTON_PATH) as Button
 @onready var _defense_button: Button = _scene_node(DEFENSE_BUTTON_PATH) as Button
-@onready var _use_item_button: Button = _scene_node(USE_ITEM_BUTTON_PATH) as Button
 @onready var _enemy_hp_bar: ProgressBar = _scene_node("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/%s" % ENEMY_HP_BAR_NAME) as ProgressBar
 @onready var _player_info_vbox: VBoxContainer = _scene_node(PLAYER_INFO_VBOX_PATH) as VBoxContainer
 @onready var _player_run_summary_card: PanelContainer = _scene_node(PLAYER_RUN_SUMMARY_CARD_PATH) as PanelContainer
@@ -123,6 +130,7 @@ func _ready() -> void:
 	_run_inventory_panel.set_interaction_mode("combat")
 	SceneAudioPlayersScript.configure_from_config(self, AUDIO_PLAYER_CONFIG)
 	_apply_temp_theme()
+	_setup_safe_menu()
 	SceneLayoutHelperScript.bind_viewport_size_changed(self, Callable(self, "_on_viewport_size_changed"))
 	_apply_portrait_safe_layout()
 
@@ -230,7 +238,6 @@ func _combat_secondary_node(relative_path: String) -> Node:
 func _connect_buttons() -> void:
 	var attack_button: Button = _attack_button if _attack_button != null and is_instance_valid(_attack_button) else _scene_node(ATTACK_BUTTON_PATH) as Button
 	var defense_button: Button = _defense_button if _defense_button != null and is_instance_valid(_defense_button) else _scene_node(DEFENSE_BUTTON_PATH) as Button
-	var use_item_button: Button = _use_item_button if _use_item_button != null and is_instance_valid(_use_item_button) else _scene_node(USE_ITEM_BUTTON_PATH) as Button
 
 	if attack_button != null and not attack_button.is_connected("pressed", Callable(self, "_on_attack_pressed")):
 		attack_button.connect("pressed", Callable(self, "_on_attack_pressed"))
@@ -240,10 +247,6 @@ func _connect_buttons() -> void:
 		defense_button.connect("pressed", Callable(self, "_on_defend_pressed"))
 	if _action_hint_controller != null:
 		_action_hint_controller.connect_button(defense_button, CombatFlowScript.ACTION_DEFEND, TempScreenThemeScript.TEAL_ACCENT_COLOR)
-	if use_item_button != null and not use_item_button.is_connected("pressed", Callable(self, "_on_use_item_pressed")):
-		use_item_button.connect("pressed", Callable(self, "_on_use_item_pressed"))
-	if _action_hint_controller != null:
-		_action_hint_controller.connect_button(use_item_button, CombatFlowScript.ACTION_USE_ITEM, TempScreenThemeScript.REWARD_ACCENT_COLOR)
 
 
 func _on_attack_pressed() -> void:
@@ -252,17 +255,6 @@ func _on_attack_pressed() -> void:
 
 func _on_defend_pressed() -> void:
 	_resolve_player_turn(CombatFlowScript.ACTION_DEFEND)
-
-
-func _on_use_item_pressed() -> void:
-	if not _has_selected_usable_consumable():
-		if _has_usable_consumable():
-			_append_status_line("Select a usable item in ITEM first.")
-		else:
-			_append_status_line("No usable item ready.")
-		_refresh_ui()
-		return
-	_resolve_player_turn(CombatFlowScript.ACTION_USE_ITEM, _selected_consumable_slot_index)
 
 
 func _on_combat_ended(result: String) -> void:
@@ -283,7 +275,7 @@ func _on_domain_event_emitted(event_name: String, payload: Dictionary) -> void:
 	if event_name != "EnemyIntentRevealed":
 		line = _presenter.format_domain_event_line(event_name, payload)
 	if not line.is_empty():
-		_append_status_line(line)
+		_append_status_line(line, _resolve_domain_event_log_tone(event_name, payload))
 
 
 func _on_turn_phase_resolved(phase_name: String, action_name: String, result: Dictionary) -> void:
@@ -299,7 +291,7 @@ func _on_turn_phase_resolved(phase_name: String, action_name: String, result: Di
 			_queue_guard_decay_feedback_from_turn_end(result)
 
 	if not line.is_empty():
-		_append_status_line(line)
+		_append_status_line(line, _resolve_turn_phase_log_tone(phase_name, action_name, result))
 
 	_refresh_ui()
 	if _feedback_lane != null and not _pending_phase_feedback_models.is_empty():
@@ -352,16 +344,14 @@ func _refresh_ui() -> void:
 
 	var enemy_type_label: Label = _scene_node("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/EnemyTypeLabel") as Label
 	if enemy_type_label != null and _combat_flow != null:
-		enemy_type_label.text = _presenter.build_enemy_type_text(_combat_flow.combat_state)
+		enemy_type_label.text = _presenter.build_enemy_overview_text(_combat_flow.combat_state)
 	var enemy_trait_label: Label = _scene_node("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/EnemyTraitLabel") as Label
-	if enemy_trait_label != null and _combat_flow != null:
-		var enemy_trait_text: String = _presenter.build_enemy_trait_text(_combat_flow.combat_state)
-		enemy_trait_label.text = enemy_trait_text
-		enemy_trait_label.visible = not enemy_trait_text.is_empty()
+	if enemy_trait_label != null:
+		enemy_trait_label.visible = false
 
 	var enemy_hp_label: Label = _scene_node("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/EnemyHpLabel") as Label
 	if enemy_hp_label != null and _combat_flow != null:
-		enemy_hp_label.text = _presenter.build_enemy_hp_text(_combat_flow.combat_state)
+		enemy_hp_label.text = _presenter.build_enemy_hp_text(_combat_flow.combat_state, preview_snapshot)
 	var enemy_hp_bar: ProgressBar = _enemy_hp_bar if _enemy_hp_bar != null and is_instance_valid(_enemy_hp_bar) else _scene_node("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/%s" % ENEMY_HP_BAR_NAME) as ProgressBar
 	if enemy_hp_bar != null and _combat_flow != null:
 		var enemy_max_hp: int = _extract_enemy_max_hp_from_state(_combat_flow.combat_state)
@@ -377,17 +367,22 @@ func _refresh_ui() -> void:
 		enemy_token_path
 	)
 
+	var intent_title_label: Label = _scene_node("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentCard/IntentVBox/IntentTitleLabel") as Label
+	if intent_title_label != null:
+		intent_title_label.text = _presenter.build_intent_title_text()
 	var intent_label: Label = _scene_node("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentCard/IntentVBox/IntentRow/IntentLabel") as Label
 	if intent_label != null and _combat_flow != null:
 		var current_intent: Dictionary = _combat_flow.get_current_intent()
-		intent_label.text = _presenter.build_intent_summary_text(current_intent)
+		intent_label.text = _presenter.build_intent_summary_text(current_intent, preview_snapshot)
 		_apply_texture_rect_asset(
 			"Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentCard/IntentVBox/IntentRow/IntentIcon",
 			_presenter.build_intent_icon_texture_path(current_intent)
 		)
 	var intent_detail_label: Label = _scene_node("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentCard/IntentVBox/IntentDetailLabel") as Label
-	if intent_detail_label != null:
-		intent_detail_label.text = String(_presenter.build_preview_texts(preview_snapshot).get("intent_detail", "Incoming ? | Guard ?"))
+	if intent_detail_label != null and _combat_flow != null:
+		var intent_detail_text: String = _presenter.build_intent_detail_text(_combat_flow.get_current_intent())
+		intent_detail_label.text = intent_detail_text
+		intent_detail_label.visible = not intent_detail_text.is_empty()
 
 	_apply_bust_texture(
 		"Margin/VBox/BattleCardsRow/PlayerCard/HBox/PlayerBustFrame",
@@ -413,35 +408,9 @@ func _refresh_ui() -> void:
 			TempScreenThemeScript.TEAL_ACCENT_COLOR
 		)
 	_refresh_player_guard_badge()
-	var forecast_title_label: Label = _scene_node("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/ForecastCard/ForecastVBox/ForecastTitleLabel") as Label
-	if forecast_title_label != null:
-		forecast_title_label.text = "Combat Forecast"
-
-	var preview_texts: Dictionary = _presenter.build_preview_texts(preview_snapshot)
-	for label_name in [
-		"ForecastAttackLabel",
-		"ForecastDefenseLabel",
-		"ForecastIncomingLabel",
-		"ForecastGuardLabel",
-		"ForecastHungerTickLabel",
-		"ForecastDurabilitySpendLabel",
-	]:
-		var forecast_label: Label = _scene_node("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/ForecastCard/ForecastVBox/ForecastGrid/%s" % label_name) as Label
-		if forecast_label == null:
-			continue
-		match label_name:
-			"ForecastAttackLabel":
-				forecast_label.text = String(preview_texts.get("attack", "Hit ?"))
-			"ForecastDefenseLabel":
-				forecast_label.text = String(preview_texts.get("defense", "Defense ?"))
-			"ForecastIncomingLabel":
-				forecast_label.text = String(preview_texts.get("incoming", "Incoming ?"))
-			"ForecastGuardLabel":
-				forecast_label.text = String(preview_texts.get("defend", "Guard ?"))
-			"ForecastHungerTickLabel":
-				forecast_label.text = String(preview_texts.get("hunger_tick", "Tick -1 hunger"))
-			"ForecastDurabilitySpendLabel":
-				forecast_label.text = String(preview_texts.get("durability_spend", "Swing -? durability"))
+	var forecast_card: PanelContainer = _scene_node("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/ForecastCard") as PanelContainer
+	if forecast_card != null:
+		forecast_card.visible = false
 
 	var player_status_section: VBoxContainer = _scene_node("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/PlayerStatusSection") as VBoxContainer
 	var player_status_title: Label = _scene_node("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/PlayerStatusSection/PlayerStatusTitleLabel") as Label
@@ -466,33 +435,43 @@ func _refresh_ui() -> void:
 			enemy_status_title.visible = has_enemy_statuses
 		_render_status_chips(enemy_status_row, enemy_status_texts if has_enemy_statuses else PackedStringArray())
 
-	var status_label: Label = _combat_secondary_node("CombatLogCard/CombatLogLabel") as Label
 	var combat_log_card: PanelContainer = _combat_secondary_node("CombatLogCard") as PanelContainer
+	var combat_log_title: Label = _combat_secondary_node(COMBAT_LOG_TITLE_PATH) as Label
+	var combat_log_entries: VBoxContainer = _combat_secondary_node(COMBAT_LOG_ENTRIES_PATH) as VBoxContainer
 	var show_combat_log: bool = _should_show_combat_log()
 	if combat_log_card != null:
 		combat_log_card.visible = show_combat_log
-	if status_label != null:
-		status_label.text = _presenter.build_status_log_text(_status_lines) if show_combat_log else ""
+	if combat_log_title != null:
+		combat_log_title.visible = show_combat_log
+	if combat_log_entries != null:
+		_render_combat_log_entries(combat_log_entries if show_combat_log else null)
 
 	var defense_button: Button = _defense_button if _defense_button != null and is_instance_valid(_defense_button) else _scene_node(DEFENSE_BUTTON_PATH) as Button
 	if defense_button != null and _combat_flow != null:
 		defense_button.text = _presenter.build_defensive_action_label(_combat_flow.combat_state)
+	var action_section_title_label: Label = _scene_node("Margin/VBox/Buttons/ActionSectionTitleLabel") as Label
+	if action_section_title_label != null:
+		action_section_title_label.text = "Pick Your Move"
+	var attack_eyebrow_label: Label = _scene_node("Margin/VBox/Buttons/ActionCardsRow/AttackActionCard/AttackActionVBox/AttackActionEyebrowLabel") as Label
+	if attack_eyebrow_label != null:
+		attack_eyebrow_label.text = "DEAL DAMAGE"
+	var defense_eyebrow_label: Label = _scene_node("Margin/VBox/Buttons/ActionCardsRow/DefenseActionCard/DefenseActionVBox/DefenseActionEyebrowLabel") as Label
+	if defense_eyebrow_label != null:
+		defense_eyebrow_label.text = "BLOCK THE HIT"
 	var attack_preview_label: Label = _scene_node("Margin/VBox/Buttons/ActionCardsRow/AttackActionCard/AttackActionVBox/AttackActionPreviewLabel") as Label
 	if attack_preview_label != null:
 		attack_preview_label.text = _presenter.build_action_card_preview_text(CombatFlowScript.ACTION_ATTACK, _combat_flow.combat_state if _combat_flow != null else null, {}, preview_snapshot)
 	var defense_preview_label: Label = _scene_node("Margin/VBox/Buttons/ActionCardsRow/DefenseActionCard/DefenseActionVBox/DefenseActionPreviewLabel") as Label
 	if defense_preview_label != null:
 		defense_preview_label.text = _presenter.build_action_card_preview_text(CombatFlowScript.ACTION_DEFEND, _combat_flow.combat_state if _combat_flow != null else null, {}, preview_snapshot)
-	var use_item_preview_label: Label = _scene_node("Margin/VBox/Buttons/ActionCardsRow/UseItemActionCard/UseItemActionVBox/UseItemActionPreviewLabel") as Label
-	if use_item_preview_label != null:
-		use_item_preview_label.text = _presenter.build_action_card_preview_text(CombatFlowScript.ACTION_USE_ITEM, _combat_flow.combat_state if _combat_flow != null else null, preview_consumable, preview_snapshot)
 
 	_refresh_inventory_cards()
 	_refresh_action_button_tooltips(preview_consumable, preview_snapshot)
 	_set_buttons_enabled(_combat_flow != null and _presenter.are_action_buttons_enabled(_combat_flow.combat_state))
+	_refresh_safe_menu_controls()
 
 
-func _append_status_line(line: String) -> void:
+func _append_status_line(line: String, tone: String = LOG_TONE_NEUTRAL) -> void:
 	var normalized_line: String = line.strip_edges()
 	if normalized_line.is_empty():
 		return
@@ -503,8 +482,53 @@ func _append_status_line(line: String) -> void:
 	if _status_lines.size() > 0 and _status_lines[_status_lines.size() - 1] == normalized_line:
 		return
 	_status_lines.append(normalized_line)
+	_status_line_tones.append(tone)
 	if _status_lines.size() > 8:
 		_status_lines.remove_at(0)
+		if not _status_line_tones.is_empty():
+			_status_line_tones.remove_at(0)
+
+
+func _render_combat_log_entries(container: VBoxContainer) -> void:
+	var combat_log_entries: VBoxContainer = container if container != null and is_instance_valid(container) else _combat_secondary_node(COMBAT_LOG_ENTRIES_PATH) as VBoxContainer
+	if combat_log_entries == null:
+		return
+	for child in combat_log_entries.get_children():
+		combat_log_entries.remove_child(child)
+		child.queue_free()
+	for index in range(_status_lines.size()):
+		var line_text: String = String(_status_lines[index]).strip_edges()
+		if line_text.is_empty():
+			continue
+		var entry_label := Label.new()
+		entry_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		entry_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		entry_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		entry_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		entry_label.text = line_text
+		TempScreenThemeScript.apply_label(entry_label)
+		entry_label.add_theme_font_size_override("font_size", _combat_log_font_size())
+		entry_label.add_theme_color_override("font_color", _combat_log_entry_color(_status_line_tones[index] if index < _status_line_tones.size() else LOG_TONE_NEUTRAL))
+		combat_log_entries.add_child(entry_label)
+
+
+func _combat_log_font_size() -> int:
+	var viewport_height: float = get_viewport_rect().size.y
+	if viewport_height < 1360.0:
+		return 12
+	if _is_compact_layout or viewport_height < 1720.0:
+		return 13
+	return 14
+
+
+func _combat_log_entry_color(tone: String) -> Color:
+	match tone:
+		LOG_TONE_PLAYER:
+			return TempScreenThemeScript.TEAL_ACCENT_COLOR.lightened(0.62)
+		LOG_TONE_ENEMY:
+			return TempScreenThemeScript.RUST_ACCENT_COLOR.lightened(0.24)
+		_:
+			return TempScreenThemeScript.TEXT_MUTED_COLOR
 
 
 func _queue_feedback_for_domain_event(event_name: String, payload: Dictionary) -> void:
@@ -573,7 +597,6 @@ func _set_buttons_enabled(is_enabled: bool) -> void:
 	for button in [
 		_attack_button if _attack_button != null and is_instance_valid(_attack_button) else _scene_node(ATTACK_BUTTON_PATH) as Button,
 		_defense_button if _defense_button != null and is_instance_valid(_defense_button) else _scene_node(DEFENSE_BUTTON_PATH) as Button,
-		_use_item_button if _use_item_button != null and is_instance_valid(_use_item_button) else _scene_node(USE_ITEM_BUTTON_PATH) as Button,
 	]:
 		if button != null:
 			button.disabled = not is_enabled
@@ -582,6 +605,52 @@ func _set_buttons_enabled(is_enabled: bool) -> void:
 func _get_app_bootstrap():
 	return _scene_node("/root/AppBootstrap")
 
+
+func _on_save_pressed() -> void:
+	var bootstrap = _get_app_bootstrap()
+	if bootstrap == null:
+		return
+	var save_result: Dictionary = bootstrap.save_game()
+	if _safe_menu != null:
+		_safe_menu.set_status_text(RunMenuSceneHelperScript.build_save_status_text(save_result))
+	_refresh_safe_menu_controls()
+
+
+func _on_load_pressed() -> void:
+	var bootstrap = _get_app_bootstrap()
+	if bootstrap == null:
+		return
+	var load_result: Dictionary = bootstrap.load_game()
+	if bool(load_result.get("ok", false)):
+		return
+	if _safe_menu != null:
+		_safe_menu.set_status_text(RunMenuSceneHelperScript.build_load_failure_status_text(load_result))
+	_refresh_safe_menu_controls()
+
+
+func _on_return_to_main_menu_pressed() -> void:
+	var bootstrap = _get_app_bootstrap()
+	var flow_manager = bootstrap.get_flow_manager() if bootstrap != null else null
+	if flow_manager != null: flow_manager.request_transition(FlowStateScript.Type.MAIN_MENU)
+
+
+func _refresh_safe_menu_controls() -> void:
+	RunMenuSceneHelperScript.sync_load_available(_safe_menu, _get_app_bootstrap())
+
+
+func _setup_safe_menu() -> void:
+	var menu_config: Dictionary = RunMenuSceneHelperScript.shared_menu_config()
+	_safe_menu = RunMenuSceneHelperScript.ensure_safe_menu(
+		self,
+		_safe_menu,
+		String(menu_config.get("title_text", RunMenuSceneHelperScript.SHARED_MENU_TITLE)),
+		String(menu_config.get("subtitle_text", RunMenuSceneHelperScript.SHARED_MENU_SUBTITLE)),
+		String(menu_config.get("launcher_text", RunMenuSceneHelperScript.SHARED_LAUNCHER_TEXT)),
+		Callable(self, "_on_save_pressed"),
+		Callable(self, "_on_load_pressed"),
+		Callable(self, "_on_return_to_main_menu_pressed")
+	)
+	if _safe_menu != null: _safe_menu.set_main_menu_enabled(false)
 func _first_consumable_slot(combat_state: CombatState) -> Dictionary:
 	for slot_value in combat_state.consumable_slots:
 		var slot: Dictionary = slot_value
@@ -612,10 +681,6 @@ func _play_action_start_sfx(action_name: String) -> void:
 		CombatFlowScript.ACTION_USE_ITEM:
 			if _has_selected_usable_consumable():
 				SceneAudioPlayersScript.play(self, "ItemUseSfxPlayer")
-
-
-func _has_usable_consumable() -> bool:
-	return _combat_flow != null and _combat_flow.find_first_usable_consumable_slot_index() >= 0
 
 
 func _preview_consumable_slot() -> Dictionary:
@@ -673,7 +738,7 @@ func _refresh_inventory_cards() -> void:
 			_combat_flow.combat_state if _combat_flow != null else null,
 			_run_state.inventory_state if _run_state != null else null
 		),
-		"layout_density": "combat_compact",
+		"layout_density": "map",
 		"card_compact_mode_override": false,
 		"clickable_resolver": Callable(self, "_inventory_card_is_clickable"),
 		"selected_resolver": Callable(self, "_inventory_card_is_selected"),
@@ -718,8 +783,8 @@ func _apply_combat_inventory_card_density(container: Container) -> void:
 	if container == null:
 		return
 	var viewport_height: float = get_viewport_rect().size.y
-	var compact_viewport: bool = viewport_height < 1680.0
-	var very_compact_viewport: bool = viewport_height < 1380.0
+	var compact_viewport: bool = viewport_height < 1560.0
+	var very_compact_viewport: bool = viewport_height < 1360.0
 	for child in container.get_children():
 		var card: PanelContainer = child as PanelContainer
 		if card == null:
@@ -736,7 +801,7 @@ func _apply_combat_inventory_card_density(container: Container) -> void:
 			count_label.add_theme_font_size_override("font_size", 12 if very_compact_viewport else 13)
 		var icon_rect: TextureRect = card.get_node_or_null("VBox/IconRect") as TextureRect
 		if icon_rect != null:
-			icon_rect.custom_minimum_size = Vector2(42.0, 42.0)
+			icon_rect.custom_minimum_size = Vector2(34.0, 34.0) if very_compact_viewport else Vector2(38.0, 38.0) if compact_viewport else Vector2(42.0, 42.0)
 		var placeholder_label: Label = card.get_node_or_null("VBox/PlaceholderLabel") as Label
 		if placeholder_label != null:
 			placeholder_label.add_theme_font_size_override("font_size", 20 if very_compact_viewport else 22 if compact_viewport else 24)
@@ -751,12 +816,34 @@ func _apply_combat_inventory_card_density(container: Container) -> void:
 			action_hint_label.add_theme_font_size_override("font_size", 10 if very_compact_viewport else 11 if compact_viewport else 12)
 
 
+func _resolve_turn_phase_log_tone(phase_name: String, action_name: String, result: Dictionary) -> String:
+	match phase_name:
+		CombatFlowScript.PHASE_PLAYER_ACTION:
+			if action_name == CombatFlowScript.ACTION_USE_ITEM and bool(result.get("skipped", false)):
+				return LOG_TONE_NEUTRAL
+			return LOG_TONE_PLAYER
+		CombatFlowScript.PHASE_ENEMY_ACTION:
+			return LOG_TONE_ENEMY
+		_:
+			return LOG_TONE_NEUTRAL
+
+
+func _resolve_domain_event_log_tone(event_name: String, payload: Dictionary) -> String:
+	match event_name:
+		"DamageApplied", "StatusApplied", "StatusTicked":
+			return LOG_TONE_PLAYER if String(payload.get("target", "")) == "enemy" else LOG_TONE_ENEMY
+		"GuardGained", "ConsumableUsed":
+			return LOG_TONE_PLAYER
+		"EnemyIntentRevealed", "BossPhaseChanged":
+			return LOG_TONE_ENEMY
+		_:
+			return LOG_TONE_NEUTRAL
+
+
 func _should_show_combat_log() -> bool:
 	for line in _status_lines:
 		var normalized_line: String = String(line).strip_edges()
 		if normalized_line.is_empty():
-			continue
-		if normalized_line == "Combat ready.":
 			continue
 		return true
 	return false
@@ -1061,13 +1148,12 @@ func _apply_texture_rect_asset(node_path: String, asset_path: String) -> void:
 func _refresh_action_button_tooltips(preview_consumable: Dictionary, preview_snapshot: Dictionary = {}) -> void:
 	var attack_button: Button = _attack_button if _attack_button != null and is_instance_valid(_attack_button) else _scene_node(ATTACK_BUTTON_PATH) as Button
 	var defense_button: Button = _defense_button if _defense_button != null and is_instance_valid(_defense_button) else _scene_node(DEFENSE_BUTTON_PATH) as Button
-	var use_item_button: Button = _use_item_button if _use_item_button != null and is_instance_valid(_use_item_button) else _scene_node(USE_ITEM_BUTTON_PATH) as Button
 	var combat_state: CombatState = _combat_flow.combat_state if _combat_flow != null else null
 	if _action_hint_controller != null:
 		_action_hint_controller.refresh_button_tooltips(
 			attack_button,
 			defense_button,
-			use_item_button,
+			null,
 			_presenter,
 			combat_state,
 			preview_consumable,

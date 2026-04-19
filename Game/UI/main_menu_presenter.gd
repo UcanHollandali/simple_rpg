@@ -2,6 +2,9 @@
 extends RefCounted
 class_name MainMenuPresenter
 
+const MapDisplayNameHelperScript = preload("res://Game/UI/map_display_name_helper.gd")
+const UiCompactCopyScript = preload("res://Game/UI/ui_compact_copy.gd")
+
 
 func build_title_text() -> String:
 	return "Ashwood Descent"
@@ -12,7 +15,7 @@ func build_subtitle_text() -> String:
 
 
 func build_mood_text() -> String:
-	return "Choose a road through the ashwood. Keep your gear alive. Reach the gate."
+	return "Survive the road. Reach the gate."
 
 
 func build_playtest_chip_text() -> String:
@@ -32,7 +35,17 @@ func build_playtest_read_text(has_save: bool) -> String:
 
 
 func build_flow_read_text() -> String:
-	return "Map -> Trail Event / Roadside Encounter / Combat / Support -> Reward / Level Up -> Gate"
+	var planned_event_label: String = MapDisplayNameHelperScript.build_family_display_name("event")
+	return UiCompactCopyScript.join_steps([
+		"Map",
+		planned_event_label,
+		"Roadside",
+		"Combat",
+		"Support",
+		"Reward",
+		"Perk",
+		"Gate",
+	])
 
 
 func build_status_text(has_save: bool) -> String:

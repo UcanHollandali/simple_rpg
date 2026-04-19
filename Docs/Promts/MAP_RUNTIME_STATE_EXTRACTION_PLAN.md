@@ -4,11 +4,11 @@
 
 > **Note (2026-04-18):** This file is a **technical refactor plan**. It does NOT change map design — it only splits `map_runtime_state.gd` into smaller helper files. For the active map pass workflow use `Docs/Promts/MAP_MASTER_PROMPTS.md`.
 >
-> This extraction plan must run AFTER the map redesign pass in `MAP_MASTER_PROMPTS.md` closes (especially Prompts 3–6). If extraction runs first, redesign patches become fragile. If redesign runs first, the line numbers in the block tables below shift and must be re-measured before starting any extraction.
+> **Do not queue this file overnight.** Extraction is escalate-first; run it only in a separate, dedicated Codex chat AFTER the redesign pass in `MAP_MASTER_PROMPTS.md` closes (Prompts `1` → `8`). If extraction runs before redesign closes, redesign patches become fragile. If redesign runs first, the line numbers in the block tables below shift and must be re-measured before starting any extraction.
 >
-> Order: `Docs/Promts/MAP_MASTER_PROMPTS.md` Prompts 1A → 8 → then this extraction plan.
+> Order: `Docs/Promts/MAP_MASTER_PROMPTS.md` Prompts `1` → `8` → then this extraction plan in a fresh chat.
 >
-> **Line-number freshness warning:** The line and function counts below (`2397`, `146`) were measured on 2026-04-18, BEFORE the redesign pass. After Prompts 3–5 run, these numbers WILL change. Re-run a measurement pass (`wc -l` on `map_runtime_state.gd` and a `grep -c '^func '`) before starting any extraction wave, and update this file with the new block line ranges if they drifted by more than ~50 lines.
+> **Line-number freshness warning:** The line and function counts below (`2397`, `146`) were measured on 2026-04-18, BEFORE the redesign pass. After Prompts `3` → `5` run, these numbers WILL change. Re-run a measurement pass (`wc -l` on `map_runtime_state.gd` and a `grep -c '^func '`) before starting any extraction wave, and update this file with the new block line ranges if they drifted by more than ~50 lines.
 
 `MapRuntimeState` stage truth owner'ıdır. Bu dosya için güvenli varsayılan davranış, owner meaning'i taşımamak ve extraction'ı yalnızca helper/pure-algorithm yönünde düşünmektir. Bu rapor ölçüm ve sınıflandırma amaçlıdır. Bu pass'te hiçbir `.gd` dosyası değiştirilmedi.
 

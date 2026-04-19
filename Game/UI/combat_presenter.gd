@@ -5,6 +5,7 @@ class_name CombatPresenter
 const ContentLoaderScript = preload("res://Game/Infrastructure/content_loader.gd")
 const InventoryActionsScript = preload("res://Game/Application/inventory_actions.gd")
 const CombatFeedbackFactoryScript = preload("res://Game/UI/combat_feedback_factory.gd")
+const CombatCopyFormatterScript = preload("res://Game/UI/combat_copy_formatter.gd")
 const TempScreenThemeScript = preload("res://Game/UI/temp_screen_theme.gd")
 const UiAssetPathsScript = preload("res://Game/UI/ui_asset_paths.gd")
 const UiFormattingScript = preload("res://Game/UI/ui_formatting.gd")
@@ -23,8 +24,16 @@ func build_intent_text(intent: Dictionary) -> String:
 	]
 
 
-func build_intent_summary_text(intent: Dictionary) -> String:
-	return UiFormattingScript.build_enemy_intent_summary(intent)
+func build_intent_title_text() -> String:
+	return CombatCopyFormatterScript.build_intent_title_text()
+
+
+func build_intent_summary_text(intent: Dictionary, preview_snapshot: Dictionary = {}) -> String:
+	return CombatCopyFormatterScript.build_intent_summary_text(intent, preview_snapshot)
+
+
+func build_intent_detail_text(intent: Dictionary) -> String:
+	return CombatCopyFormatterScript.build_intent_detail_text(intent)
 
 
 func build_intent_icon_texture_path(intent: Dictionary) -> String:
@@ -74,44 +83,19 @@ func build_enemy_token_texture_path(combat_state: CombatState) -> String:
 
 
 func build_enemy_type_text(combat_state: CombatState) -> String:
-	var tags_variant: Variant = combat_state.enemy_definition.get("tags", [])
-	if typeof(tags_variant) != TYPE_ARRAY:
-		return "Type: Unknown"
-
-	var tags: Array = tags_variant
-	for tag_value in tags:
-		var tag: String = String(tag_value)
-		if tag.is_empty() or tag == "enemy":
-			continue
-		return "Type: %s" % _humanize_identifier(tag)
-
-	return "Type: Unknown"
+	return CombatCopyFormatterScript.build_enemy_type_text(combat_state)
 
 
 func build_enemy_trait_text(combat_state: CombatState) -> String:
-	if combat_state == null:
-		return ""
-
-	var traits_variant: Variant = combat_state.enemy_definition.get("rules", {}).get("traits", [])
-	if typeof(traits_variant) != TYPE_ARRAY:
-		return ""
-
-	var trait_names: PackedStringArray = []
-	for trait_value in traits_variant:
-		var trait_name: String = _humanize_identifier(String(trait_value))
-		if trait_name.is_empty():
-			continue
-		trait_names.append(trait_name)
-
-	if trait_names.is_empty():
-		return ""
-
-	return "Traits: %s" % ", ".join(trait_names)
+	return CombatCopyFormatterScript.build_enemy_trait_text(combat_state)
 
 
-func build_enemy_hp_text(combat_state: CombatState) -> String:
-	var max_hp: int = _extract_enemy_max_hp(combat_state)
-	return "Enemy HP: %d/%d" % [combat_state.enemy_hp, max_hp]
+func build_enemy_overview_text(combat_state: CombatState) -> String:
+	return CombatCopyFormatterScript.build_enemy_overview_text(combat_state)
+
+
+func build_enemy_hp_text(combat_state: CombatState, preview_snapshot: Dictionary = {}) -> String:
+	return CombatCopyFormatterScript.build_enemy_hp_text(combat_state, preview_snapshot)
 
 
 func build_player_hp_text(combat_state: CombatState) -> String:
@@ -249,7 +233,7 @@ func build_player_loadout_text(combat_state: CombatState) -> String:
 	if not belt_name.is_empty():
 		fragments.append("Belt %s" % belt_name)
 	if fragments.is_empty():
-		return "No left-hand, armor, or belt equipped."
+		return "No offhand / armor / belt."
 	return " | ".join(fragments)
 
 
@@ -391,19 +375,11 @@ func build_quick_slot_count_text(amount: int) -> String:
 
 
 func build_action_card_preview_text(action_name: String, combat_state: CombatState, preview_consumable_slot: Dictionary = {}, preview_snapshot: Dictionary = {}) -> String:
-	var preview_texts: Dictionary = build_preview_texts(preview_snapshot)
 	match action_name:
 		"attack":
-			if preview_snapshot.is_empty():
-				return "Weapon strike that spends durability."
-			return "%s | %s" % [
-				String(preview_texts.get("attack", "Hit ?")),
-				String(preview_texts.get("durability_spend", "Swing -? durability")),
-			]
+			return CombatCopyFormatterScript.build_attack_action_preview(preview_snapshot)
 		"defend":
-			if preview_snapshot.is_empty():
-				return "Gain guard before the enemy swing."
-			return String(preview_texts.get("guard_result", "Guard ? | HP ?"))
+			return CombatCopyFormatterScript.build_defend_action_preview(preview_snapshot)
 		"use_item":
 			if combat_state == null:
 				return "Select a consumable card below."
@@ -608,7 +584,7 @@ func _build_consumable_display_name(consumable_slot: Dictionary) -> String:
 
 func _build_attack_tooltip_text(combat_state: CombatState, preview_snapshot: Dictionary = {}) -> String:
 	if combat_state == null:
-		return "Attack the enemy. Starting the swing spends weapon durability, and broken weapons fall back to a weak 1 damage hit."
+		return "Attack. Costs durability. Broken weapons hit for 1."
 
 	var weapon_name: String = UiFormattingScript.build_weapon_display_name(combat_state.weapon_instance)
 	var current_durability: int = int(combat_state.weapon_instance.get("current_durability", 0))
@@ -620,17 +596,17 @@ func _build_attack_tooltip_text(combat_state: CombatState, preview_snapshot: Dic
 			String(preview_texts.get("durability_spend", "Swing -? durability")).to_lower(),
 		]
 	if weapon_name == "None":
-		return "Attack with no equipped weapon. This is a weak fallback hit that only deals 1 damage.%s" % preview_fragment
+		return "Attack unarmed. Hits for 1.%s" % preview_fragment
 	if current_durability <= 0:
-		return "Attack with %s. The weapon is broken, so hits fall back to 1 damage until it is repaired or replaced.%s" % [weapon_name, preview_fragment]
-	return "Attack with %s. Starting the swing spends weapon durability even if the enemy dodges. If the weapon breaks, later hits fall back to 1 damage.%s" % [weapon_name, preview_fragment]
+		return "Attack with %s. Broken: hits for 1.%s" % [weapon_name, preview_fragment]
+	return "Attack with %s. Costs durability.%s" % [weapon_name, preview_fragment]
 
 
 func _build_defend_tooltip_text(combat_state: CombatState, preview_snapshot: Dictionary = {}) -> String:
-	var base_text: String = "Defend raises temporary guard for the next hit. Armor reduces damage first; any remainder hits guard before HP. Most leftover guard decays at turn end, but a small remainder can carry forward. A shield in the left hand increases the guard gain."
+	var base_text: String = "Defend. Gain guard before HP. Some guard carries. Shields add more."
 	var left_hand_family: String = _left_hand_inventory_family(combat_state)
 	if left_hand_family == "weapon":
-		base_text += " An offhand weapon adds attack pressure but lowers defend guard."
+		base_text += " Offhand weapons lower guard."
 	if preview_snapshot.is_empty():
 		return base_text
 
@@ -644,17 +620,17 @@ func _build_defend_tooltip_text(combat_state: CombatState, preview_snapshot: Dic
 
 func _build_use_item_tooltip_text(combat_state: CombatState, preview_consumable_slot: Dictionary) -> String:
 	if combat_state == null:
-		return "Click a consumable card to use it directly in combat. This button is a fallback for the current ready item. Only self-heal or hunger recovery consumables work, and it does not spend durability."
+		return "Use a consumable card. Only HP or hunger items work."
 
 	if preview_consumable_slot.is_empty():
-		return "Click a consumable card below to use it directly. This button is a fallback for the current ready item; only self-heal or hunger recovery consumables work in combat."
+		return "Use a consumable card. Only HP or hunger items work."
 
 	var item_name: String = _build_consumable_display_name(preview_consumable_slot)
 	if item_name.is_empty():
 		item_name = "this item"
 
 	if not _is_consumable_slot_usable_in_combat(combat_state, preview_consumable_slot):
-		return "Click a consumable card below to use it directly. %s is highlighted right now, but it only fires when it would heal HP or restore hunger." % item_name
+		return "%s won't trigger now. Only HP or hunger items work." % item_name
 
 	var effect_profile: Dictionary = _extract_consumable_use_profile(preview_consumable_slot)
 	var effect_fragments: PackedStringArray = []
@@ -669,7 +645,7 @@ func _build_use_item_tooltip_text(combat_state: CombatState, preview_consumable_
 	if not effect_fragments.is_empty():
 		effect_summary = " It %s." % " and ".join(effect_fragments)
 
-	return "Click a consumable card to use it directly, or press this button for the current ready item: %s. It does not spend durability and only triggers when it would change HP or hunger.%s" % [
+	return "Use %s. No durability cost.%s" % [
 		item_name,
 		effect_summary,
 	]
@@ -726,20 +702,6 @@ func _enemy_definition_is_boss(enemy_definition: Dictionary) -> bool:
 		if String(tag_value) == "boss":
 			return true
 	return false
-
-
-func _humanize_identifier(value: String) -> String:
-	if value.is_empty():
-		return ""
-	var lowered: String = value.replace("_", " ")
-	var words: PackedStringArray = lowered.split(" ", false)
-	for index in range(words.size()):
-		var word: String = words[index]
-		if word.is_empty():
-			continue
-		words[index] = word.substr(0, 1).to_upper() + word.substr(1)
-	return " ".join(words)
-
 
 func _resolve_impact_intensity(amount: int) -> String:
 	if amount >= 6:

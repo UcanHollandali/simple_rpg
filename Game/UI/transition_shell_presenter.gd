@@ -2,15 +2,9 @@
 extends RefCounted
 class_name TransitionShellPresenter
 
+const MapDisplayNameHelperScript = preload("res://Game/UI/map_display_name_helper.gd")
+const UiCompactCopyScript = preload("res://Game/UI/ui_compact_copy.gd")
 const UiAssetPathsScript = preload("res://Game/UI/ui_asset_paths.gd")
-
-const NODE_DISPLAY_NAMES: Dictionary = {
-	"combat": "Combat Encounter",
-	"boss": "Boss Gate",
-	"event": "Trail Event",
-	"reward": "Reward Cache",
-	"key": "Stage Key",
-}
 
 func build_node_resolve_chip_text(node_type: String) -> String:
 	match node_type:
@@ -28,46 +22,35 @@ func build_node_resolve_chip_text(node_type: String) -> String:
 
 func build_node_resolve_title_text(node_type: String) -> String:
 	if node_type.is_empty():
-		return "Resolving Next Node"
-	return "Resolving %s" % _display_name_for_node_type(node_type)
+		return "Opening Next Node"
+	return "Opening %s" % _display_name_for_node_type(node_type)
 
 
 func build_node_resolve_summary_text(node_type: String) -> String:
 	match node_type:
 		"combat":
-			return "Brush parts ahead. The next combat encounter is opening."
+			return "Fight ahead."
 		"boss":
-			return "The path hardens. The stage boss encounter is opening."
+			return "Boss fight ahead."
 		"event":
-			return "A marked trail event lies ahead. The dedicated two-choice event flow is opening."
+			return "Event ahead."
 		"reward":
-			return "A cache glints ahead. The current reward choice is opening."
+			return "Cache ahead."
 		"key":
-			return "The stage key is in hand. Boss-gate access is updating on the current map."
+			return "Key found. Gate unlocked."
 		_:
-			return "Applying the next runtime-owned node resolution."
+			return "Opening next node."
 
 
 func build_node_resolve_detail_text(node_type: String, pending_node_id: int) -> String:
 	var node_read: String = "Node %d." % pending_node_id if pending_node_id >= 0 else "Node read unavailable."
 	if node_type.is_empty():
-		return "%s Short transition shell only; resolution continues automatically." % node_read
-	return "%s Short %s bridge only; resolution continues automatically." % [
-		node_read,
-		_display_name_for_node_type(node_type).to_lower(),
-	]
+		return "%s %s" % [node_read, UiCompactCopyScript.auto_bridge()]
+	return "%s %s" % [node_read, UiCompactCopyScript.auto_bridge()]
 
 
 func build_node_resolve_hint_text(node_type: String) -> String:
-	match node_type:
-		"key":
-			return "Automatic bridge only. Key truth updates first, then flow hands back to the map."
-		"event":
-			return "Automatic bridge only. The shell reads the planned trail event and hands off to the dedicated two-choice story flow."
-		"combat", "boss", "reward":
-			return "Automatic bridge only. The shell reads the node and hands off to the next runtime-owned screen."
-		_:
-			return "Automatic bridge only. Resolution continues without introducing a new main flow state."
+	return UiCompactCopyScript.auto_bridge()
 
 
 func build_node_icon_texture_path(node_type: String) -> String:
@@ -87,4 +70,4 @@ func build_node_icon_texture_path(node_type: String) -> String:
 
 
 func _display_name_for_node_type(node_type: String) -> String:
-	return String(NODE_DISPLAY_NAMES.get(node_type, node_type.capitalize()))
+	return MapDisplayNameHelperScript.build_family_display_name(node_type)

@@ -3,6 +3,9 @@ extends RefCounted
 class_name RunMenuSceneHelper
 
 const SafeMenuOverlayScript = preload("res://Game/UI/safe_menu_overlay.gd")
+const SHARED_MENU_TITLE := "Settings"
+const SHARED_MENU_SUBTITLE := "Save, load, return to menu, mute music, or quit."
+const SHARED_LAUNCHER_TEXT := "Settings"
 
 
 static func ensure_safe_menu(owner: Node, existing_menu: SafeMenuOverlay, title_text: String, subtitle_text: String, launcher_text: String, save_handler: Callable, load_handler: Callable, main_menu_handler: Callable = Callable()) -> SafeMenuOverlay:
@@ -20,6 +23,14 @@ static func ensure_safe_menu(owner: Node, existing_menu: SafeMenuOverlay, title_
 	if main_menu_handler.is_valid() and not safe_menu.is_connected("return_to_main_menu_requested", main_menu_handler):
 		safe_menu.return_to_main_menu_requested.connect(main_menu_handler)
 	return safe_menu
+
+
+static func shared_menu_config() -> Dictionary:
+	return {
+		"title_text": SHARED_MENU_TITLE,
+		"subtitle_text": SHARED_MENU_SUBTITLE,
+		"launcher_text": SHARED_LAUNCHER_TEXT,
+	}
 
 
 static func sync_load_available(menu: SafeMenuOverlay, bootstrap) -> void:

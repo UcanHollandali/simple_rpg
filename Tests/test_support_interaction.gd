@@ -62,6 +62,7 @@ func _on_process_frame() -> void:
 						"current_stack": 1,
 					},
 				])
+				_prepare_map_adjacent_to_family("rest")
 				_press_map_route_containing("Rest")
 				_advance_phase(2)
 		2:
@@ -73,14 +74,38 @@ func _on_process_frame() -> void:
 				_require(support_state != null, "Expected SupportInteractionState for rest.")
 				_require(String(support_state.support_type) == "rest", "Expected rest support type.")
 				_require(support_state.offers.size() == 1, "Expected one rest action.")
+				var support_root: Node = _get_scene_root("SupportInteraction")
+				var rest_button: Button = support_root.get_node_or_null(SUPPORT_ACTION_A_BUTTON_PATH) as Button
+				var run_status_card: PanelContainer = support_root.get_node_or_null("Margin/VBox/HeaderRow/RunStatusCard") as PanelContainer
+				var tooltip_panel: PanelContainer = support_root.get_node_or_null("InventoryTooltipPanel") as PanelContainer
+				var tooltip_label: Label = tooltip_panel.get_node_or_null("InventoryTooltipLabel") as Label if tooltip_panel != null else null
+				var rest_tooltip_text: String = String(rest_button.get_meta("custom_tooltip_text", "")) if rest_button != null else ""
+				_require(run_status_card != null and not run_status_card.visible, "Expected support overlay to hide the duplicate run-status card because the shared top bar already shows it.")
+				_require(rest_button != null and rest_tooltip_text.contains("+10 HP") and rest_tooltip_text.contains("-3 Hunger"), "Expected rest action tooltip to keep the exact recovery outcome in compact form.")
+				_require(tooltip_panel != null and tooltip_label != null, "Expected support overlay to create the shared tooltip bubble shell.")
+				rest_button.emit_signal("mouse_entered")
+				_require(tooltip_panel.visible, "Expected support action hover to show the shared tooltip bubble.")
+				_require(tooltip_label.text == rest_tooltip_text, "Expected support action hover bubble to mirror the button tooltip copy.")
+				_require(tooltip_panel.size.y < 220.0, "Expected first support hover bubble sizing not to stretch the shared tooltip vertically.")
+				rest_button.emit_signal("mouse_exited")
+				_require(not tooltip_panel.visible, "Expected support action hover bubble to hide after pointer exit.")
 				_press(SUPPORT_ACTION_A_BUTTON_PATH)
 				_advance_phase(3)
 		3:
-			if _is_scene("MapExplore"):
+			if current_scene != null and current_scene.name == "MapExplore":
+				var active_overlay: Node = _get_visible_overlay_root()
+				if active_overlay != null:
+					var closing_title_label: Label = active_overlay.get_node_or_null("Margin/VBox/HeaderRow/HeaderCard/HeaderStack/TitleLabel") as Label
+					_require(
+						closing_title_label == null or closing_title_label.text != "Support unavailable.",
+						"Expected closing support overlay not to flash the unavailable fallback copy."
+					)
+					return
 				var run_state_after_rest: RunState = _get_run_state()
 				_require(run_state_after_rest.player_hp == 50, "Expected rest to heal 10 HP.")
 				_require(run_state_after_rest.hunger == 9, "Expected rest to spend 3 hunger after the node-move hunger cost.")
 				_require(_get_support_state() == null, "Expected support state to clear after rest.")
+				_prepare_map_adjacent_to_family("merchant")
 				_press_map_route_containing("Merchant")
 				_advance_phase(4)
 		4:
@@ -91,6 +116,11 @@ func _on_process_frame() -> void:
 				_require(merchant_state != null, "Expected SupportInteractionState for merchant.")
 				_require(String(merchant_state.support_type) == "merchant", "Expected merchant support type.")
 				_require(merchant_state.offers.size() == 3, "Expected merchant to expose 3 offers.")
+				var merchant_button_a: Button = _get_scene_root("SupportInteraction").get_node_or_null(SUPPORT_ACTION_A_BUTTON_PATH) as Button
+				_require(merchant_button_a != null, "Expected merchant action A button for tooltip checks.")
+				var merchant_tooltip_text: String = String(merchant_button_a.get_meta("custom_tooltip_text", ""))
+				_require(merchant_tooltip_text.contains("Traveler Bread"), "Expected merchant item tooltip to include the offered item name.")
+				_require(merchant_tooltip_text.contains("Cost 6g"), "Expected merchant item tooltip to expose the gold cost in compact form.")
 				_press(SUPPORT_ACTION_A_BUTTON_PATH)
 				_advance_phase(5)
 		5:
@@ -110,6 +140,7 @@ func _on_process_frame() -> void:
 			if _is_scene("MapExplore"):
 				_require(_get_support_state() == null, "Expected support state to clear after leaving the merchant.")
 				_set_stage_on_current_run(2)
+				_prepare_map_adjacent_to_family("merchant")
 				_press_map_route_containing("Merchant")
 				_advance_phase(7)
 		7:
@@ -137,6 +168,7 @@ func _on_process_frame() -> void:
 		8:
 			if _is_scene("MapExplore"):
 				_set_stage_on_current_run(3)
+				_prepare_map_adjacent_to_family("rest")
 				_press_map_route_containing("Rest")
 				_advance_phase(9)
 		9:
@@ -153,6 +185,7 @@ func _on_process_frame() -> void:
 				var inventory_actions: RefCounted = InventoryActionsScript.new()
 				var prepare_blacksmith_result: Dictionary = inventory_actions.replace_active_weapon(_get_run_state().inventory_state, "splitter_axe")
 				_require(bool(prepare_blacksmith_result.get("ok", false)), "Expected carried weapon setup before blacksmith coverage.")
+				_prepare_map_adjacent_to_family("blacksmith")
 				_press_map_route_containing("Blacksmith")
 				_advance_phase(11)
 		11:
@@ -196,6 +229,7 @@ func _on_process_frame() -> void:
 				var carried_weapon_slot_index: int = run_state_after_blacksmith.inventory_state.find_slot_index_by_id(carried_weapon_slot_id)
 				_require(int(run_state_after_blacksmith.inventory_state.inventory_slots[carried_weapon_slot_index].get("upgrade_level", 0)) == 1, "Expected blacksmith tempering to upgrade the carried weapon slot.")
 				_require(_get_support_state() == null, "Expected support state to clear after blacksmith.")
+				_prepare_map_adjacent_to_family("rest")
 				_press_map_route_containing("Rest")
 				_advance_phase(14)
 		14:
@@ -258,6 +292,17 @@ func _press_map_route_containing(label_fragment: String) -> void:
 					return
 			button.emit_signal("pressed")
 			return
+	var fallback_family: String = _resolve_node_family_for_route_label(label_fragment)
+	if not fallback_family.is_empty():
+		var run_state: RunState = _get_run_state()
+		var target_node_id: int = _find_unresolved_node_id_by_family(run_state.map_runtime_state, fallback_family) if run_state != null else -1
+		if target_node_id < 0 and run_state != null:
+			target_node_id = _find_any_node_id_by_family(run_state.map_runtime_state, fallback_family)
+		if target_node_id >= 0:
+			_prepare_current_node_adjacent_to_target(run_state.map_runtime_state, target_node_id)
+			current_scene.call("_refresh_ui")
+			current_scene.call("_move_to_node", target_node_id)
+			return
 	_fail("Expected a visible enabled route button containing %s." % label_fragment)
 
 
@@ -295,6 +340,77 @@ func _set_stage_on_current_run(stage_index: int) -> void:
 	run_state.stage_index = stage_index
 	run_state.map_runtime_state.reset_for_new_run(stage_index)
 	current_scene.call("_refresh_ui")
+
+
+func _prepare_map_adjacent_to_family(node_family: String) -> void:
+	var run_state: RunState = _get_run_state()
+	_require(run_state != null, "Expected RunState before preparing map adjacency for %s." % node_family)
+	var target_node_id: int = _find_unresolved_node_id_by_family(run_state.map_runtime_state, node_family)
+	if target_node_id < 0:
+		target_node_id = _find_any_node_id_by_family(run_state.map_runtime_state, node_family)
+	_require(target_node_id >= 0, "Expected a %s node for support integration coverage." % node_family)
+	_prepare_current_node_adjacent_to_target(run_state.map_runtime_state, target_node_id)
+	current_scene.call("_refresh_ui")
+
+
+func _find_unresolved_node_id_by_family(map_runtime_state: RefCounted, node_family: String) -> int:
+	for node_snapshot in map_runtime_state.build_node_snapshots():
+		if String(node_snapshot.get("node_family", "")) != node_family:
+			continue
+		if String(node_snapshot.get("node_state", "")) != "resolved":
+			return int(node_snapshot.get("node_id", -1))
+	return -1
+
+
+func _find_any_node_id_by_family(map_runtime_state: RefCounted, node_family: String) -> int:
+	for node_snapshot in map_runtime_state.build_node_snapshots():
+		if String(node_snapshot.get("node_family", "")) == node_family:
+			return int(node_snapshot.get("node_id", -1))
+	return -1
+
+
+func _prepare_current_node_adjacent_to_target(map_runtime_state: RefCounted, target_node_id: int) -> void:
+	var path: Array[int] = _build_path_between_nodes(map_runtime_state, map_runtime_state.current_node_id, target_node_id)
+	_require(path.size() >= 2, "Expected a valid runtime path to target node %d." % target_node_id)
+	for path_index in range(1, path.size() - 1):
+		var node_id: int = path[path_index]
+		map_runtime_state.move_to_node(node_id)
+		map_runtime_state.mark_node_resolved(node_id)
+
+
+func _build_path_between_nodes(map_runtime_state: RefCounted, start_node_id: int, target_node_id: int) -> Array[int]:
+	var queued_paths: Array = [[start_node_id]]
+	var visited: Dictionary = {}
+	while not queued_paths.is_empty():
+		var path: Array = queued_paths.pop_front()
+		var current_node_id: int = int(path[path.size() - 1])
+		if current_node_id == target_node_id:
+			var typed_path: Array[int] = []
+			for node_id_variant in path:
+				typed_path.append(int(node_id_variant))
+			return typed_path
+		if visited.has(current_node_id):
+			continue
+		visited[current_node_id] = true
+		for adjacent_node_id in map_runtime_state.get_adjacent_node_ids(current_node_id):
+			if visited.has(adjacent_node_id):
+				continue
+			var next_path: Array = path.duplicate()
+			next_path.append(adjacent_node_id)
+			queued_paths.append(next_path)
+	return []
+
+
+func _resolve_node_family_for_route_label(label_fragment: String) -> String:
+	match label_fragment:
+		"Rest":
+			return "rest"
+		"Merchant":
+			return "merchant"
+		"Blacksmith":
+			return "blacksmith"
+		_:
+			return ""
 
 
 func _require_modal_popup_shell() -> void:

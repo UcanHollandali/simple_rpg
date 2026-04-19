@@ -7,6 +7,8 @@ const CUSTOM_TOOLTIP_META_KEY := "custom_tooltip_text"
 const ACCENT_COLOR_META_KEY := "accent_color"
 const EQUIPPED_HIGHLIGHT_COLOR := Color(0.40, 0.82, 0.56, 0.98)
 const SELECTED_HIGHLIGHT_COLOR := Color(0.55, 0.90, 0.66, 0.98)
+const STABLE_CARD_BORDER_WIDTH := 3
+const STABLE_CARD_SHADOW_SIZE := 16
 
 
 static func rebuild_cards(container: Container, card_models: Array[Dictionary]) -> Array[PanelContainer]:
@@ -39,9 +41,9 @@ static func _build_card(card_model: Dictionary) -> PanelContainer:
 	var action_hint_tone: String = String(card_model.get("action_hint_tone", "muted"))
 	var accent: Color = Color(card_model.get("accent_color", TempScreenThemeScript.PANEL_BORDER_COLOR))
 	card.name = String(card_model.get("card_name", "InventoryCard"))
-	card.custom_minimum_size = Vector2(104, 96) if compact_mode else Vector2(118, 126) if combat_compact_density else Vector2(128, 148)
+	card.custom_minimum_size = Vector2(104, 96) if compact_mode else Vector2(118, 126) if combat_compact_density else Vector2(152, 148)
 	card.mouse_filter = Control.MOUSE_FILTER_STOP
-	card.clip_contents = compact_mode
+	card.clip_contents = compact_mode or combat_compact_density
 	if is_clickable:
 		card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	elif is_draggable:
@@ -92,6 +94,7 @@ static func _build_card(card_model: Dictionary) -> PanelContainer:
 	var header_row := HBoxContainer.new()
 	header_row.name = "HeaderRow"
 	header_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	header_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_row.add_theme_constant_override("separation", 6 if combat_compact_density else 8)
 	vbox.add_child(header_row)
 
@@ -108,12 +111,12 @@ static func _build_card(card_model: Dictionary) -> PanelContainer:
 	var count_label := Label.new()
 	count_label.name = "CountLabel"
 	count_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	count_label.custom_minimum_size = Vector2(28, 0) if compact_mode else Vector2(34, 0) if combat_compact_density else Vector2(40, 0)
 	count_label.text = String(card_model.get("count_text", ""))
 	count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	count_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	TempScreenThemeScript.apply_label(count_label, "accent")
 	count_label.add_theme_font_size_override("font_size", 10 if compact_mode else 13 if combat_compact_density else 14)
-	count_label.visible = not count_label.text.is_empty()
 	header_row.add_child(count_label)
 
 	var icon_rect := TextureRect.new()
@@ -145,6 +148,7 @@ static func _build_card(card_model: Dictionary) -> PanelContainer:
 	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title_label.autowrap_mode = TextServer.AUTOWRAP_OFF if combat_compact_density else TextServer.AUTOWRAP_WORD_SMART
 	title_label.clip_text = compact_mode or combat_compact_density
+	title_label.max_lines_visible = 1 if (compact_mode or combat_compact_density) else -1
 	TempScreenThemeScript.apply_label(title_label)
 	title_label.add_theme_font_size_override("font_size", 13 if compact_mode else 15 if combat_compact_density else 17)
 	vbox.add_child(title_label)
@@ -156,6 +160,7 @@ static func _build_card(card_model: Dictionary) -> PanelContainer:
 	detail_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	detail_label.autowrap_mode = TextServer.AUTOWRAP_OFF if (compact_mode or combat_compact_density) else TextServer.AUTOWRAP_WORD_SMART
 	detail_label.clip_text = compact_mode or combat_compact_density
+	detail_label.max_lines_visible = 1 if (compact_mode or combat_compact_density) else -1
 	TempScreenThemeScript.apply_label(detail_label, "muted")
 	detail_label.add_theme_font_size_override("font_size", 10 if compact_mode else 11 if combat_compact_density else 14)
 	detail_label.visible = not detail_label.text.is_empty()
@@ -168,6 +173,7 @@ static func _build_card(card_model: Dictionary) -> PanelContainer:
 	action_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	action_hint_label.autowrap_mode = TextServer.AUTOWRAP_OFF if (compact_mode or combat_compact_density) else TextServer.AUTOWRAP_WORD_SMART
 	action_hint_label.clip_text = compact_mode or combat_compact_density
+	action_hint_label.max_lines_visible = 1 if (compact_mode or combat_compact_density) else -1
 	_apply_action_hint_style(action_hint_label, accent, action_hint_tone, false)
 	action_hint_label.add_theme_font_size_override("font_size", 10 if compact_mode else 11 if combat_compact_density else 12)
 	action_hint_label.visible = not action_hint_label.text.is_empty()
@@ -203,43 +209,39 @@ static func _apply_card_style(
 		return
 
 	var compact_style: StyleBoxFlat = style.duplicate() as StyleBoxFlat
-	compact_style.border_width_left = 2
-	compact_style.border_width_top = 2
-	compact_style.border_width_right = 2
-	compact_style.border_width_bottom = 2
+	compact_style.border_width_left = STABLE_CARD_BORDER_WIDTH
+	compact_style.border_width_top = STABLE_CARD_BORDER_WIDTH
+	compact_style.border_width_right = STABLE_CARD_BORDER_WIDTH
+	compact_style.border_width_bottom = STABLE_CARD_BORDER_WIDTH
 	compact_style.border_color = accent.lightened(0.08)
 	compact_style.shadow_color = Color(accent.r, accent.g, accent.b, 0.22)
-	compact_style.shadow_size = 10
+	compact_style.shadow_size = STABLE_CARD_SHADOW_SIZE
 	compact_style.bg_color = compact_style.bg_color.lightened(0.02)
 	if is_equipped:
 		var equipped_color: Color = EQUIPPED_HIGHLIGHT_COLOR
-		compact_style.border_width_left = 3
-		compact_style.border_width_top = 3
-		compact_style.border_width_right = 3
-		compact_style.border_width_bottom = 3
 		compact_style.border_color = equipped_color
 		compact_style.bg_color = compact_style.bg_color.lerp(equipped_color.darkened(0.78), 0.14)
 		compact_style.shadow_color = Color(equipped_color.r, equipped_color.g, equipped_color.b, 0.34)
-		compact_style.shadow_size = 16
+		compact_style.shadow_size = STABLE_CARD_SHADOW_SIZE
 	if is_hovered:
 		compact_style.border_color = accent.lightened(0.18)
 		compact_style.bg_color = compact_style.bg_color.lightened(0.05)
 		compact_style.shadow_color = Color(accent.r, accent.g, accent.b, 0.32)
-		compact_style.shadow_size = 13
+		compact_style.shadow_size = STABLE_CARD_SHADOW_SIZE
 	if is_selected:
 		var selected_color: Color = SELECTED_HIGHLIGHT_COLOR
 		compact_style.border_color = selected_color
 		compact_style.bg_color = compact_style.bg_color.lerp(selected_color.darkened(0.80), 0.12)
 		compact_style.shadow_color = Color(selected_color.r, selected_color.g, selected_color.b, 0.32)
-		compact_style.shadow_size = 16
+		compact_style.shadow_size = STABLE_CARD_SHADOW_SIZE
 		if is_hovered:
 			compact_style.border_color = selected_color.lightened(0.08)
 			compact_style.shadow_color = Color(selected_color.r, selected_color.g, selected_color.b, 0.40)
-			compact_style.shadow_size = 16
+			compact_style.shadow_size = STABLE_CARD_SHADOW_SIZE
 	if is_dragging:
 		compact_style.bg_color = compact_style.bg_color.lightened(0.10)
 		compact_style.shadow_color = Color(accent.r, accent.g, accent.b, 0.44)
-		compact_style.shadow_size = 18
+		compact_style.shadow_size = STABLE_CARD_SHADOW_SIZE + 2
 	compact_style.content_margin_left = 10
 	compact_style.content_margin_top = 9
 	compact_style.content_margin_right = 10
@@ -322,7 +324,10 @@ static func _apply_action_hint_style(label: Label, accent: Color, tone: String, 
 	if label == null:
 		return
 
+	var current_font_size: int = label.get_theme_font_size("font_size")
 	TempScreenThemeScript.apply_label(label, "muted")
+	if current_font_size > 0:
+		label.add_theme_font_size_override("font_size", current_font_size)
 	var color: Color = TempScreenThemeScript.TEXT_MUTED_COLOR
 	match tone:
 		"selected":

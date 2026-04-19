@@ -6,9 +6,10 @@ const MapRuntimeStateScript = preload("res://Game/RuntimeState/map_runtime_state
 const UiAssetPathsScript = preload("res://Game/UI/ui_asset_paths.gd")
 const MapBoardBackdropBuilderScript = preload("res://Game/UI/map_board_backdrop_builder.gd")
 const MapBoardGeometryScript = preload("res://Game/UI/map_board_geometry.gd")
+const MapBoardEdgeRoutingScript = preload("res://Game/UI/map_board_edge_routing.gd")
 
 const DEFAULT_TEMPLATE_PROFILE := "corridor"
-const BASE_CENTER_FACTOR := Vector2(0.50, 0.56)
+const BASE_CENTER_FACTOR := Vector2(0.50, 0.58)
 const MIN_BOARD_MARGIN := Vector2(118.0, 132.0)
 const OPENING_BRANCH_ANGLE_PRESETS := {
 	1: [-PI * 0.5],
@@ -26,13 +27,12 @@ const EDGE_NODE_AVOIDANCE_PADDING := 18.0
 const EDGE_NODE_AVOIDANCE_MIN_SHIFT := 24.0
 const EDGE_NODE_AVOIDANCE_MAX_SHIFT := 86.0
 const EDGE_NODE_AVOIDANCE_MAX_PASSES := 5
-
-
 func compose(
 	run_state: RunState,
 	board_size: Vector2,
 	focus_anchor_factor: Vector2,
-	max_focus_offset: Vector2
+	max_focus_offset: Vector2,
+	stable_layout: Dictionary = {}
 ) -> Dictionary:
 	if run_state == null or board_size.x <= 0.0 or board_size.y <= 0.0:
 		return _empty_composition()
@@ -62,44 +62,22 @@ func compose(
 		template_profile,
 		board_seed
 	)
-	var world_positions: Dictionary = _build_world_positions(
-		graph_snapshot,
-		board_size,
-		layout_context,
-		template_profile,
-		board_seed
-	)
-	var visible_nodes: Array[Dictionary] = _build_visible_node_entries(
-		graph_snapshot,
-		graph_by_id,
-		world_positions,
-		current_node_id,
-		board_size
-	)
-	var visible_edges: Array[Dictionary] = _build_visible_edges(
-		graph_by_id,
-		visible_nodes,
-		current_node_id,
-		world_positions,
-		layout_context,
-		template_profile,
-		board_seed,
-		board_size
-	)
+	var world_positions: Dictionary = (stable_layout.get("world_positions", {}) as Dictionary).duplicate(true)
+	if world_positions.is_empty():
+		world_positions = _build_world_positions(graph_snapshot, board_size, layout_context, template_profile, board_seed)
+	var visible_nodes: Array = (stable_layout.get("visible_nodes", []) as Array).duplicate(true)
+	if visible_nodes.is_empty():
+		visible_nodes = _build_visible_node_entries(graph_snapshot, graph_by_id, world_positions, current_node_id, board_size)
+	var visible_edges: Array = (stable_layout.get("visible_edges", []) as Array).duplicate(true)
+	if visible_edges.is_empty():
+		visible_edges = _build_visible_edges(graph_by_id, visible_nodes, current_node_id, world_positions, layout_context, template_profile, board_seed, board_size)
 	var focus_anchor: Vector2 = board_size * focus_anchor_factor
 	var current_world_position: Vector2 = world_positions.get(current_node_id, board_size * BASE_CENTER_FACTOR)
 	var focus_offset: Vector2 = _clamp_focus_offset(focus_anchor - current_world_position, max_focus_offset)
 	var graph_nodes: Array[Dictionary] = _build_graph_node_entries(graph_snapshot, world_positions, board_size)
-	var forest_shapes: Array[Dictionary] = MapBoardBackdropBuilderScript.build_forest_shapes(
-		board_size,
-		graph_nodes,
-		graph_by_id,
-		world_positions,
-		template_profile,
-		board_seed,
-		BASE_CENTER_FACTOR,
-		MIN_BOARD_MARGIN
-	)
+	var forest_shapes: Array = (stable_layout.get("forest_shapes", []) as Array).duplicate(true)
+	if forest_shapes.is_empty():
+		forest_shapes = MapBoardBackdropBuilderScript.build_forest_shapes(board_size, graph_nodes, graph_by_id, world_positions, template_profile, board_seed, BASE_CENTER_FACTOR, MIN_BOARD_MARGIN)
 	return {
 		"seed": board_seed,
 		"template_profile": template_profile,
@@ -112,8 +90,6 @@ func compose(
 		"forest_shapes": forest_shapes,
 		"focus_offset": focus_offset,
 	}
-
-
 func _empty_composition() -> Dictionary:
 	return {
 		"seed": 0,
@@ -127,22 +103,16 @@ func _empty_composition() -> Dictionary:
 		"forest_shapes": [],
 		"focus_offset": Vector2.ZERO,
 	}
-
-
 func _index_graph_snapshot(graph_snapshot: Array[Dictionary]) -> Dictionary:
 	var graph_by_id: Dictionary = {}
 	for node_entry in graph_snapshot:
 		graph_by_id[int(node_entry.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))] = node_entry.duplicate(true)
 	return graph_by_id
-
-
 func _resolve_start_node_id(graph_snapshot: Array[Dictionary]) -> int:
 	for node_entry in graph_snapshot:
 		if String(node_entry.get("node_family", "")) == "start":
 			return int(node_entry.get("node_id", 0))
 	return 0
-
-
 func _build_depth_by_node_id(graph_by_id: Dictionary, start_node_id: int) -> Dictionary:
 	var depth_by_node_id: Dictionary = {start_node_id: 0}
 	var open_node_ids: Array[int] = [start_node_id]
@@ -156,8 +126,6 @@ func _build_depth_by_node_id(graph_by_id: Dictionary, start_node_id: int) -> Dic
 			depth_by_node_id[adjacent_node_id] = node_depth + 1
 			open_node_ids.append(adjacent_node_id)
 	return depth_by_node_id
-
-
 func _build_layout_context(
 	graph_snapshot: Array[Dictionary],
 	graph_by_id: Dictionary,
@@ -185,16 +153,12 @@ func _build_layout_context(
 		"branch_direction_by_root": _build_branch_direction_by_root(graph_by_id, start_node_id, template_profile, board_seed),
 		"max_depth": _max_depth_from_values(depth_by_node_id.values()),
 	}
-
-
 func _build_degree_by_node_id(graph_by_id: Dictionary) -> Dictionary:
 	var degree_by_node_id: Dictionary = {}
 	for node_id_variant in graph_by_id.keys():
 		var node_id: int = int(node_id_variant)
 		degree_by_node_id[node_id] = _adjacent_ids_for(graph_by_id, node_id).size()
 	return degree_by_node_id
-
-
 func _build_parent_ids_by_node_id(graph_by_id: Dictionary, depth_by_node_id: Dictionary) -> Dictionary:
 	var parent_ids_by_node_id: Dictionary = {}
 	for node_id_variant in graph_by_id.keys():
@@ -207,8 +171,6 @@ func _build_parent_ids_by_node_id(graph_by_id: Dictionary, depth_by_node_id: Dic
 		parent_ids.sort()
 		parent_ids_by_node_id[node_id] = parent_ids
 	return parent_ids_by_node_id
-
-
 func _build_primary_parent_by_node_id(parent_ids_by_node_id: Dictionary) -> Dictionary:
 	var primary_parent_by_node_id: Dictionary = {}
 	for node_id_variant in parent_ids_by_node_id.keys():
@@ -572,6 +534,10 @@ func _build_visible_edges(
 			if not is_local_focus_edge and not _should_show_history_edge(from_node, to_node):
 				continue
 			var edge_semantic: String = _edge_semantic_for(from_node, to_node)
+			var depth_by_node_id: Dictionary = layout_context.get("depth_by_node_id", {})
+			var edge_depth_delta: int = abs(
+				int(depth_by_node_id.get(node_id, 0)) - int(depth_by_node_id.get(adjacent_node_id, 0))
+			)
 			var path_model: Dictionary = _build_edge_path_model(
 				from_node,
 				to_node,
@@ -587,6 +553,7 @@ func _build_visible_edges(
 				"to_node_id": adjacent_node_id,
 				"state_semantic": edge_semantic,
 				"is_history": not is_local_focus_edge,
+				"depth_delta": edge_depth_delta,
 				"path_family": String(path_model.get("path_family", PATH_FAMILY_GENTLE_CURVE)),
 				"trail_texture_path": _trail_texture_path_for_family(String(path_model.get("path_family", PATH_FAMILY_GENTLE_CURVE))),
 				"points": path_model.get("points", PackedVector2Array()),
@@ -626,6 +593,10 @@ func _filter_non_crossing_history_edges(
 
 
 func _sort_visible_edge_by_priority(left_edge: Dictionary, right_edge: Dictionary) -> bool:
+	var left_depth_delta: int = int(left_edge.get("depth_delta", 1))
+	var right_depth_delta: int = int(right_edge.get("depth_delta", 1))
+	if left_depth_delta != right_depth_delta:
+		return left_depth_delta < right_depth_delta
 	var left_length: float = MapBoardGeometryScript.visible_edge_polyline_length(left_edge)
 	var right_length: float = MapBoardGeometryScript.visible_edge_polyline_length(right_edge)
 	if not is_equal_approx(left_length, right_length):
@@ -763,31 +734,31 @@ func _build_edge_path_model(
 			tangent_length = clampf(distance * 0.18, 24.0, 92.0)
 			p1 = p0 + direction_normalized * tangent_length
 			p2 = p3 - direction_normalized * tangent_length
-			var gentle_curvature: float = clampf(distance * 0.07 * profile_multiplier, 8.0, 40.0)
-			var gentle_outward: float = max(7.0 if locked_edge else 0.0, gentle_curvature * 0.05)
+			var gentle_curvature: float = clampf(distance * 0.052 * profile_multiplier, 6.0, 28.0)
+			var gentle_outward: float = max(6.0 if locked_edge else 0.0, gentle_curvature * 0.03)
 			var gentle_sign: float = _curve_sign_for(edge_hash, normal, outward_direction, false)
-			var gentle_offset: Vector2 = normal * gentle_curvature * gentle_sign + outward_direction * gentle_outward + branch_bias * 0.24
+			var gentle_offset: Vector2 = normal * gentle_curvature * gentle_sign + outward_direction * gentle_outward + branch_bias * 0.18
 			p1 += gentle_offset
-			p2 += gentle_offset * 0.88
+			p2 += gentle_offset * 0.82
 		PATH_FAMILY_WIDER_CURVE:
-			tangent_length = clampf(distance * 0.20, 26.0, 98.0)
+			tangent_length = clampf(distance * 0.21, 28.0, 104.0)
 			p1 = p0 + direction_normalized * tangent_length
 			p2 = p3 - direction_normalized * tangent_length
-			var wide_curvature: float = clampf(distance * 0.09 * profile_multiplier, 12.0, 48.0)
-			var wide_outward: float = max(8.0 if locked_edge else 0.0, wide_curvature * 0.06)
+			var wide_curvature: float = clampf(distance * 0.118 * profile_multiplier, 16.0, 62.0)
+			var wide_outward: float = max(11.0 if locked_edge else 0.0, wide_curvature * 0.09)
 			var wide_sign: float = _curve_sign_for(_derive_seed(edge_hash, "wider"), normal, outward_direction, true)
-			var wide_offset: Vector2 = normal * wide_curvature * wide_sign + outward_direction * wide_outward + branch_bias * 0.34
+			var wide_offset: Vector2 = normal * wide_curvature * wide_sign + outward_direction * wide_outward + branch_bias * 0.46
 			p1 += wide_offset
-			p2 += wide_offset * 0.93
+			p2 += wide_offset * 0.98
 		PATH_FAMILY_OUTWARD_RECONNECTING_ARC:
-			tangent_length = clampf(distance * 0.22, 28.0, 104.0)
+			tangent_length = clampf(distance * 0.24, 30.0, 110.0)
 			p1 = p0 + direction_normalized * tangent_length
 			p2 = p3 - direction_normalized * tangent_length
-			var arc_curvature: float = clampf(distance * 0.05 * profile_multiplier, 6.0, 26.0)
-			var arc_outward: float = clampf(distance * 0.08, 12.0, 34.0) + (7.0 if locked_edge else 0.0)
+			var arc_curvature: float = clampf(distance * 0.086 * profile_multiplier, 10.0, 40.0)
+			var arc_outward: float = clampf(distance * 0.14, 18.0, 56.0) + (8.0 if locked_edge else 0.0)
 			var arc_sign: float = _curve_sign_for(_derive_seed(edge_hash, "arc"), normal, outward_direction, true)
-			p1 += outward_direction * arc_outward * 0.88 + normal * arc_curvature * arc_sign * 0.42
-			p2 += outward_direction * arc_outward * 0.64 + normal * arc_curvature * arc_sign * 0.24
+			p1 += outward_direction * arc_outward * 1.14 + normal * arc_curvature * arc_sign * 0.58
+			p2 += outward_direction * arc_outward * 0.92 + normal * arc_curvature * arc_sign * 0.34
 	var points: PackedVector2Array = _sample_cubic_bezier(p0, p1, p2, p3, 16)
 	var avoidance_offset: Vector2 = MapBoardGeometryScript.edge_node_avoidance_offset(
 		points,
@@ -835,12 +806,21 @@ func _build_edge_path_model(
 		p1 = p0 + direction_normalized * fallback_tangent + outward_direction * outward_escape
 		p2 = p3 - direction_normalized * fallback_tangent + outward_direction * outward_escape * 0.92
 		points = _sample_cubic_bezier(p0, p1, p2, p3, 16)
+		if MapBoardGeometryScript.polyline_hits_other_visible_nodes(points, from_node_id, to_node_id, visible_nodes, EDGE_NODE_AVOIDANCE_PADDING):
+			var fallback_points: PackedVector2Array = _build_outer_reconnect_fallback_points(
+				p0,
+				p3,
+				visible_nodes,
+				from_node_id,
+				to_node_id,
+				board_size
+			)
+			if not fallback_points.is_empty():
+				points = fallback_points
 	return {
 		"path_family": path_family,
 		"points": points,
 	}
-
-
 func _resolve_edge_path_family(
 	edge_hash: int,
 	distance_ratio: float,
@@ -853,26 +833,33 @@ func _resolve_edge_path_family(
 ) -> String:
 	var seed_bias: float = float(abs(edge_hash % 997)) / 996.0
 	if is_reconnect_edge:
-		if depth_delta == 0 and tangential_alignment >= lerpf(0.48, 0.60, seed_bias) and distance_ratio <= lerpf(0.20, 0.26, seed_bias):
+		if depth_delta == 0:
+			return PATH_FAMILY_OUTWARD_RECONNECTING_ARC
+		if distance_ratio >= lerpf(0.24, 0.31, seed_bias) or tangential_alignment >= lerpf(0.54, 0.68, seed_bias):
 			return PATH_FAMILY_WIDER_CURVE
-		return PATH_FAMILY_GENTLE_CURVE if distance_ratio <= lerpf(0.24, 0.30, seed_bias) else PATH_FAMILY_WIDER_CURVE
-	var straight_distance_cap: float = lerpf(0.162, 0.204, seed_bias)
-	var straight_alignment_floor: float = lerpf(0.78, 0.58, seed_bias)
-	if distance_ratio <= straight_distance_cap and radial_alignment >= straight_alignment_floor:
+		return PATH_FAMILY_GENTLE_CURVE
+	var straight_distance_cap: float = lerpf(0.194, 0.244, seed_bias)
+	var straight_alignment_floor: float = lerpf(0.68, 0.82, seed_bias)
+	if (
+		distance_ratio <= straight_distance_cap
+		and radial_alignment >= straight_alignment_floor
+		and midpoint_radius_ratio <= lerpf(0.22, 0.32, seed_bias)
+	):
 		return PATH_FAMILY_SHORT_STRAIGHT
 
-	var wide_distance_floor: float = lerpf(0.22, 0.28, seed_bias)
-	var wide_tangent_floor: float = lerpf(0.44, 0.56, seed_bias)
-	var wide_outer_floor: float = lerpf(0.18, 0.28, seed_bias)
+	var wide_distance_floor: float = lerpf(0.25, 0.33, seed_bias)
+	var wide_tangent_floor: float = lerpf(0.56, 0.70, seed_bias)
+	var wide_outer_floor: float = lerpf(0.20, 0.32, seed_bias)
 	if distance_ratio >= wide_distance_floor or (
 		tangential_alignment >= wide_tangent_floor and midpoint_radius_ratio >= wide_outer_floor
 	):
 		return PATH_FAMILY_WIDER_CURVE
-	if not same_branch and tangential_alignment >= lerpf(0.34, 0.46, seed_bias):
+	if not same_branch and (
+		distance_ratio >= lerpf(0.21, 0.27, seed_bias)
+		or tangential_alignment >= lerpf(0.42, 0.56, seed_bias)
+	):
 		return PATH_FAMILY_WIDER_CURVE
 	return PATH_FAMILY_GENTLE_CURVE
-
-
 func _edge_profile_curve_multiplier(template_profile: String) -> float:
 	match template_profile:
 		"corridor":
@@ -883,8 +870,6 @@ func _edge_profile_curve_multiplier(template_profile: String) -> float:
 			return 0.86
 		_:
 			return 0.80
-
-
 func _curve_sign_for(edge_hash: int, normal: Vector2, outward_direction: Vector2, prefer_outward: bool) -> float:
 	var outward_alignment: float = normal.dot(outward_direction)
 	if absf(outward_alignment) >= 0.12:
@@ -893,8 +878,6 @@ func _curve_sign_for(edge_hash: int, normal: Vector2, outward_direction: Vector2
 			return outward_sign
 		return -outward_sign
 	return 1.0 if (edge_hash & 1) == 0 else -1.0
-
-
 func _sample_cubic_bezier(
 	p0: Vector2,
 	p1: Vector2,
@@ -910,12 +893,28 @@ func _sample_cubic_bezier(
 			p0 * pow(one_minus_t, 3.0)
 			+ p1 * 3.0 * pow(one_minus_t, 2.0) * t
 			+ p2 * 3.0 * one_minus_t * pow(t, 2.0)
-			+ p3 * pow(t, 3.0)
+		+ p3 * pow(t, 3.0)
 		)
 		points.append(point)
 	return points
-
-
+func _build_outer_reconnect_fallback_points(
+	p0: Vector2,
+	p3: Vector2,
+	visible_nodes: Array[Dictionary],
+	from_node_id: int,
+	to_node_id: int,
+	board_size: Vector2
+) -> PackedVector2Array:
+	return MapBoardEdgeRoutingScript.build_outer_reconnect_fallback_points(
+		p0,
+		p3,
+		visible_nodes,
+		from_node_id,
+		to_node_id,
+		board_size,
+		MIN_BOARD_MARGIN,
+		EDGE_NODE_AVOIDANCE_PADDING
+	)
 func _edge_semantic_for(from_node: Dictionary, to_node: Dictionary) -> String:
 	if String(from_node.get("state_semantic", "")) == "locked" or String(to_node.get("state_semantic", "")) == "locked":
 		return "locked"
@@ -924,16 +923,12 @@ func _edge_semantic_for(from_node: Dictionary, to_node: Dictionary) -> String:
 	if from_resolved and to_resolved:
 		return "resolved"
 	return "open"
-
-
 func _should_show_history_edge(from_node: Dictionary, to_node: Dictionary) -> bool:
 	var from_node_state: String = String(from_node.get("node_state", MapRuntimeStateScript.NODE_STATE_UNDISCOVERED))
 	var to_node_state: String = String(to_node.get("node_state", MapRuntimeStateScript.NODE_STATE_UNDISCOVERED))
 	if from_node_state == MapRuntimeStateScript.NODE_STATE_UNDISCOVERED or to_node_state == MapRuntimeStateScript.NODE_STATE_UNDISCOVERED:
 		return false
 	return true
-
-
 func _semantic_for_node(node_state: String, is_current: bool) -> String:
 	if is_current:
 		return "current"
@@ -944,8 +939,6 @@ func _semantic_for_node(node_state: String, is_current: bool) -> String:
 			return "resolved"
 		_:
 			return "open"
-
-
 func _icon_texture_path_for_family(node_family: String) -> String:
 	match node_family:
 		"start":

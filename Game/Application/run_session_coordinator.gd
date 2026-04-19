@@ -188,11 +188,11 @@ func build_combat_setup_data() -> Dictionary:
 	}
 
 
-func toggle_inventory_equipment(slot_id: int) -> Dictionary:
+func toggle_inventory_equipment(slot_id: int, discard_slot_id: int = -1) -> Dictionary:
 	var active_run_state: RunState = ensure_run_state_initialized()
 	if active_run_state == null:
 		return {"ok": false, "slot_id": slot_id, "error": "missing_run_state"}
-	return inventory_actions.toggle_equipment_slot(active_run_state.inventory_state, slot_id)
+	return inventory_actions.toggle_equipment_slot(active_run_state.inventory_state, slot_id, discard_slot_id)
 
 
 func move_inventory_slot(slot_id: int, target_index: int) -> Dictionary:

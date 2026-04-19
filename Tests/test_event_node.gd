@@ -5,6 +5,8 @@ class_name TestEventNode
 const AppBootstrapScript = preload("res://Game/Application/app_bootstrap.gd")
 const SceneRouterScript = preload("res://Game/Infrastructure/scene_router.gd")
 const FlowStateScript = preload("res://Game/Application/flow_state.gd")
+const SafeMenuLauncherStyleScript = preload("res://Game/UI/safe_menu_launcher_style.gd")
+const UiAssetPathsScript = preload("res://Game/UI/ui_asset_paths.gd")
 const TestExitCleanupHelperScript = preload("res://Tests/_exit_cleanup_helper.gd")
 const ROUTE_BUTTON_NODE_NAMES: PackedStringArray = [
 	"CombatNodeButton",
@@ -14,7 +16,7 @@ const ROUTE_BUTTON_NODE_NAMES: PackedStringArray = [
 	"BlacksmithNodeButton",
 	"BossNodeButton",
 ]
-const EVENT_ICON_PATH := "res://Assets/Icons/icon_map_trail_event.svg"
+const SAFE_MENU_LAUNCHER_BUTTON_PATH := "SafeMenuOverlay/MenuLauncherButton"
 const PHASE_TIMEOUT_FRAMES := 240
 
 var _phase: int = 0
@@ -73,16 +75,38 @@ func _on_process_frame() -> void:
 				var choice_b_button: Button = event_root.get_node("Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard/VBox/ChoiceBButton") as Button
 				var choice_a_title: Label = event_root.get_node("Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard/VBox/ChoiceTitleLabel") as Label
 				var choice_b_title: Label = event_root.get_node("Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard/VBox/ChoiceTitleLabel") as Label
+				var choice_a_detail: Label = event_root.get_node("Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard/VBox/ChoiceDetailLabel") as Label
+				var launcher_button: Button = event_root.get_node_or_null(SAFE_MENU_LAUNCHER_BUTTON_PATH) as Button
+				var run_status_card: PanelContainer = event_root.get_node_or_null("Margin/VBox/OffersShell/VBox/HeaderRow/RunStatusCard") as PanelContainer
+				var tooltip_panel: PanelContainer = event_root.get_node_or_null("InventoryTooltipPanel") as PanelContainer
+				var tooltip_label: Label = tooltip_panel.get_node_or_null("InventoryTooltipLabel") as Label if tooltip_panel != null else null
 
 				_require(title_label.text == "The Shrine in the Moss", "Expected event title to render from EventState.")
-				_require(String(context_label.text).contains("planned stop on the map"), "Expected planned event nodes to explain their authored map-stop context in the scene shell.")
-				_require(String(hint_label.text).contains("detail line"), "Expected event scene hint text to explain the badge-plus-detail read.")
+				_require(context_label.text == "Pick 1 result.", "Expected planned event nodes to keep the scene shell context compact.")
+				_require(hint_label.text == "Hover for details.", "Expected event scene hint text to keep the hover guidance compact.")
+				_require(run_status_card != null and not run_status_card.visible, "Expected event overlay to hide the duplicate run-status card because the shared top bar already shows it.")
 				_require(choice_a_card.visible and not choice_a_button.disabled, "Expected first event card to stay active.")
 				_require(choice_b_card.visible and not choice_b_button.disabled, "Expected second event card to stay active.")
+				_require(launcher_button != null and launcher_button.visible, "Expected Event to expose the shared safe menu launcher.")
+				var launcher_metrics: Dictionary = SafeMenuLauncherStyleScript.resolve_launcher_metrics_for_viewport(current_scene.get_viewport_rect().size)
+				var expected_dimensions: Vector2 = Vector2(launcher_metrics.get("dimensions", Vector2.ZERO))
+				_require(launcher_button.size.is_equal_approx(expected_dimensions), "Expected Event safe menu launcher to keep the shared launcher dimensions.")
+				_require(launcher_button.get_theme_constant("icon_max_width") == int(launcher_metrics.get("icon_size", -1)), "Expected Event safe menu launcher to keep the shared icon scale.")
 				_require(choice_a_title.text == "Wash the road dust away", "Expected first roadside-encounter choice title from content.")
 				_require(choice_b_title.text == "Turn over the offering bowl", "Expected second roadside-encounter choice title from content.")
-				_require_button_icon(choice_a_button, EVENT_ICON_PATH, "Expected event choice A to expose the event icon floor.")
-				_require_button_icon(choice_b_button, EVENT_ICON_PATH, "Expected event choice B to expose the event icon floor.")
+				_require(choice_a_detail.text == "Recover 10 HP.", "Expected event card detail to stay short and outcome-first.")
+				var choice_a_tooltip_text: String = String(choice_a_button.get_meta("custom_tooltip_text", ""))
+				var choice_b_tooltip_text: String = String(choice_b_button.get_meta("custom_tooltip_text", ""))
+				_require(not choice_a_tooltip_text.is_empty(), "Expected first event choice button to expose custom hover tooltip copy.")
+				_require(not choice_b_tooltip_text.is_empty(), "Expected second event choice button to expose custom hover tooltip copy.")
+				_require(tooltip_panel != null and tooltip_label != null, "Expected Event to create the shared tooltip bubble shell.")
+				choice_a_button.emit_signal("mouse_entered")
+				_require(tooltip_panel.visible, "Expected event choice hover to show the shared tooltip bubble.")
+				_require(tooltip_label.text == choice_a_tooltip_text, "Expected event choice hover bubble to mirror the button tooltip copy.")
+				choice_a_button.emit_signal("mouse_exited")
+				_require(not tooltip_panel.visible, "Expected event choice hover bubble to hide after pointer exit.")
+				_require_button_icon(choice_a_button, UiAssetPathsScript.build_effect_icon_texture_path(String(event_state.choices[0].get("effect_type", "")), String(event_state.choices[0].get("inventory_family", ""))), "Expected event choice A to expose the effect icon floor.")
+				_require_button_icon(choice_b_button, UiAssetPathsScript.build_effect_icon_texture_path(String(event_state.choices[1].get("effect_type", "")), String(event_state.choices[1].get("inventory_family", ""))), "Expected event choice B to expose the effect icon floor.")
 
 				choice_a_button.emit_signal("pressed")
 				_advance_phase(3)

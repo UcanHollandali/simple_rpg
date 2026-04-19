@@ -123,7 +123,7 @@ text = "Ashwood Descent"
 autowrap_mode = 3
 
 [node name="SubtitleLabel" type="Label" parent="Margin/VBox/HeroPanel/HeroVBox"]
-text = "Hazırlan. Rotanı Seç. Hayatta Kal. — 3 aşama, ~20 dk koşu"
+text = "Rota seç. Hayatta kal. Kapıya ulaş."
 autowrap_mode = 3
 
 [node name="MoodLabel" type="Label" parent="Margin/VBox/HeroPanel/HeroVBox"]

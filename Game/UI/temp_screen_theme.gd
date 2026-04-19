@@ -2,6 +2,8 @@
 extends RefCounted
 class_name TempScreenTheme
 
+const UiTypographyScript = preload("res://Game/UI/ui_typography.gd")
+
 const PANEL_FILL_COLOR := Color(0.0549019, 0.0784314, 0.0941176, 0.96)
 const PANEL_SOFT_FILL_COLOR := Color(0.0980392, 0.1294118, 0.145098, 0.94)
 const PANEL_BORDER_COLOR := Color(0.5686275, 0.4862745, 0.3411765, 0.96)
@@ -105,7 +107,9 @@ static func apply_chip(panel: PanelContainer, label: Label, accent: Color = TEAL
 	style.shadow_color = Color(accent.r, accent.g, accent.b, 0.16)
 	style.shadow_size = 8
 	panel.add_theme_stylebox_override("panel", style)
+	apply_font_role(label, UiTypographyScript.ROLE_HEADING)
 	label.add_theme_color_override("font_color", TEXT_PRIMARY_COLOR)
+	label.add_theme_font_size_override("font_size", UiTypographyScript.DEFAULT_CHIP_SIZE)
 
 
 static func apply_compact_status_area(panel: PanelContainer, accent: Color = PANEL_BORDER_COLOR) -> void:
@@ -160,14 +164,14 @@ static func apply_inventory_section_panel(panel: PanelContainer, accent: Color =
 static func apply_inventory_section_text(title_label: Label, hint_label: Label, tone: String, density: String = "standard") -> void:
 	if title_label != null:
 		apply_label(title_label, tone)
-		var title_size: int = 20
+		var title_size: int = UiTypographyScript.DEFAULT_HEADING_SIZE
 		match tone:
 			"accent":
-				title_size = 19
+				title_size = UiTypographyScript.DEFAULT_HEADING_SIZE
 			"reward":
-				title_size = 21
+				title_size = UiTypographyScript.DEFAULT_HEADING_SIZE + 1
 			_:
-				title_size = 20
+				title_size = UiTypographyScript.DEFAULT_HEADING_SIZE
 		if density == "compact":
 			title_size -= 1
 		title_label.add_theme_font_size_override("font_size", title_size)
@@ -291,7 +295,8 @@ static func apply_button(button: Button, accent: Color = PANEL_BORDER_COLOR, is_
 	button.add_theme_constant_override("h_separation", 10)
 	button.add_theme_constant_override("icon_max_width", 24)
 	button.add_theme_constant_override("outline_size", 0)
-	button.add_theme_font_size_override("font_size", 20)
+	apply_font_role(button, UiTypographyScript.ROLE_BUTTON)
+	button.add_theme_font_size_override("font_size", UiTypographyScript.DEFAULT_BUTTON_SIZE)
 	button.focus_mode = Control.FOCUS_ALL
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 
@@ -324,7 +329,8 @@ static func apply_small_button(button: Button, accent: Color = PANEL_BORDER_COLO
 	button.add_theme_color_override("font_pressed_color", TEXT_PRIMARY_COLOR)
 	button.add_theme_color_override("font_disabled_color", DISABLED_TEXT_COLOR)
 	button.add_theme_constant_override("icon_max_width", 18)
-	button.add_theme_font_size_override("font_size", 16)
+	apply_font_role(button, UiTypographyScript.ROLE_BUTTON)
+	button.add_theme_font_size_override("font_size", UiTypographyScript.DEFAULT_SMALL_BUTTON_SIZE)
 	button.focus_mode = Control.FOCUS_ALL
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 
@@ -424,28 +430,35 @@ static func apply_label(label: Label, tone: String = "body") -> void:
 		return
 
 	var color: Color = TEXT_SUBTLE_COLOR
-	var font_size: int = 18
+	var font_size: int = UiTypographyScript.DEFAULT_BODY_SIZE
 	match tone:
 		"title":
 			color = TEXT_PRIMARY_COLOR
-			font_size = 42
+			font_size = UiTypographyScript.DEFAULT_TITLE_SIZE
 		"accent":
 			color = TEXT_MUTED_COLOR
-			font_size = 22
+			font_size = UiTypographyScript.DEFAULT_HEADING_SIZE
 		"reward":
 			color = REWARD_ACCENT_COLOR
-			font_size = 22
+			font_size = UiTypographyScript.DEFAULT_HEADING_SIZE
 		"danger":
 			color = RUST_ACCENT_COLOR
-			font_size = 28
+			font_size = UiTypographyScript.DEFAULT_DANGER_SIZE
 		"muted":
 			color = TEXT_MUTED_COLOR
-			font_size = 19
+			font_size = UiTypographyScript.DEFAULT_MUTED_SIZE
 		_:
 			color = TEXT_SUBTLE_COLOR
-			font_size = 20
+			font_size = UiTypographyScript.DEFAULT_BODY_SIZE
+	apply_font_role(label, UiTypographyScript.resolve_label_role(tone))
 	label.add_theme_color_override("font_color", color)
 	label.add_theme_font_size_override("font_size", font_size)
+
+
+static func apply_font_role(control: Control, role: String = UiTypographyScript.ROLE_BODY) -> void:
+	if control == null:
+		return
+	control.add_theme_font_override("font", UiTypographyScript.resolve_font(role))
 
 
 static func compute_overlay_margins(viewport_size: Vector2, max_content_width: int = 920, min_side_margin: int = 30) -> Dictionary:

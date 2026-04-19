@@ -9,6 +9,7 @@ var _threshold_events: Array[Dictionary] = []
 
 func _init() -> void:
 	test_hunger_threshold_crossed_emits_once_per_threshold_entry()
+	test_minimal_density_renders_inline_metric_row()
 	print("test_run_status_strip: all assertions passed")
 	quit()
 
@@ -49,6 +50,32 @@ func _build_status_model(hunger_value: int) -> Dictionary:
 			},
 		],
 	}
+
+
+func test_minimal_density_renders_inline_metric_row() -> void:
+	var card := PanelContainer.new()
+	var fallback_label := Label.new()
+	card.add_child(fallback_label)
+
+	RunStatusStripScript.render_into(card, fallback_label, {
+		"density": "minimal",
+		"primary_items": [
+			{
+				"key": "hp",
+				"label_text": "HP",
+				"value_text": "60/60",
+				"semantic": "health",
+			},
+		],
+	})
+
+	var inline_row: HBoxContainer = card.get_node_or_null("RunStatusRoot/PrimaryFlow/hpChip/MetricInlineRow") as HBoxContainer
+	var label: Label = card.get_node_or_null("RunStatusRoot/PrimaryFlow/hpChip/MetricInlineRow/MetricLabel") as Label
+	var value_label: Label = card.get_node_or_null("RunStatusRoot/PrimaryFlow/hpChip/MetricInlineRow/MetricValueLabel") as Label
+	assert(inline_row != null, "Expected minimal density status chips to render label and value on a single inline row.")
+	assert(label != null and label.text == "HP", "Expected minimal density status chip label to stay readable inline.")
+	assert(value_label != null and value_label.text == "60/60", "Expected minimal density status chip value to stay readable inline.")
+	assert(value_label.get_theme_font_size("font_size") == 18, "Expected minimal density status chip value to use the larger inline number size.")
 
 
 func _on_hunger_threshold_crossed(old_threshold: int, new_threshold: int) -> void:

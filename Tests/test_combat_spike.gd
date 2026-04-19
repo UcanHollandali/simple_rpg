@@ -34,6 +34,8 @@ func _init() -> void:
 	test_belt_is_inventory_utility_only()
 	test_inventory_actions_repair_weapon_resets_to_max_durability()
 	test_inventory_actions_block_belt_unequip_when_capacity_would_overflow()
+	test_inventory_actions_swap_backup_weapon_when_backpack_is_full()
+	test_inventory_actions_offer_discard_prompt_for_full_backpack_unequip()
 	test_inventory_actions_attach_and_detach_shield_mods()
 	test_inventory_actions_move_slot_to_index_reorders_backpack()
 	test_inventory_actions_preserve_quest_items_when_backpack_is_full()
@@ -225,6 +227,7 @@ func test_preview_snapshot_surfaces_readability_numbers() -> void:
 	var flow: CombatFlow = _build_flow(20, [], "watcher_mail")
 	var preview: Dictionary = flow.build_preview_snapshot()
 	assert(int(preview.get("attack_damage_preview", -1)) == 5, "Expected preview snapshot to surface the outgoing hit after enemy armor.")
+	assert(int(preview.get("enemy_defense_preview", -1)) == 1, "Expected preview snapshot to surface enemy armor for the compact enemy vitals read.")
 	assert(int(preview.get("defense_preview", -1)) == 1, "Expected preview snapshot to surface equipped armor reduction.")
 	assert(int(preview.get("incoming_damage_preview", -1)) == 4, "Expected preview snapshot to surface the next incoming hit after defense.")
 	assert(int(preview.get("guard_gain_preview", -1)) == 2, "Expected preview snapshot to surface defend guard generation.")
@@ -405,6 +408,43 @@ func test_inventory_actions_block_belt_unequip_when_capacity_would_overflow() ->
 	assert(String(run_state.inventory_state.belt_instance.get("definition_id", "")) == "trailhook_bandolier", "Expected belt lane to remain equipped after the blocked unequip.")
 
 
+func test_inventory_actions_swap_backup_weapon_when_backpack_is_full() -> void:
+	var run_state: RunState = RunState.new()
+	run_state.reset_for_new_run()
+	_fill_backpack_to_capacity(run_state, [{
+		"inventory_family": InventoryState.INVENTORY_FAMILY_WEAPON,
+		"definition_id": "splitter_axe",
+		"current_durability": 14,
+		"upgrade_level": 0,
+	}])
+	var inventory_actions: RefCounted = InventoryActionsScript.new()
+	var backup_weapon_slot_id: int = _find_backpack_slot_id_by_definition(run_state.inventory_state, "splitter_axe")
+	assert(backup_weapon_slot_id > 0, "Expected a carried backup weapon in the full-backpack swap test.")
+	var result: Dictionary = inventory_actions.toggle_equipment_slot(run_state.inventory_state, backup_weapon_slot_id)
+	assert(bool(result.get("ok", false)), "Expected clicking a backup weapon in the backpack to swap directly even when the backpack is full.")
+	assert(String(run_state.inventory_state.weapon_instance.get("definition_id", "")) == "splitter_axe", "Expected the backup weapon to become the equipped right-hand truth after the swap.")
+	assert(_inventory_contains_definition(run_state.inventory_state, "iron_sword"), "Expected the previously equipped weapon to become the new carried backup after the swap.")
+	assert(run_state.inventory_state.get_used_capacity() == run_state.inventory_state.get_total_capacity(), "Expected full-backpack weapon swapping to preserve used capacity instead of overflowing.")
+
+
+func test_inventory_actions_offer_discard_prompt_for_full_backpack_unequip() -> void:
+	var run_state: RunState = RunState.new()
+	run_state.reset_for_new_run()
+	_fill_backpack_to_capacity(run_state)
+	var inventory_actions: RefCounted = InventoryActionsScript.new()
+	var active_weapon_slot_id: int = int(run_state.inventory_state.active_weapon_slot_id)
+	var prompt_result: Dictionary = inventory_actions.toggle_equipment_slot(run_state.inventory_state, active_weapon_slot_id)
+	assert(not bool(prompt_result.get("ok", false)), "Expected full-backpack unequip to defer behind an explicit discard choice.")
+	assert(String(prompt_result.get("error", "")) == "inventory_choice_required", "Expected full-backpack unequip to return the shared inventory overflow prompt contract.")
+	assert(not (prompt_result.get("discardable_slots", []) as Array).is_empty(), "Expected the unequip overflow prompt to offer discardable backpack slots.")
+	var discard_slot_id: int = int(((prompt_result.get("discardable_slots", []) as Array)[0] as Dictionary).get("slot_id", -1))
+	var resolve_result: Dictionary = inventory_actions.toggle_equipment_slot(run_state.inventory_state, active_weapon_slot_id, discard_slot_id)
+	assert(bool(resolve_result.get("ok", false)), "Expected choosing a discard slot to finish the pending unequip.")
+	assert(run_state.inventory_state.weapon_instance.is_empty(), "Expected the equipped weapon lane to be empty after resolving the full-backpack unequip.")
+	assert(_inventory_contains_definition(run_state.inventory_state, "iron_sword"), "Expected the unequipped weapon to re-enter the backpack after discard resolution.")
+	assert(not _inventory_contains_slot_id(run_state.inventory_state, discard_slot_id), "Expected the chosen discard slot to be removed from the backpack.")
+
+
 func test_inventory_actions_attach_and_detach_shield_mods() -> void:
 	var run_state: RunState = RunState.new()
 	run_state.reset_for_new_run()
@@ -548,6 +588,61 @@ func test_inventory_actions_replaces_oldest_non_equipped_item_when_backpack_is_f
 	assert(run_state.inventory_state.passive_slots.size() == 5, "Expected the newly chosen passive to consume backpack space.")
 	assert(String(run_state.inventory_state.passive_slots[4].get("definition_id", "")) == "tempered_binding", "Expected the newly chosen passive to occupy the newest backpack slot.")
 	assert(run_state.inventory_state.consumable_slots.is_empty(), "Expected the displaced starter consumable to be removed from the backpack.")
+
+
+func _fill_backpack_to_capacity(run_state: RunState, extra_slots: Array[Dictionary] = []) -> void:
+	var inventory_snapshot: Dictionary = run_state.inventory_state.to_save_dict()
+	var backpack_slots: Array = inventory_snapshot.get("backpack_slots", []).duplicate(true)
+	var next_slot_id: int = int(inventory_snapshot.get("inventory_next_slot_id", 1))
+	var filler_ids: Array[String] = [
+		"sturdy_wraps",
+		"packrat_clasp",
+		"lean_pack_token",
+		"tempered_binding",
+	]
+	var filler_index: int = 0
+	while backpack_slots.size() + extra_slots.size() < run_state.inventory_state.get_total_capacity():
+		backpack_slots.append({
+			"slot_id": next_slot_id,
+			"inventory_family": InventoryState.INVENTORY_FAMILY_PASSIVE,
+			"definition_id": filler_ids[filler_index % filler_ids.size()],
+		})
+		next_slot_id += 1
+		filler_index += 1
+	for extra_slot_value in extra_slots:
+		var extra_slot: Dictionary = (extra_slot_value as Dictionary).duplicate(true)
+		extra_slot["slot_id"] = next_slot_id
+		backpack_slots.append(extra_slot)
+		next_slot_id += 1
+	inventory_snapshot["backpack_slots"] = backpack_slots
+	inventory_snapshot["inventory_next_slot_id"] = next_slot_id
+	run_state.inventory_state.load_from_flat_save_dict(inventory_snapshot)
+	assert(run_state.inventory_state.get_used_capacity() == run_state.inventory_state.get_total_capacity(), "Expected helper to fill the backpack to capacity.")
+
+
+func _find_backpack_slot_id_by_definition(inventory_state: InventoryState, definition_id: String) -> int:
+	for slot in inventory_state.inventory_slots:
+		if String(slot.get("definition_id", "")) == definition_id:
+			return int(slot.get("slot_id", -1))
+	return -1
+
+
+func _inventory_contains_definition(inventory_state: InventoryState, definition_id: String) -> bool:
+	if inventory_state == null or definition_id.is_empty():
+		return false
+	for slot in inventory_state.inventory_slots:
+		if String(slot.get("definition_id", "")) == definition_id:
+			return true
+	return false
+
+
+func _inventory_contains_slot_id(inventory_state: InventoryState, slot_id: int) -> bool:
+	if inventory_state == null or slot_id <= 0:
+		return false
+	for slot in inventory_state.inventory_slots:
+		if int(slot.get("slot_id", -1)) == slot_id:
+			return true
+	return false
 
 
 func test_inventory_actions_preserve_quest_items_when_backpack_is_full() -> void:

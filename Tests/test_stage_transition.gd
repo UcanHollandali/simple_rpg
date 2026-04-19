@@ -60,7 +60,7 @@ func _on_process_frame() -> void:
 				_require(hint_label != null, "Expected stage transition hint label.")
 				_require(title_label.text.contains("Stage 3"), "Expected stage transition title to reflect the incoming stage number.")
 				_require(title_label.text.contains("Trade"), "Expected stage transition title to surface the stage personality read.")
-				_require(summary_label.text.contains("Trade"), "Expected stage transition summary to surface the stage-personality copy.")
+				_require(summary_label.text.contains("Practical"), "Expected stage transition summary to surface the stage-personality copy.")
 				_require(hint_label.text.contains("key"), "Expected stage transition hint to expose the stage objective.")
 				_require(hint_label.text.contains("boss"), "Expected stage transition hint to keep the boss objective visible.")
 				_require_button_icon(CONTINUE_BUTTON_PATH, CONFIRM_ICON_PATH)

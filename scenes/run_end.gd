@@ -8,6 +8,7 @@ const RunStatusPresenterScript = preload("res://Game/UI/run_status_presenter.gd"
 const RunStatusStripScript = preload("res://Game/UI/run_status_strip.gd")
 const SceneAudioPlayersScript = preload("res://Game/UI/scene_audio_players.gd")
 const SceneLayoutHelperScript = preload("res://Game/UI/scene_layout_helper.gd")
+const UiCompactCopyScript = preload("res://Game/UI/ui_compact_copy.gd")
 const TempScreenThemeScript = preload("res://Game/UI/temp_screen_theme.gd")
 const ONE_SHOT_UI_TRANSITION_LEAD_IN_SECONDS := 0.06
 const PORTRAIT_SAFE_MAX_WIDTH := 860
@@ -28,9 +29,9 @@ const PORTRAIT_LAYOUT_CONFIG := {
 		{"max_height": 1540.0, "top_margin": 70, "bottom_margin": 70},
 	],
 	"bands": {
-		"large": {"min_width": 720.0, "min_height": 1640.0, "title_font_size": 48, "result_font_size": 28, "hint_font_size": 19, "run_status_font_size": 18, "status_font_size": 19, "button_font_size": 22, "button_height": 80.0, "run_status_width": 320.0, "button_icon_max_width": 30},
-		"medium": {"min_width": 600.0, "min_height": 1460.0, "title_font_size": 42, "result_font_size": 24, "hint_font_size": 17, "run_status_font_size": 16, "status_font_size": 17, "button_font_size": 20, "button_height": 72.0, "run_status_width": 280.0, "button_icon_max_width": 26},
-		"compact": {"title_font_size": 36, "result_font_size": 21, "hint_font_size": 15, "run_status_font_size": 14, "status_font_size": 15, "button_font_size": 18, "button_height": 64.0, "run_status_width": 236.0, "button_icon_max_width": 22},
+		"large": {"min_width": 720.0, "min_height": 1640.0, "title_font_size": 44, "result_font_size": 24, "hint_font_size": 16, "run_status_font_size": 16, "status_font_size": 16, "button_font_size": 20, "button_height": 80.0, "run_status_width": 320.0, "button_icon_max_width": 30},
+		"medium": {"min_width": 600.0, "min_height": 1460.0, "title_font_size": 38, "result_font_size": 22, "hint_font_size": 15, "run_status_font_size": 15, "status_font_size": 15, "button_font_size": 18, "button_height": 72.0, "run_status_width": 280.0, "button_icon_max_width": 26},
+		"compact": {"title_font_size": 32, "result_font_size": 20, "hint_font_size": 14, "run_status_font_size": 14, "status_font_size": 14, "button_font_size": 17, "button_height": 64.0, "run_status_width": 236.0, "button_icon_max_width": 22},
 	},
 }
 
@@ -157,12 +158,13 @@ func _apply_temp_theme() -> void:
 
 
 func _setup_safe_menu() -> void:
+	var menu_config: Dictionary = RunMenuSceneHelperScript.shared_menu_config()
 	_safe_menu = RunMenuSceneHelperScript.ensure_safe_menu(
 		self,
 		_safe_menu,
-		"Run Menu",
-		"Save, load, return to menu, mute music, or quit.",
-		"Settings",
+		String(menu_config.get("title_text", RunMenuSceneHelperScript.SHARED_MENU_TITLE)),
+		String(menu_config.get("subtitle_text", RunMenuSceneHelperScript.SHARED_MENU_SUBTITLE)),
+		String(menu_config.get("launcher_text", RunMenuSceneHelperScript.SHARED_LAUNCHER_TEXT)),
 		Callable(self, "_on_save_pressed"),
 		Callable(self, "_on_load_pressed"),
 		Callable(self, "_on_return_pressed")
@@ -235,8 +237,8 @@ func _build_result_chip_text(result: String) -> String:
 func _build_result_hint_text(result: String) -> String:
 	match result:
 		"victory":
-			return "You made it through. Return to the main menu when you want another run."
+			return UiCompactCopyScript.back_to_menu_when_ready()
 		"defeat":
-			return "Take a breath, then return to the main menu. Settings still keeps save and load here."
+			return "Settings still has save/load."
 		_:
-			return "Return to the main menu when ready. Settings still keeps save and load available here."
+			return UiCompactCopyScript.back_to_menu_when_ready()

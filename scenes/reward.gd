@@ -6,13 +6,14 @@ const RewardStateScript = preload("res://Game/RuntimeState/reward_state.gd")
 const RewardPresenterScript = preload("res://Game/UI/reward_presenter.gd")
 const RunMenuSceneHelperScript = preload("res://Game/UI/run_menu_scene_helper.gd")
 const SceneAudioCleanupScript = preload("res://Game/UI/scene_audio_cleanup.gd")
-const RunStatusStripScript = preload("res://Game/UI/run_status_strip.gd")
 const SceneAudioPlayersScript = preload("res://Game/UI/scene_audio_players.gd")
 const SceneLayoutHelperScript = preload("res://Game/UI/scene_layout_helper.gd")
+const InventoryTooltipControllerScript = preload("res://Game/UI/inventory_tooltip_controller.gd")
 const InventoryOverflowPromptScript = preload("res://Game/UI/inventory_overflow_prompt.gd")
 const TempScreenThemeScript = preload("res://Game/UI/temp_screen_theme.gd")
 const CARD_NODE_NAMES: PackedStringArray = ["ChoiceACard", "ChoiceBCard", "ChoiceCCard"]
 const BUTTON_NODE_NAMES: PackedStringArray = ["ChoiceAButton", "ChoiceBButton", "ChoiceCButton"]
+const CUSTOM_TOOLTIP_META_KEY := "custom_tooltip_text"
 const OFFERS_SHELL_PATH := "Margin/VBox/OffersShell"
 const OFFERS_CONTENT_PATH := OFFERS_SHELL_PATH + "/VBox"
 const HEADER_CARD_PATH := OFFERS_CONTENT_PATH + "/HeaderRow/HeaderCard"
@@ -41,9 +42,9 @@ const PORTRAIT_LAYOUT_CONFIG := {
 		{"max_height": 1540.0, "top_margin": 64, "bottom_margin": 64},
 	],
 	"bands": {
-		"large": {"min_width": 780.0, "min_height": 1640.0, "title_font_size": 46, "context_font_size": 22, "status_font_size": 19, "card_title_font_size": 28, "card_detail_font_size": 20, "button_font_size": 22, "button_height": 78.0, "card_height": 204.0, "run_status_width": 300.0, "button_icon_max_width": 30},
-		"medium": {"min_width": 640.0, "min_height": 1460.0, "title_font_size": 40, "context_font_size": 20, "status_font_size": 17, "card_title_font_size": 24, "card_detail_font_size": 18, "button_font_size": 20, "button_height": 70.0, "card_height": 176.0, "run_status_width": 256.0, "button_icon_max_width": 26},
-		"compact": {"title_font_size": 34, "context_font_size": 17, "status_font_size": 15, "card_title_font_size": 21, "card_detail_font_size": 16, "button_font_size": 18, "button_height": 62.0, "card_height": 150.0, "run_status_width": 220.0, "button_icon_max_width": 22},
+		"large": {"min_width": 780.0, "min_height": 1640.0, "title_font_size": 44, "context_font_size": 20, "status_font_size": 16, "card_title_font_size": 24, "card_detail_font_size": 16, "button_font_size": 20, "button_height": 78.0, "card_height": 204.0, "run_status_width": 300.0, "button_icon_max_width": 30},
+		"medium": {"min_width": 640.0, "min_height": 1460.0, "title_font_size": 38, "context_font_size": 18, "status_font_size": 15, "card_title_font_size": 22, "card_detail_font_size": 15, "button_font_size": 18, "button_height": 70.0, "card_height": 176.0, "run_status_width": 256.0, "button_icon_max_width": 26},
+		"compact": {"title_font_size": 32, "context_font_size": 16, "status_font_size": 14, "card_title_font_size": 20, "card_detail_font_size": 14, "button_font_size": 17, "button_height": 62.0, "card_height": 150.0, "run_status_width": 220.0, "button_icon_max_width": 22},
 	},
 }
 
@@ -52,6 +53,7 @@ var _reward_state: RewardState
 var _run_state: RunState
 var _presenter: RefCounted
 var _reward_claim_in_flight: bool = false
+var _reward_tooltip_controller: InventoryTooltipController
 var _safe_menu: SafeMenuOverlay
 var _overflow_prompt: InventoryOverflowPrompt
 var _pending_overflow_offer_id: String = ""
@@ -76,8 +78,10 @@ func _ready() -> void:
 		_reward_state = _bootstrap.get_reward_state()
 		_run_state = _bootstrap.get_run_state()
 
+	_setup_reward_tooltip()
 	_connect_buttons()
 	_apply_temp_theme()
+	_hide_run_status_card()
 	_setup_safe_menu()
 	_setup_overflow_prompt()
 	SceneLayoutHelperScript.bind_viewport_size_changed(self, Callable(self, "_apply_portrait_safe_layout"))
@@ -88,6 +92,9 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	if _reward_tooltip_controller != null:
+		_reward_tooltip_controller.release()
+		_reward_tooltip_controller = null
 	SceneLayoutHelperScript.unbind_viewport_size_changed(self, Callable(self, "_apply_portrait_safe_layout"))
 	SceneAudioCleanupScript.release_players(self, SceneAudioPlayersScript.node_names_from_config(AUDIO_PLAYER_CONFIG))
 
@@ -105,6 +112,8 @@ func _on_offer_pressed(index: int) -> void:
 	if offer_id.is_empty():
 		return
 
+	if _reward_tooltip_controller != null:
+		_reward_tooltip_controller.hide(true)
 	_reward_claim_in_flight = true
 	_set_offer_buttons_interactable(false)
 	SceneAudioPlayersScript.play(self, "RewardClaimSfxPlayer")
@@ -161,9 +170,17 @@ func _connect_buttons() -> void:
 		var handler: Callable = Callable(self, "_on_offer_pressed").bind(index)
 		if not button.is_connected("pressed", handler):
 			button.connect("pressed", handler)
+		var mouse_entered_handler: Callable = Callable(self, "_on_offer_button_mouse_entered").bind(button)
+		if not button.is_connected("mouse_entered", mouse_entered_handler):
+			button.connect("mouse_entered", mouse_entered_handler)
+		var mouse_exited_handler: Callable = Callable(self, "_on_offer_button_mouse_exited").bind(button)
+		if not button.is_connected("mouse_exited", mouse_exited_handler):
+			button.connect("mouse_exited", mouse_exited_handler)
 
 
 func _render_reward_state() -> void:
+	if _reward_tooltip_controller != null:
+		_reward_tooltip_controller.hide(true)
 	_set_status_text("")
 	if _header_chip_label != null:
 		_header_chip_label.text = _presenter.build_chip_text(_reward_state)
@@ -173,7 +190,7 @@ func _render_reward_state() -> void:
 		_header_context_label.text = _presenter.build_context_text(_reward_state)
 	if _header_hint_label != null:
 		_header_hint_label.text = _presenter.build_hint_text(_reward_state)
-	_render_run_status_card()
+		_header_hint_label.visible = not _header_hint_label.text.is_empty()
 
 	var card_models: Array[Dictionary] = _presenter.build_offer_view_models(_reward_state, CARD_NODE_NAMES.size())
 	for index in range(CARD_NODE_NAMES.size()):
@@ -183,8 +200,11 @@ func _render_reward_state() -> void:
 		var offer_detail_label: Label = _scene_node(_card_label_path(index, "OfferDetailLabel")) as Label
 		var button: Button = _scene_node(_button_path(index)) as Button
 		var model: Dictionary = card_models[index]
+		var tooltip_text: String = String(model.get("tooltip_text", ""))
 		if card != null:
 			card.visible = bool(model.get("visible", false))
+			card.tooltip_text = ""
+			card.set_meta(CUSTOM_TOOLTIP_META_KEY, tooltip_text)
 		if badge_label != null:
 			badge_label.text = String(model.get("badge_text", ""))
 		if offer_title_label != null:
@@ -193,7 +213,10 @@ func _render_reward_state() -> void:
 			offer_detail_label.text = String(model.get("detail_text", ""))
 		if button != null:
 			button.text = String(model.get("button_text", ""))
+			button.tooltip_text = ""
+			button.set_meta(CUSTOM_TOOLTIP_META_KEY, tooltip_text)
 			button.disabled = bool(model.get("button_disabled", true))
+			button.icon = SceneLayoutHelperScript.load_texture_or_null(String(model.get("icon_texture_path", "")))
 
 	_refresh_save_controls()
 
@@ -213,6 +236,23 @@ func _set_status_text(text: String) -> void:
 
 func _refresh_save_controls() -> void:
 	RunMenuSceneHelperScript.sync_load_available(_safe_menu, _bootstrap)
+
+
+func _setup_reward_tooltip() -> void:
+	_reward_tooltip_controller = InventoryTooltipControllerScript.new()
+	_reward_tooltip_controller.configure(self)
+
+
+func _on_offer_button_mouse_entered(button: Button) -> void:
+	if _reward_tooltip_controller == null or button == null:
+		return
+	_reward_tooltip_controller.on_inventory_card_mouse_entered(button, TempScreenThemeScript.REWARD_ACCENT_COLOR)
+
+
+func _on_offer_button_mouse_exited(button: Button) -> void:
+	if _reward_tooltip_controller == null or button == null:
+		return
+	_reward_tooltip_controller.on_inventory_card_mouse_exited(button)
 
 
 func _card_path(index: int) -> String:
@@ -319,6 +359,9 @@ func _apply_temp_theme() -> void:
 			_scene_node("%s/%s/VBox/%s" % [CARDS_ROW_PATH, _reward_card_name_for_button(button_name), button_name]) as Button,
 			TempScreenThemeScript.REWARD_ACCENT_COLOR
 		)
+		var action_button: Button = _scene_node("%s/%s/VBox/%s" % [CARDS_ROW_PATH, _reward_card_name_for_button(button_name), button_name]) as Button
+		if action_button != null:
+			action_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	SceneLayoutHelperScript.apply_control_overrides(self, {}, [
 		{"path": "%s/TitleLabel" % HEADER_STACK_PATH, "font_size": 34},
 		{"path": "%s/ContextLabel" % HEADER_STACK_PATH, "font_size": 16},
@@ -338,12 +381,13 @@ func _apply_temp_theme() -> void:
 
 
 func _setup_safe_menu() -> void:
+	var menu_config: Dictionary = RunMenuSceneHelperScript.shared_menu_config()
 	_safe_menu = RunMenuSceneHelperScript.ensure_safe_menu(
 		self,
 		_safe_menu,
-		"Run Menu",
-		"Save, load, return to menu, mute music, or quit.",
-		"Settings",
+		String(menu_config.get("title_text", RunMenuSceneHelperScript.SHARED_MENU_TITLE)),
+		String(menu_config.get("subtitle_text", RunMenuSceneHelperScript.SHARED_MENU_SUBTITLE)),
+		String(menu_config.get("launcher_text", RunMenuSceneHelperScript.SHARED_LAUNCHER_TEXT)),
 		Callable(self, "_on_save_pressed"),
 		Callable(self, "_on_load_pressed"),
 		Callable(self, "_on_return_to_main_menu_pressed")
@@ -431,16 +475,15 @@ func _apply_portrait_safe_layout() -> void:
 			{"path": "%s/%s/VBox/OfferDetailLabel" % [CARDS_ROW_PATH, card_name], "font_size": "card_detail_font_size"},
 			{"path": "%s/%s/VBox/%s" % [CARDS_ROW_PATH, card_name, _reward_button_name_for_card(card_name)], "font_size": "button_font_size", "custom_minimum_size": {"x": 0.0, "y": "button_height"}, "theme_constants": {"icon_max_width": "button_icon_max_width"}},
 		])
-	_render_run_status_card()
+	if _reward_tooltip_controller != null:
+		_reward_tooltip_controller.refresh_hovered_tooltip()
 
 
-func _render_run_status_card() -> void:
-	RunStatusStripScript.render_into(
-		_run_status_card,
-		_scene_node("%s/RunStatusLabel" % RUN_STATUS_CARD_PATH) as Label,
-		_presenter.build_run_status_model(_run_state),
-		TempScreenThemeScript.PANEL_BORDER_COLOR
-	)
+func _hide_run_status_card() -> void:
+	if _run_status_card == null:
+		return
+	_run_status_card.visible = false
+	_run_status_card.custom_minimum_size = Vector2.ZERO
 
 
 func _scene_node(path: String) -> Node:

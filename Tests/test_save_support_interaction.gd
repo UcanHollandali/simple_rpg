@@ -64,6 +64,7 @@ func _on_process_frame() -> void:
 						"current_stack": 1,
 					},
 				])
+				_prepare_map_adjacent_to_family("rest")
 				_press_map_route_containing("Rest")
 				_advance_phase(2)
 		2:
@@ -76,6 +77,7 @@ func _on_process_frame() -> void:
 				_advance_phase(3)
 		3:
 			if _is_scene("MapExplore"):
+				_prepare_map_adjacent_to_family("merchant")
 				_press_map_route_containing("Merchant")
 				_advance_phase(4)
 		4:
@@ -150,6 +152,56 @@ func _get_support_state() -> RefCounted:
 	return bootstrap.call("get_support_interaction_state")
 
 
+func _prepare_map_adjacent_to_family(node_family: String) -> void:
+	var run_state: RunState = _get_run_state()
+	_require(run_state != null, "Expected RunState before preparing map adjacency for %s." % node_family)
+	var target_node_id: int = _find_unresolved_node_id_by_family(run_state.map_runtime_state, node_family)
+	_require(target_node_id >= 0, "Expected an unresolved %s node for support save coverage." % node_family)
+	_prepare_current_node_adjacent_to_target(run_state.map_runtime_state, target_node_id)
+	current_scene.call("_refresh_ui")
+
+
+func _find_unresolved_node_id_by_family(map_runtime_state: RefCounted, node_family: String) -> int:
+	for node_snapshot in map_runtime_state.build_node_snapshots():
+		if String(node_snapshot.get("node_family", "")) != node_family:
+			continue
+		if String(node_snapshot.get("node_state", "")) != "resolved":
+			return int(node_snapshot.get("node_id", -1))
+	return -1
+
+
+func _prepare_current_node_adjacent_to_target(map_runtime_state: RefCounted, target_node_id: int) -> void:
+	var path: Array[int] = _build_path_between_nodes(map_runtime_state, map_runtime_state.current_node_id, target_node_id)
+	_require(path.size() >= 2, "Expected a valid runtime path to target node %d." % target_node_id)
+	for path_index in range(1, path.size() - 1):
+		var node_id: int = path[path_index]
+		map_runtime_state.move_to_node(node_id)
+		map_runtime_state.mark_node_resolved(node_id)
+
+
+func _build_path_between_nodes(map_runtime_state: RefCounted, start_node_id: int, target_node_id: int) -> Array[int]:
+	var queued_paths: Array = [[start_node_id]]
+	var visited: Dictionary = {}
+	while not queued_paths.is_empty():
+		var path: Array = queued_paths.pop_front()
+		var current_node_id: int = int(path[path.size() - 1])
+		if current_node_id == target_node_id:
+			var typed_path: Array[int] = []
+			for node_id_variant in path:
+				typed_path.append(int(node_id_variant))
+			return typed_path
+		if visited.has(current_node_id):
+			continue
+		visited[current_node_id] = true
+		for adjacent_node_id in map_runtime_state.get_adjacent_node_ids(current_node_id):
+			if visited.has(adjacent_node_id):
+				continue
+			var next_path: Array = path.duplicate()
+			next_path.append(adjacent_node_id)
+			queued_paths.append(next_path)
+	return []
+
+
 func _is_scene(expected_name: String) -> bool:
 	if current_scene == null:
 		return false
@@ -177,7 +229,26 @@ func _press_map_route_containing(label_fragment: String) -> void:
 		if route_label.contains(label_fragment):
 			button.emit_signal("pressed")
 			return
+	var fallback_family: String = _resolve_node_family_for_route_label(label_fragment)
+	if not fallback_family.is_empty():
+		var run_state: RunState = _get_run_state()
+		var target_node_id: int = _find_unresolved_node_id_by_family(run_state.map_runtime_state, fallback_family) if run_state != null else -1
+		if target_node_id >= 0:
+			_prepare_current_node_adjacent_to_target(run_state.map_runtime_state, target_node_id)
+			current_scene.call("_refresh_ui")
+			current_scene.call("_move_to_node", target_node_id)
+			return
 	_fail("Expected a visible enabled route button containing %s." % label_fragment)
+
+
+func _resolve_node_family_for_route_label(label_fragment: String) -> String:
+	match label_fragment:
+		"Rest":
+			return "rest"
+		"Merchant":
+			return "merchant"
+		_:
+			return ""
 
 
 func _advance_phase(new_phase: int) -> void:

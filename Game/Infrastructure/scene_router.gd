@@ -84,12 +84,15 @@ func _route_to_state(new_state: int, old_state: int = -1, force_reload: bool = f
 
 	# Handle overlay states (event, support, reward, level_up) as popups on MapExplore
 	if _is_overlay_state(new_state):
+		if not _can_present_overlay_state(new_state):
+			_recover_missing_overlay_state(current_scene, new_state)
+			return
 		if _handle_overlay_state_transition(current_scene, new_state, old_state):
 			_apply_overlay_scene_scale_if_needed()
 			return
 	else:
 		# Leaving an overlay state: close all overlays on the map
-		_close_all_map_overlays(current_scene)
+		_close_all_map_overlays(current_scene, _should_close_overlays_immediately(new_state, old_state))
 
 	if new_state == FlowStateScript.Type.BOOT:
 		return
@@ -112,6 +115,43 @@ func _route_to_state(new_state: int, old_state: int = -1, force_reload: bool = f
 
 func _is_overlay_state(state: int) -> bool:
 	return OVERLAY_OPEN_METHODS.has(state)
+
+
+func _can_present_overlay_state(state: int) -> bool:
+	var bootstrap = get_node_or_null("/root/AppBootstrap")
+	if bootstrap == null:
+		return false
+	match state:
+		FlowStateScript.Type.EVENT:
+			return bootstrap.get_event_state() != null
+		FlowStateScript.Type.SUPPORT_INTERACTION:
+			return bootstrap.get_support_interaction_state() != null
+		FlowStateScript.Type.REWARD:
+			return bootstrap.get_reward_state() != null
+		FlowStateScript.Type.LEVEL_UP:
+			return bootstrap.get_level_up_state() != null
+		_:
+			return true
+
+
+func _recover_missing_overlay_state(current_scene: Node, missing_state: int) -> void:
+	push_warning("SceneRouter skipped %s overlay because its runtime state was missing." % FlowStateScript.name_of(missing_state))
+	_close_all_map_overlays(current_scene, true)
+	if _flow_manager != null and _flow_manager.get_current_state() == missing_state:
+		_flow_manager.request_transition(FlowStateScript.Type.MAP_EXPLORE)
+		return
+	if current_scene != null and String(current_scene.scene_file_path) == MAP_EXPLORE_SCENE_PATH:
+		_apply_overlay_scene_scale_if_needed()
+		return
+	var error_code: Error = get_tree().change_scene_to_file(MAP_EXPLORE_SCENE_PATH)
+	if error_code != OK:
+		push_error("Failed to recover from missing %s overlay state (error %d)." % [FlowStateScript.name_of(missing_state), error_code])
+		return
+	Callable(self, "_apply_ui_scale_for_current_scene").call_deferred()
+
+
+func _should_close_overlays_immediately(new_state: int, old_state: int) -> bool:
+	return new_state == FlowStateScript.Type.MAP_EXPLORE and _is_overlay_state(old_state)
 
 
 func _handle_overlay_state_transition(current_scene: Node, new_state: int, _old_state: int) -> bool:

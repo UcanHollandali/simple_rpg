@@ -80,6 +80,36 @@ static func discard_backpack_slot(inventory_state: InventoryState, slot_id: int)
 	}
 
 
+static func preview_unequip_to_backpack(inventory_state: InventoryState, slot: Dictionary) -> Dictionary:
+	if inventory_state == null:
+		return {
+			"ok": false,
+			"error": "missing_inventory_state",
+		}
+	var discardable_slots: Array[Dictionary] = _build_discardable_slot_snapshots(inventory_state)
+	if discardable_slots.is_empty():
+		return {
+			"ok": false,
+			"error": "no_inventory_capacity",
+			"definition_id": String(slot.get("definition_id", "")),
+			"used_capacity": inventory_state.get_used_capacity(),
+			"total_capacity": inventory_state.get_total_capacity(),
+		}
+	var display_name: String = build_slot_display_name(slot)
+	return {
+		"ok": false,
+		"error": "inventory_choice_required",
+		"inventory_choice_required": true,
+		"discardable_slots": discardable_slots,
+		"definition_id": String(slot.get("definition_id", "")),
+		"inventory_family": String(slot.get("inventory_family", "")),
+		"display_name": display_name,
+		"context_text": "Choose one backpack item to discard to unequip %s, or keep it equipped." % display_name,
+		"used_capacity": inventory_state.get_used_capacity(),
+		"total_capacity": inventory_state.get_total_capacity(),
+	}
+
+
 static func grant_inventory_item(
 	inventory_actions: Variant,
 	inventory_state: InventoryState,

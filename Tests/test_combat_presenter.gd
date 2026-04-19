@@ -49,8 +49,18 @@ func test_state_text_reflects_combat_snapshot() -> void:
 				{"type": "deal_damage", "params": {"base": 6}},
 				{"type": "apply_status", "params": {"definition_id": "poison"}},
 			],
-		}) == "Intent: Attack 6 + Poison",
-		"Expected combat presenter to expose a player-facing intent summary for placeholder UI."
+		}) == "Hits for 6",
+		"Expected combat presenter to expose the next enemy hit in damage-first language."
+	)
+	assert(
+		presenter.call("build_intent_detail_text", {
+			"action_family": "attack",
+			"effects": [
+				{"type": "deal_damage", "params": {"base": 6}},
+				{"type": "apply_status", "params": {"definition_id": "poison"}},
+			],
+		}) == "Extra: Poison",
+		"Expected combat presenter to move extra hit effects into a separate detail helper."
 	)
 	assert(
 		presenter.call("build_intent_icon_texture_path", {
@@ -86,16 +96,20 @@ func test_state_text_reflects_combat_snapshot() -> void:
 		"Expected enemy title text to use runtime-backed display names."
 	)
 	assert(
-		presenter.call("build_enemy_type_text", combat_state) == "Type: Undead",
-		"Expected combat presenter to expose a compact enemy type read for the placeholder shell."
+		presenter.call("build_enemy_type_text", combat_state) == "Undead",
+		"Expected combat presenter to expose the bare enemy type read without extra label noise."
 	)
 	assert(
-		presenter.call("build_enemy_trait_text", combat_state) == "Traits: Armored",
-		"Expected combat presenter to expose authored enemy trait hints when present."
+		presenter.call("build_enemy_trait_text", combat_state) == "Armored",
+		"Expected combat presenter to expose authored enemy trait hints without extra label noise."
 	)
 	assert(
-		presenter.call("build_enemy_hp_text", combat_state) == "Enemy HP: 14/24",
-		"Expected enemy HP text to show current and max values."
+		presenter.call("build_enemy_overview_text", combat_state) == "Undead | Armored",
+		"Expected combat presenter to collapse the enemy overview into one compact line."
+	)
+	assert(
+		presenter.call("build_enemy_hp_text", combat_state, {"enemy_defense_preview": 2}) == "HP 14/24 | Armor 2",
+		"Expected enemy top-line vitals to show HP and armor together."
 	)
 	assert(
 		presenter.call("build_player_identity_text") == "Wayfinder",
@@ -245,8 +259,8 @@ func test_state_text_reflects_combat_snapshot() -> void:
 			"attack_damage_preview": 5,
 			"attack_dodge_chance": 10,
 			"durability_spend_preview": 1,
-		}) == "Hit 5 | Dodge 10% | Swing -1 durability",
-		"Expected attack action card preview to combine the outgoing hit and durability-spend forecast."
+		}) == "Deal 5 dmg | 10% miss | -1 dur",
+		"Expected attack action card preview to use the compact player-facing action summary."
 	)
 	assert(
 		presenter.call("build_action_card_preview_text", "defend", combat_state, {}, {
@@ -254,8 +268,8 @@ func test_state_text_reflects_combat_snapshot() -> void:
 			"guard_gain_preview": 2,
 			"guard_absorb_preview": 2,
 			"guard_damage_preview": 2,
-		}) == "Guard 2 | HP 2",
-		"Expected defensive action card preview to expose guard generation versus the remaining HP leak."
+		}) == "Gain 2 guard | Take 2 dmg",
+		"Expected defensive action card preview to explain the guard gain and remaining damage in plain language."
 	)
 	assert(
 		presenter.call("build_action_card_preview_text", "use_item", combat_state, {"definition_id": "traveler_bread", "current_stack": 1}, {}) == "Traveler Bread | +8 HP | +2 hunger",
@@ -323,7 +337,7 @@ func test_action_tooltips_describe_real_effects() -> void:
 	}
 	var attack_tooltip: String = presenter.call("build_action_tooltip_text", "attack", combat_state)
 	assert(
-		attack_tooltip.contains("Iron Sword") and attack_tooltip.contains("durability") and attack_tooltip.contains("1 damage"),
+		attack_tooltip.contains("Iron Sword") and attack_tooltip.contains("durability"),
 		"Expected attack tooltip to describe the equipped weapon, durability use, and broken-weapon fallback."
 	)
 	var projected_attack_tooltip: String = presenter.call("build_action_tooltip_text", "attack", combat_state, {}, {
@@ -339,13 +353,13 @@ func test_action_tooltips_describe_real_effects() -> void:
 	combat_state.weapon_instance["current_durability"] = 0
 	var broken_attack_tooltip: String = presenter.call("build_action_tooltip_text", "attack", combat_state)
 	assert(
-		broken_attack_tooltip.contains("broken") and broken_attack_tooltip.contains("1 damage"),
+		broken_attack_tooltip.contains("Broken") and broken_attack_tooltip.contains("hits for 1"),
 		"Expected attack tooltip to call out the weak fallback once durability hits zero."
 	)
 
 	var defend_tooltip: String = presenter.call("build_action_tooltip_text", "defend", combat_state)
 	assert(
-		defend_tooltip.contains("temporary guard") and defend_tooltip.contains("shield") and defend_tooltip.contains("carry"),
+		defend_tooltip.contains("guard before HP") and defend_tooltip.contains("Shields add more") and defend_tooltip.contains("carries"),
 		"Expected defend tooltip to describe guard order, carryover decay, and shield synergy."
 	)
 	var projected_defend_tooltip: String = presenter.call("build_action_tooltip_text", "defend", combat_state, {}, {
@@ -364,7 +378,7 @@ func test_action_tooltips_describe_real_effects() -> void:
 	}
 	var use_item_tooltip: String = presenter.call("build_action_tooltip_text", "use_item", combat_state, item_slot)
 	assert(
-		use_item_tooltip.contains("Traveler Bread") and use_item_tooltip.to_lower().contains("click a consumable card") and use_item_tooltip.contains("restores hunger"),
+		use_item_tooltip.contains("Traveler Bread") and use_item_tooltip.contains("No durability cost") and use_item_tooltip.contains("restores hunger"),
 		"Expected use-item tooltip to explain the direct-click consumable behavior in player-facing language."
 	)
 

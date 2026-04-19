@@ -27,7 +27,7 @@ const SUPPORT_LEAVE_BUTTON_PATH := "Margin/VBox/FooterRow/LeaveButton"
 const EVENT_CHOICE_B_BUTTON_PATH := "Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard/VBox/ChoiceBButton"
 const COMBAT_ATTACK_BUTTON_PATH := "Margin/VBox/Buttons/ActionCardsRow/AttackActionCard/AttackActionVBox/AttackButton"
 const COMBAT_DEFEND_BUTTON_PATH := "Margin/VBox/Buttons/ActionCardsRow/DefenseActionCard/DefenseActionVBox/DefenseActionButton"
-const COMBAT_USE_ITEM_BUTTON_PATH := "Margin/VBox/Buttons/ActionCardsRow/UseItemActionCard/UseItemActionVBox/UseItemButton"
+const COMBAT_RIGHT_HAND_CARD_PATH := "Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/EquipmentCard/EquipmentCardsFlow/InventorySlotRIGHTHANDCard"
 const COMBAT_CONSUMABLE_3_CARD_PATH := "Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryCard/InventoryCardsFlow/InventorySlot3Card"
 const REWARD_CHOICE_C_BUTTON_PATH := "Margin/VBox/OffersShell/VBox/CardsRow/ChoiceCCard/VBox/ChoiceCButton"
 const LEVEL_UP_CHOICE_B_BUTTON_PATH := "Margin/VBox/ChoicesRow/ChoiceBButton"
@@ -47,10 +47,15 @@ var _event_hunger_before: int = 0
 var _event_xp_before: int = 0
 var _event_inventory_slot_count_before: int = 0
 var _map_inventory_cycle_step: int = 0
+var _combat_inventory_cycle_step: int = 0
 var _map_inventory_current_node_before_equipment: int = -1
 var _map_inventory_signature_before_equipment: String = ""
+var _map_board_visual_signature_before_equipment: String = ""
+var _map_inventory_snapshot_before_overflow_prompt: Dictionary = {}
 var _map_weapon_slot_id_before_equipment: int = -1
 var _map_weapon_definition_id_before_equipment: String = ""
+var _combat_locked_equipment_signature_before_click: String = ""
+var _combat_log_before_locked_equipment_click: String = ""
 var _is_finishing: bool = false
 
 
@@ -75,6 +80,7 @@ func _on_process_frame() -> void:
 				var run_state: RunState = _get_run_state()
 				_require(run_state != null, "Expected RunState on first MapExplore.")
 				run_state.configure_run_seed(1)
+				_exhaust_roadside_quota(run_state)
 				run_state.player_hp = 40
 				run_state.hunger = 14
 				run_state.gold = 40
@@ -116,6 +122,7 @@ func _on_process_frame() -> void:
 					0:
 						_map_inventory_current_node_before_equipment = int(run_state_on_map.map_runtime_state.current_node_id)
 						_map_inventory_signature_before_equipment = _build_map_signature(run_state_on_map)
+						_map_board_visual_signature_before_equipment = _build_route_board_visual_signature(current_scene)
 						_map_weapon_slot_id_before_equipment = int(run_state_on_map.inventory_state.weapon_instance.get("slot_id", -1))
 						_map_weapon_definition_id_before_equipment = String(run_state_on_map.inventory_state.weapon_instance.get("definition_id", ""))
 						_require(_map_weapon_slot_id_before_equipment > 0, "Expected starter weapon slot id before map equip/unequip cycle.")
@@ -126,6 +133,7 @@ func _on_process_frame() -> void:
 						_require(_current_state() == FlowStateScript.Type.MAP_EXPLORE, "Expected map equip/unequip to keep the flow in MAP_EXPLORE.")
 						_require(int(run_state_on_map.map_runtime_state.current_node_id) == _map_inventory_current_node_before_equipment, "Expected map equip/unequip not to change the current node.")
 						_require(_build_map_signature(run_state_on_map) == _map_inventory_signature_before_equipment, "Expected map equip/unequip not to rebuild or reset the active map.")
+						_require(_build_route_board_visual_signature(current_scene) == _map_board_visual_signature_before_equipment, "Expected map equip/unequip not to re-layout the visible board geometry.")
 						_require(run_state_on_map.inventory_state.weapon_instance.is_empty(), "Expected clicking the equipped right-hand card to unequip the weapon on MapExplore.")
 						_require(_inventory_contains_slot_id(run_state_on_map, _map_weapon_slot_id_before_equipment), "Expected unequipped weapon slot to move into the backpack instead of disappearing.")
 						_require_inventory_card_action_copy("Margin/VBox/InventorySection/InventoryCard/InventoryCardsFlow/InventorySlot2Card", "Tap to equip")
@@ -135,9 +143,33 @@ func _on_process_frame() -> void:
 						_require(_current_state() == FlowStateScript.Type.MAP_EXPLORE, "Expected re-equipping on MapExplore to keep the flow in MAP_EXPLORE.")
 						_require(int(run_state_on_map.map_runtime_state.current_node_id) == _map_inventory_current_node_before_equipment, "Expected re-equipping not to change the current node.")
 						_require(_build_map_signature(run_state_on_map) == _map_inventory_signature_before_equipment, "Expected re-equipping not to rebuild or reset the active map.")
+						_require(_build_route_board_visual_signature(current_scene) == _map_board_visual_signature_before_equipment, "Expected re-equipping not to re-layout the visible board geometry.")
 						_require(String(run_state_on_map.inventory_state.weapon_instance.get("definition_id", "")) == _map_weapon_definition_id_before_equipment, "Expected map re-equip to restore the original weapon definition.")
 						_require(int(run_state_on_map.inventory_state.weapon_instance.get("slot_id", -1)) == _map_weapon_slot_id_before_equipment, "Expected map re-equip to restore the original weapon slot id.")
 						_require(not _inventory_contains_slot_id(run_state_on_map, _map_weapon_slot_id_before_equipment), "Expected re-equipped weapon slot to leave the backpack.")
+						_map_inventory_snapshot_before_overflow_prompt = run_state_on_map.inventory_state.to_save_dict()
+						_fill_backpack_to_capacity(run_state_on_map)
+						current_scene.call("_refresh_ui")
+						_click_map_inventory_card("Margin/VBox/InventorySection/EquipmentCard/EquipmentCardsFlow/InventorySlotRIGHTHANDCard")
+						_map_inventory_cycle_step = 3
+					3:
+						_require(_current_state() == FlowStateScript.Type.MAP_EXPLORE, "Expected full-backpack unequip prompt to keep the flow in MAP_EXPLORE.")
+						var overflow_prompt: Control = _get_map_inventory_overflow_prompt()
+						_require(overflow_prompt != null and overflow_prompt.visible, "Expected full-backpack unequip on MapExplore to open the inventory overflow prompt.")
+						_press_map_overflow_prompt_first_discard()
+						_map_inventory_cycle_step = 4
+					4:
+						_require(_current_state() == FlowStateScript.Type.MAP_EXPLORE, "Expected discard-resolved unequip to stay on MapExplore.")
+						_require(run_state_on_map.inventory_state.weapon_instance.is_empty(), "Expected discard-resolved unequip to clear the active weapon lane.")
+						_require(_inventory_contains_slot_id(run_state_on_map, _map_weapon_slot_id_before_equipment), "Expected discard-resolved unequip to move the active weapon into the backpack.")
+						_click_map_inventory_card_by_slot_id(_map_weapon_slot_id_before_equipment)
+						_map_inventory_cycle_step = 5
+					5:
+						_require(_current_state() == FlowStateScript.Type.MAP_EXPLORE, "Expected re-equipping after discard-resolved unequip to keep the flow on MapExplore.")
+						_require(String(run_state_on_map.inventory_state.weapon_instance.get("definition_id", "")) == _map_weapon_definition_id_before_equipment, "Expected the original weapon to re-equip after the discard-resolved unequip path.")
+						run_state_on_map.inventory_state.load_from_flat_save_dict(_map_inventory_snapshot_before_overflow_prompt)
+						current_scene.call("_refresh_ui")
+						_prepare_map_adjacent_to_family("rest")
 						_press_map_route_containing("Rest")
 						_advance_phase(6)
 		6:
@@ -193,6 +225,7 @@ func _on_process_frame() -> void:
 			if _is_scene("MapExplore"):
 				var run_state_before_event: RunState = _get_run_state()
 				run_state_before_event.configure_run_seed(1)
+				_exhaust_roadside_quota(run_state_before_event)
 				_event_gold_before = run_state_before_event.gold
 				_event_hp_before = run_state_before_event.player_hp
 				_event_hunger_before = run_state_before_event.hunger
@@ -227,16 +260,33 @@ func _on_process_frame() -> void:
 			if _is_scene("Combat"):
 				var combat_flow = current_scene.get("_combat_flow")
 				_require(combat_flow != null, "Expected combat flow owner on Combat scene.")
-				_combat_hp_before_use_item = int(combat_flow.combat_state.player_hp)
-				_combat_hunger_before_use_item = int(combat_flow.combat_state.player_hunger)
-				_combat_durability_before_use_item = int(combat_flow.combat_state.weapon_instance.get("current_durability", 0))
-				var consumable_card: PanelContainer = current_scene.get_node(COMBAT_CONSUMABLE_3_CARD_PATH) as PanelContainer
-				_require(consumable_card != null, "Expected the third combat consumable card after the merchant setup path.")
-				_require(combat_flow.combat_state.consumable_slots.size() >= 3, "Expected merchant setup path to leave at least three combat-usable consumable slots.")
-				_selected_consumable_definition_before_use_item = String(combat_flow.combat_state.consumable_slots[2].get("definition_id", ""))
-				_require(not _selected_consumable_definition_before_use_item.is_empty(), "Expected the third combat consumable slot to resolve to a live consumable definition.")
-				_click_combat_card(COMBAT_CONSUMABLE_3_CARD_PATH)
-				_advance_phase(16)
+				match _combat_inventory_cycle_step:
+					0:
+						_require_inventory_card_action_copy(COMBAT_RIGHT_HAND_CARD_PATH, "Locked during combat")
+						_require_combat_inventory_card_density()
+						_combat_locked_equipment_signature_before_click = _build_combat_inventory_signature(combat_flow)
+						_combat_log_before_locked_equipment_click = _combat_log_text()
+						_click_combat_card(COMBAT_RIGHT_HAND_CARD_PATH)
+						_combat_inventory_cycle_step = 1
+					1:
+						_require(
+							_build_combat_inventory_signature(combat_flow) == _combat_locked_equipment_signature_before_click,
+							"Expected combat equipment clicks on locked gear to leave combat inventory state unchanged."
+						)
+						_require(
+							_combat_log_text() == _combat_log_before_locked_equipment_click,
+							"Expected combat equipment clicks on locked gear not to append extra combat-log lines."
+						)
+						_combat_hp_before_use_item = int(combat_flow.combat_state.player_hp)
+						_combat_hunger_before_use_item = int(combat_flow.combat_state.player_hunger)
+						_combat_durability_before_use_item = int(combat_flow.combat_state.weapon_instance.get("current_durability", 0))
+						var consumable_card: PanelContainer = current_scene.get_node(COMBAT_CONSUMABLE_3_CARD_PATH) as PanelContainer
+						_require(consumable_card != null, "Expected the third combat consumable card after the merchant setup path.")
+						_require(combat_flow.combat_state.consumable_slots.size() >= 3, "Expected merchant setup path to leave at least three combat-usable consumable slots.")
+						_selected_consumable_definition_before_use_item = String(combat_flow.combat_state.consumable_slots[2].get("definition_id", ""))
+						_require(not _selected_consumable_definition_before_use_item.is_empty(), "Expected the third combat consumable slot to resolve to a live consumable definition.")
+						_click_combat_card(COMBAT_CONSUMABLE_3_CARD_PATH)
+						_advance_phase(16)
 		16:
 			if _is_scene("Combat"):
 				var combat_flow = current_scene.get("_combat_flow")
@@ -252,8 +302,16 @@ func _on_process_frame() -> void:
 				_advance_phase(17)
 		17:
 			if _is_scene("Combat"):
-				var combat_log: Label = current_scene.get_node("Margin/VBox/SecondaryScroll/SecondaryScrollContent/CombatLogCard/CombatLogLabel") as Label
-				_require(combat_log.text.contains("Defend") or combat_log.text.contains("guard"), "Expected defend button to write to the combat log.")
+				var combat_log_text: String = _combat_log_text()
+				_require(combat_log_text.contains("Defend") or combat_log_text.contains("guard"), "Expected defend button to write to the combat log.")
+				var defend_entry: Label = _find_combat_log_entry_containing(["Defend", "guard"])
+				_require(defend_entry != null, "Expected a readable player-side combat log entry after defending.")
+				var defend_color: Color = defend_entry.get_theme_color("font_color")
+				_require(defend_color.g > defend_color.r, "Expected player combat-log entries to lean green.")
+				var enemy_entry: Label = _find_combat_log_entry_containing(["Enemy hit player", "player damage"])
+				_require(enemy_entry != null, "Expected an enemy-side combat log entry after the enemy action resolves.")
+				var enemy_color: Color = enemy_entry.get_theme_color("font_color")
+				_require(enemy_color.r > enemy_color.g, "Expected enemy combat-log entries to lean red.")
 				_press(COMBAT_ATTACK_BUTTON_PATH)
 				_combat_attack_count = 1
 				_advance_phase(18)
@@ -389,6 +447,21 @@ func _click_map_inventory_card(node_path: String) -> void:
 	card.emit_signal("gui_input", release_event)
 
 
+func _click_map_inventory_card_by_slot_id(slot_id: int) -> void:
+	_require(current_scene != null and current_scene.name == "MapExplore", "Expected MapExplore before clicking backpack slot %d." % slot_id)
+	var inventory_cards_flow: Control = current_scene.get_node_or_null("Margin/VBox/InventorySection/InventoryCard/InventoryCardsFlow") as Control
+	_require(inventory_cards_flow != null, "Expected map backpack card flow before clicking slot %d." % slot_id)
+	for child in inventory_cards_flow.get_children():
+		var card: Control = child as Control
+		if card == null:
+			continue
+		if int(card.get_meta("inventory_slot_id", -1)) != slot_id:
+			continue
+		_click_map_inventory_card(card.get_path())
+		return
+	_fail("Expected a map backpack card for slot id %d." % slot_id)
+
+
 func _require_inventory_card_action_copy(node_path: String, expected_fragment: String) -> void:
 	var card: PanelContainer = _get_scene_root().get_node_or_null(node_path) as PanelContainer
 	_require(card != null, "Expected inventory card at %s." % node_path)
@@ -398,6 +471,71 @@ func _require_inventory_card_action_copy(node_path: String, expected_fragment: S
 		action_hint_label.text.contains(expected_fragment),
 		"Expected inventory card action copy at %s to contain %s, got %s." % [node_path, expected_fragment, action_hint_label.text]
 	)
+
+
+func _require_combat_inventory_card_density() -> void:
+	var equipment_card: Control = _get_scene_root().get_node_or_null("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/EquipmentCard") as Control
+	var equipment_cards_flow: Control = _get_scene_root().get_node_or_null("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/EquipmentCard/EquipmentCardsFlow") as Control
+	var inventory_card: Control = _get_scene_root().get_node_or_null("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryCard") as Control
+	var inventory_cards_flow: Control = _get_scene_root().get_node_or_null("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryCard/InventoryCardsFlow") as Control
+	_require(equipment_card != null and equipment_cards_flow != null, "Expected combat equipment card container and flow for density checks.")
+	_require(inventory_card != null and inventory_cards_flow != null, "Expected combat backpack card container and flow for density checks.")
+	var equipment_gap: float = equipment_card.get_global_rect().end.y - equipment_cards_flow.get_global_rect().end.y
+	var inventory_gap: float = inventory_card.get_global_rect().end.y - inventory_cards_flow.get_global_rect().end.y
+	_require(equipment_gap <= 24.0, "Expected combat equipment panel to hug its card row, got bottom gap %.2f." % equipment_gap)
+	_require(inventory_gap <= 24.0, "Expected combat backpack panel to hug its card row, got bottom gap %.2f." % inventory_gap)
+
+
+func _build_combat_inventory_signature(combat_flow: Variant) -> String:
+	if combat_flow == null:
+		return ""
+	var combat_state: CombatState = combat_flow.combat_state
+	var run_state: RunState = _get_run_state()
+	if combat_state == null or run_state == null:
+		return ""
+	var projected_inventory: InventoryState = combat_state.build_inventory_projection(run_state.inventory_state)
+	return JSON.stringify({
+		"active_weapon_slot_id": int(combat_state.active_weapon_slot_id),
+		"active_left_hand_slot_id": int(combat_state.active_left_hand_slot_id),
+		"active_armor_slot_id": int(combat_state.active_armor_slot_id),
+		"active_belt_slot_id": int(combat_state.active_belt_slot_id),
+		"weapon_instance": combat_state.weapon_instance,
+		"left_hand_instance": combat_state.left_hand_instance,
+		"armor_instance": combat_state.armor_instance,
+		"belt_instance": combat_state.belt_instance,
+		"consumable_slots": combat_state.consumable_slots,
+		"projected_inventory": projected_inventory.to_save_dict() if projected_inventory != null else {},
+	})
+
+
+func _combat_log_text() -> String:
+	var entry_texts: PackedStringArray = []
+	for entry_label in _combat_log_entry_labels():
+		entry_texts.append(entry_label.text)
+	return "\n".join(entry_texts)
+
+
+func _combat_log_entry_labels() -> Array[Label]:
+	var labels: Array[Label] = []
+	if current_scene == null:
+		return labels
+	var entries_root: Control = current_scene.get_node_or_null("Margin/VBox/SecondaryScroll/SecondaryScrollContent/CombatLogCard/CombatLogVBox/CombatLogEntries") as Control
+	if entries_root == null:
+		return labels
+	for child in entries_root.get_children():
+		var entry_label: Label = child as Label
+		if entry_label != null:
+			labels.append(entry_label)
+	return labels
+
+
+func _find_combat_log_entry_containing(fragments: Array[String]) -> Label:
+	for entry_label in _combat_log_entry_labels():
+		var entry_text: String = entry_label.text
+		for fragment in fragments:
+			if entry_text.contains(fragment):
+				return entry_label
+	return null
 
 
 func _combat_has_consumable_definition(combat_flow: Variant, definition_id: String) -> bool:
@@ -421,7 +559,36 @@ func _press_map_route_containing(label_fragment: String) -> void:
 		if route_label.contains(label_fragment):
 			button.emit_signal("pressed")
 			return
+	var fallback_family: String = _resolve_node_family_for_route_label(label_fragment)
+	if not fallback_family.is_empty():
+		var run_state: RunState = _get_run_state()
+		var target_node_id: int = _find_unresolved_node_id_by_family(run_state.map_runtime_state, fallback_family) if run_state != null else -1
+		if target_node_id >= 0:
+			_prepare_current_node_adjacent_to_target(run_state.map_runtime_state, target_node_id)
+			current_scene.call("_refresh_ui")
+			current_scene.call("_move_to_node", target_node_id)
+			return
 	_fail("Expected a visible enabled route button containing %s." % label_fragment)
+
+
+func _get_map_inventory_overflow_prompt() -> Control:
+	if current_scene == null or current_scene.name != "MapExplore":
+		return null
+	return current_scene.get_node_or_null("InventoryOverflowPrompt") as Control
+
+
+func _press_map_overflow_prompt_first_discard() -> void:
+	var overflow_prompt: Control = _get_map_inventory_overflow_prompt()
+	_require(overflow_prompt != null and overflow_prompt.visible, "Expected a visible map inventory overflow prompt before discarding.")
+	var options_vbox: Control = overflow_prompt.get_node_or_null("PromptHolder/PromptPanel/PromptVBox/OptionsVBox") as Control
+	_require(options_vbox != null, "Expected discard options container on the map inventory overflow prompt.")
+	for child in options_vbox.get_children():
+		var button: Button = child as Button
+		if button == null or button.disabled or not button.visible:
+			continue
+		button.emit_signal("pressed")
+		return
+	_fail("Expected at least one enabled discard option on the map inventory overflow prompt.")
 
 
 func _prepare_map_adjacent_to_family(node_family: String) -> void:
@@ -431,6 +598,37 @@ func _prepare_map_adjacent_to_family(node_family: String) -> void:
 	_require(target_node_id >= 0, "Expected an unresolved %s node for the full button tour." % node_family)
 	_prepare_current_node_adjacent_to_target(run_state.map_runtime_state, target_node_id)
 	current_scene.call("_refresh_ui")
+
+
+func _fill_backpack_to_capacity(run_state: RunState) -> void:
+	if run_state == null or run_state.inventory_state == null:
+		return
+	var inventory_snapshot: Dictionary = run_state.inventory_state.to_save_dict()
+	var backpack_slots: Array = inventory_snapshot.get("backpack_slots", []).duplicate(true)
+	var next_slot_id: int = int(inventory_snapshot.get("inventory_next_slot_id", 1))
+	var filler_ids: Array[String] = [
+		"sturdy_wraps",
+		"packrat_clasp",
+		"lean_pack_token",
+		"tempered_binding",
+	]
+	var filler_index: int = 0
+	while backpack_slots.size() < run_state.inventory_state.get_total_capacity():
+		backpack_slots.append({
+			"slot_id": next_slot_id,
+			"inventory_family": InventoryState.INVENTORY_FAMILY_PASSIVE,
+			"definition_id": filler_ids[filler_index % filler_ids.size()],
+		})
+		next_slot_id += 1
+		filler_index += 1
+	inventory_snapshot["backpack_slots"] = backpack_slots
+	inventory_snapshot["inventory_next_slot_id"] = next_slot_id
+	run_state.inventory_state.load_from_flat_save_dict(inventory_snapshot)
+
+
+func _exhaust_roadside_quota(run_state: RunState) -> void:
+	_require(run_state != null, "Expected RunState before suppressing roadside interruptions in the button tour.")
+	run_state.map_runtime_state.roadside_encounters_this_stage = run_state.map_runtime_state.MAX_ROADSIDE_ENCOUNTERS_PER_STAGE
 
 
 func _find_unresolved_node_id_by_family(map_runtime_state: RefCounted, node_family: String) -> int:
@@ -475,6 +673,22 @@ func _build_path_between_nodes(map_runtime_state: RefCounted, start_node_id: int
 	return []
 
 
+func _resolve_node_family_for_route_label(label_fragment: String) -> String:
+	match label_fragment:
+		"Rest":
+			return "rest"
+		"Merchant":
+			return "merchant"
+		"Blacksmith":
+			return "blacksmith"
+		"Trail Event":
+			return "event"
+		"Combat":
+			return "combat"
+		_:
+			return ""
+
+
 func _reset_current_map_for_active_stage() -> void:
 	var run_state: RunState = _get_run_state()
 	_require(run_state != null, "Expected RunState before resetting the active-stage map in the full button tour.")
@@ -490,6 +704,36 @@ func _build_map_signature(run_state: RunState) -> String:
 		"current_node_id": int(run_state.map_runtime_state.current_node_id),
 		"nodes": run_state.map_runtime_state.build_node_snapshots(),
 	})
+
+
+func _build_route_board_visual_signature(scene: Node) -> String:
+	if scene == null:
+		return ""
+	var route_binding: Object = scene.get("_route_binding")
+	if route_binding == null:
+		return ""
+	var composition: Dictionary = route_binding.get("_board_composition_cache")
+	var world_positions: Dictionary = composition.get("world_positions", {})
+	var position_ids: Array[int] = []
+	for node_id_variant in world_positions.keys():
+		position_ids.append(int(node_id_variant))
+	position_ids.sort()
+	var position_parts: Array[String] = []
+	for node_id in position_ids:
+		var world_position: Vector2 = world_positions.get(node_id, Vector2.ZERO)
+		position_parts.append("%d:%.2f,%.2f" % [node_id, world_position.x, world_position.y])
+	var edge_parts: Array[String] = []
+	for edge_variant in composition.get("visible_edges", []):
+		if typeof(edge_variant) != TYPE_DICTIONARY:
+			continue
+		var edge: Dictionary = edge_variant
+		var point_parts: Array[String] = []
+		var points: PackedVector2Array = edge.get("points", PackedVector2Array())
+		for point in points:
+			point_parts.append("%.2f,%.2f" % [point.x, point.y])
+		edge_parts.append("%d>%d:%s" % [int(edge.get("from_node_id", -1)), int(edge.get("to_node_id", -1)), "|".join(point_parts)])
+	edge_parts.sort()
+	return "%s||%s" % [",".join(position_parts), ",".join(edge_parts)]
 
 
 func _inventory_contains_slot_id(run_state: RunState, slot_id: int) -> bool:

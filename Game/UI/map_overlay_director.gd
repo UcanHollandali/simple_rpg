@@ -46,6 +46,7 @@ func configure(owner: Control, config: Dictionary) -> void:
 		"closed_scale": EVENT_OVERLAY_CLOSED_SCALE,
 		"tween_transition": EVENT_OVERLAY_TWEEN_TRANSITION,
 		"before_show_handler": Callable(self, "_tune_event_overlay_visuals"),
+		"state_changed_handler": Callable(self, "_notify_overlay_state_changed"),
 	})
 
 
@@ -59,6 +60,16 @@ func position_overlays() -> void:
 	if _overlay_lifecycle == null:
 		return
 	_overlay_lifecycle.position_overlays(OVERLAY_KEYS)
+
+
+func has_active_overlay() -> bool:
+	if _overlay_lifecycle == null:
+		return false
+	for overlay_key in OVERLAY_KEYS:
+		var overlay: Control = _overlay_lifecycle.get_overlay(overlay_key)
+		if overlay != null and overlay.visible:
+			return true
+	return false
 
 
 func sync_with_flow_state(current_state: int) -> void:
@@ -84,6 +95,9 @@ func sync_with_flow_state(current_state: int) -> void:
 
 
 func open_event_overlay() -> void:
+	if not _can_open_overlay_for_state(FlowStateScript.Type.EVENT):
+		close_event_overlay(true)
+		return
 	_open_overlay(EVENT_OVERLAY_KEY, _event_scene, "EventOverlay", "Event")
 
 
@@ -92,6 +106,9 @@ func close_event_overlay(immediate: bool = false) -> void:
 
 
 func open_support_overlay() -> void:
+	if not _can_open_overlay_for_state(FlowStateScript.Type.SUPPORT_INTERACTION):
+		close_support_overlay(true)
+		return
 	_open_overlay(SUPPORT_OVERLAY_KEY, _support_scene, "SupportOverlay", "Support interaction")
 
 
@@ -100,6 +117,9 @@ func close_support_overlay(immediate: bool = false) -> void:
 
 
 func open_reward_overlay() -> void:
+	if not _can_open_overlay_for_state(FlowStateScript.Type.REWARD):
+		close_reward_overlay(true)
+		return
 	_open_overlay(REWARD_OVERLAY_KEY, _reward_scene, "RewardOverlay", "Reward")
 
 
@@ -108,6 +128,9 @@ func close_reward_overlay(immediate: bool = false) -> void:
 
 
 func open_level_up_overlay() -> void:
+	if not _can_open_overlay_for_state(FlowStateScript.Type.LEVEL_UP):
+		close_level_up_overlay(true)
+		return
 	_open_overlay(LEVEL_UP_OVERLAY_KEY, _level_up_scene, "LevelUpOverlay", "Level up")
 
 
@@ -147,3 +170,33 @@ func _tune_event_overlay_visuals(event_overlay: Control) -> void:
 		scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var scrim_alpha: float = EVENT_OVERLAY_ROADSIDE_SCRIM_ALPHA if roadside_overlay else EVENT_OVERLAY_SCRIM_ALPHA
 		scrim.color = Color(scrim.color.r, scrim.color.g, scrim.color.b, scrim_alpha)
+
+
+func _notify_overlay_state_changed() -> void:
+	if _owner != null and is_instance_valid(_owner):
+		_owner.call_deferred("_sync_safe_menu_launcher_visibility")
+		if _owner.has_method("_request_overlay_ui_refresh"):
+			_owner.call_deferred("_request_overlay_ui_refresh")
+
+
+func _can_open_overlay_for_state(flow_state: int) -> bool:
+	var bootstrap = _get_app_bootstrap()
+	if bootstrap == null:
+		return true
+	match flow_state:
+		FlowStateScript.Type.EVENT:
+			return bootstrap.get_event_state() != null
+		FlowStateScript.Type.SUPPORT_INTERACTION:
+			return bootstrap.get_support_interaction_state() != null
+		FlowStateScript.Type.REWARD:
+			return bootstrap.get_reward_state() != null
+		FlowStateScript.Type.LEVEL_UP:
+			return bootstrap.get_level_up_state() != null
+		_:
+			return true
+
+
+func _get_app_bootstrap() -> Node:
+	if _owner == null or not is_instance_valid(_owner):
+		return null
+	return _owner.get_node_or_null("/root/AppBootstrap")

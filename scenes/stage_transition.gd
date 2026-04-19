@@ -30,9 +30,9 @@ const PORTRAIT_LAYOUT_CONFIG := {
 		{"max_height": 1540.0, "top_margin": 70, "bottom_margin": 70},
 	],
 	"bands": {
-		"large": {"min_width": 720.0, "min_height": 1640.0, "title_font_size": 48, "summary_font_size": 25, "hint_font_size": 19, "run_status_font_size": 18, "status_font_size": 19, "button_font_size": 22, "button_height": 80.0, "run_status_width": 320.0, "button_icon_max_width": 30},
-		"medium": {"min_width": 600.0, "min_height": 1460.0, "title_font_size": 42, "summary_font_size": 22, "hint_font_size": 17, "run_status_font_size": 16, "status_font_size": 17, "button_font_size": 20, "button_height": 72.0, "run_status_width": 280.0, "button_icon_max_width": 26},
-		"compact": {"title_font_size": 36, "summary_font_size": 19, "hint_font_size": 15, "run_status_font_size": 14, "status_font_size": 15, "button_font_size": 18, "button_height": 64.0, "run_status_width": 236.0, "button_icon_max_width": 22},
+		"large": {"min_width": 720.0, "min_height": 1640.0, "title_font_size": 44, "summary_font_size": 22, "hint_font_size": 16, "run_status_font_size": 16, "status_font_size": 16, "button_font_size": 20, "button_height": 80.0, "run_status_width": 320.0, "button_icon_max_width": 30},
+		"medium": {"min_width": 600.0, "min_height": 1460.0, "title_font_size": 38, "summary_font_size": 20, "hint_font_size": 15, "run_status_font_size": 15, "status_font_size": 15, "button_font_size": 18, "button_height": 72.0, "run_status_width": 280.0, "button_icon_max_width": 26},
+		"compact": {"title_font_size": 32, "summary_font_size": 18, "hint_font_size": 14, "run_status_font_size": 14, "status_font_size": 14, "button_font_size": 17, "button_height": 64.0, "run_status_width": 236.0, "button_icon_max_width": 22},
 	},
 }
 
@@ -197,12 +197,13 @@ func _apply_temp_theme() -> void:
 
 
 func _setup_safe_menu() -> void:
+	var menu_config: Dictionary = RunMenuSceneHelperScript.shared_menu_config()
 	_safe_menu = RunMenuSceneHelperScript.ensure_safe_menu(
 		self,
 		_safe_menu,
-		"Run Menu",
-		"Save, load, return to menu, mute music, or quit.",
-		"Settings",
+		String(menu_config.get("title_text", RunMenuSceneHelperScript.SHARED_MENU_TITLE)),
+		String(menu_config.get("subtitle_text", RunMenuSceneHelperScript.SHARED_MENU_SUBTITLE)),
+		String(menu_config.get("launcher_text", RunMenuSceneHelperScript.SHARED_LAUNCHER_TEXT)),
 		Callable(self, "_on_save_pressed"),
 		Callable(self, "_on_load_pressed"),
 		Callable(self, "_on_return_to_main_menu_pressed")

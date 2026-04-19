@@ -6,6 +6,7 @@ const AppBootstrapScript = preload("res://Game/Application/app_bootstrap.gd")
 const AudioPreferencesScript = preload("res://Game/UI/audio_preferences.gd")
 const SceneRouterScript = preload("res://Game/Infrastructure/scene_router.gd")
 const FlowStateScript = preload("res://Game/Application/flow_state.gd")
+const SafeMenuLauncherStyleScript = preload("res://Game/UI/safe_menu_launcher_style.gd")
 const SaveServiceScript = preload("res://Game/Infrastructure/save_service.gd")
 const TestExitCleanupHelperScript = preload("res://Tests/_exit_cleanup_helper.gd")
 
@@ -64,6 +65,10 @@ func _on_process_frame() -> void:
 				_require(launcher_button != null, "Expected launcher button on MapExplore.")
 				_require(launcher_button.text.is_empty(), "Expected safe menu launcher to stay icon-only.")
 				_require(launcher_button.tooltip_text == "Settings", "Expected safe menu launcher tooltip to read Settings.")
+				var launcher_metrics: Dictionary = SafeMenuLauncherStyleScript.resolve_launcher_metrics_for_viewport(current_scene.get_viewport_rect().size)
+				var expected_dimensions: Vector2 = Vector2(launcher_metrics.get("dimensions", Vector2.ZERO))
+				_require(launcher_button.size.is_equal_approx(expected_dimensions), "Expected MapExplore launcher to keep the shared launcher dimensions.")
+				_require(launcher_button.get_theme_constant("icon_max_width") == int(launcher_metrics.get("icon_size", -1)), "Expected MapExplore launcher to keep the shared icon scale.")
 				_require(load_button_before_save != null, "Expected load button on MapExplore.")
 				_require(load_button_before_save.disabled, "Expected MapExplore load button to start disabled when no save exists.")
 				_require(main_menu_button != null, "Expected return-to-main-menu button on MapExplore settings drawer.")
@@ -86,6 +91,10 @@ func _on_process_frame() -> void:
 				save_button.emit_signal("pressed")
 				_require(toast_panel != null and toast_panel.visible, "Expected save success toast panel on MapExplore.")
 				_require(toast_label != null and toast_label.text == "Run saved.", "Expected save success toast on MapExplore.")
+				var toast_rect: Rect2 = toast_panel.get_global_rect()
+				var viewport_size: Vector2 = current_scene.get_viewport_rect().size
+				_require(toast_rect.position.x >= -0.5, "Expected save toast to stay inside the left viewport edge.")
+				_require(toast_rect.position.x + toast_rect.size.x <= viewport_size.x + 0.5, "Expected save toast to stay inside the right viewport edge.")
 				_pending_saved_stats = {
 					"player_hp": 39,
 					"gold": 21,

@@ -6,6 +6,7 @@ const ContentLoaderScript = preload("res://Game/Infrastructure/content_loader.gd
 const InventoryStateScript = preload("res://Game/RuntimeState/inventory_state.gd")
 const InventoryOverflowResolverScript = preload("res://Game/Application/inventory_overflow_resolver.gd")
 const INVENTORY_CHOICE_REQUIRED_ERROR: String = "inventory_choice_required"
+
 static func extract_consumable_use_profile(use_effect: Dictionary) -> Dictionary:
 	if use_effect.is_empty():
 		return {
@@ -25,7 +26,6 @@ static func extract_consumable_use_profile(use_effect: Dictionary) -> Dictionary
 			"hunger_delta": 0,
 			"repairs_weapon": false,
 		}
-
 	var effects: Variant = use_effect.get("effects", [])
 	if typeof(effects) != TYPE_ARRAY:
 		return {
@@ -33,7 +33,6 @@ static func extract_consumable_use_profile(use_effect: Dictionary) -> Dictionary
 			"hunger_delta": 0,
 			"repairs_weapon": false,
 		}
-
 	var heal_amount: int = 0
 	var hunger_delta: int = 0
 	var repairs_weapon: bool = false
@@ -52,30 +51,35 @@ static func extract_consumable_use_profile(use_effect: Dictionary) -> Dictionary
 				hunger_delta += int(effect_params.get("amount", 0))
 			"repair_weapon":
 				repairs_weapon = true
-
 	return {
 		"heal_amount": heal_amount,
 		"hunger_delta": hunger_delta,
 		"repairs_weapon": repairs_weapon,
 	}
 
-
-func toggle_equipment_slot(inventory_owner: Variant, slot_id: int) -> Dictionary:
+func toggle_equipment_slot(inventory_owner: Variant, slot_id: int, discard_slot_id: int = -1) -> Dictionary:
 	var inventory_state: RefCounted = _coerce_inventory_state(inventory_owner)
 	if inventory_state == null:
 		return {
 			"ok": false,
 			"error": "missing_inventory_state",
 		}
-
 	var equipped_slot_name: String = inventory_state.find_equipment_slot_name_by_id(slot_id)
 	if not equipped_slot_name.is_empty():
+		var equipped_slot: Dictionary = inventory_state.build_equipment_slot_snapshot(equipped_slot_name)
 		if (
 			equipped_slot_name == InventoryStateScript.EQUIPMENT_SLOT_LEFT_HAND
-			and inventory_state.shield_slot_has_attachment(inventory_state.build_equipment_slot_snapshot(equipped_slot_name))
+			and inventory_state.shield_slot_has_attachment(equipped_slot)
 		):
 			return inventory_state.detach_attachment_from_equipped_shield()
-		return inventory_state.move_equipment_slot_to_backpack(equipped_slot_name)
+		if discard_slot_id > 0 and equipped_slot_name != InventoryStateScript.EQUIPMENT_SLOT_BELT:
+			var discard_result: Dictionary = InventoryOverflowResolverScript.discard_backpack_slot(inventory_state, discard_slot_id)
+			if not bool(discard_result.get("ok", false)):
+				return discard_result
+		var unequip_result: Dictionary = inventory_state.move_equipment_slot_to_backpack(equipped_slot_name)
+		if bool(unequip_result.get("ok", false)) or String(unequip_result.get("error", "")) != "no_inventory_capacity":
+			return unequip_result
+		return InventoryOverflowResolverScript.preview_unequip_to_backpack(inventory_state, equipped_slot)
 
 	var slot_index: int = inventory_state.find_slot_index_by_id(slot_id)
 	if slot_index < 0:
@@ -84,7 +88,6 @@ func toggle_equipment_slot(inventory_owner: Variant, slot_id: int) -> Dictionary
 			"error": "missing_inventory_slot",
 			"slot_id": slot_id,
 		}
-
 	var slot: Dictionary = inventory_state.inventory_slots[slot_index]
 	var inventory_family: String = String(slot.get("inventory_family", ""))
 	if inventory_family == InventoryStateScript.INVENTORY_FAMILY_SHIELD_ATTACHMENT:
@@ -101,7 +104,6 @@ func toggle_equipment_slot(inventory_owner: Variant, slot_id: int) -> Dictionary
 			"slot_id": slot_id,
 			"inventory_family": inventory_family,
 		}
-
 	var target_equipment_slot: String = inventory_state.resolve_default_equipment_slot_name(slot)
 	if target_equipment_slot.is_empty():
 		return {
@@ -111,8 +113,6 @@ func toggle_equipment_slot(inventory_owner: Variant, slot_id: int) -> Dictionary
 			"inventory_family": inventory_family,
 		}
 	return inventory_state.move_backpack_slot_to_equipment(slot_id, target_equipment_slot)
-
-
 func move_slot_to_index(inventory_owner: Variant, slot_id: int, target_index: int) -> Dictionary:
 	var inventory_state: RefCounted = _coerce_inventory_state(inventory_owner)
 	if inventory_state == null:

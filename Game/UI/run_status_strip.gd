@@ -3,6 +3,8 @@ extends RefCounted
 class_name RunStatusStrip
 
 const TempScreenThemeScript = preload("res://Game/UI/temp_screen_theme.gd")
+const SceneLayoutHelperScript = preload("res://Game/UI/scene_layout_helper.gd")
+const UiAssetPathsScript = preload("res://Game/UI/ui_asset_paths.gd")
 
 const ROOT_NODE_NAME := "RunStatusRoot"
 const HUNGER_THRESHOLD_SAFE := 7
@@ -171,55 +173,115 @@ static func _clear_children(parent: Node) -> void:
 static func _build_metric_chip(item: Dictionary, fallback_accent: Color, density: String) -> PanelContainer:
 	var semantic: String = String(item.get("semantic", ""))
 	var accent: Color = TempScreenThemeScript.resolve_status_accent(semantic, fallback_accent)
+	var icon_texture: Texture2D = SceneLayoutHelperScript.load_texture_or_null(
+		UiAssetPathsScript.build_status_icon_texture_path(String(item.get("key", "")), semantic)
+	)
 	var chip: PanelContainer = PanelContainer.new()
+	chip.name = "%sChip" % String(item.get("key", "Metric"))
 	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	chip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	chip.custom_minimum_size = Vector2(128.0 if density == "standard" else 96.0 if density == "minimal" else 112.0, 0.0)
+	chip.custom_minimum_size = Vector2(128.0 if density == "standard" else 104.0 if density == "minimal" else 112.0, 0.0)
 	TempScreenThemeScript.apply_status_chip_shell(chip, accent, density)
 
-	var stack: VBoxContainer = VBoxContainer.new()
-	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	stack.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	stack.add_theme_constant_override("separation", 2)
-	chip.add_child(stack)
-
 	var label: Label = Label.new()
+	label.name = "MetricLabel"
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	label.text = String(item.get("label_text", ""))
+	TempScreenThemeScript.apply_font_role(label, "body")
 	label.add_theme_color_override("font_color", TempScreenThemeScript.TEXT_MUTED_COLOR)
-	label.add_theme_font_size_override("font_size", 11 if density == "standard" else 9 if density == "minimal" else 10)
-	stack.add_child(label)
 
 	var value_label: Label = Label.new()
+	value_label.name = "MetricValueLabel"
 	value_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	value_label.text = String(item.get("value_text", ""))
+	TempScreenThemeScript.apply_font_role(value_label, "heading")
 	value_label.add_theme_color_override("font_color", TempScreenThemeScript.TEXT_PRIMARY_COLOR)
-	value_label.add_theme_font_size_override("font_size", 22 if density == "standard" else 16 if density == "minimal" else 18)
-	stack.add_child(value_label)
+	if density == "minimal":
+		var inline_row: HBoxContainer = HBoxContainer.new()
+		inline_row.name = "MetricInlineRow"
+		inline_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		inline_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		inline_row.alignment = BoxContainer.ALIGNMENT_BEGIN
+		inline_row.add_theme_constant_override("separation", 6)
+		chip.add_child(inline_row)
+
+		var icon_rect: TextureRect = _build_status_icon_rect(icon_texture, density)
+		if icon_rect != null:
+			inline_row.add_child(icon_rect)
+
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		label.add_theme_font_size_override("font_size", 10)
+		inline_row.add_child(label)
+
+		value_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		value_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		value_label.add_theme_font_size_override("font_size", 18)
+		inline_row.add_child(value_label)
+	else:
+		var content_row: HBoxContainer = HBoxContainer.new()
+		content_row.name = "MetricContentRow"
+		content_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		content_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		content_row.alignment = BoxContainer.ALIGNMENT_BEGIN
+		content_row.add_theme_constant_override("separation", 10 if density == "standard" else 8)
+		chip.add_child(content_row)
+
+		var icon_rect: TextureRect = _build_status_icon_rect(icon_texture, density)
+		if icon_rect != null:
+			content_row.add_child(icon_rect)
+
+		var stack: VBoxContainer = VBoxContainer.new()
+		stack.name = "MetricStack"
+		stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		stack.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		stack.add_theme_constant_override("separation", 2)
+		content_row.add_child(stack)
+
+		label.add_theme_font_size_override("font_size", 11 if density == "standard" else 10)
+		stack.add_child(label)
+
+		value_label.add_theme_font_size_override("font_size", 22 if density == "standard" else 18)
+		stack.add_child(value_label)
 	return chip
 
 
 static func _build_summary_chip(item: Dictionary, fallback_accent: Color, density: String) -> PanelContainer:
 	var semantic: String = String(item.get("semantic", ""))
 	var accent: Color = TempScreenThemeScript.resolve_status_accent(semantic, fallback_accent)
+	var icon_texture: Texture2D = SceneLayoutHelperScript.load_texture_or_null(
+		UiAssetPathsScript.build_status_icon_texture_path(String(item.get("key", "")), semantic)
+	)
 	var chip: PanelContainer = PanelContainer.new()
 	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	chip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	TempScreenThemeScript.apply_status_chip_shell(chip, accent, "minimal" if density == "minimal" else "compact")
 
+	var row: HBoxContainer = HBoxContainer.new()
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.alignment = BoxContainer.ALIGNMENT_BEGIN
+	row.add_theme_constant_override("separation", 8 if density == "standard" else 6)
+	chip.add_child(row)
+
+	var icon_rect: TextureRect = _build_status_icon_rect(icon_texture, density)
+	if icon_rect != null:
+		row.add_child(icon_rect)
+
 	var label: Label = Label.new()
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	label.text = "%s %s" % [
 		String(item.get("label_text", "")),
 		String(item.get("value_text", "")),
 	]
+	TempScreenThemeScript.apply_font_role(label, "body")
 	label.add_theme_color_override("font_color", TempScreenThemeScript.TEXT_SUBTLE_COLOR)
 	label.add_theme_font_size_override("font_size", 14 if density == "standard" else 12 if density == "minimal" else 13)
-	chip.add_child(label)
+	row.add_child(label)
 	return chip
 
 
@@ -242,6 +304,7 @@ static func _build_progress_row(item: Dictionary, fallback_accent: Color, densit
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	label.text = String(item.get("label_text", ""))
+	TempScreenThemeScript.apply_font_role(label, "body")
 	label.add_theme_color_override("font_color", TempScreenThemeScript.TEXT_MUTED_COLOR)
 	label.add_theme_font_size_override("font_size", 13 if density == "standard" else 11 if density == "minimal" else 12)
 	header_row.add_child(label)
@@ -250,6 +313,7 @@ static func _build_progress_row(item: Dictionary, fallback_accent: Color, densit
 	value_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	value_label.text = String(item.get("value_text", ""))
+	TempScreenThemeScript.apply_font_role(value_label, "heading")
 	value_label.add_theme_color_override("font_color", TempScreenThemeScript.TEXT_PRIMARY_COLOR)
 	value_label.add_theme_font_size_override("font_size", 14 if density == "standard" else 12 if density == "minimal" else 13)
 	header_row.add_child(value_label)
@@ -276,3 +340,17 @@ static func _extract_dictionary_array(value: Variant) -> Array[Dictionary]:
 			continue
 		result.append(entry)
 	return result
+
+
+static func _build_status_icon_rect(texture: Texture2D, density: String) -> TextureRect:
+	if texture == null:
+		return null
+	var icon_rect: TextureRect = TextureRect.new()
+	icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon_rect.texture = texture
+	icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	var icon_size: float = 20.0 if density == "standard" else 16.0 if density == "minimal" else 18.0
+	icon_rect.custom_minimum_size = Vector2(icon_size, icon_size)
+	icon_rect.self_modulate = TempScreenThemeScript.TEXT_SUBTLE_COLOR
+	return icon_rect

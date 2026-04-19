@@ -17,7 +17,6 @@ This file defines the official combat rules and timing.
 Top-level action buttons:
 - `Attack`
 - `Defend`
-- `Use Item`
 
 Current player-facing combat inventory rules:
 - direct consumable card click is allowed and consumes the turn when the item would change HP or hunger
@@ -111,7 +110,7 @@ This order is the only truthful live baseline.
   - `fragile` = `1.5x`
   - `heavy` = `2x`
 - profile scaling resolves before flat durability modifiers such as `corroded`
-- `Defend` and `Use Item` do not consume weapon durability
+- `Defend` and combat consumable use do not consume weapon durability
 
 ## Equipment Rule
 
@@ -185,18 +184,20 @@ Current live config-driven dual-wield baseline:
 - If the right-hand weapon is broken or missing, the player falls back to a weak default attack.
 - Current fallback hit is `1` damage before enemy mitigation.
 
-## Use Item Rules
+## Consumable Use Rules
 
 - Current prototype support is intentionally narrow:
   - self-target consumables only
   - combat use limited to `heal` and `modify_hunger`
   - content-driven through `Consumables/<stable_id>.json`
-- `Use Item` resolves in the same player-action window as `Attack` or `Defend`.
-- After `Use Item` resolves:
+- direct consumable card click is the canonical combat-time use surface
+- there is no separate top-level `Use Item` button in the canonical combat layout
+- a combat consumable resolves in the same player-action window as `Attack` or `Defend`
+- after a combat consumable resolves:
   - enemy defeat is checked
   - enemy action still resolves if combat is not already over
   - turn-end hunger and intent prep still happen normally
-- `Use Item` skips instead of spending the turn when no ready consumable would change HP or hunger.
+- combat consumable use skips instead of spending the turn when no ready consumable would change HP or hunger
 
 ## Status Rules
 

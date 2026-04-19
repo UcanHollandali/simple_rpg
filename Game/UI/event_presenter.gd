@@ -3,20 +3,23 @@ extends RefCounted
 class_name EventPresenter
 
 const ContentLoaderScript = preload("res://Game/Infrastructure/content_loader.gd")
+const ItemDefinitionTooltipBuilderScript = preload("res://Game/UI/item_definition_tooltip_builder.gd")
+const MapDisplayNameHelperScript = preload("res://Game/UI/map_display_name_helper.gd")
 const InventoryStateScript = preload("res://Game/RuntimeState/inventory_state.gd")
 const RunStatusPresenterScript = preload("res://Game/UI/run_status_presenter.gd")
+const UiCompactCopyScript = preload("res://Game/UI/ui_compact_copy.gd")
 const UiAssetPathsScript = preload("res://Game/UI/ui_asset_paths.gd")
 const DEFAULT_CARD_COUNT: int = 2
-const PLANNED_EVENT_CHIP_TEXT: String = "TRAIL EVENT"
 const ROADSIDE_EVENT_CHIP_TEXT: String = "ROADSIDE ENCOUNTER"
 
 var _loader: ContentLoader = ContentLoaderScript.new()
+var _item_tooltip_builder: ItemDefinitionTooltipBuilder = ItemDefinitionTooltipBuilderScript.new()
 
 
 func build_chip_text(event_state: EventState = null) -> String:
 	if event_state != null and String(event_state.source_context) == EventState.SOURCE_CONTEXT_ROADSIDE_ENCOUNTER:
 		return ROADSIDE_EVENT_CHIP_TEXT
-	return PLANNED_EVENT_CHIP_TEXT
+	return MapDisplayNameHelperScript.build_family_display_name("event").to_upper()
 
 
 func build_title_text(event_state: EventState) -> String:
@@ -27,18 +30,18 @@ func build_title_text(event_state: EventState) -> String:
 
 func build_context_text(event_state: EventState) -> String:
 	if event_state != null and String(event_state.source_context) == EventState.SOURCE_CONTEXT_ROADSIDE_ENCOUNTER:
-		return "A movement interruption cuts across the road. Resolve one outcome, then continue the trip."
-	return "A planned stop on the map offers two authored outcomes. Choose one and keep moving."
+		return "Roadside stop. Resolve it and move on."
+	return UiCompactCopyScript.pick_one("result")
 
 
 func build_summary_text(event_state: EventState) -> String:
 	if event_state == null:
 		return ""
-	return String(event_state.summary_text)
+	return _compact_summary_text(String(event_state.summary_text))
 
 
 func build_hint_text() -> String:
-	return "Read the badge for tone, the title for the approach, and the detail line for the exact outcome."
+	return UiCompactCopyScript.hover_for_details()
 
 
 func build_choice_failure_text(event_state: EventState, error_text: String) -> String:
@@ -76,6 +79,8 @@ func build_choice_view_models(event_state: EventState, card_count: int = DEFAULT
 				"title_text": String(choice.get("label", choice.get("choice_id", ""))),
 				"detail_text": _build_detail_text(choice),
 				"button_text": _build_button_text(choice),
+				"tooltip_text": _build_choice_tooltip_text(choice),
+				"icon_texture_path": _build_choice_icon_texture_path_for_choice(choice, event_state),
 				"button_disabled": false,
 			})
 		else:
@@ -85,6 +90,7 @@ func build_choice_view_models(event_state: EventState, card_count: int = DEFAULT
 				"title_text": "",
 				"detail_text": "",
 				"button_text": "",
+				"icon_texture_path": "",
 				"button_disabled": true,
 			})
 
@@ -115,13 +121,10 @@ func _build_badge_text(choice: Dictionary) -> String:
 
 func _build_detail_text(choice: Dictionary) -> String:
 	var effect_type: String = String(choice.get("effect_type", ""))
-	var summary_text: String = String(choice.get("summary", ""))
 	var outcome_text: String = _build_outcome_text(effect_type, int(choice.get("amount", 0)), choice)
 	if outcome_text.is_empty():
-		return summary_text
-	if summary_text.is_empty():
-		return outcome_text
-	return "%s\n%s" % [outcome_text, summary_text]
+		return String(choice.get("summary", ""))
+	return outcome_text
 
 
 func _build_outcome_text(effect_type: String, amount: int, choice: Dictionary = {}) -> String:
@@ -141,16 +144,11 @@ func _build_outcome_text(effect_type: String, amount: int, choice: Dictionary = 
 		"grant_item":
 			var inventory_family: String = String(choice.get("inventory_family", "")).strip_edges()
 			var definition_id: String = String(choice.get("definition_id", "")).strip_edges()
-			var item_name: String = _load_inventory_display_name(inventory_family, definition_id)
-			if inventory_family == InventoryStateScript.INVENTORY_FAMILY_CONSUMABLE:
-				return "Pack %s x%d." % [item_name, max(1, amount)]
-			if inventory_family == InventoryStateScript.INVENTORY_FAMILY_PASSIVE:
-				return "Carry %s for its backpack-only passive bonus." % item_name
-			if inventory_family == InventoryStateScript.INVENTORY_FAMILY_BELT:
-				return "Take %s for more backpack utility." % item_name
-			if inventory_family == InventoryStateScript.INVENTORY_FAMILY_SHIELD_ATTACHMENT:
-				return "Stash %s as a shield mod." % item_name
-			return "Take %s." % item_name
+			return _item_tooltip_builder.build_definition_summary_text(
+				inventory_family,
+				definition_id,
+				max(1, amount)
+			)
 		_:
 			return ""
 
@@ -173,6 +171,45 @@ func _build_button_text(choice: Dictionary) -> String:
 			return "Pack the Find"
 		_:
 			return "Choose This Encounter"
+
+
+func _build_choice_tooltip_text(choice: Dictionary) -> String:
+	var effect_type: String = String(choice.get("effect_type", ""))
+	var amount: int = int(choice.get("amount", 0))
+	match effect_type:
+		"heal":
+			return "Recover %d HP." % amount
+		"grant_gold":
+			return "Gain %d gold." % amount
+		"grant_xp":
+			return "Gain %d XP." % amount
+		"modify_hunger":
+			return "Restore %d hunger." % abs(amount) if amount < 0 else "Lose %d hunger." % amount
+		"repair_weapon":
+			return "Full weapon repair."
+		"damage_player":
+			return "Take %d damage." % amount
+		"grant_item":
+			var inventory_family: String = String(choice.get("inventory_family", "")).strip_edges()
+			var definition_id: String = String(choice.get("definition_id", "")).strip_edges()
+			return _item_tooltip_builder.build_definition_tooltip_text(
+				inventory_family,
+				definition_id,
+				max(1, amount)
+			)
+		_:
+			return ""
+
+
+func _build_choice_icon_texture_path_for_choice(choice: Dictionary, event_state: EventState = null) -> String:
+	var inventory_family: String = String(choice.get("inventory_family", "")).strip_edges()
+	var effect_icon_path: String = UiAssetPathsScript.build_effect_icon_texture_path(
+		String(choice.get("effect_type", "")),
+		inventory_family
+	)
+	if not effect_icon_path.is_empty():
+		return effect_icon_path
+	return build_choice_icon_texture_path(event_state)
 
 
 func _load_inventory_display_name(inventory_family: String, definition_id: String) -> String:
@@ -203,3 +240,17 @@ func _definition_family_for_inventory_family(inventory_family: String) -> String
 			return "QuestItems"
 		_:
 			return ""
+
+
+func _compact_summary_text(summary_text: String, max_length: int = 110) -> String:
+	var normalized: String = String(summary_text).replace("\n", " ").strip_edges()
+	while normalized.contains("  "):
+		normalized = normalized.replace("  ", " ")
+	if normalized.is_empty():
+		return ""
+	var first_sentence_end: int = normalized.find(". ")
+	if first_sentence_end >= 0 and first_sentence_end + 1 <= max_length:
+		return normalized.substr(0, first_sentence_end + 1)
+	if normalized.length() <= max_length:
+		return normalized
+	return "%s..." % normalized.substr(0, max_length - 3).rstrip(" ,;:")

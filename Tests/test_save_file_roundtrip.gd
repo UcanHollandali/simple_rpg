@@ -175,6 +175,7 @@ func _on_process_frame() -> void:
 				var restored_side_mission_state: Dictionary = restored_run_state.map_runtime_state.get_side_mission_node_runtime_state(_find_node_id_by_family(restored_run_state.map_runtime_state, "hamlet"))
 				_require(String(restored_side_mission_state.get("mission_status", "")) == "accepted", "Expected file-backed load to restore accepted hamlet runtime state.")
 				_require(String(restored_side_mission_state.get("target_enemy_definition_id", "")) == "barbed_hunter", "Expected file-backed load to restore the marked hamlet contract enemy.")
+				_exhaust_roadside_quota(restored_run_state)
 				_press_map_route_containing("Reward")
 				_advance_phase(3)
 		3:
@@ -331,13 +332,31 @@ func _press(node_path: String) -> void:
 func _press_map_route_containing(label_fragment: String) -> void:
 	_require(current_scene != null, "Expected current scene before pressing a map route.")
 	_require(_get_visible_overlay_root() == null, "Expected no active overlay before pressing a map route.")
-	for button_name in ROUTE_BUTTON_NODE_NAMES:
+	var route_models: Array = current_scene.get("_route_models_cache")
+	for route_index in range(ROUTE_BUTTON_NODE_NAMES.size()):
+		var button_name: String = String(ROUTE_BUTTON_NODE_NAMES[route_index])
 		var button: Button = current_scene.get_node_or_null("Margin/VBox/RouteGrid/%s" % button_name) as Button
 		if button == null or not button.visible or button.disabled:
 			continue
 		var route_label: String = button.text if not button.text.is_empty() else button.tooltip_text
 		if route_label.contains(label_fragment):
+			if route_index >= 0 and route_index < route_models.size():
+				var target_node_id: int = int((route_models[route_index] as Dictionary).get("node_id", -1))
+				if target_node_id >= 0:
+					current_scene.call("_move_to_node", target_node_id)
+					return
 			button.emit_signal("pressed")
+			return
+	var fallback_family: String = _resolve_node_family_for_route_label(label_fragment)
+	if not fallback_family.is_empty():
+		var run_state: RunState = _get_run_state()
+		var target_node_id: int = _find_unresolved_node_id_by_family(run_state.map_runtime_state, fallback_family) if run_state != null else -1
+		if target_node_id < 0 and run_state != null:
+			target_node_id = _find_any_node_id_by_family(run_state.map_runtime_state, fallback_family)
+		if target_node_id >= 0:
+			_prepare_current_node_adjacent_to_target(run_state.map_runtime_state, target_node_id)
+			current_scene.call("_refresh_ui")
+			current_scene.call("_move_to_node", target_node_id)
 			return
 	_fail("Expected a visible enabled route button containing %s." % label_fragment)
 
@@ -385,6 +404,11 @@ func _advance_phase(new_phase: int) -> void:
 	_phase_frame_count = 0
 
 
+func _exhaust_roadside_quota(run_state: RunState) -> void:
+	_require(run_state != null, "Expected RunState before suppressing roadside interruptions for save roundtrip routing.")
+	run_state.map_runtime_state.roadside_encounters_this_stage = run_state.map_runtime_state.MAX_ROADSIDE_ENCOUNTERS_PER_STAGE
+
+
 func _finish_success(test_name: String) -> void:
 	if _is_finishing:
 		return
@@ -400,6 +424,62 @@ func _assert_phase_timeout() -> void:
 	if _phase_frame_count < 120:
 		return
 	_fail("Phase %d timed out on scene %s." % [_phase, _stringify_current_scene()])
+
+
+func _find_unresolved_node_id_by_family(map_runtime_state: RefCounted, node_family: String) -> int:
+	for node_snapshot in map_runtime_state.build_node_snapshots():
+		if String(node_snapshot.get("node_family", "")) != node_family:
+			continue
+		if String(node_snapshot.get("node_state", "")) != "resolved":
+			return int(node_snapshot.get("node_id", -1))
+	return -1
+
+
+func _find_any_node_id_by_family(map_runtime_state: RefCounted, node_family: String) -> int:
+	for node_snapshot in map_runtime_state.build_node_snapshots():
+		if String(node_snapshot.get("node_family", "")) == node_family:
+			return int(node_snapshot.get("node_id", -1))
+	return -1
+
+
+func _prepare_current_node_adjacent_to_target(map_runtime_state: RefCounted, target_node_id: int) -> void:
+	var path: Array[int] = _build_path_between_nodes(map_runtime_state, map_runtime_state.current_node_id, target_node_id)
+	_require(path.size() >= 2, "Expected a valid runtime path to target node %d." % target_node_id)
+	for path_index in range(1, path.size() - 1):
+		var node_id: int = path[path_index]
+		map_runtime_state.move_to_node(node_id)
+		map_runtime_state.mark_node_resolved(node_id)
+
+
+func _build_path_between_nodes(map_runtime_state: RefCounted, start_node_id: int, target_node_id: int) -> Array[int]:
+	var queued_paths: Array = [[start_node_id]]
+	var visited: Dictionary = {}
+	while not queued_paths.is_empty():
+		var path: Array = queued_paths.pop_front()
+		var current_node_id: int = int(path[path.size() - 1])
+		if current_node_id == target_node_id:
+			var typed_path: Array[int] = []
+			for node_id_variant in path:
+				typed_path.append(int(node_id_variant))
+			return typed_path
+		if visited.has(current_node_id):
+			continue
+		visited[current_node_id] = true
+		for adjacent_node_id in map_runtime_state.get_adjacent_node_ids(current_node_id):
+			if visited.has(adjacent_node_id):
+				continue
+			var next_path: Array = path.duplicate()
+			next_path.append(adjacent_node_id)
+			queued_paths.append(next_path)
+	return []
+
+
+func _resolve_node_family_for_route_label(label_fragment: String) -> String:
+	match label_fragment:
+		"Reward":
+			return "reward"
+		_:
+			return ""
 
 
 func _stringify_current_scene() -> String:

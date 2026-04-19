@@ -10,6 +10,7 @@ var _open_scale: float = 0.985
 var _closed_scale: float = 0.965
 var _tween_transition: Tween.TransitionType = Tween.TRANS_EXPO
 var _before_show_handler: Callable = Callable()
+var _state_changed_handler: Callable = Callable()
 var _overlay_states: Dictionary = {}
 
 
@@ -22,6 +23,7 @@ func configure(owner: Control, config: Dictionary = {}) -> void:
 	_closed_scale = float(config.get("closed_scale", _closed_scale))
 	_tween_transition = int(config.get("tween_transition", _tween_transition))
 	_before_show_handler = config.get("before_show_handler", Callable())
+	_state_changed_handler = config.get("state_changed_handler", Callable())
 
 
 func open_overlay(key: String, overlay_scene: PackedScene, overlay_name: String, error_context: String) -> void:
@@ -43,6 +45,7 @@ func open_overlay(key: String, overlay_scene: PackedScene, overlay_name: String,
 	var tween: Tween = _show_overlay_with_tween(overlay)
 	state["tween"] = tween
 	_overlay_states[key] = state
+	_notify_state_changed()
 	if tween != null:
 		tween.finished.connect(Callable(self, "_on_open_tween_finished").bind(key, tween.get_instance_id()), CONNECT_ONE_SHOT)
 
@@ -61,6 +64,7 @@ func close_overlay(key: String, immediate: bool = false) -> void:
 		state["overlay"] = _remove_overlay(overlay)
 		state["tween"] = null
 		_overlay_states[key] = state
+		_notify_state_changed()
 		return
 
 	var tween: Tween = _hide_overlay_with_tween(overlay)
@@ -199,6 +203,7 @@ func _remove_overlay_for_key(key: String) -> void:
 	var state: Dictionary = _get_state(key)
 	state["overlay"] = _remove_overlay(state.get("overlay") as Control)
 	_overlay_states[key] = state
+	_notify_state_changed()
 
 
 func _on_open_tween_finished(key: String, tween_instance_id: int) -> void:
@@ -219,3 +224,8 @@ func _clear_finished_tween_by_id(key: String, tween_instance_id: int) -> bool:
 		_overlay_states[key] = state
 		return true
 	return false
+
+
+func _notify_state_changed() -> void:
+	if _state_changed_handler.is_valid():
+		_state_changed_handler.call()

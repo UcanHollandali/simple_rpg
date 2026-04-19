@@ -8,6 +8,7 @@ const ROUTE_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_node_marker.svg"
 const TRAIL_EVENT_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_map_trail_event.svg"
 const EVENT_ICON_TEXTURE_PATH := TRAIL_EVENT_ICON_TEXTURE_PATH
 const ATTACK_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_attack.svg"
+const DEFEND_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_defend.svg"
 const REWARD_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_reward.svg"
 const REST_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_map_rest.svg"
 const MERCHANT_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_map_merchant.svg"
@@ -76,6 +77,134 @@ static func build_enemy_bust_texture_path(definition_id: String) -> String:
 		return fallback_path
 
 	return ""
+
+
+static func build_status_icon_texture_path(item_key: String, semantic: String = "") -> String:
+	var normalized_key: String = String(item_key).strip_edges().to_lower()
+	var normalized_semantic: String = String(semantic).strip_edges().to_lower()
+	match normalized_key:
+		"hp":
+			return HP_ICON_TEXTURE_PATH
+		"hunger":
+			return HUNGER_ICON_TEXTURE_PATH
+		"gold":
+			return GOLD_ICON_TEXTURE_PATH
+		"durability":
+			return DURABILITY_ICON_TEXTURE_PATH
+		"guard":
+			return DEFEND_ICON_TEXTURE_PATH
+		"xp":
+			return REWARD_ICON_TEXTURE_PATH
+		"weapon":
+			return WEAPON_ICON_TEXTURE_PATH
+		"left_hand":
+			return SHIELD_ICON_TEXTURE_PATH
+		"armor":
+			return ARMOR_ICON_TEXTURE_PATH
+		"belt":
+			return BELT_ICON_TEXTURE_PATH
+		"quest_item":
+			return QUEST_ITEM_ICON_TEXTURE_PATH
+	match normalized_semantic:
+		"health", "danger":
+			return HP_ICON_TEXTURE_PATH
+		"hunger", "sustain":
+			return HUNGER_ICON_TEXTURE_PATH
+		"gold", "wealth", "reward":
+			return GOLD_ICON_TEXTURE_PATH if normalized_key == "gold" else REWARD_ICON_TEXTURE_PATH
+		"durability", "equipment":
+			return DURABILITY_ICON_TEXTURE_PATH
+		"weapon":
+			return WEAPON_ICON_TEXTURE_PATH
+		"shield", "offhand", "guard":
+			return SHIELD_ICON_TEXTURE_PATH
+		"armor":
+			return ARMOR_ICON_TEXTURE_PATH
+		"belt":
+			return BELT_ICON_TEXTURE_PATH
+		"progress", "perk":
+			return REWARD_ICON_TEXTURE_PATH
+		_:
+			return ""
+
+
+static func build_inventory_family_icon_texture_path(inventory_family: String) -> String:
+	match String(inventory_family).strip_edges().to_lower():
+		"weapon":
+			return WEAPON_ICON_TEXTURE_PATH
+		"shield":
+			return SHIELD_ICON_TEXTURE_PATH
+		"armor":
+			return ARMOR_ICON_TEXTURE_PATH
+		"belt":
+			return BELT_ICON_TEXTURE_PATH
+		"consumable":
+			return CONSUMABLE_ICON_TEXTURE_PATH
+		"passive":
+			return PASSIVE_ICON_TEXTURE_PATH
+		"quest_item":
+			return QUEST_ITEM_ICON_TEXTURE_PATH
+		"shield_attachment":
+			return SHIELD_ATTACHMENT_ICON_TEXTURE_PATH
+		_:
+			return ""
+
+
+static func build_effect_icon_texture_path(
+	effect_type: String,
+	inventory_family: String = "",
+	support_type: String = "",
+	perk_family_label: String = ""
+) -> String:
+	var normalized_effect_type: String = String(effect_type).strip_edges().to_lower()
+	match normalized_effect_type:
+		"heal", "rest":
+			return HP_ICON_TEXTURE_PATH if String(support_type).strip_edges().to_lower() != "rest" else REST_ICON_TEXTURE_PATH
+		"grant_gold":
+			return GOLD_ICON_TEXTURE_PATH
+		"grant_xp":
+			return REWARD_ICON_TEXTURE_PATH
+		"modify_hunger":
+			return HUNGER_ICON_TEXTURE_PATH
+		"repair_weapon", "open_blacksmith_weapon_targets", "upgrade_weapon":
+			return WEAPON_ICON_TEXTURE_PATH
+		"open_blacksmith_armor_targets", "upgrade_armor":
+			return ARMOR_ICON_TEXTURE_PATH
+		"damage_player":
+			return ATTACK_ICON_TEXTURE_PATH
+		"accept_side_mission", "side_mission_info":
+			return HAMLET_ICON_TEXTURE_PATH
+		"buy_consumable", "buy_weapon", "buy_shield", "buy_armor", "buy_belt", "buy_passive_item", "grant_item", "claim_side_mission_reward":
+			return build_inventory_family_icon_texture_path(inventory_family)
+		_:
+			return build_perk_family_icon_texture_path(perk_family_label)
+
+
+static func build_support_type_icon_texture_path(support_type: String) -> String:
+	match String(support_type).strip_edges().to_lower():
+		"rest":
+			return REST_ICON_TEXTURE_PATH
+		"merchant":
+			return MERCHANT_ICON_TEXTURE_PATH
+		"blacksmith":
+			return BLACKSMITH_ICON_TEXTURE_PATH
+		"hamlet":
+			return HAMLET_ICON_TEXTURE_PATH
+		_:
+			return ROUTE_ICON_TEXTURE_PATH
+
+
+static func build_perk_family_icon_texture_path(perk_family_label: String) -> String:
+	var normalized_family: String = String(perk_family_label).strip_edges().to_lower()
+	if normalized_family.contains("defen") or normalized_family.contains("guard") or normalized_family.contains("armor"):
+		return SHIELD_ICON_TEXTURE_PATH
+	if normalized_family.contains("offen") or normalized_family.contains("attack") or normalized_family.contains("strike"):
+		return ATTACK_ICON_TEXTURE_PATH
+	if normalized_family.contains("sustain") or normalized_family.contains("recover") or normalized_family.contains("surviv"):
+		return CONSUMABLE_ICON_TEXTURE_PATH
+	if normalized_family.contains("utility") or normalized_family.contains("support") or normalized_family.contains("pack"):
+		return PASSIVE_ICON_TEXTURE_PATH
+	return REWARD_ICON_TEXTURE_PATH
 
 
 static func build_enemy_token_texture_path(icon_key: String, definition_id: String = "") -> String:

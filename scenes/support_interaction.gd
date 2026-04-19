@@ -6,13 +6,15 @@ extends Control
 const BUTTON_NODE_NAMES: PackedStringArray = ["ActionAButton", "ActionBButton", "ActionCButton"]
 const FlowStateScript = preload("res://Game/Application/flow_state.gd")
 const SceneAudioCleanupScript = preload("res://Game/UI/scene_audio_cleanup.gd")
-const RunStatusStripScript = preload("res://Game/UI/run_status_strip.gd")
 const RunMenuSceneHelperScript = preload("res://Game/UI/run_menu_scene_helper.gd")
 const SceneAudioPlayersScript = preload("res://Game/UI/scene_audio_players.gd")
 const SceneLayoutHelperScript = preload("res://Game/UI/scene_layout_helper.gd")
 const SupportInteractionPresenterScript = preload("res://Game/UI/support_interaction_presenter.gd")
+const StackedButtonContentScript = preload("res://Game/UI/stacked_button_content.gd")
+const InventoryTooltipControllerScript = preload("res://Game/UI/inventory_tooltip_controller.gd")
 const InventoryOverflowPromptScript = preload("res://Game/UI/inventory_overflow_prompt.gd")
 const TempScreenThemeScript = preload("res://Game/UI/temp_screen_theme.gd")
+const CUSTOM_TOOLTIP_META_KEY := "custom_tooltip_text"
 const HEADER_CARD_PATH := "Margin/VBox/HeaderRow/HeaderCard"
 const HEADER_STACK_PATH := "%s/HeaderStack" % HEADER_CARD_PATH
 const ONE_SHOT_UI_TRANSITION_LEAD_IN_SECONDS := 0.06
@@ -34,15 +36,16 @@ const PORTRAIT_LAYOUT_CONFIG := {
 		{"max_height": 1540.0, "top_margin": 68, "bottom_margin": 64},
 	],
 	"bands": {
-		"large": {"min_width": 760.0, "min_height": 1640.0, "title_font_size": 46, "context_font_size": 21, "summary_font_size": 21, "status_font_size": 19, "button_font_size": 22, "leave_font_size": 20, "button_height": 84.0, "leave_button_height": 60.0, "run_status_width": 300.0, "button_icon_max_width": 30},
-		"medium": {"min_width": 620.0, "min_height": 1460.0, "title_font_size": 40, "context_font_size": 19, "summary_font_size": 19, "status_font_size": 17, "button_font_size": 20, "leave_font_size": 18, "button_height": 76.0, "leave_button_height": 54.0, "run_status_width": 260.0, "button_icon_max_width": 26},
-		"compact": {"title_font_size": 34, "context_font_size": 17, "summary_font_size": 17, "status_font_size": 15, "button_font_size": 18, "leave_font_size": 16, "button_height": 66.0, "leave_button_height": 48.0, "run_status_width": 224.0, "button_icon_max_width": 22},
+		"large": {"min_width": 760.0, "min_height": 1640.0, "title_font_size": 44, "context_font_size": 20, "summary_font_size": 20, "status_font_size": 16, "button_font_size": 20, "leave_font_size": 18, "button_height": 84.0, "leave_button_height": 60.0, "run_status_width": 300.0, "button_icon_max_width": 30},
+		"medium": {"min_width": 620.0, "min_height": 1460.0, "title_font_size": 38, "context_font_size": 18, "summary_font_size": 18, "status_font_size": 15, "button_font_size": 18, "leave_font_size": 17, "button_height": 76.0, "leave_button_height": 54.0, "run_status_width": 260.0, "button_icon_max_width": 26},
+		"compact": {"title_font_size": 32, "context_font_size": 16, "summary_font_size": 16, "status_font_size": 14, "button_font_size": 17, "leave_font_size": 16, "button_height": 66.0, "leave_button_height": 48.0, "run_status_width": 224.0, "button_icon_max_width": 22},
 	},
 }
 
 var _bootstrap
 var _presenter: SupportInteractionPresenter
 var _support_state: SupportInteractionState
+var _action_tooltip_controller: InventoryTooltipController
 var _safe_menu: SafeMenuOverlay
 var _overflow_prompt: InventoryOverflowPrompt
 var _pending_overflow_action_id: String = ""
@@ -67,8 +70,11 @@ func _ready() -> void:
 	if _bootstrap != null:
 		_support_state = _bootstrap.get_support_interaction_state()
 
+	_setup_action_tooltip()
 	_connect_buttons()
+	_ensure_action_button_content()
 	_apply_temp_theme()
+	_hide_run_status_card()
 	_setup_safe_menu()
 	_setup_overflow_prompt()
 	SceneLayoutHelperScript.bind_viewport_size_changed(self, Callable(self, "_apply_portrait_safe_layout"))
@@ -79,6 +85,9 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	if _action_tooltip_controller != null:
+		_action_tooltip_controller.release()
+		_action_tooltip_controller = null
 	SceneLayoutHelperScript.unbind_viewport_size_changed(self, Callable(self, "_apply_portrait_safe_layout"))
 	SceneAudioCleanupScript.release_players(self, SceneAudioPlayersScript.node_names_from_config(AUDIO_PLAYER_CONFIG))
 
@@ -96,6 +105,8 @@ func _on_action_pressed(index: int) -> void:
 	if offer_id.is_empty():
 		return
 
+	if _action_tooltip_controller != null:
+		_action_tooltip_controller.hide(true)
 	_action_in_flight = true
 	SceneAudioPlayersScript.play(self, "UiConfirmSfxPlayer")
 	var result: Dictionary = _bootstrap.choose_support_action(offer_id)
@@ -109,6 +120,9 @@ func _on_action_pressed(index: int) -> void:
 		return
 	_support_state = _bootstrap.get_support_interaction_state()
 	_action_in_flight = false
+	if _should_defer_to_scene_close(result):
+		_set_action_buttons_interactable(false)
+		return
 	_render_support_state()
 
 
@@ -116,6 +130,8 @@ func _on_leave_pressed() -> void:
 	if _bootstrap == null:
 		return
 	if _support_state != null and bool(_support_state.call("is_blacksmith_target_selection_active")):
+		if _action_tooltip_controller != null:
+			_action_tooltip_controller.hide(true)
 		SceneAudioPlayersScript.play(self, "UiConfirmSfxPlayer")
 		_bootstrap.choose_support_action("return_to_blacksmith_services")
 		_support_state = _bootstrap.get_support_interaction_state()
@@ -123,6 +139,9 @@ func _on_leave_pressed() -> void:
 		return
 	SceneAudioPlayersScript.play(self, "PanelCloseSfxPlayer")
 	await SceneAudioPlayersScript.wait_for_lead_in(self, "PanelCloseSfxPlayer", ONE_SHOT_UI_TRANSITION_LEAD_IN_SECONDS)
+	_set_action_buttons_interactable(false)
+	if _action_tooltip_controller != null:
+		_action_tooltip_controller.hide(true)
 	_bootstrap.choose_support_action("leave")
 
 
@@ -134,12 +153,29 @@ func _connect_buttons() -> void:
 		var handler: Callable = Callable(self, "_on_action_pressed").bind(index)
 		if not button.is_connected("pressed", handler):
 			button.connect("pressed", handler)
+		var mouse_entered_handler: Callable = Callable(self, "_on_action_button_mouse_entered").bind(button)
+		if not button.is_connected("mouse_entered", mouse_entered_handler):
+			button.connect("mouse_entered", mouse_entered_handler)
+		var mouse_exited_handler: Callable = Callable(self, "_on_action_button_mouse_exited").bind(button)
+		if not button.is_connected("mouse_exited", mouse_exited_handler):
+			button.connect("mouse_exited", mouse_exited_handler)
 
 	if _leave_button != null and not _leave_button.is_connected("pressed", Callable(self, "_on_leave_pressed")):
 		_leave_button.connect("pressed", Callable(self, "_on_leave_pressed"))
 
 
+func _ensure_action_button_content() -> void:
+	for button_name in BUTTON_NODE_NAMES:
+		var button: Button = _scene_node("Margin/VBox/ActionsRow/%s" % button_name) as Button
+		if button == null:
+			continue
+		StackedButtonContentScript.ensure(button)
+		button.icon = null
+
+
 func _render_support_state() -> void:
+	if _action_tooltip_controller != null:
+		_action_tooltip_controller.hide(true)
 	if _header_chip_label != null:
 		_header_chip_label.text = _presenter.build_chip_text(_support_state)
 	if _header_title_label != null:
@@ -148,11 +184,10 @@ func _render_support_state() -> void:
 		_header_context_label.text = _presenter.build_context_text(_support_state)
 	if _header_summary_label != null:
 		_header_summary_label.text = _presenter.build_summary_text(_support_state)
+		_header_summary_label.visible = not _header_summary_label.text.is_empty()
 	if _header_hint_label != null:
 		_header_hint_label.text = _presenter.build_hint_text(_support_state)
-
-	var run_state: RunState = _get_run_state()
-	_render_run_status_card(run_state)
+		_header_hint_label.visible = not _header_hint_label.text.is_empty()
 
 	var button_models: Array[Dictionary] = _presenter.build_action_view_models(_support_state, BUTTON_NODE_NAMES.size())
 	for index in range(BUTTON_NODE_NAMES.size()):
@@ -161,9 +196,18 @@ func _render_support_state() -> void:
 			continue
 
 		var model: Dictionary = button_models[index]
-		button.text = String(model.get("text", ""))
+		button.text = ""
+		button.tooltip_text = ""
+		button.set_meta(CUSTOM_TOOLTIP_META_KEY, String(model.get("tooltip_text", "")))
 		button.visible = bool(model.get("visible", false))
 		button.disabled = bool(model.get("disabled", true))
+		button.icon = null
+		StackedButtonContentScript.apply(
+			button,
+			String(model.get("title_text", "")),
+			String(model.get("detail_text", "")),
+			SceneLayoutHelperScript.load_texture_or_null(String(model.get("icon_texture_path", "")))
+		)
 
 	if _leave_button != null:
 		_leave_button.text = _presenter.build_leave_button_text(_support_state)
@@ -211,10 +255,21 @@ func _set_support_status_text(text: String) -> void:
 		_safe_menu.set_status_text(text)
 
 
-func _get_run_state() -> RunState:
-	if _bootstrap == null:
-		return null
-	return _bootstrap.get_run_state()
+func _setup_action_tooltip() -> void:
+	_action_tooltip_controller = InventoryTooltipControllerScript.new()
+	_action_tooltip_controller.configure(self)
+
+
+func _on_action_button_mouse_entered(button: Button) -> void:
+	if _action_tooltip_controller == null or button == null:
+		return
+	_action_tooltip_controller.on_inventory_card_mouse_entered(button, TempScreenThemeScript.TEAL_ACCENT_COLOR)
+
+
+func _on_action_button_mouse_exited(button: Button) -> void:
+	if _action_tooltip_controller == null or button == null:
+		return
+	_action_tooltip_controller.on_inventory_card_mouse_exited(button)
 
 
 func _apply_temp_theme() -> void:
@@ -273,6 +328,8 @@ func _apply_temp_theme() -> void:
 	for button_name in BUTTON_NODE_NAMES:
 		var action_button: Button = _scene_node("Margin/VBox/ActionsRow/%s" % button_name) as Button
 		TempScreenThemeScript.apply_button(action_button, TempScreenThemeScript.TEAL_ACCENT_COLOR)
+		if action_button != null:
+			action_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 
 	TempScreenThemeScript.apply_button(_leave_button, TempScreenThemeScript.PANEL_BORDER_COLOR, true)
 	SceneLayoutHelperScript.apply_control_overrides(self, {}, [
@@ -281,24 +338,30 @@ func _apply_temp_theme() -> void:
 		{"path": "%s/SummaryLabel" % HEADER_STACK_PATH, "font_size": 16},
 		{"path": "%s/HintLabel" % HEADER_STACK_PATH, "font_size": 15},
 		{"path": "Margin/VBox/HeaderRow/RunStatusCard/StatusLabel", "font_size": 14},
-		{"paths": [
-			"Margin/VBox/ActionsRow/ActionAButton",
-			"Margin/VBox/ActionsRow/ActionBButton",
-			"Margin/VBox/ActionsRow/ActionCButton",
-		], "font_size": 19, "alignment": HORIZONTAL_ALIGNMENT_LEFT, "custom_minimum_size": {"x": 0.0, "y": 78.0}},
 		{"path": "Margin/VBox/FooterRow/LeaveButton", "font_size": 16},
 	])
+	for button_name in BUTTON_NODE_NAMES:
+		var button_path: String = "Margin/VBox/ActionsRow/%s" % button_name
+		SceneLayoutHelperScript.apply_control_overrides(self, {}, [
+			{"path": button_path, "custom_minimum_size": {"x": 0.0, "y": 78.0}},
+			{"path": StackedButtonContentScript.title_path(button_path), "font_size": 19},
+			{"path": StackedButtonContentScript.detail_path(button_path), "font_size": 14},
+			{"path": StackedButtonContentScript.icon_path(button_path), "custom_minimum_size": {"x": 24.0, "y": 24.0}},
+		])
+		TempScreenThemeScript.apply_label(_scene_node(StackedButtonContentScript.title_path(button_path)) as Label, "title")
+		TempScreenThemeScript.apply_label(_scene_node(StackedButtonContentScript.detail_path(button_path)) as Label, "muted")
 	if _leave_button != null:
 		_leave_button.text = "Back to the Road"
 
 
 func _setup_safe_menu() -> void:
+	var menu_config: Dictionary = RunMenuSceneHelperScript.shared_menu_config()
 	_safe_menu = RunMenuSceneHelperScript.ensure_safe_menu(
 		self,
 		_safe_menu,
-		"Run Menu",
-		"Save, load, return to menu, mute music, or quit.",
-		"Settings",
+		String(menu_config.get("title_text", RunMenuSceneHelperScript.SHARED_MENU_TITLE)),
+		String(menu_config.get("subtitle_text", RunMenuSceneHelperScript.SHARED_MENU_SUBTITLE)),
+		String(menu_config.get("launcher_text", RunMenuSceneHelperScript.SHARED_LAUNCHER_TEXT)),
 		Callable(self, "_on_save_pressed"),
 		Callable(self, "_on_load_pressed"),
 		Callable(self, "_on_return_to_main_menu_pressed")
@@ -347,6 +410,9 @@ func _on_overflow_discard_requested(slot_id: int) -> void:
 		_clear_overflow_prompt()
 		_support_state = _bootstrap.get_support_interaction_state()
 		_action_in_flight = false
+		if _should_defer_to_scene_close(result):
+			_set_action_buttons_interactable(false)
+			return
 		_render_support_state()
 		return
 	_action_in_flight = false
@@ -382,23 +448,29 @@ func _apply_portrait_safe_layout() -> void:
 		{"path": "%s/HintLabel" % HEADER_STACK_PATH, "font_size": "hint_font_size"},
 		{"path": "Margin/VBox/HeaderRow/RunStatusCard/StatusLabel", "font_size": "status_font_size"},
 		{"path": "Margin/VBox/HeaderRow/RunStatusCard", "custom_minimum_size": {"x": "run_status_width", "y": 0.0}},
-	    {"paths": [
-			"Margin/VBox/ActionsRow/ActionAButton",
-			"Margin/VBox/ActionsRow/ActionBButton",
-			"Margin/VBox/ActionsRow/ActionCButton",
-		], "font_size": "button_font_size", "custom_minimum_size": {"x": 0.0, "y": "button_height"}, "theme_constants": {"icon_max_width": "button_icon_max_width"}},
 		{"path": "Margin/VBox/FooterRow/LeaveButton", "font_size": "leave_font_size", "custom_minimum_size": {"x": 0.0, "y": "leave_button_height"}},
 	])
-	_render_run_status_card(_get_run_state())
+	for button_name in BUTTON_NODE_NAMES:
+		var button_path: String = "Margin/VBox/ActionsRow/%s" % button_name
+		SceneLayoutHelperScript.apply_control_overrides(self, values, [
+			{"path": button_path, "custom_minimum_size": {"x": 0.0, "y": "button_height"}},
+			{"path": StackedButtonContentScript.title_path(button_path), "font_size": "button_font_size"},
+			{"path": StackedButtonContentScript.detail_path(button_path), "font_size": max(13, int(values.get("button_font_size", 18)) - 3)},
+			{"path": StackedButtonContentScript.icon_path(button_path), "custom_minimum_size": {"x": "button_icon_max_width", "y": "button_icon_max_width"}},
+		])
+	if _action_tooltip_controller != null:
+		_action_tooltip_controller.refresh_hovered_tooltip()
 
 
-func _render_run_status_card(run_state: RunState) -> void:
-	RunStatusStripScript.render_into(
-		_run_status_card,
-		_scene_node("Margin/VBox/HeaderRow/RunStatusCard/StatusLabel") as Label,
-		_presenter.build_run_status_model(run_state),
-		TempScreenThemeScript.PANEL_BORDER_COLOR
-	)
+func _hide_run_status_card() -> void:
+	if _run_status_card == null:
+		return
+	_run_status_card.visible = false
+	_run_status_card.custom_minimum_size = Vector2.ZERO
+
+
+func _should_defer_to_scene_close(result: Dictionary) -> bool:
+	return int(result.get("target_state", FlowStateScript.Type.SUPPORT_INTERACTION)) != FlowStateScript.Type.SUPPORT_INTERACTION or _support_state == null
 
 
 func _scene_node(path: String) -> Node:

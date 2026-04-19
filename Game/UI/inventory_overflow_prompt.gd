@@ -165,6 +165,9 @@ func _rebuild_option_buttons(prompt_result: Dictionary) -> void:
 
 
 func _build_context_text(prompt_result: Dictionary) -> String:
+	var custom_context_text: String = String(prompt_result.get("context_text", "")).strip_edges()
+	if not custom_context_text.is_empty():
+		return custom_context_text
 	var display_name: String = String(prompt_result.get("display_name", prompt_result.get("definition_id", "item"))).strip_edges()
 	var inventory_family: String = String(prompt_result.get("inventory_family", "")).strip_edges()
 	var amount: int = max(1, int(prompt_result.get("amount", 1)))

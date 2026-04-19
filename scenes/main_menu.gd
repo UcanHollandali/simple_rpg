@@ -9,7 +9,7 @@ const SceneAudioPlayersScript = preload("res://Game/UI/scene_audio_players.gd")
 const SceneLayoutHelperScript = preload("res://Game/UI/scene_layout_helper.gd")
 const TempScreenThemeScript = preload("res://Game/UI/temp_screen_theme.gd")
 const ONE_SHOT_UI_TRANSITION_LEAD_IN_SECONDS := 0.06
-const PLAYTEST_TAGLINE_TEXT := "Hazırlan. Rotanı Seç. Hayatta Kal. — 3 aşama, ~20 dk koşu"
+const PLAYTEST_TAGLINE_TEXT := "Rota seç. Hayatta kal. Kapıya ulaş."
 const PORTRAIT_SAFE_MAX_WIDTH := 940
 const PORTRAIT_SAFE_MIN_SIDE_MARGIN := 32
 const AUDIO_PLAYER_CONFIG := {
@@ -27,9 +27,9 @@ const PORTRAIT_LAYOUT_CONFIG := {
 		{"max_height": 1480.0, "top_margin": 26, "bottom_margin": 24},
 	],
 	"bands": {
-		"large": {"min_width": 860.0, "min_height": 1680.0, "title_font_size": 78, "subtitle_font_size": 24, "mood_font_size": 22, "body_font_size": 22, "status_font_size": 18, "button_font_size": 24, "button_height": 84.0, "button_icon_max_width": 32},
-		"medium": {"min_width": 720.0, "min_height": 1480.0, "title_font_size": 68, "subtitle_font_size": 22, "mood_font_size": 20, "body_font_size": 20, "status_font_size": 17, "button_font_size": 22, "button_height": 76.0, "button_icon_max_width": 32},
-		"compact": {"title_font_size": 58, "subtitle_font_size": 20, "mood_font_size": 18, "body_font_size": 18, "status_font_size": 16, "button_font_size": 20, "button_height": 68.0, "button_icon_max_width": 28},
+		"large": {"min_width": 860.0, "min_height": 1680.0, "title_font_size": 74, "subtitle_font_size": 22, "mood_font_size": 20, "body_font_size": 20, "status_font_size": 16, "button_font_size": 20, "button_height": 84.0, "button_icon_max_width": 32},
+		"medium": {"min_width": 720.0, "min_height": 1480.0, "title_font_size": 64, "subtitle_font_size": 20, "mood_font_size": 18, "body_font_size": 18, "status_font_size": 15, "button_font_size": 18, "button_height": 76.0, "button_icon_max_width": 32},
+		"compact": {"title_font_size": 54, "subtitle_font_size": 18, "mood_font_size": 16, "body_font_size": 16, "status_font_size": 14, "button_font_size": 17, "button_height": 68.0, "button_icon_max_width": 28},
 	},
 }
 

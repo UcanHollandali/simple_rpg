@@ -40,9 +40,9 @@ const EMERGENCY_ROUTE_SLOT_FORWARD := Vector2(0.50, 0.24)
 const ROUTE_MARKER_SIZE := Vector2(144, 144)
 const ROUTE_HITBOX_SIZE := Vector2(160, 160)
 const CURRENT_MARKER_SIZE := Vector2(36, 36)
-const BOARD_FOCUS_ANCHOR_FACTOR := Vector2(0.5, 0.55)
+const BOARD_FOCUS_ANCHOR_FACTOR := Vector2(0.5, 0.65)
 const BOARD_MAX_OFFSET_FACTOR := Vector2(0.05, 0.06)
-const BOARD_FOCUS_DEADZONE_FACTOR := Vector2(0.18, 0.20)
+const BOARD_FOCUS_DEADZONE_FACTOR := Vector2(0.18, 0.15)
 const BOARD_FOCUS_DAMPING := 0.42
 const BOARD_FOCUS_CONTEXT_BLEND_MIN := 0.08
 const BOARD_FOCUS_CONTEXT_BLEND_MAX := 0.24
@@ -74,8 +74,6 @@ var _board_composition_cache: Dictionary = {}
 var _current_run_state
 var _current_marker: TextureRect
 var _board_canvas: Control
-var _road_base_lines: Array[Line2D] = []
-var _road_highlight_lines: Array[Line2D] = []
 var _walker_root: Control
 var _walker_shadow: PanelContainer
 var _walker_sprite: TextureRect
@@ -95,6 +93,11 @@ var _route_move_sample_end_progress: float = 1.0
 var _roadside_visual_state: Dictionary = {}
 var _roadside_transition_in_flight: bool = false
 var _route_selection_in_flight: bool = false
+var _board_graph_signature: String = ""
+var _board_visibility_signature: String = ""
+var _force_next_layout_recompose: bool = false
+var _composed_board_size: Vector2 = Vector2.ZERO
+var _allow_large_resize_recompose_once: bool = true
 
 
 func configure(owner: Control, scene_node_getter: Callable, board_composer: RefCounted) -> void:
@@ -146,8 +149,6 @@ func ensure_runtime_board_nodes() -> void:
 		route_grid,
 		ROUTE_MARKER_NODE_NAMES,
 		_current_marker,
-		_road_base_lines,
-		_road_highlight_lines,
 		_walker_root,
 		_walker_shadow,
 		_walker_sprite,
@@ -169,13 +170,61 @@ func set_route_models(route_models: Array[Dictionary]) -> void:
 
 func prepare_for_refresh(run_state) -> void:
 	_current_run_state = run_state
-	_board_composition_cache = _build_board_composition(run_state)
+	var route_grid: Control = get_route_grid()
+	var graph_signature: String = _build_board_graph_signature(run_state)
+	var visibility_signature: String = _build_board_visibility_signature(run_state)
+	var stable_layout: Dictionary = {}
+	if not _force_next_layout_recompose and graph_signature == _board_graph_signature and not _board_composition_cache.is_empty():
+		stable_layout = {
+			"world_positions": (_board_composition_cache.get("world_positions", {}) as Dictionary).duplicate(true),
+			"forest_shapes": (_board_composition_cache.get("forest_shapes", []) as Array).duplicate(true),
+		}
+		if visibility_signature == _board_visibility_signature:
+			stable_layout["visible_nodes"] = (_board_composition_cache.get("visible_nodes", []) as Array).duplicate(true)
+			stable_layout["visible_edges"] = (_board_composition_cache.get("visible_edges", []) as Array).duplicate(true)
+	_board_composition_cache = _build_board_composition(run_state, stable_layout)
+	_board_graph_signature = graph_signature
+	_board_visibility_signature = visibility_signature
+	_force_next_layout_recompose = false
+	_composed_board_size = route_grid.size if route_grid != null else Vector2.ZERO
 	if not _route_selection_in_flight:
 		_route_layout_offset = _desired_focus_offset_for_world_position(
 			_get_node_world_position(int(run_state.map_runtime_state.current_node_id))
 		)
 	if has_pending_roadside_visual_state() and not _roadside_transition_in_flight:
 		_route_layout_offset = Vector2(_roadside_visual_state.get("offset", _route_layout_offset))
+
+
+func refresh_layout_for_resize(run_state) -> void:
+	_current_run_state = run_state
+	if _route_selection_in_flight or run_state == null or run_state.map_runtime_state == null:
+		return
+	var route_grid: Control = get_route_grid()
+	if route_grid == null:
+		return
+	if _board_composition_cache.is_empty():
+		_force_next_layout_recompose = true
+		prepare_for_refresh(run_state)
+		return
+	var size_delta: Vector2 = route_grid.size - _composed_board_size
+	if _allow_large_resize_recompose_once and (size_delta.x > 320.0 or size_delta.y > 320.0):
+		_force_next_layout_recompose = true
+		_allow_large_resize_recompose_once = false
+		prepare_for_refresh(run_state)
+		return
+	_allow_large_resize_recompose_once = false
+	_composed_board_size = route_grid.size
+	var current_node_id: int = int(run_state.map_runtime_state.current_node_id)
+	var current_world_position: Vector2 = _get_node_world_position(current_node_id)
+	if current_world_position != Vector2.ZERO:
+		_route_layout_offset = _desired_focus_offset_for_world_position(current_world_position)
+	if has_pending_roadside_visual_state() and not _roadside_transition_in_flight:
+		_route_layout_offset = Vector2(_roadside_visual_state.get("offset", _route_layout_offset))
+
+
+func request_next_refresh_full_recompose() -> void:
+	_force_next_layout_recompose = true
+	_allow_large_resize_recompose_once = true
 
 
 func render(run_state) -> void:
@@ -190,7 +239,7 @@ func render(run_state) -> void:
 		route_button.disabled = bool(model.get("disabled", true))
 		var route_label: String = String(model.get("text", ""))
 		route_button.text = route_label
-		route_button.tooltip_text = route_label
+		route_button.tooltip_text = ""
 		route_button.set_meta("target_node_id", int(model.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID)))
 		_update_route_marker_view(index, model)
 	_layout_route_grid()
@@ -468,10 +517,6 @@ func _apply_marker_visual_state(marker_rect: TextureRect, icon_texture_path: Str
 func _refresh_route_roads() -> void:
 	if _current_marker == null or _route_models_cache.is_empty():
 		return
-	for base_line in _road_base_lines:
-		base_line.visible = false
-	for highlight_line in _road_highlight_lines:
-		highlight_line.visible = false
 	if _board_canvas != null:
 		_board_canvas.call("set_composition", _board_composition_cache)
 		_board_canvas.call("set_board_offset", _route_layout_offset)
@@ -584,7 +629,46 @@ func _build_emergency_route_slot_factors(visible_count: int) -> Array[Vector2]:
 			return [EMERGENCY_ROUTE_SLOT_FORWARD, EMERGENCY_ROUTE_SLOT_TOP_LEFT, EMERGENCY_ROUTE_SLOT_TOP_RIGHT, EMERGENCY_ROUTE_SLOT_BOTTOM_LEFT, EMERGENCY_ROUTE_SLOT_BOTTOM_RIGHT, EMERGENCY_ROUTE_SLOT_LOWER_MID]
 
 
-func _build_board_composition(run_state) -> Dictionary:
+func _build_board_graph_signature(run_state) -> String:
+	if run_state == null or run_state.map_runtime_state == null:
+		return ""
+	var map_runtime_state = run_state.map_runtime_state
+	var graph_snapshot: Array[Dictionary] = map_runtime_state.build_realized_graph_snapshots()
+	var normalized_nodes: Array[Dictionary] = []
+	for node_variant in graph_snapshot:
+		if typeof(node_variant) != TYPE_DICTIONARY:
+			continue
+		var node_entry: Dictionary = node_variant
+		var adjacent_node_ids: Array[int] = []
+		for adjacent_variant in node_entry.get("adjacent_node_ids", []):
+			adjacent_node_ids.append(int(adjacent_variant))
+		adjacent_node_ids.sort()
+		normalized_nodes.append({
+			"node_id": int(node_entry.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID)),
+			"node_family": String(node_entry.get("node_family", "")),
+			"adjacent_node_ids": adjacent_node_ids,
+		})
+	normalized_nodes.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
+		return int(left.get("node_id", -1)) < int(right.get("node_id", -1))
+	)
+	return JSON.stringify({
+		"run_seed": int(run_state.run_seed),
+		"stage_index": int(run_state.stage_index),
+		"template_id": String(map_runtime_state.get_active_template_id()),
+		"nodes": normalized_nodes,
+	})
+
+
+func _build_board_visibility_signature(run_state) -> String:
+	if run_state == null or run_state.map_runtime_state == null:
+		return ""
+	return JSON.stringify({
+		"current_node_id": int(run_state.map_runtime_state.current_node_id),
+		"nodes": run_state.map_runtime_state.build_node_snapshots(),
+	})
+
+
+func _build_board_composition(run_state, stable_layout: Dictionary = {}) -> Dictionary:
 	var route_grid: Control = get_route_grid()
 	if route_grid == null or _board_composer == null:
 		return {}
@@ -593,7 +677,8 @@ func _build_board_composition(run_state) -> Dictionary:
 		run_state,
 		route_grid.size,
 		BOARD_FOCUS_ANCHOR_FACTOR,
-		Vector2(route_grid.size.x * BOARD_MAX_OFFSET_FACTOR.x, route_grid.size.y * BOARD_MAX_OFFSET_FACTOR.y)
+		Vector2(route_grid.size.x * BOARD_MAX_OFFSET_FACTOR.x, route_grid.size.y * BOARD_MAX_OFFSET_FACTOR.y),
+		stable_layout
 	)
 
 
@@ -693,7 +778,7 @@ func _sync_walker_to_pending_roadside_visual() -> void:
 
 
 func _position_for_walker_center(center: Vector2) -> Vector2:
-	return center - Vector2(WALKER_ROOT_SIZE.x * 0.5, WALKER_ROOT_SIZE.y * 0.88)
+	return center - Vector2(WALKER_ROOT_SIZE.x * 0.5, WALKER_ROOT_SIZE.y * 0.82)
 
 
 func _set_walker_facing(facing_right: bool) -> void:

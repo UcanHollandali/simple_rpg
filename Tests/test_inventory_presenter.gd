@@ -3,6 +3,7 @@ extends SceneTree
 class_name TestInventoryPresenter
 
 const InventoryPresenterScript = preload("res://Game/UI/inventory_presenter.gd")
+const ItemDefinitionTooltipBuilderScript = preload("res://Game/UI/item_definition_tooltip_builder.gd")
 const InventoryActionsScript = preload("res://Game/Application/inventory_actions.gd")
 
 
@@ -13,6 +14,7 @@ func _init() -> void:
 	test_inventory_interaction_hints_explain_backpack_and_equipment_actions()
 	test_combat_inventory_cards_follow_combat_local_stacks()
 	test_combat_inventory_cards_follow_combat_local_equipment_projection()
+	test_definition_tooltips_surface_offer_item_details()
 	print("test_inventory_presenter: all assertions passed")
 	quit()
 
@@ -45,6 +47,10 @@ func test_run_inventory_cards_split_equipment_and_backpack() -> void:
 	assert(String(equipment_cards[1].get("title_text", "")) == "Open Slot", "Expected empty left hand slot placeholder.")
 	assert(String(equipment_cards[2].get("title_text", "")) == "Watcher Mail +1", "Expected armor slot to resolve equipped armor.")
 	assert(String(equipment_cards[3].get("detail_text", "")).contains("+2 INV"), "Expected belt slot to expose backpack utility.")
+	assert(
+		String(presenter.call("build_inventory_title_text", run_state.inventory_state)) == "Backpack 3/7",
+		"Expected backpack title text to keep the original used/total format when a belt adds capacity."
+	)
 
 	assert(backpack_cards.size() == 7, "Expected backpack cards to expand to 7 slots while a belt adds 2 capacity.")
 	assert(String(backpack_cards[0].get("slot_label", "")) == "PACK 1", "Expected backpack cards to use PACK slot labels.")
@@ -148,15 +154,16 @@ func test_inventory_cards_use_family_specific_icon_paths() -> void:
 func test_inventory_interaction_hints_explain_backpack_and_equipment_actions() -> void:
 	var presenter: RefCounted = InventoryPresenterScript.new()
 	assert(
-		String(presenter.call("build_equipment_hint_text", false)).contains("outside the backpack"),
-		"Expected run equipment hint to explain slot separation."
+		String(presenter.call("build_equipment_hint_text", false)).contains("equip or unequip")
+		and String(presenter.call("build_equipment_hint_text", false)).contains("outside the backpack"),
+		"Expected run equipment hint to keep the original equip/unequip and backpack-separation wording."
 	)
 	assert(
-		String(presenter.call("build_run_inventory_hint_text")).contains("passive items"),
+		String(presenter.call("build_run_inventory_hint_text")).contains("passives"),
 		"Expected run backpack hint to explain carried item families."
 	)
 	assert(
-		String(presenter.call("build_combat_inventory_hint_text")).contains("locked during combat"),
+		String(presenter.call("build_combat_inventory_hint_text")).contains("Only consumables"),
 		"Expected combat backpack hint to explain that gear and backpack order are locked in combat."
 	)
 
@@ -203,7 +210,7 @@ func test_combat_inventory_cards_follow_combat_local_stacks() -> void:
 	assert(String(backpack_cards[0].get("title_text", "")) == "Traveler Bread", "Expected combat backpack to keep the active consumable stack visible.")
 	assert(String(backpack_cards[0].get("card_family", "")) == "consumable", "Expected combat backpack cards to keep the consumable family metadata.")
 	assert(int(backpack_cards[0].get("slot_index", -1)) == 0, "Expected combat consumable cards to preserve slot indices for scene-side selection.")
-	assert(String(backpack_cards[0].get("tooltip_text", "")).contains("Current stack 1/3"), "Expected consumable tooltip to expose live stack and cap.")
+	assert(String(backpack_cards[0].get("tooltip_text", "")).contains("x1 | max 3"), "Expected consumable tooltip to expose live stack and cap in compact form.")
 	assert(String(backpack_cards[0].get("tooltip_text", "")).contains("Click in combat to use now."), "Expected combat consumables to explain the direct-click use interaction.")
 	assert(String(backpack_cards[1].get("title_text", "")) == "Thorn Grip Charm", "Expected carried passives to remain in the backpack section.")
 	assert(String(backpack_cards[6].get("title_text", "")) == "Open Slot", "Expected later backpack lanes to keep open-slot labels.")
@@ -240,3 +247,28 @@ func test_combat_inventory_cards_follow_combat_local_equipment_projection() -> v
 	assert(String(splitter_axe_card.get("count_text", "")) == "4/14", "Expected projected combat equipment to surface combat-local weapon durability.")
 	assert(not iron_sword_card.is_empty(), "Expected projected combat backpack to keep the displaced starter weapon visible.")
 	assert(String(iron_sword_card.get("tooltip_text", "")).contains("Equipment is locked during combat."), "Expected carried weapons to explain the combat lock instead of an equip interaction.")
+
+
+func test_definition_tooltips_surface_offer_item_details() -> void:
+	var tooltip_builder: RefCounted = ItemDefinitionTooltipBuilderScript.new()
+	var weapon_tooltip: String = tooltip_builder.call(
+		"build_definition_tooltip_text",
+		InventoryState.INVENTORY_FAMILY_WEAPON,
+		"iron_sword",
+		1,
+		"Claim this reward to add it to the backpack."
+	)
+	assert(weapon_tooltip.contains("Iron Sword"), "Expected definition tooltip builder to include the item name.")
+	assert(weapon_tooltip.contains("DMG 6"), "Expected weapon offer tooltip to expose base damage in compact form.")
+	assert(weapon_tooltip.contains("DUR 20/20"), "Expected weapon offer tooltip to default to max durability for fresh rewards.")
+
+	var consumable_tooltip: String = tooltip_builder.call(
+		"build_definition_tooltip_text",
+		InventoryState.INVENTORY_FAMILY_CONSUMABLE,
+		"traveler_bread",
+		2,
+		"Pack this find."
+	)
+	assert(consumable_tooltip.contains("Traveler Bread"), "Expected consumable offer tooltip to include the item name.")
+	assert(consumable_tooltip.contains("H +"), "Expected consumable offer tooltip to include compact effect details.")
+	assert(consumable_tooltip.contains("x2 | max"), "Expected consumable offer tooltip to include the incoming stack amount in compact form.")

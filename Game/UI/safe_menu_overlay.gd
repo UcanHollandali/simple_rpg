@@ -4,12 +4,11 @@ class_name SafeMenuOverlay
 
 const AudioPreferencesScript = preload("res://Game/UI/audio_preferences.gd")
 const SceneAudioCleanupScript = preload("res://Game/UI/scene_audio_cleanup.gd")
+const SafeMenuLauncherStyleScript = preload("res://Game/UI/safe_menu_launcher_style.gd")
 const TempScreenThemeScript = preload("res://Game/UI/temp_screen_theme.gd")
 const CONFIRM_ICON = preload("res://Assets/Icons/icon_confirm.svg")
 const CANCEL_ICON = preload("res://Assets/Icons/icon_cancel.svg")
 const SETTINGS_ICON = preload("res://Assets/Icons/icon_settings.svg")
-const LARGE_LAYOUT_MIN_HEIGHT := 1640.0
-const MEDIUM_LAYOUT_MIN_HEIGHT := 1460.0
 const OVERLAY_BASE_Z_INDEX := 140
 const LAUNCHER_Z_INDEX := 4
 const TOAST_Z_INDEX := 3
@@ -22,7 +21,7 @@ signal save_requested
 signal load_requested
 signal return_to_main_menu_requested
 
-var _title_text: String = "Run Menu"
+var _title_text: String = "Settings"
 var _subtitle_text: String = "Save, load, return to menu, mute music, or quit."
 var _launcher_text: String = "Settings"
 var _load_available: bool = false
@@ -30,6 +29,8 @@ var _status_text: String = ""
 var _menu_open: bool = false
 var _status_cycle_token: int = 0
 var _launcher_corner: String = LAUNCHER_CORNER_TOP_RIGHT
+var _launcher_enabled: bool = true
+var _main_menu_enabled: bool = true
 
 var _launcher_button: Button
 var _menu_layer: Control
@@ -46,7 +47,6 @@ var _status_label: Label
 var _toast_panel: PanelContainer
 var _toast_label: Label
 var _launcher_alignment_target: Control
-
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(PRESET_FULL_RECT)
@@ -66,26 +66,21 @@ func _ready() -> void:
 	_apply_viewport_layout()
 	_refresh()
 
-
-func configure(title_text: String, subtitle_text: String, launcher_text: String = "Run Menu") -> void:
+func configure(title_text: String, subtitle_text: String, launcher_text: String = "Settings") -> void:
 	_title_text = title_text
 	_subtitle_text = subtitle_text
 	_launcher_text = launcher_text
 	if is_inside_tree():
 		_refresh()
 
-
 func set_load_available(is_available: bool) -> void:
 	_load_available = is_available
-	if _load_button != null:
-		_load_button.disabled = not _load_available
+	if _load_button != null: _load_button.disabled = not _load_available
 
 
 func set_status_text(text: String) -> void:
 	_status_text = text
-	if _status_label != null:
-		_status_label.text = _status_text
-		_status_label.visible = not _status_text.is_empty()
+	if _status_label != null: _status_label.text = _status_text; _status_label.visible = not _status_text.is_empty()
 	_refresh_status_toast()
 
 
@@ -104,8 +99,7 @@ func clear_status_text() -> void:
 
 func set_launcher_alignment_target(target: Control) -> void:
 	_launcher_alignment_target = target
-	if is_inside_tree():
-		_apply_viewport_layout()
+	if is_inside_tree(): _apply_viewport_layout()
 
 
 func set_launcher_corner(corner: String) -> void:
@@ -114,16 +108,23 @@ func set_launcher_corner(corner: String) -> void:
 		_launcher_corner = LAUNCHER_CORNER_BOTTOM_LEFT
 	elif corner == LAUNCHER_CORNER_TOP_RIGHT:
 		_launcher_corner = LAUNCHER_CORNER_TOP_RIGHT
-	if is_inside_tree():
-		_apply_viewport_layout()
+	if is_inside_tree(): _apply_viewport_layout()
+
+
+func set_launcher_enabled(is_enabled: bool) -> void:
+	_launcher_enabled = is_enabled
+	if is_inside_tree(): _apply_launcher_interactivity()
+	if not _launcher_enabled and _menu_open: close_menu()
+
+
+func set_main_menu_enabled(is_enabled: bool) -> void:
+	_main_menu_enabled = is_enabled
+	if is_inside_tree(): _refresh()
 
 
 func open_menu() -> void:
-	if _menu_layer == null or _menu_panel == null:
+	if _menu_layer == null or _menu_panel == null or _menu_open:
 		return
-	if _menu_open:
-		return
-
 	_menu_open = true
 	_menu_layer.visible = true
 	_menu_layer.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -145,11 +146,8 @@ func open_menu() -> void:
 
 
 func close_menu() -> void:
-	if _menu_layer == null or _menu_panel == null:
+	if _menu_layer == null or _menu_panel == null or not _menu_open:
 		return
-	if not _menu_open:
-		return
-
 	_menu_open = false
 	var tween: Tween = create_tween()
 	tween.set_trans(Tween.TRANS_SINE)
@@ -159,14 +157,11 @@ func close_menu() -> void:
 	tween.finished.connect(Callable(self, "_finish_menu_close"), CONNECT_ONE_SHOT)
 
 
-func is_menu_open() -> bool:
-	return _menu_open
+func is_menu_open() -> bool: return _menu_open
 
 
 func _build_ui() -> void:
-	if _launcher_button != null:
-		return
-
+	if _launcher_button != null: return
 	_launcher_button = Button.new()
 	_launcher_button.name = "MenuLauncherButton"
 	_launcher_button.anchor_left = 0.0
@@ -181,12 +176,13 @@ func _build_ui() -> void:
 	_launcher_button.tooltip_text = _launcher_text
 	_launcher_button.icon = SETTINGS_ICON
 	_launcher_button.alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_launcher_button.custom_minimum_size = Vector2(42, 42)
+	_launcher_button.custom_minimum_size = Vector2(62, 70)
+	_set_launcher_button_expand_mode()
 	_set_launcher_button_icon_alignment()
-	_launcher_button.mouse_filter = Control.MOUSE_FILTER_STOP
 	_launcher_button.z_index = LAUNCHER_Z_INDEX
 	_launcher_button.pressed.connect(Callable(self, "_on_launcher_pressed"))
 	add_child(_launcher_button)
+	_apply_launcher_interactivity()
 
 	_toast_panel = PanelContainer.new()
 	_toast_panel.name = "StatusToast"
@@ -328,9 +324,7 @@ func _build_ui() -> void:
 
 
 func _refresh() -> void:
-	if _launcher_button == null:
-		return
-
+	if _launcher_button == null: return
 	_launcher_button.text = ""
 	_launcher_button.tooltip_text = _launcher_text
 	_launcher_button.icon = SETTINGS_ICON
@@ -343,6 +337,10 @@ func _refresh() -> void:
 		_status_label.visible = not _status_text.is_empty()
 	if _load_button != null:
 		_load_button.disabled = not _load_available
+	if _main_menu_button != null:
+		_main_menu_button.visible = true
+		_main_menu_button.disabled = not _main_menu_enabled
+		_main_menu_button.tooltip_text = "" if _main_menu_enabled else "Unavailable during combat."
 	if _music_toggle_button != null:
 		_music_toggle_button.text = "Music: %s" % ("On" if AudioPreferencesScript.is_music_enabled() else "Off")
 
@@ -367,12 +365,12 @@ func _refresh() -> void:
 	if _toast_label != null:
 		TempScreenThemeScript.apply_label(_toast_label, "muted")
 	_apply_viewport_layout()
+	_apply_launcher_interactivity()
 
 
 func _on_launcher_pressed() -> void:
 	if _menu_open:
-		close_menu()
-		return
+		close_menu(); return
 	open_menu()
 
 
@@ -404,6 +402,8 @@ func _emit_load_requested() -> void: emit_signal("load_requested")
 
 
 func _emit_return_to_main_menu_requested() -> void:
+	if not _main_menu_enabled:
+		return
 	close_menu()
 	emit_signal("return_to_main_menu_requested")
 
@@ -413,112 +413,86 @@ func _finish_menu_close() -> void:
 		_menu_layer.visible = false
 		_menu_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_menu_panel.scale = Vector2.ONE
-	if _launcher_button != null:
+	if _launcher_button != null and _launcher_enabled and _launcher_button.visible:
 		_launcher_button.grab_focus()
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event == null:
-		return
-	if not event.is_action_pressed("ui_cancel"):
-		return
-	if not _menu_open:
+	if event == null or not event.is_action_pressed("ui_cancel") or not _menu_open:
 		return
 	close_menu()
 	get_viewport().set_input_as_handled()
 
 
 func _on_viewport_size_changed() -> void:
-	_sync_full_rect()
-	_apply_viewport_layout()
+	_sync_full_rect(); _apply_viewport_layout()
 
 
-func _sync_full_rect() -> void: set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+func _sync_full_rect() -> void:
+	set_anchors_and_offsets_preset(PRESET_FULL_RECT); anchor_right = 1.0; anchor_bottom = 1.0; offset_left = 0.0; offset_top = 0.0; offset_right = 0.0; offset_bottom = 0.0; grow_horizontal = GROW_DIRECTION_BOTH; grow_vertical = GROW_DIRECTION_BOTH
 
 
 func _apply_launcher_button_style() -> void:
-	if _launcher_button == null:
-		return
-
-	var box := StyleBoxFlat.new()
-	box.bg_color = TempScreenThemeScript.PANEL_FILL_COLOR
-	box.bg_color.a = 0.98
-	box.border_color = TempScreenThemeScript.PANEL_BORDER_COLOR
-	box.border_width_left = 1
-	box.border_width_top = 1
-	box.border_width_right = 1
-	box.border_width_bottom = 1
-	box.corner_radius_top_left = 20
-	box.corner_radius_top_right = 20
-	box.corner_radius_bottom_right = 20
-	box.corner_radius_bottom_left = 20
-	box.content_margin_left = 6
-	box.content_margin_top = 6
-	box.content_margin_right = 6
-	box.content_margin_bottom = 6
-	box.shadow_color = Color(0, 0, 0, 0.24)
-	box.shadow_size = 8
-
-	var hover_box: StyleBoxFlat = box.duplicate() as StyleBoxFlat
-	hover_box.bg_color = hover_box.bg_color.lightened(0.05)
-	hover_box.border_color = TempScreenThemeScript.PANEL_BORDER_COLOR.lightened(0.08)
-
-	for style_name in ["normal", "pressed", "focus", "disabled"]:
-		_launcher_button.add_theme_stylebox_override(style_name, box)
-	_launcher_button.add_theme_stylebox_override("hover", hover_box)
-	_launcher_button.add_theme_constant_override("h_separation", 0)
-	_launcher_button.add_theme_constant_override("icon_max_width", 24)
-	_set_launcher_button_icon_alignment()
-	_launcher_button.add_theme_color_override("font_color", TempScreenThemeScript.TEXT_PRIMARY_COLOR)
-	_launcher_button.add_theme_color_override("font_hover_color", TempScreenThemeScript.TEXT_PRIMARY_COLOR)
-	_launcher_button.add_theme_color_override("font_pressed_color", TempScreenThemeScript.TEXT_PRIMARY_COLOR)
-	_launcher_button.add_theme_color_override("font_disabled_color", TempScreenThemeScript.DISABLED_TEXT_COLOR)
-	_launcher_button.add_theme_font_size_override("font_size", 1)
-	_launcher_button.focus_mode = Control.FOCUS_ALL
-	_launcher_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	if _launcher_button == null: return
+	var launcher_metrics: Dictionary = SafeMenuLauncherStyleScript.resolve_launcher_metrics_for_viewport(get_viewport_rect().size)
+	SafeMenuLauncherStyleScript.apply_shared_launcher_button_style(
+		_launcher_button,
+		_launcher_text,
+		Vector2(launcher_metrics.get("dimensions", Vector2(62.0, 70.0))),
+		int(launcher_metrics.get("icon_size", 28))
+	)
+	_apply_launcher_interactivity()
 
 
 func _apply_viewport_layout() -> void:
-	if _launcher_button == null:
-		return
-
+	if _launcher_button == null: return
 	var viewport_size: Vector2 = get_viewport_rect().size
-	var large_layout: bool = viewport_size.y >= LARGE_LAYOUT_MIN_HEIGHT and viewport_size.x >= 900.0
-	var medium_layout: bool = not large_layout and viewport_size.y >= MEDIUM_LAYOUT_MIN_HEIGHT and viewport_size.x >= 760.0
-
-	var launcher_size: float = 58.0 if large_layout else 52.0 if medium_layout else 44.0
-	var launcher_inset: float = 18.0 if large_layout else 16.0 if medium_layout else 12.0
-	var launcher_top: float = 18.0 if large_layout else 14.0 if medium_layout else 10.0
+	var launcher_metrics: Dictionary = SafeMenuLauncherStyleScript.resolve_launcher_metrics_for_viewport(viewport_size)
+	var large_layout: bool = bool(launcher_metrics.get("large_layout", false))
+	var medium_layout: bool = bool(launcher_metrics.get("medium_layout", false))
+	var launcher_dimensions: Vector2 = Vector2(launcher_metrics.get("dimensions", Vector2(62.0, 70.0)))
+	var launcher_inset: float = float(launcher_metrics.get("inset", 12.0))
+	var launcher_top: float = float(launcher_metrics.get("top", 10.0))
+	SafeMenuLauncherStyleScript.apply_shared_launcher_button_style(
+		_launcher_button,
+		_launcher_text,
+		launcher_dimensions,
+		int(launcher_metrics.get("icon_size", 28))
+	)
 	if _launcher_alignment_target != null and is_instance_valid(_launcher_alignment_target) and _launcher_corner != LAUNCHER_CORNER_BOTTOM_LEFT:
 		var target_rect: Rect2 = _launcher_alignment_target.get_global_rect()
 		if target_rect.size.y > 0.0:
-			launcher_top = target_rect.position.y + max(0.0, (target_rect.size.y - launcher_size) * 0.5)
+			launcher_top = target_rect.position.y + max(0.0, (target_rect.size.y - launcher_dimensions.y) * 0.5)
 	var launcher_left: float = _resolve_launcher_left_edge(viewport_size.x, launcher_inset)
 	var is_top_right: bool = _launcher_corner == LAUNCHER_CORNER_TOP_RIGHT
 	if is_top_right:
-		launcher_left = _resolve_launcher_right_edge(viewport_size.x, launcher_inset, launcher_size)
+		launcher_left = _resolve_launcher_right_edge(viewport_size.x, launcher_inset, launcher_dimensions.x)
 	if _launcher_corner == LAUNCHER_CORNER_BOTTOM_LEFT:
-		launcher_top = viewport_size.y - launcher_size - launcher_inset
-	_launcher_button.offset_top = launcher_top
-	_launcher_button.offset_left = launcher_left
-	_launcher_button.offset_right = launcher_left + launcher_size
-	_launcher_button.offset_bottom = launcher_top + launcher_size
-	_launcher_button.custom_minimum_size = Vector2(launcher_size, launcher_size)
-	var launcher_icon_size: int = int(round(launcher_size * 0.62))
-	launcher_icon_size = clamp(launcher_icon_size, 24, int(launcher_size) - 10)
-	_launcher_button.add_theme_constant_override("icon_max_width", launcher_icon_size)
-	_set_launcher_button_icon_alignment()
+		launcher_top = viewport_size.y - launcher_dimensions.y - launcher_inset
+	_launcher_button.global_position = Vector2(launcher_left, launcher_top)
+	_launcher_button.size = launcher_dimensions
+	_launcher_button.custom_minimum_size = launcher_dimensions
 
 	if _toast_panel != null:
 		var toast_width: float = 328.0 if large_layout else 292.0 if medium_layout else 236.0
 		var toast_height: float = 60.0 if large_layout else 54.0 if medium_layout else 46.0
-		var toast_top: float = launcher_top + launcher_size + 12.0
+		var toast_top: float = launcher_top + launcher_dimensions.y + 12.0
 		if _launcher_corner == LAUNCHER_CORNER_BOTTOM_LEFT:
 			toast_top = launcher_top - toast_height - 12.0
-		_toast_panel.offset_left = launcher_left
-		_toast_panel.offset_top = toast_top
-		_toast_panel.offset_right = launcher_left + toast_width
-		_toast_panel.offset_bottom = toast_top + toast_height
+		var toast_left: float = _resolve_toast_left_edge(
+			viewport_size.x,
+			launcher_left,
+			launcher_dimensions.x,
+			toast_width,
+			launcher_inset
+		)
+		toast_top = clamp(
+			toast_top,
+			launcher_inset,
+			max(launcher_inset, viewport_size.y - toast_height - launcher_inset)
+		)
+		_toast_panel.global_position = Vector2(toast_left, toast_top)
+		_toast_panel.size = Vector2(toast_width, toast_height)
 
 	var panel_holder: MarginContainer = _menu_layer.get_node_or_null("PanelHolder") as MarginContainer
 	if panel_holder != null:
@@ -541,17 +515,25 @@ func _apply_viewport_layout() -> void:
 	for button in [_save_button, _load_button, _main_menu_button, _music_toggle_button, _quit_button, _close_button]:
 		if button != null:
 			button.custom_minimum_size = Vector2(0.0, button_height)
-			button.add_theme_font_size_override("font_size", 18 if large_layout else 17 if medium_layout else 15)
+			button.add_theme_font_size_override("font_size", 17 if large_layout else 16 if medium_layout else 15)
 			button.add_theme_constant_override("icon_max_width", 22 if large_layout else 20 if medium_layout else 18)
 
 	if _toast_label != null:
-		_toast_label.add_theme_font_size_override("font_size", 16 if large_layout else 15 if medium_layout else 14)
+		_toast_label.add_theme_font_size_override("font_size", 14 if large_layout else 13 if medium_layout else 12)
 	if _title_label != null:
-		_title_label.add_theme_font_size_override("font_size", 22 if large_layout else 20 if medium_layout else 18)
+		_title_label.add_theme_font_size_override("font_size", 20 if large_layout else 18 if medium_layout else 16)
 	if _subtitle_label != null:
-		_subtitle_label.add_theme_font_size_override("font_size", 15 if large_layout else 14 if medium_layout else 12)
+		_subtitle_label.add_theme_font_size_override("font_size", 14 if large_layout else 13 if medium_layout else 12)
 	if _status_label != null:
-		_status_label.add_theme_font_size_override("font_size", 15 if large_layout else 14 if medium_layout else 12)
+		_status_label.add_theme_font_size_override("font_size", 14 if large_layout else 13 if medium_layout else 12)
+
+
+func _apply_launcher_interactivity() -> void:
+	if _launcher_button == null: return
+	_launcher_button.visible = _launcher_enabled
+	_launcher_button.focus_mode = Control.FOCUS_ALL if _launcher_enabled else Control.FOCUS_NONE
+	_launcher_button.mouse_filter = Control.MOUSE_FILTER_STOP if _launcher_enabled else Control.MOUSE_FILTER_IGNORE
+	_launcher_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if _launcher_enabled else Control.CURSOR_ARROW
 
 
 func _resolve_launcher_left_edge(_viewport_width: float, launcher_inset: float) -> float:
@@ -574,13 +556,35 @@ func _resolve_launcher_right_edge(_viewport_width: float, launcher_inset: float,
 	return clamp(fallback_x, launcher_inset, max(launcher_inset, _viewport_width - launcher_inset - launcher_size))
 
 
+func _resolve_toast_left_edge(
+	viewport_width: float,
+	launcher_left: float,
+	launcher_width: float,
+	toast_width: float,
+	launcher_inset: float
+) -> float:
+	var preferred_left: float = launcher_left
+	if _launcher_corner == LAUNCHER_CORNER_TOP_RIGHT:
+		preferred_left = launcher_left + launcher_width - toast_width
+	return clamp(
+		preferred_left,
+		launcher_inset,
+		max(launcher_inset, viewport_width - toast_width - launcher_inset)
+	)
+
+
 func _set_launcher_button_icon_alignment() -> void:
-	if _launcher_button == null:
-		return
+	if _launcher_button == null: return
 	for property_meta in _launcher_button.get_property_list():
 		if String(property_meta.get("name", "")) == "icon_alignment":
-			_launcher_button.set("icon_alignment", HORIZONTAL_ALIGNMENT_CENTER)
-			return
+			_launcher_button.set("icon_alignment", HORIZONTAL_ALIGNMENT_CENTER); return
+
+
+func _set_launcher_button_expand_mode() -> void:
+	if _launcher_button == null: return
+	for property_meta in _launcher_button.get_property_list():
+		if String(property_meta.get("name", "")) == "expand_icon":
+			_launcher_button.set("expand_icon", false); return
 
 
 func _build_menu_button(name: String, text: String, icon: Texture2D, handler_name: String) -> Button:
@@ -594,8 +598,7 @@ func _build_menu_button(name: String, text: String, icon: Texture2D, handler_nam
 
 
 func _refresh_status_toast() -> void:
-	if _toast_panel == null or _toast_label == null:
-		return
+	if _toast_panel == null or _toast_label == null: return
 	if _status_text.is_empty():
 		_toast_label.text = ""
 		_toast_panel.visible = false
@@ -617,8 +620,7 @@ func _refresh_status_toast() -> void:
 
 func _schedule_status_toast_hide(local_token: int) -> void:
 	await get_tree().create_timer(2.0).timeout
-	if local_token != _status_cycle_token or not is_inside_tree():
-		return
+	if local_token != _status_cycle_token or not is_inside_tree(): return
 	var fade_tween: Tween = create_tween()
 	fade_tween.set_trans(Tween.TRANS_SINE)
 	fade_tween.set_ease(Tween.EASE_IN)
@@ -627,14 +629,12 @@ func _schedule_status_toast_hide(local_token: int) -> void:
 
 
 func _on_status_toast_fade_in_finished(local_token: int) -> void:
-	if local_token != _status_cycle_token or not is_inside_tree():
-		return
+	if local_token != _status_cycle_token or not is_inside_tree(): return
 	_schedule_status_toast_hide(local_token)
 
 
 func _on_status_toast_fade_out_finished(local_token: int) -> void:
-	if local_token != _status_cycle_token or _toast_panel == null:
-		return
+	if local_token != _status_cycle_token or _toast_panel == null: return
 	_toast_panel.visible = false
 	_toast_label.text = ""
 	_status_text = ""

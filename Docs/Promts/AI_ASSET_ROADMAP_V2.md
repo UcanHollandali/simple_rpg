@@ -8,6 +8,8 @@ Active prompt runner for the current map pass: `Docs/Promts/MAP_MASTER_PROMPTS.m
 
 This file is the only active asset roadmap for the current map pass.
 
+> **Not a Codex prompt file.** This roadmap is human-in-the-loop work done locally in ComfyUI + Krita (or via Kenney). Do NOT paste this file into Codex as a prompt and do NOT queue it overnight. Use it BETWEEN `MAP_MASTER_PROMPTS.md` Prompt `6` (Codex stop) and Prompt `7` (Codex asset-hook wiring).
+
 Authority order for conflicts:
 1. `Docs/VISUAL_AUDIO_STYLE_GUIDE.md`
 2. `Docs/ASSET_PIPELINE.md`
@@ -30,6 +32,9 @@ If you want the shortest practical path, use only these sections first:
 - `13.5 Reality Check`
 
 Everything else is reference material.
+
+Use this file only after map Prompts `1`, `2A`, `2B`, `3`, `4`, `5`, and `6` are clean.
+When the first asset batch is ready, return to `Docs/Promts/MAP_MASTER_PROMPTS.md` and run Prompt `7`.
 
 ---
 

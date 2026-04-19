@@ -7,6 +7,7 @@ const SceneRouterScript = preload("res://Game/Infrastructure/scene_router.gd")
 const FlowStateScript = preload("res://Game/Application/flow_state.gd")
 const RewardStateScript = preload("res://Game/RuntimeState/reward_state.gd")
 const SceneAudioPlayersScript = preload("res://Game/UI/scene_audio_players.gd")
+const SafeMenuLauncherStyleScript = preload("res://Game/UI/safe_menu_launcher_style.gd")
 const TestExitCleanupHelperScript = preload("res://Tests/_exit_cleanup_helper.gd")
 const CONFIRM_ICON_PATH := "res://Assets/Icons/icon_confirm.svg"
 const CANCEL_ICON_PATH := "res://Assets/Icons/icon_cancel.svg"
@@ -17,7 +18,8 @@ const MAIN_MENU_LOAD_BUTTON_PATH := "Margin/VBox/ActionPanel/ActionVBox/LoadRunB
 const LEVEL_UP_CHOICE_A_BUTTON_PATH := "Margin/VBox/ChoicesRow/ChoiceAButton"
 const LEVEL_UP_CHOICE_B_BUTTON_PATH := "Margin/VBox/ChoicesRow/ChoiceBButton"
 const LEVEL_UP_CHOICE_C_BUTTON_PATH := "Margin/VBox/ChoicesRow/ChoiceCButton"
-const SAFE_MENU_LAUNCHER_BUTTON_PATH := "Margin/VBox/TopRow/SettingsMenuAnchor/SettingsButton"
+const MAP_SAFE_MENU_LAUNCHER_BUTTON_PATH := "Margin/VBox/TopRow/SettingsMenuAnchor/SettingsButton"
+const SCENE_SAFE_MENU_LAUNCHER_BUTTON_PATH := "SafeMenuOverlay/MenuLauncherButton"
 const SAFE_MENU_SAVE_BUTTON_PATH := "SafeMenuOverlay/MenuLayer/PanelHolder/PanelRow/MenuPanel/VBox/ActionsVBox/SaveRunButton"
 const SAFE_MENU_LOAD_BUTTON_PATH := "SafeMenuOverlay/MenuLayer/PanelHolder/PanelRow/MenuPanel/VBox/ActionsVBox/LoadRunButton"
 const ROUTE_BUTTON_NODE_NAMES: PackedStringArray = [
@@ -113,6 +115,7 @@ func _on_process_frame() -> void:
 				_require(int(restored_run_state.inventory_state.weapon_instance.get("current_durability", 0)) == 11, "Expected map restore to recover durability.")
 				_require(restored_run_state.inventory_state.consumable_slots.size() == 1, "Expected map restore to recover consumable slots.")
 				_require(int(restored_run_state.inventory_state.consumable_slots[0].get("current_stack", 0)) == 2, "Expected map restore to recover consumable stack.")
+				_exhaust_roadside_quota(restored_run_state)
 				_durability_before_first_combat = int(restored_run_state.inventory_state.weapon_instance.get("current_durability", 0))
 				var run_status_label: Label = current_scene.get_node("Margin/VBox/TopRow/RunSummaryCard/RunStatusLabel") as Label
 				var run_status_root: Control = current_scene.get_node_or_null("Margin/VBox/TopRow/RunSummaryCard/RunStatusRoot") as Control
@@ -146,12 +149,14 @@ func _on_process_frame() -> void:
 				_require_combat_readability_shell()
 				_require_inventory_card("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/EquipmentCard/EquipmentCardsFlow/InventorySlotRIGHTHANDCard")
 				_require_inventory_card_action_copy("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/EquipmentCard/EquipmentCardsFlow/InventorySlotRIGHTHANDCard", "Locked during combat")
+				_require_combat_inventory_card_density()
 				_require_inventory_card("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryCard/InventoryCardsFlow/InventorySlot1Card")
-				_require_label_text_contains("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryHintLabel", "locked during combat")
+				_require_label_text_contains("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryHintLabel", "Only consumables")
 				_require_inventory_card_action_copy("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryCard/InventoryCardsFlow/InventorySlot1Card", "Ends turn")
 				_require_empty_inventory_slot_copy("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryCard/InventoryCardsFlow/InventorySlot2Card")
 				_require_selected_inventory_card("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryCard/InventoryCardsFlow/InventorySlot1Card")
 				_require_combat_inventory_tooltip("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryCard/InventoryCardsFlow/InventorySlot1Card")
+				_require_combat_log_shell()
 				_require_combat_bust_shell("", true)
 				_require_combat_action_tooltips()
 				_press("Margin/VBox/Buttons/ActionCardsRow/AttackActionCard/AttackActionVBox/AttackButton")
@@ -204,6 +209,8 @@ func _on_process_frame() -> void:
 			if _is_scene("LevelUp"):
 				_require_modal_popup_shell()
 				_require_audio_player_stream("LevelUpMusicPlayer")
+				var level_up_root: Node = _get_scene_root("LevelUp")
+				var level_up_status_card: PanelContainer = level_up_root.get_node_or_null("Margin/VBox/HeaderRow/StatusCard") as PanelContainer if level_up_root != null else null
 				_require_button_has_no_icon(LEVEL_UP_CHOICE_A_BUTTON_PATH)
 				_require_button_has_no_icon(LEVEL_UP_CHOICE_B_BUTTON_PATH)
 				_require_button_has_no_icon(LEVEL_UP_CHOICE_C_BUTTON_PATH)
@@ -212,6 +219,7 @@ func _on_process_frame() -> void:
 				_require_level_up_choice_copy(LEVEL_UP_CHOICE_C_BUTTON_PATH)
 				_require_button_icon(SAFE_MENU_SAVE_BUTTON_PATH, CONFIRM_ICON_PATH)
 				_require_button_icon(SAFE_MENU_LOAD_BUTTON_PATH, CONFIRM_ICON_PATH)
+				_require(level_up_status_card != null and not level_up_status_card.visible, "Expected LevelUp overlay to hide the duplicate run-status card because the shared top bar already shows it.")
 				_require(_current_state() == FlowStateScript.Type.LEVEL_UP, "Expected LevelUp after hitting the XP threshold.")
 				var level_up_state: RefCounted = _get_level_up_state()
 				_require(level_up_state != null, "Expected LevelUpState to exist.")
@@ -237,6 +245,8 @@ func _on_process_frame() -> void:
 			if _is_scene("LevelUp"):
 				_require_modal_popup_shell()
 				_require_audio_player_stream("LevelUpMusicPlayer")
+				var restored_level_up_root: Node = _get_scene_root("LevelUp")
+				var restored_level_up_status_card: PanelContainer = restored_level_up_root.get_node_or_null("Margin/VBox/HeaderRow/StatusCard") as PanelContainer if restored_level_up_root != null else null
 				_require_button_has_no_icon(LEVEL_UP_CHOICE_A_BUTTON_PATH)
 				_require_button_has_no_icon(LEVEL_UP_CHOICE_B_BUTTON_PATH)
 				_require_button_has_no_icon(LEVEL_UP_CHOICE_C_BUTTON_PATH)
@@ -245,6 +255,7 @@ func _on_process_frame() -> void:
 				_require_level_up_choice_copy(LEVEL_UP_CHOICE_C_BUTTON_PATH)
 				_require_button_icon(SAFE_MENU_SAVE_BUTTON_PATH, CONFIRM_ICON_PATH)
 				_require_button_icon(SAFE_MENU_LOAD_BUTTON_PATH, CONFIRM_ICON_PATH)
+				_require(restored_level_up_status_card != null and not restored_level_up_status_card.visible, "Expected restored LevelUp overlay to keep the duplicate run-status card hidden.")
 				var restored_level_up_state: RefCounted = _get_level_up_state()
 				_require(restored_level_up_state != null, "Expected LevelUpState after snapshot restore.")
 				_require(int(restored_level_up_state.current_level) == 1, "Expected restored level-up current level to remain 1.")
@@ -264,7 +275,9 @@ func _on_process_frame() -> void:
 				_require(_get_run_state().inventory_state.passive_slots.is_empty(), "Expected level-up progression to stop populating passive-item backpack slots.")
 				_require(_get_reward_state() == null, "Expected RewardState to clear after first reward claim.")
 				print("phase2_loop: second combat requested")
-				_durability_before_second_combat = int(_get_run_state().inventory_state.weapon_instance.get("current_durability", 0))
+				var second_combat_run_state: RunState = _get_run_state()
+				_exhaust_roadside_quota(second_combat_run_state)
+				_durability_before_second_combat = int(second_combat_run_state.inventory_state.weapon_instance.get("current_durability", 0))
 				_press_map_route_containing("Combat")
 				_advance_phase(10)
 		10:
@@ -304,6 +317,7 @@ func _on_process_frame() -> void:
 				var run_state: RunState = _get_run_state()
 				run_state.player_hp = 1
 				_reset_current_map_for_active_stage()
+				_exhaust_roadside_quota(run_state)
 				_press_map_route_containing("Combat")
 				_advance_phase(12)
 		12:
@@ -398,13 +412,31 @@ func _press(node_path: String) -> void:
 func _press_map_route_containing(label_fragment: String) -> void:
 	_require(current_scene != null, "Expected current scene before pressing a map route.")
 	_require(_get_visible_overlay_root() == null, "Expected no active overlay before pressing a map route.")
+	var route_models: Array = current_scene.get("_route_models_cache")
 	for button_name in ROUTE_BUTTON_NODE_NAMES:
 		var button: Button = current_scene.get_node_or_null("Margin/VBox/RouteGrid/%s" % button_name) as Button
 		if button == null or not button.visible or button.disabled:
 			continue
 		var route_label: String = button.text if not button.text.is_empty() else button.tooltip_text
 		if route_label.contains(label_fragment):
+			var route_index: int = ROUTE_BUTTON_NODE_NAMES.find(button_name)
+			if route_index >= 0 and route_index < route_models.size():
+				var target_node_id: int = int((route_models[route_index] as Dictionary).get("node_id", -1))
+				if target_node_id >= 0:
+					current_scene.call("_move_to_node", target_node_id)
+					return
 			button.emit_signal("pressed")
+			return
+	var fallback_family: String = _resolve_node_family_for_route_label(label_fragment)
+	if not fallback_family.is_empty():
+		var run_state: RunState = _get_run_state()
+		var target_node_id: int = _find_unresolved_node_id_by_family(run_state.map_runtime_state, fallback_family) if run_state != null else -1
+		if target_node_id < 0 and run_state != null:
+			target_node_id = _find_any_node_id_by_family(run_state.map_runtime_state, fallback_family)
+		if target_node_id >= 0:
+			_prepare_current_node_adjacent_to_target(run_state.map_runtime_state, target_node_id)
+			current_scene.call("_refresh_ui")
+			current_scene.call("_move_to_node", target_node_id)
 			return
 	_fail("Expected a visible enabled route button containing %s." % label_fragment)
 
@@ -489,6 +521,67 @@ func _reset_current_map_for_active_stage() -> void:
 	current_scene.call("_refresh_ui")
 
 
+func _exhaust_roadside_quota(run_state: RunState) -> void:
+	_require(run_state != null, "Expected RunState before suppressing roadside interruptions for the combat loop test.")
+	run_state.map_runtime_state.roadside_encounters_this_stage = run_state.map_runtime_state.MAX_ROADSIDE_ENCOUNTERS_PER_STAGE
+
+
+func _find_unresolved_node_id_by_family(map_runtime_state: RefCounted, node_family: String) -> int:
+	for node_snapshot in map_runtime_state.build_node_snapshots():
+		if String(node_snapshot.get("node_family", "")) != node_family:
+			continue
+		if String(node_snapshot.get("node_state", "")) != "resolved":
+			return int(node_snapshot.get("node_id", -1))
+	return -1
+
+
+func _find_any_node_id_by_family(map_runtime_state: RefCounted, node_family: String) -> int:
+	for node_snapshot in map_runtime_state.build_node_snapshots():
+		if String(node_snapshot.get("node_family", "")) == node_family:
+			return int(node_snapshot.get("node_id", -1))
+	return -1
+
+
+func _prepare_current_node_adjacent_to_target(map_runtime_state: RefCounted, target_node_id: int) -> void:
+	var path: Array[int] = _build_path_between_nodes(map_runtime_state, map_runtime_state.current_node_id, target_node_id)
+	_require(path.size() >= 2, "Expected a valid runtime path to target node %d." % target_node_id)
+	for path_index in range(1, path.size() - 1):
+		var node_id: int = path[path_index]
+		map_runtime_state.move_to_node(node_id)
+		map_runtime_state.mark_node_resolved(node_id)
+
+
+func _build_path_between_nodes(map_runtime_state: RefCounted, start_node_id: int, target_node_id: int) -> Array[int]:
+	var queued_paths: Array = [[start_node_id]]
+	var visited: Dictionary = {}
+	while not queued_paths.is_empty():
+		var path: Array = queued_paths.pop_front()
+		var current_node_id: int = int(path[path.size() - 1])
+		if current_node_id == target_node_id:
+			var typed_path: Array[int] = []
+			for node_id_variant in path:
+				typed_path.append(int(node_id_variant))
+			return typed_path
+		if visited.has(current_node_id):
+			continue
+		visited[current_node_id] = true
+		for adjacent_node_id in map_runtime_state.get_adjacent_node_ids(current_node_id):
+			if visited.has(adjacent_node_id):
+				continue
+			var next_path: Array = path.duplicate()
+			next_path.append(adjacent_node_id)
+			queued_paths.append(next_path)
+	return []
+
+
+func _resolve_node_family_for_route_label(label_fragment: String) -> String:
+	match label_fragment:
+		"Combat":
+			return "combat"
+		_:
+			return ""
+
+
 func _require_combat_bust_shell(expected_enemy_name: String, expect_enemy_bust: bool) -> void:
 	_require(current_scene != null and current_scene.name == "Combat", "Expected Combat scene before reading bust shell state.")
 
@@ -517,6 +610,16 @@ func _require_combat_background_shell() -> void:
 	_require_texture_rect_present("BackgroundFar")
 	_require_texture_rect_present("BackgroundMid")
 	_require_texture_rect_present("BackgroundOverlay")
+	var launcher_button: Button = current_scene.get_node_or_null(SCENE_SAFE_MENU_LAUNCHER_BUTTON_PATH) as Button
+	_require(launcher_button != null, "Expected Combat to expose the shared safe menu launcher button.")
+	_require(launcher_button.visible, "Expected Combat safe menu launcher to stay visible.")
+	_require(launcher_button.tooltip_text == "Settings", "Expected Combat safe menu launcher tooltip to read Settings.")
+	var launcher_rect: Rect2 = launcher_button.get_global_rect()
+	var launcher_metrics: Dictionary = SafeMenuLauncherStyleScript.resolve_launcher_metrics_for_viewport(current_scene.get_viewport_rect().size)
+	var expected_dimensions: Vector2 = Vector2(launcher_metrics.get("dimensions", Vector2.ZERO))
+	_require(launcher_rect.size.x > 0.0 and launcher_rect.size.y > 0.0, "Expected Combat safe menu launcher to have a laid-out global rect.")
+	_require(launcher_button.size.is_equal_approx(expected_dimensions), "Expected Combat safe menu launcher to keep the shared launcher dimensions.")
+	_require(launcher_button.get_theme_constant("icon_max_width") == int(launcher_metrics.get("icon_size", -1)), "Expected Combat safe menu launcher to keep the shared icon scale.")
 
 
 func _require_generic_background_shell() -> void:
@@ -595,6 +698,7 @@ func _require_map_inventory_tooltip(node_path: String) -> void:
 	_require(hovered_style != null and hovered_style.shadow_size >= 13, "Expected inventory hover on %s to strengthen the card shell." % node_path)
 	_require(tooltip_panel.visible, "Expected map inventory tooltip bubble to show on hover.")
 	_require(tooltip_label.text == custom_tooltip_text, "Expected map inventory hover bubble to mirror the card tooltip copy.")
+	_require(tooltip_label.get_theme_font_size("font_size") == 15, "Expected map inventory tooltip bubble to keep the compact hover typography.")
 	card.emit_signal("mouse_exited")
 	var resting_style: StyleBoxFlat = card.get_theme_stylebox("panel") as StyleBoxFlat
 	_require(not bool(card.get_meta("is_hovered", false)), "Expected inventory hover on %s to clear after exit." % node_path)
@@ -614,21 +718,19 @@ func _require_map_vertical_stack_layout() -> void:
 	_require(inventory_section != null, "Expected MapExplore inventory section to exist.")
 	_require(inventory_card != null, "Expected MapExplore inventory card container to exist.")
 	_require(bottom_row != null, "Expected MapExplore bottom context block to exist.")
+	_require(route_grid != null, "Expected MapExplore route grid to exist.")
+	_require(not bottom_row.visible, "Expected MapExplore bottom context copy to stay hidden in the compact route-board layout.")
 	var inventory_rect: Rect2 = inventory_section.get_global_rect()
-	var bottom_row_rect: Rect2 = bottom_row.get_global_rect()
+	var route_grid_rect: Rect2 = route_grid.get_global_rect() if route_grid != null else Rect2()
 	var viewport_height: float = current_scene.get_viewport_rect().size.y
-	var upper_rect: Rect2 = bottom_row_rect if bottom_row_rect.position.y <= inventory_rect.position.y else inventory_rect
-	var lower_rect: Rect2 = inventory_rect if upper_rect == bottom_row_rect else bottom_row_rect
-	var vertical_gap: float = lower_rect.position.y - upper_rect.end.y
-	_require(vertical_gap >= -2.0 and vertical_gap <= 32.0, "Expected map focus and inventory cards to stack tightly on first load, got gap %.2f." % vertical_gap)
+	var vertical_gap: float = inventory_rect.position.y - route_grid_rect.end.y
+	_require(vertical_gap >= -2.0 and vertical_gap <= 24.0, "Expected the enlarged route board to stack tightly above the inventory cards, got gap %.2f." % vertical_gap)
 	_require(
-		lower_rect.end.y <= viewport_height + 4.0,
-		"Expected map lower panels to stay inside the viewport on first load. Bottom %.2f vs viewport %.2f. Route %.2f / Bottom %.2f-%.2f / Inventory %.2f-%.2f." % [
-			lower_rect.end.y,
+		inventory_rect.end.y <= viewport_height + 4.0,
+		"Expected map lower panels to stay inside the viewport on first load. Inventory %.2f vs viewport %.2f. Route %.2f / Inventory %.2f-%.2f." % [
+			inventory_rect.end.y,
 			viewport_height,
-			route_grid.get_global_rect().size.y if route_grid != null else -1.0,
-			bottom_row_rect.position.y,
-			bottom_row_rect.end.y,
+			route_grid_rect.size.y if route_grid != null else -1.0,
 			inventory_rect.position.y,
 			inventory_rect.end.y,
 		]
@@ -644,6 +746,19 @@ func _require_map_inventory_card_density() -> void:
 	var flow_rect: Rect2 = inventory_cards_flow.get_global_rect()
 	var bottom_gap: float = inventory_rect.end.y - flow_rect.end.y
 	_require(bottom_gap <= 24.0, "Expected map inventory panel to hug its card row, got bottom gap %.2f." % bottom_gap)
+
+
+func _require_combat_inventory_card_density() -> void:
+	var equipment_card: Control = current_scene.get_node_or_null("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/EquipmentCard") as Control
+	var equipment_cards_flow: Control = current_scene.get_node_or_null("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/EquipmentCard/EquipmentCardsFlow") as Control
+	var inventory_card: Control = current_scene.get_node_or_null("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryCard") as Control
+	var inventory_cards_flow: Control = current_scene.get_node_or_null("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryCard/InventoryCardsFlow") as Control
+	_require(equipment_card != null and equipment_cards_flow != null, "Expected combat equipment card container and flow to exist for density checks.")
+	_require(inventory_card != null and inventory_cards_flow != null, "Expected combat backpack card container and flow to exist for density checks.")
+	var equipment_gap: float = equipment_card.get_global_rect().end.y - equipment_cards_flow.get_global_rect().end.y
+	var inventory_gap: float = inventory_card.get_global_rect().end.y - inventory_cards_flow.get_global_rect().end.y
+	_require(equipment_gap <= 24.0, "Expected combat equipment panel to hug its card row like the map inventory shell, got bottom gap %.2f." % equipment_gap)
+	_require(inventory_gap <= 24.0, "Expected combat backpack panel to hug its card row like the map inventory shell, got bottom gap %.2f." % inventory_gap)
 
 
 func _require_empty_inventory_slot_copy(node_path: String) -> void:
@@ -751,8 +866,8 @@ func _require_button_has_no_icon(node_path: String) -> void:
 func _require_level_up_choice_copy(node_path: String) -> void:
 	var button: Button = _resolve_node(node_path) as Button
 	_require(button != null, "Expected level-up choice button %s to exist on %s." % [node_path, _stringify_current_scene()])
-	var title_label: Label = button.get_node_or_null("ContentMargin/ContentVBox/TitleLabel") as Label
-	var detail_label: Label = button.get_node_or_null("ContentMargin/ContentVBox/DetailLabel") as Label
+	var title_label: Label = button.get_node_or_null("ContentMargin/ContentRow/ContentVBox/TitleLabel") as Label
+	var detail_label: Label = button.get_node_or_null("ContentMargin/ContentRow/ContentVBox/DetailLabel") as Label
 	_require(title_label != null and not title_label.text.is_empty(), "Expected level-up choice %s to expose a separate title label." % node_path)
 	_require(detail_label != null and not detail_label.text.is_empty(), "Expected level-up choice %s to expose a wrapped detail label." % node_path)
 	_require(button.text.is_empty(), "Expected level-up choice %s to render through the internal layout shell instead of raw button text." % node_path)
@@ -781,7 +896,7 @@ func _require_action_hint_copy_contains(node_path: String, expected_fragment: St
 
 func _require_safe_menu_launcher_shell() -> void:
 	var overlay: Control = current_scene.get_node_or_null("SafeMenuOverlay") as Control
-	var launcher_button: Button = current_scene.get_node_or_null(SAFE_MENU_LAUNCHER_BUTTON_PATH) as Button
+	var launcher_button: Button = current_scene.get_node_or_null(MAP_SAFE_MENU_LAUNCHER_BUTTON_PATH) as Button
 	var top_row: Control = current_scene.get_node_or_null("Margin/VBox/TopRow") as Control
 	var run_summary_card: Control = current_scene.get_node_or_null("Margin/VBox/TopRow/RunSummaryCard") as Control
 	var settings_anchor: Control = current_scene.get_node_or_null("Margin/VBox/TopRow/SettingsMenuAnchor") as Control
@@ -797,10 +912,14 @@ func _require_safe_menu_launcher_shell() -> void:
 	var settings_anchor_rect: Rect2 = settings_anchor.get_global_rect()
 	print("launcher_rect=", launcher_rect, " top_row_rect=", top_row_rect, " settings_anchor_rect=", settings_anchor_rect, " run_summary_rect=", run_summary_rect)
 	var viewport_size: Vector2 = current_scene.get_viewport_rect().size
+	var launcher_metrics: Dictionary = SafeMenuLauncherStyleScript.resolve_launcher_metrics_for_viewport(viewport_size)
+	var expected_dimensions: Vector2 = Vector2(launcher_metrics.get("dimensions", Vector2.ZERO))
 	var launcher_is_right: bool = (launcher_rect.position.x + launcher_rect.size.x * 0.5) >= (viewport_size.x * 0.5)
 	if launcher_is_right:
 		_require(settings_anchor.size.x >= launcher_button.size.x, "Expected the top-row settings anchor to reserve at least one launcher width.")
 	_require(launcher_rect.size.x > 0.0 and launcher_rect.size.y > 0.0, "Expected safe menu launcher to have a laid-out global rect.")
+	_require(launcher_button.size.is_equal_approx(expected_dimensions), "Expected MapExplore safe menu launcher to keep the shared launcher dimensions.")
+	_require(launcher_button.get_theme_constant("icon_max_width") == int(launcher_metrics.get("icon_size", -1)), "Expected MapExplore safe menu launcher to keep the shared icon scale.")
 	_require(top_row_rect.size.x > 0.0 and top_row_rect.size.y > 0.0, "Expected top-row shell to have a laid-out global rect.")
 	_require(settings_anchor_rect.size.x > 0.0 and settings_anchor_rect.size.y > 0.0, "Expected settings anchor to have a laid-out global rect.")
 	_require(not launcher_rect.intersects(run_summary_rect), "Expected safe menu launcher to stay clear of the map run summary card.")
@@ -822,8 +941,9 @@ func _require_safe_menu_launcher_shell() -> void:
 func _require_combat_action_tooltips() -> void:
 	_require(current_scene != null and current_scene.name == "Combat", "Expected Combat scene before reading action tooltips.")
 	_require_action_hint_copy_contains("Margin/VBox/Buttons/ActionCardsRow/AttackActionCard/AttackActionVBox/AttackButton", "durability")
-	_require_action_hint_copy_contains("Margin/VBox/Buttons/ActionCardsRow/DefenseActionCard/DefenseActionVBox/DefenseActionButton", "temporary guard")
-	_require_action_hint_copy_contains("Margin/VBox/Buttons/ActionCardsRow/UseItemActionCard/UseItemActionVBox/UseItemButton", "consumable card")
+	_require_action_hint_copy_contains("Margin/VBox/Buttons/ActionCardsRow/DefenseActionCard/DefenseActionVBox/DefenseActionButton", "guard before hp")
+	var use_item_button: Button = current_scene.get_node_or_null("Margin/VBox/Buttons/ActionCardsRow/UseItemActionCard/UseItemActionVBox/UseItemButton") as Button
+	_require(use_item_button == null, "Expected Combat to remove the top-level Use Item action button.")
 
 	var attack_button: Button = current_scene.get_node_or_null("Margin/VBox/Buttons/ActionCardsRow/AttackActionCard/AttackActionVBox/AttackButton") as Button
 	var tooltip_panel: PanelContainer = current_scene.get_node_or_null("Margin/VBox/Buttons/ActionHintPanel") as PanelContainer
@@ -842,6 +962,23 @@ func _require_combat_action_tooltips() -> void:
 	)
 
 
+func _require_combat_log_shell() -> void:
+	var secondary_scroll: ScrollContainer = current_scene.get_node_or_null("Margin/VBox/SecondaryScroll") as ScrollContainer
+	var combat_log_card: PanelContainer = current_scene.get_node_or_null("Margin/VBox/SecondaryScroll/SecondaryScrollContent/CombatLogCard") as PanelContainer
+	var combat_log_title: Label = current_scene.get_node_or_null("Margin/VBox/SecondaryScroll/SecondaryScrollContent/CombatLogCard/CombatLogVBox/CombatLogTitleLabel") as Label
+	var combat_log_vbox: VBoxContainer = current_scene.get_node_or_null("Margin/VBox/SecondaryScroll/SecondaryScrollContent/CombatLogCard/CombatLogVBox") as VBoxContainer
+	var combat_log_entries: VBoxContainer = current_scene.get_node_or_null("Margin/VBox/SecondaryScroll/SecondaryScrollContent/CombatLogCard/CombatLogVBox/CombatLogEntries") as VBoxContainer
+	_require(combat_log_card != null, "Expected Combat to expose a dedicated Combat Log card shell.")
+	_require(combat_log_title != null and combat_log_title.text == "Combat Log", "Expected Combat to expose a dedicated Combat Log title.")
+	_require(combat_log_entries != null, "Expected Combat to expose the stacked combat log entries container.")
+	_require(combat_log_card.size_flags_vertical == Control.SIZE_EXPAND_FILL, "Expected Combat Log card to consume the remaining secondary column height.")
+	_require(combat_log_vbox != null and combat_log_vbox.size_flags_vertical == Control.SIZE_EXPAND_FILL, "Expected Combat Log layout stack to expand with the card shell.")
+	_require(combat_log_entries.size_flags_vertical == Control.SIZE_EXPAND_FILL, "Expected Combat Log entries stack to keep the expanded log shell height.")
+	if secondary_scroll != null and combat_log_card.visible:
+		var bottom_gap: float = secondary_scroll.get_global_rect().end.y - combat_log_card.get_global_rect().end.y
+		_require(bottom_gap <= 32.0, "Expected Combat Log card to stretch near the bottom of the secondary scroll area, got gap %.2f." % bottom_gap)
+
+
 func _require_combat_readability_shell() -> void:
 	_require(current_scene != null and current_scene.name == "Combat", "Expected Combat scene before reading readability shell state.")
 	var hero_badge_label: Label = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/HBox/PlayerBustFrame/HeroBadgePanel/HeroBadgeLabel") as Label
@@ -850,6 +987,10 @@ func _require_combat_readability_shell() -> void:
 	var player_run_summary_card: PanelContainer = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/PlayerRunSummaryCard") as PanelContainer
 	var player_run_summary_root: Control = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/PlayerRunSummaryCard/RunStatusRoot") as Control
 	var enemy_trait_label: Label = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/EnemyTraitLabel") as Label
+	var enemy_type_label: Label = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/EnemyTypeLabel") as Label
+	var enemy_hp_label: Label = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/EnemyHpLabel") as Label
+	var intent_title_label: Label = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentCard/IntentVBox/IntentTitleLabel") as Label
+	var intent_label: Label = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentCard/IntentVBox/IntentRow/IntentLabel") as Label
 	var intent_detail_label: Label = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentCard/IntentVBox/IntentDetailLabel") as Label
 	var enemy_hp_bar: ProgressBar = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/EnemyHpBar") as ProgressBar
 	var enemy_feedback_layer: Control = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/CombatFeedbackLayer") as Control
@@ -858,22 +999,26 @@ func _require_combat_readability_shell() -> void:
 	var player_feedback_layer: Control = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/CombatFeedbackLayer") as Control
 	var player_feedback_flash: ColorRect = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/CombatFeedbackLayer/ImpactFlash") as ColorRect
 	var player_feedback_text_layer: Control = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/CombatFeedbackLayer/FeedbackTextLayer") as Control
-	var forecast_attack_label: Label = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/ForecastCard/ForecastVBox/ForecastGrid/ForecastAttackLabel") as Label
-	var forecast_defense_label: Label = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/ForecastCard/ForecastVBox/ForecastGrid/ForecastDefenseLabel") as Label
-	var forecast_incoming_label: Label = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/ForecastCard/ForecastVBox/ForecastGrid/ForecastIncomingLabel") as Label
+	var forecast_card: PanelContainer = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/ForecastCard") as PanelContainer
+	var attack_preview_label: Label = current_scene.get_node_or_null("Margin/VBox/Buttons/ActionCardsRow/AttackActionCard/AttackActionVBox/AttackActionPreviewLabel") as Label
+	var defense_preview_label: Label = current_scene.get_node_or_null("Margin/VBox/Buttons/ActionCardsRow/DefenseActionCard/DefenseActionVBox/DefenseActionPreviewLabel") as Label
 	_require(hero_badge_label != null and hero_badge_label.text == "YOU", "Expected player bust to expose a distinct YOU badge.")
 	_require(player_name_label != null and player_name_label.text == "Wayfinder", "Expected player card to expose the wayfinder identity label.")
 	_require(player_loadout_label != null and player_loadout_label.visible, "Expected player card to expose the compact loadout summary row.")
 	_require(player_run_summary_card != null and player_run_summary_card.visible, "Expected player card to expose the structured run-summary shell.")
 	_require(player_run_summary_root != null and player_run_summary_root.visible, "Expected player card to render the shared structured status strip.")
-	_require(enemy_trait_label != null, "Expected enemy card to expose the trait-hint label shell.")
+	_require(enemy_type_label != null and not enemy_type_label.text.begins_with("Type:"), "Expected enemy card to expose the condensed enemy overview line without the old Type prefix.")
+	_require(enemy_trait_label != null and not enemy_trait_label.visible, "Expected combat readability pass to hide the redundant second enemy meta row.")
+	_require(enemy_hp_label != null and enemy_hp_label.text.contains("Armor"), "Expected enemy vitals line to expose HP and armor together.")
 	_require(enemy_hp_bar != null and enemy_hp_bar.visible and enemy_hp_bar.max_value >= 1.0, "Expected enemy card to expose a readable HP bar.")
 	_require(enemy_feedback_layer != null and enemy_feedback_flash != null and enemy_feedback_text_layer != null, "Expected enemy card to expose the combat feedback overlay shell.")
 	_require(player_feedback_layer != null and player_feedback_flash != null and player_feedback_text_layer != null, "Expected player card to expose the combat feedback overlay shell.")
-	_require(intent_detail_label != null and intent_detail_label.visible and intent_detail_label.text.contains("Incoming"), "Expected enemy card to expose incoming-hit detail helper copy.")
-	_require(forecast_attack_label != null and forecast_attack_label.visible and forecast_attack_label.text.contains("Hit"), "Expected player forecast card to expose outgoing hit preview.")
-	_require(forecast_defense_label != null and forecast_defense_label.visible and forecast_defense_label.text.contains("Armor"), "Expected player forecast card to expose armor preview.")
-	_require(forecast_incoming_label != null and forecast_incoming_label.visible and forecast_incoming_label.text.contains("Incoming"), "Expected player forecast card to expose incoming-hit preview.")
+	_require(intent_title_label != null and intent_title_label.text == "Next Hit", "Expected enemy intent card to use the simplified next-hit title.")
+	_require(intent_label != null and intent_label.text.contains("Hits for"), "Expected enemy intent copy to focus on the next incoming damage.")
+	_require(intent_detail_label != null and (not intent_detail_label.visible or intent_detail_label.text.begins_with("Extra:")), "Expected the extra-effect helper to stay hidden unless the current hit has an explicit rider.")
+	_require(forecast_card != null and not forecast_card.visible, "Expected combat readability pass to remove the redundant forecast card.")
+	_require(attack_preview_label != null and attack_preview_label.visible and attack_preview_label.text.contains("Deal"), "Expected attack action card to explain the action result directly.")
+	_require(defense_preview_label != null and defense_preview_label.visible and defense_preview_label.text.contains("Gain"), "Expected defend action card to explain the guard result directly.")
 
 
 func _require_selected_inventory_card(node_path: String) -> void:

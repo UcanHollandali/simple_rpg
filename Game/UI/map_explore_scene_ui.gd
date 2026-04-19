@@ -4,8 +4,8 @@ class_name MapExploreSceneUi
 
 const TempScreenThemeScript = preload("res://Game/UI/temp_screen_theme.gd")
 const MapBoardCanvasScript = preload("res://Game/UI/map_board_canvas.gd")
+const SafeMenuLauncherStyleScript = preload("res://Game/UI/safe_menu_launcher_style.gd")
 const SceneLayoutHelperScript = preload("res://Game/UI/scene_layout_helper.gd")
-const SETTINGS_ICON = preload("res://Assets/Icons/icon_settings.svg")
 const TOP_ROW_PATH := "Margin/VBox/TopRow"
 const HEADER_CARD_PATH := "Margin/VBox/TopRow/HeaderCard"
 const HEADER_STACK_PATH := "Margin/VBox/TopRow/HeaderCard/HeaderRow/HeaderStack"
@@ -15,14 +15,13 @@ const RUN_SUMMARY_CARD_PATH := "Margin/VBox/TopRow/RunSummaryCard"
 const ROUTE_GRID_PATH := "Margin/VBox/RouteGrid"
 const BOARD_FRAME_PATH := "Margin/VBox/RouteGrid/BoardFrame"
 const SAFE_MENU_ANCHOR_PATH := "Margin/VBox/TopRow/SettingsMenuAnchor"
+const SHOW_BOTTOM_CONTEXT := false
 
 
-static func ensure_runtime_board_nodes(route_grid: Control, route_marker_node_names: PackedStringArray, current_marker: TextureRect, road_base_lines: Array[Line2D], road_highlight_lines: Array[Line2D], walker_root: Control, walker_shadow: PanelContainer, walker_sprite: TextureRect, walker_root_size: Vector2, walker_shadow_size: Vector2, walker_sprite_size: Vector2, board_canvas: Control) -> Dictionary:
+static func ensure_runtime_board_nodes(route_grid: Control, route_marker_node_names: PackedStringArray, current_marker: TextureRect, walker_root: Control, walker_shadow: PanelContainer, walker_sprite: TextureRect, walker_root_size: Vector2, walker_shadow_size: Vector2, walker_sprite_size: Vector2, board_canvas: Control) -> Dictionary:
 	if route_grid == null:
 		return {
 			"current_marker": current_marker,
-			"road_base_lines": road_base_lines,
-			"road_highlight_lines": road_highlight_lines,
 			"walker_root": walker_root,
 			"walker_shadow": walker_shadow,
 			"walker_sprite": walker_sprite,
@@ -61,34 +60,6 @@ static func ensure_runtime_board_nodes(route_grid: Control, route_marker_node_na
 	_ensure_marker_overlay(current_marker)
 	route_grid.move_child(current_marker, route_grid.get_child_count() - 1)
 
-	if road_base_lines.is_empty():
-		for index in range(route_marker_node_names.size()):
-			var base_line := Line2D.new()
-			base_line.name = "RouteRoadBase%d" % index
-			base_line.width = 14.0
-			base_line.default_color = Color(0.57, 0.49, 0.30, 0.82)
-			base_line.antialiased = true
-			base_line.z_index = 2
-			base_line.begin_cap_mode = Line2D.LINE_CAP_ROUND
-			base_line.end_cap_mode = Line2D.LINE_CAP_ROUND
-			base_line.joint_mode = Line2D.LINE_JOINT_ROUND
-			route_grid.add_child(base_line)
-			route_grid.move_child(base_line, 1)
-			road_base_lines.append(base_line)
-
-			var highlight_line := Line2D.new()
-			highlight_line.name = "RouteRoadHighlight%d" % index
-			highlight_line.width = 6.0
-			highlight_line.default_color = Color(0.96, 0.90, 0.70, 0.78)
-			highlight_line.antialiased = true
-			highlight_line.z_index = 3
-			highlight_line.begin_cap_mode = Line2D.LINE_CAP_ROUND
-			highlight_line.end_cap_mode = Line2D.LINE_CAP_ROUND
-			highlight_line.joint_mode = Line2D.LINE_JOINT_ROUND
-			route_grid.add_child(highlight_line)
-			route_grid.move_child(highlight_line, 2)
-			road_highlight_lines.append(highlight_line)
-
 	if walker_root == null:
 		walker_root = Control.new()
 		walker_root.name = "WalkerActor"
@@ -120,8 +91,6 @@ static func ensure_runtime_board_nodes(route_grid: Control, route_marker_node_na
 
 	return {
 		"current_marker": current_marker,
-		"road_base_lines": road_base_lines,
-		"road_highlight_lines": road_highlight_lines,
 		"walker_root": walker_root,
 		"walker_shadow": walker_shadow,
 		"walker_sprite": walker_sprite,
@@ -187,7 +156,7 @@ static func apply_temp_theme(root: Control) -> void:
 	var title_label: Label = root.get_node_or_null("%s/TitleLabel" % HEADER_STACK_PATH) as Label
 	TempScreenThemeScript.apply_label(title_label, "title")
 	if title_label != null:
-		title_label.add_theme_font_size_override("font_size", 32)
+		title_label.add_theme_font_size_override("font_size", 30)
 		title_label.clip_text = true
 		title_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 		title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -196,7 +165,7 @@ static func apply_temp_theme(root: Control) -> void:
 	var progress_label: Label = root.get_node_or_null("%s/ProgressLabel" % HEADER_STACK_PATH) as Label
 	TempScreenThemeScript.apply_label(progress_label, "accent")
 	if progress_label != null:
-		progress_label.add_theme_font_size_override("font_size", 13)
+		progress_label.add_theme_font_size_override("font_size", 12)
 		progress_label.clip_text = true
 		progress_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 		progress_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -205,7 +174,7 @@ static func apply_temp_theme(root: Control) -> void:
 	var route_read_label: Label = root.get_node_or_null("%s/RouteReadLabel" % HEADER_STACK_PATH) as Label
 	TempScreenThemeScript.apply_label(route_read_label, "muted")
 	if route_read_label != null:
-		route_read_label.add_theme_font_size_override("font_size", 15)
+		route_read_label.add_theme_font_size_override("font_size", 14)
 		route_read_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		route_read_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		route_read_label.max_lines_visible = 2
@@ -229,24 +198,24 @@ static func apply_temp_theme(root: Control) -> void:
 	var current_anchor_label: Label = root.get_node_or_null("Margin/VBox/BottomRow/CurrentAnchorCard/VBox/CurrentAnchorLabel") as Label
 	TempScreenThemeScript.apply_label(current_anchor_label, "accent")
 	if current_anchor_label != null:
-		current_anchor_label.add_theme_font_size_override("font_size", 22)
+		current_anchor_label.add_theme_font_size_override("font_size", 20)
 	var current_anchor_detail_label: Label = root.get_node_or_null("Margin/VBox/BottomRow/CurrentAnchorCard/VBox/CurrentAnchorDetailLabel") as Label
 	TempScreenThemeScript.apply_label(current_anchor_detail_label)
 	if current_anchor_detail_label != null:
-		current_anchor_detail_label.add_theme_font_size_override("font_size", 16)
+		current_anchor_detail_label.add_theme_font_size_override("font_size", 15)
 		current_anchor_detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		current_anchor_detail_label.max_lines_visible = 2
 	var current_anchor_hint_label: Label = root.get_node_or_null("Margin/VBox/BottomRow/CurrentAnchorCard/VBox/CurrentAnchorHintLabel") as Label
 	TempScreenThemeScript.apply_label(current_anchor_hint_label, "muted")
 	if current_anchor_hint_label != null:
-		current_anchor_hint_label.add_theme_font_size_override("font_size", 14)
+		current_anchor_hint_label.add_theme_font_size_override("font_size", 13)
 		current_anchor_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		current_anchor_hint_label.max_lines_visible = 2
 
 	var status_label: Label = root.get_node_or_null("Margin/VBox/BottomRow/StatusCard/StatusLabel") as Label
 	TempScreenThemeScript.apply_label(status_label, "muted")
 	if status_label != null:
-		status_label.add_theme_font_size_override("font_size", 15)
+		status_label.add_theme_font_size_override("font_size", 14)
 		status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		status_label.max_lines_visible = 2
@@ -350,6 +319,8 @@ static func apply_portrait_safe_layout(root: Control, max_width: int, min_side_m
 	var viewport_size: Vector2 = root.get_viewport_rect().size
 	var compact_layout: bool = viewport_size.y < 1540.0
 	var very_compact_layout: bool = viewport_size.y < 1360.0
+	var launcher_metrics: Dictionary = SafeMenuLauncherStyleScript.resolve_launcher_metrics_for_viewport(viewport_size)
+	var launcher_dimensions: Vector2 = Vector2(launcher_metrics.get("dimensions", Vector2(62.0, 70.0)))
 	SceneLayoutHelperScript.apply_portrait_layout(root, {
 		"max_width": max_width,
 		"min_side_margin": min_side_margin,
@@ -393,15 +364,16 @@ static func apply_portrait_safe_layout(root: Control, max_width: int, min_side_m
 			safe_menu_anchor.size_flags_horizontal = Control.SIZE_SHRINK_END
 			safe_menu_anchor.size_flags_vertical = Control.SIZE_EXPAND_FILL
 			safe_menu_anchor.size_flags_stretch_ratio = 0.0
-			safe_menu_anchor.custom_minimum_size = Vector2(62 if compact_layout else 68, 70 if compact_layout else 76)
+			safe_menu_anchor.custom_minimum_size = launcher_dimensions
 			var settings_button: Button = safe_menu_anchor.get_node_or_null("SettingsButton") as Button
 			if settings_button != null:
-				settings_button.custom_minimum_size = Vector2(62 if compact_layout else 68, 70 if compact_layout else 76)
+				_apply_settings_button_style(settings_button, viewport_size)
+				_layout_settings_button_in_anchor(safe_menu_anchor, settings_button, launcher_dimensions)
 
 	# Middle map (main content)
 	route_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	route_grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	route_grid.custom_minimum_size = Vector2(0.0, 500.0 if very_compact_layout else 560.0 if compact_layout else 600.0)
+	route_grid.custom_minimum_size = Vector2(0.0, 560.0 if very_compact_layout else 620.0 if compact_layout else 680.0)
 
 	# Bottom action/info block (inventory + state summary)
 	if inventory_section != null:
@@ -439,6 +411,7 @@ static func apply_portrait_safe_layout(root: Control, max_width: int, min_side_m
 			inventory_card.custom_minimum_size = Vector2(0.0, 102.0 if very_compact_layout else 114.0 if compact_layout else 138.0)
 
 	if bottom_row != null:
+		bottom_row.visible = SHOW_BOTTOM_CONTEXT
 		bottom_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		bottom_row.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 		bottom_row.add_theme_constant_override("separation", 2 if very_compact_layout else 4)
@@ -512,37 +485,52 @@ static func ensure_settings_menu_button(root: Control, pressed_handler: Callable
 	if button == null:
 		button = Button.new()
 		button.name = "SettingsButton"
-		button.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		button.anchor_right = 1.0
-		button.anchor_bottom = 1.0
+		button.anchor_left = 0.5
+		button.anchor_top = 0.5
+		button.anchor_right = 0.5
+		button.anchor_bottom = 0.5
 		button.grow_horizontal = Control.GROW_DIRECTION_BOTH
 		button.grow_vertical = Control.GROW_DIRECTION_BOTH
 		button.text = ""
 		button.tooltip_text = "Settings"
-		button.icon = SETTINGS_ICON
 		button.alignment = HORIZONTAL_ALIGNMENT_CENTER
 		button.mouse_filter = Control.MOUSE_FILTER_STOP
 		safe_menu_anchor.add_child(button)
 		_flush_container_layout(safe_menu_anchor)
 	if pressed_handler.is_valid() and not button.is_connected("pressed", pressed_handler):
 		button.pressed.connect(pressed_handler)
-	_apply_settings_button_style(button)
+	_apply_settings_button_style(button, root.get_viewport_rect().size)
+	_layout_settings_button_in_anchor(safe_menu_anchor, button, button.custom_minimum_size)
 	return button
 
 
-static func _apply_settings_button_style(button: Button) -> void:
+static func _apply_settings_button_style(button: Button, viewport_size: Vector2 = Vector2.ZERO) -> void:
 	if button == null:
 		return
-	button.text = ""
-	button.tooltip_text = "Settings"
-	button.icon = SETTINGS_ICON
-	button.custom_minimum_size = Vector2(68, 76)
-	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	button.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	TempScreenThemeScript.apply_small_button(button, TempScreenThemeScript.PANEL_BORDER_COLOR, true)
-	button.add_theme_constant_override("h_separation", 0)
-	button.add_theme_constant_override("icon_max_width", 28)
-	button.add_theme_font_size_override("font_size", 1)
+	var effective_viewport_size: Vector2 = viewport_size
+	if effective_viewport_size == Vector2.ZERO:
+		effective_viewport_size = button.get_viewport_rect().size
+	var launcher_metrics: Dictionary = SafeMenuLauncherStyleScript.resolve_launcher_metrics_for_viewport(effective_viewport_size)
+	SafeMenuLauncherStyleScript.apply_shared_launcher_button_style(
+		button,
+		"Settings",
+		Vector2(launcher_metrics.get("dimensions", Vector2(62.0, 70.0))),
+		int(launcher_metrics.get("icon_size", 28))
+	)
+	button.mouse_filter = Control.MOUSE_FILTER_STOP
+
+
+static func _layout_settings_button_in_anchor(anchor: Control, button: Button, launcher_dimensions: Vector2) -> void:
+	if anchor == null or button == null:
+		return
+	button.anchor_left = 0.5
+	button.anchor_top = 0.5
+	button.anchor_right = 0.5
+	button.anchor_bottom = 0.5
+	button.offset_left = -launcher_dimensions.x * 0.5
+	button.offset_top = -launcher_dimensions.y * 0.5
+	button.offset_right = launcher_dimensions.x * 0.5
+	button.offset_bottom = launcher_dimensions.y * 0.5
 
 
 static func _apply_stage_badge_style(stage_badge: PanelContainer, stage_badge_label: Label) -> void:
@@ -562,8 +550,9 @@ static func _apply_stage_badge_style(stage_badge: PanelContainer, stage_badge_la
 	style.shadow_color = Color(TempScreenThemeScript.REWARD_ACCENT_COLOR.r, TempScreenThemeScript.REWARD_ACCENT_COLOR.g, TempScreenThemeScript.REWARD_ACCENT_COLOR.b, 0.22)
 	style.shadow_size = 16
 	stage_badge.add_theme_stylebox_override("panel", style)
+	TempScreenThemeScript.apply_font_role(stage_badge_label, "heading")
 	stage_badge_label.add_theme_color_override("font_color", TempScreenThemeScript.TEXT_PRIMARY_COLOR)
-	stage_badge_label.add_theme_font_size_override("font_size", 24)
+	stage_badge_label.add_theme_font_size_override("font_size", 22)
 
 
 static func _apply_board_frame_style(board_frame: PanelContainer) -> void:

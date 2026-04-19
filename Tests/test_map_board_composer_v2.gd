@@ -16,6 +16,7 @@ func _init() -> void:
 	test_map_board_composer_assigns_deterministic_path_families()
 	test_map_board_composer_survives_save_restore_without_layout_fields()
 	test_map_board_composer_uses_run_seed_for_controlled_random_variation()
+	test_map_board_composer_keeps_opening_anchor_near_vertical_center()
 	test_map_board_composer_rotates_opening_shell_beyond_the_upper_half()
 	test_map_board_composer_surfaces_known_icons_for_seen_non_adjacent_nodes()
 	test_map_board_composer_surfaces_known_icons_for_current_and_adjacent_nodes()
@@ -26,7 +27,9 @@ func _init() -> void:
 	test_map_board_composer_does_not_scale_current_nodes()
 	test_map_board_composer_keeps_visible_edges_readable_without_crossings()
 	test_map_board_composer_keeps_visible_edges_clear_of_other_node_clearings()
+	test_map_board_composer_keeps_visible_edges_inside_board_frame()
 	test_map_board_composer_keeps_discovered_history_edges_visible()
+	test_map_board_composer_keeps_one_visible_outer_reconnect_in_late_route_history()
 	print("test_map_board_composer_v2: all assertions passed")
 	quit()
 
@@ -108,11 +111,19 @@ func test_map_board_composer_is_deterministic_from_saved_truth() -> void:
 func test_map_board_composer_assigns_deterministic_path_families() -> void:
 	var composer: RefCounted = MapBoardComposerV2Script.new()
 	var observed_family_set: Dictionary = {}
-	for seed in [11, 29, 41]:
+	for scenario_variant in [
+		{"seed": 75, "steps": 0},
+		{"seed": 11, "steps": 5},
+		{"seed": 29, "steps": 5},
+		{"seed": 41, "steps": 5},
+	]:
+		var scenario: Dictionary = scenario_variant
+		var seed: int = int(scenario.get("seed", 0))
+		var steps: int = int(scenario.get("steps", 0))
 		var run_state: RunState = RunState.new()
 		run_state.reset_for_new_run()
 		run_state.configure_run_seed(seed)
-		_advance_visible_branch(run_state, 3)
+		_advance_visible_branch(run_state, steps)
 
 		var composition_a: Dictionary = composer.call("compose", run_state, Vector2(920, 1180), Vector2(0.5, 0.58), Vector2(148, 212))
 		var composition_b: Dictionary = composer.call("compose", run_state, Vector2(920, 1180), Vector2(0.5, 0.58), Vector2(148, 212))
@@ -130,8 +141,8 @@ func test_map_board_composer_assigns_deterministic_path_families() -> void:
 			)
 			observed_family_set[family] = true
 	assert(
-		observed_family_set.size() >= 1,
-		"Expected the simplified readable board geometry to stay inside the supported deterministic edge family set."
+		observed_family_set.size() == ALLOWED_PATH_FAMILIES.size(),
+		"Expected curated opening and late-route board views to surface all four supported path families, not collapse into a smaller visual subset."
 	)
 
 
@@ -160,6 +171,22 @@ func test_map_board_composer_survives_save_restore_without_layout_fields() -> vo
 	assert(
 		original_composition.get("focus_offset", Vector2.ZERO) == restored_composition.get("focus_offset", Vector2.ZERO),
 		"Expected save/restore to reproduce the same derived focus offset without saving presentation state."
+	)
+
+
+func test_map_board_composer_keeps_opening_anchor_near_vertical_center() -> void:
+	var composer: RefCounted = MapBoardComposerV2Script.new()
+	var run_state: RunState = RunState.new()
+	run_state.reset_for_new_run()
+	run_state.configure_run_seed(99)
+	var board_size := Vector2(920, 1180)
+	var composition: Dictionary = composer.call("compose", run_state, board_size, Vector2(0.5, 0.58), Vector2(148, 212))
+	var world_positions: Dictionary = composition.get("world_positions", {})
+	var start_position: Vector2 = world_positions.get(0, Vector2.ZERO)
+	assert(start_position != Vector2.ZERO, "Expected the opening anchor node to keep a composed world position.")
+	assert(
+		start_position.y >= board_size.y * 0.57 and start_position.y <= board_size.y * 0.64,
+		"Expected the opening anchor node to stay near the portrait board's vertical center instead of drifting too far upward or downward."
 	)
 
 
@@ -457,6 +484,31 @@ func test_map_board_composer_keeps_visible_edges_clear_of_other_node_clearings()
 				)
 
 
+func test_map_board_composer_keeps_visible_edges_inside_board_frame() -> void:
+	var composer: RefCounted = MapBoardComposerV2Script.new()
+	var board_size := Vector2(920, 1180)
+	for seed in [11, 29, 41]:
+		var run_state: RunState = RunState.new()
+		run_state.reset_for_new_run()
+		run_state.configure_run_seed(seed)
+		_advance_visible_branch(run_state, 6)
+		var composition: Dictionary = composer.call("compose", run_state, board_size, Vector2(0.5, 0.58), Vector2(148, 212))
+		for edge_variant in composition.get("visible_edges", []):
+			if typeof(edge_variant) != TYPE_DICTIONARY:
+				continue
+			var edge_entry: Dictionary = edge_variant
+			var points: PackedVector2Array = edge_entry.get("points", PackedVector2Array())
+			for point in points:
+				assert(
+					point.x >= -12.0 and point.x <= board_size.x + 12.0 and point.y >= -12.0 and point.y <= board_size.y + 12.0,
+					"Expected composed road fallback points to stay inside the compact board frame instead of jumping to far offscreen lanes. Seed=%d edge=%s point=%s." % [
+						seed,
+						JSON.stringify([int(edge_entry.get("from_node_id", -1)), int(edge_entry.get("to_node_id", -1))]),
+						str(point),
+					]
+				)
+
+
 func test_map_board_composer_keeps_discovered_history_edges_visible() -> void:
 	var composer: RefCounted = MapBoardComposerV2Script.new()
 	for seed in [11, 29, 41]:
@@ -524,6 +576,26 @@ func test_map_board_composer_keeps_discovered_history_edges_visible() -> void:
 			]
 		)
 		assert(local_edge_count > 0, "Expected progressed map views to keep immediate actionable roads visible.")
+
+
+func test_map_board_composer_keeps_one_visible_outer_reconnect_in_late_route_history() -> void:
+	var composer: RefCounted = MapBoardComposerV2Script.new()
+	for seed in [11, 29, 41]:
+		var run_state: RunState = RunState.new()
+		run_state.reset_for_new_run()
+		run_state.configure_run_seed(seed)
+		_advance_visible_branch(run_state, 5)
+		var graph_snapshot: Array[Dictionary] = run_state.map_runtime_state.build_realized_graph_snapshots()
+		var composition: Dictionary = composer.call("compose", run_state, Vector2(920, 1180), Vector2(0.5, 0.58), Vector2(148, 212))
+		var reconnect_edge: Dictionary = _find_visible_same_depth_edge(composition, graph_snapshot)
+		assert(
+			not reconnect_edge.is_empty(),
+			"Expected each seeded map to keep at least one visible same-depth outer reconnect once late-route history is in view. Seed=%d." % seed
+		)
+		assert(
+			String(reconnect_edge.get("path_family", "")) == "outward_reconnecting_arc",
+			"Expected visible same-depth reconnects to use the dedicated outward reconnect family instead of blending back into the ordinary corridor curves. Seed=%d." % seed
+		)
 
 
 func _visible_node_ids(composition: Dictionary) -> PackedInt32Array:

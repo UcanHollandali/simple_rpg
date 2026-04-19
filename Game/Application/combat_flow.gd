@@ -290,7 +290,6 @@ func check_combat_end() -> bool:
 func get_current_intent() -> Dictionary:
 	return combat_state.current_intent.duplicate(true)
 
-
 func build_preview_snapshot() -> Dictionary:
 	if combat_state == null:
 		return {}
@@ -317,12 +316,14 @@ func build_preview_snapshot() -> Dictionary:
 	var current_durability: int = int(combat_state.weapon_instance.get("current_durability", 0))
 	var next_weapon_state: Dictionary = attack_result.get("updated_weapon_state", attack_result.get("weapon_instance", {}))
 	var next_durability: int = int(next_weapon_state.get("current_durability", current_durability))
+	var updated_enemy_preview_state: Dictionary = attack_result.get("updated_defender_state", {})
 
 	return {
 		"attack_damage_preview": int(attack_result.get("damage_applied", 0)),
 		"attack_dodge_chance": int(attack_result.get("dodge_chance", 0)),
 		"uses_fallback_attack": bool(attack_result.get("used_fallback_attack", false)),
 		"durability_spend_preview": max(0, current_durability - next_durability),
+		"enemy_defense_preview": int(updated_enemy_preview_state.get("incoming_damage_flat_reduction", 0)),
 		"defense_preview": int(effective_player_state.get("incoming_damage_flat_reduction", 0)),
 		"incoming_damage_preview": int(enemy_result.get("damage_applied", 0)),
 		"guard_gain_preview": int(defend_result.get("guard_generated", 0)),
@@ -330,7 +331,6 @@ func build_preview_snapshot() -> Dictionary:
 		"guard_damage_preview": int(defend_enemy_result.get("damage_applied", 0)),
 		"hunger_tick_preview": 1,
 	}
-
 
 func _resolve_full_turn(action_name: String, slot_index: int = 0) -> Dictionary:
 	var action_result: Dictionary = _resolve_player_action(action_name, slot_index)

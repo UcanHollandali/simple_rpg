@@ -8,6 +8,7 @@ const MapRouteBindingScript = preload("res://Game/UI/map_route_binding.gd")
 const MapBoardComposerV2Script = preload("res://Game/UI/map_board_composer_v2.gd")
 const MapExploreSceneUiScript = preload("res://Game/UI/map_explore_scene_ui.gd")
 const RunStatusStripScript = preload("res://Game/UI/run_status_strip.gd")
+const InventoryOverflowPromptScript = preload("res://Game/UI/inventory_overflow_prompt.gd")
 const MapRuntimeStateScript = preload("res://Game/RuntimeState/map_runtime_state.gd")
 const SceneAudioPlayersScript = preload("res://Game/UI/scene_audio_players.gd")
 const SceneAudioCleanupScript = preload("res://Game/UI/scene_audio_cleanup.gd")
@@ -48,6 +49,8 @@ var _roadside_visual_state: Dictionary = {}
 var _roadside_transition_in_flight: bool = false
 var _safe_menu: SafeMenuOverlay
 var _overlay_director: MapOverlayDirector
+var _overflow_prompt: InventoryOverflowPrompt
+var _pending_overflow_slot_id: int = -1
 var _is_refreshing_ui: bool = false
 var _refresh_ui_pending: bool = false
 var _run_status_model_signature: String = ""
@@ -110,6 +113,7 @@ func _ready() -> void:
 	SceneAudioPlayersScript.configure_from_config(self, AUDIO_PLAYER_CONFIG)
 	_route_binding.ensure_runtime_board_nodes()
 	_ensure_inventory_hint_label()
+	_setup_overflow_prompt()
 	_apply_temp_theme()
 	_ensure_hunger_warning_toast()
 	_route_binding.style_route_buttons_for_overlay_mode()
@@ -241,7 +245,7 @@ func _move_to_node(node_reference: Variant) -> void:
 				int(run_state.map_runtime_state.current_node_id),
 				int(result.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
 			)
-		_append_status_line("Roadside encounter interrupts the trail before the destination.")
+		_append_status_line("Roadside stop before the node.")
 	else:
 		if _route_binding != null:
 			_route_binding.clear_pending_roadside_visual_state()
@@ -325,6 +329,7 @@ func _refresh_ui() -> void:
 	if _safe_menu != null:
 		var bootstrap = _get_app_bootstrap()
 		RunMenuSceneHelperScript.sync_load_available(_safe_menu, bootstrap)
+		_sync_safe_menu_launcher_visibility()
 
 	if _route_binding == null or not _route_binding.is_selection_in_flight():
 		_apply_portrait_safe_layout()
@@ -417,6 +422,9 @@ func _handle_inventory_card_click(_slot_index: int, slot_id: int, card_family: S
 		"weapon", "shield", "armor", "belt", "shield_attachment":
 			var toggle_result: Dictionary = bootstrap.toggle_inventory_equipment(slot_id)
 			if not bool(toggle_result.get("ok", false)):
+				if String(toggle_result.get("error", "")) == "inventory_choice_required":
+					_present_inventory_overflow_prompt(slot_id, toggle_result)
+					return
 				_append_status_line(_build_inventory_failure_text(toggle_result))
 			else:
 				_append_status_line(_build_inventory_toggle_result_text(toggle_result))
@@ -490,6 +498,45 @@ func _build_inventory_failure_text(result: Dictionary) -> String:
 
 func _get_app_bootstrap():
 	return _scene_node("/root/AppBootstrap") if is_inside_tree() else null
+
+
+func _setup_overflow_prompt() -> void:
+	_overflow_prompt = InventoryOverflowPromptScript.new()
+	_overflow_prompt.name = "InventoryOverflowPrompt"
+	_overflow_prompt.configure(TempScreenThemeScript.TEAL_ACCENT_COLOR)
+	add_child(_overflow_prompt)
+	_overflow_prompt.discard_requested.connect(_on_overflow_discard_requested)
+	_overflow_prompt.leave_requested.connect(_on_overflow_leave_requested)
+
+
+func _present_inventory_overflow_prompt(slot_id: int, prompt_result: Dictionary) -> void:
+	_pending_overflow_slot_id = slot_id
+	if _overflow_prompt == null:
+		return
+	_overflow_prompt.present(prompt_result, "Keep Equipped")
+
+
+func _clear_overflow_prompt() -> void:
+	_pending_overflow_slot_id = -1
+	if _overflow_prompt != null:
+		_overflow_prompt.dismiss()
+
+
+func _on_overflow_discard_requested(discard_slot_id: int) -> void:
+	var bootstrap = _get_app_bootstrap()
+	if bootstrap == null or _pending_overflow_slot_id <= 0:
+		return
+	var result: Dictionary = bootstrap.toggle_inventory_equipment(_pending_overflow_slot_id, discard_slot_id)
+	_clear_overflow_prompt()
+	if bool(result.get("ok", false)):
+		_append_status_line(_build_inventory_toggle_result_text(result))
+	else:
+		_append_status_line(_build_inventory_failure_text(result))
+	_refresh_ui()
+
+
+func _on_overflow_leave_requested() -> void:
+	_clear_overflow_prompt()
 
 
 func _get_run_state() -> RunState:
@@ -757,10 +804,14 @@ func _apply_text_density_pass() -> void:
 
 
 func _on_route_grid_resized() -> void:
+	if _is_refreshing_ui:
+		return
 	if _route_binding != null and _route_binding.is_selection_in_flight():
 		return
-	_refresh_ui_pending = true
-	call_deferred("_consume_pending_refresh_ui")
+	var run_state: RunState = _get_run_state()
+	if _route_binding != null and run_state != null:
+		_route_binding.refresh_layout_for_resize(run_state)
+		_route_binding.render(run_state)
 	_position_active_overlays()
 
 
@@ -780,6 +831,10 @@ func _on_viewport_size_changed() -> void:
 		_run_inventory_panel.refresh_hovered_tooltip()
 	_position_hunger_warning_toast()
 	_position_active_overlays()
+	if _route_binding != null:
+		_route_binding.request_next_refresh_full_recompose()
+	_refresh_ui_pending = true
+	call_deferred("_consume_pending_refresh_ui")
 
 
 func _after_inventory_panel_render(equipment_container: Container, backpack_container: Container) -> void:
@@ -795,68 +850,104 @@ func _sync_overlays_with_flow_state() -> void:
 	if flow_manager == null or _overlay_director == null:
 		return
 	_overlay_director.sync_with_flow_state(flow_manager.get_current_state())
+	_sync_safe_menu_launcher_visibility()
 
 
 func _position_active_overlays() -> void:
 	if _overlay_director != null:
 		_overlay_director.position_overlays()
+	_sync_safe_menu_launcher_visibility()
+
+
+func _request_overlay_ui_refresh() -> void:
+	_refresh_ui_pending = true
+	call_deferred("_consume_pending_refresh_ui")
 
 
 func open_event_overlay() -> void:
 	if _overlay_director != null:
 		_overlay_director.open_event_overlay()
+	_sync_safe_menu_launcher_visibility()
 
 
 func close_event_overlay(immediate: bool = false) -> void:
 	if _overlay_director != null:
 		_overlay_director.close_event_overlay(immediate)
+	_sync_safe_menu_launcher_visibility()
 
 
 func open_support_overlay() -> void:
 	if _overlay_director != null:
 		_overlay_director.open_support_overlay()
+	_sync_safe_menu_launcher_visibility()
 
 
 func close_support_overlay(immediate: bool = false) -> void:
 	if _overlay_director != null:
 		_overlay_director.close_support_overlay(immediate)
+	_sync_safe_menu_launcher_visibility()
 
 
 func open_reward_overlay() -> void:
 	if _overlay_director != null:
 		_overlay_director.open_reward_overlay()
+	_sync_safe_menu_launcher_visibility()
 
 
 func close_reward_overlay(immediate: bool = false) -> void:
 	if _overlay_director != null:
 		_overlay_director.close_reward_overlay(immediate)
+	_sync_safe_menu_launcher_visibility()
 
 
 func open_level_up_overlay() -> void:
 	if _overlay_director != null:
 		_overlay_director.open_level_up_overlay()
+	_sync_safe_menu_launcher_visibility()
 
 
 func close_level_up_overlay(immediate: bool = false) -> void:
 	if _overlay_director != null:
 		_overlay_director.close_level_up_overlay(immediate)
+	_sync_safe_menu_launcher_visibility()
 
 
 func _apply_portrait_safe_layout() -> void:
 	MapExploreSceneUiScript.apply_portrait_safe_layout(self, PORTRAIT_SAFE_MAX_WIDTH, PORTRAIT_SAFE_MIN_SIDE_MARGIN)
 
 func _setup_safe_menu() -> void:
-	_safe_menu = RunMenuSceneHelperScript.ensure_safe_menu(self, _safe_menu, "Settings", "Save, load, return to menu, mute music, or quit.", "Settings", Callable(self, "_on_save_run_pressed"), Callable(self, "_on_load_run_pressed"), Callable(self, "_on_return_to_main_menu_pressed"))
-	var overlay_launcher: Button = _safe_menu.get_node_or_null("MenuLauncherButton") as Button
-	if overlay_launcher != null:
-		overlay_launcher.visible = false
-		overlay_launcher.focus_mode = Control.FOCUS_NONE
-		overlay_launcher.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var menu_config: Dictionary = RunMenuSceneHelperScript.shared_menu_config()
+	_safe_menu = RunMenuSceneHelperScript.ensure_safe_menu(
+		self,
+		_safe_menu,
+		String(menu_config.get("title_text", RunMenuSceneHelperScript.SHARED_MENU_TITLE)),
+		String(menu_config.get("subtitle_text", RunMenuSceneHelperScript.SHARED_MENU_SUBTITLE)),
+		String(menu_config.get("launcher_text", RunMenuSceneHelperScript.SHARED_LAUNCHER_TEXT)),
+		Callable(self, "_on_save_run_pressed"),
+		Callable(self, "_on_load_run_pressed"),
+		Callable(self, "_on_return_to_main_menu_pressed")
+	)
+	if _safe_menu != null:
+		_safe_menu.set_launcher_enabled(false)
 	MapExploreSceneUiScript.ensure_settings_menu_button(self, Callable(self, "_open_safe_menu"))
+	_sync_safe_menu_launcher_visibility()
 
 func _open_safe_menu() -> void:
 	if _safe_menu != null:
 		_safe_menu.open_menu()
+
+
+func _sync_safe_menu_launcher_visibility() -> void:
+	var has_overlay: bool = _overlay_director != null and _overlay_director.has_active_overlay()
+	var settings_button: Button = _scene_node("%s/SettingsButton" % SETTINGS_MENU_ANCHOR_PATH) as Button
+	if settings_button != null:
+		settings_button.visible = not has_overlay
+		settings_button.focus_mode = Control.FOCUS_ALL if not has_overlay else Control.FOCUS_NONE
+		settings_button.mouse_filter = Control.MOUSE_FILTER_STOP if not has_overlay else Control.MOUSE_FILTER_IGNORE
+	if _safe_menu != null:
+		_safe_menu.set_launcher_enabled(false)
+		if has_overlay and _safe_menu.is_menu_open():
+			_safe_menu.close_menu()
 
 func _ensure_hunger_warning_toast() -> void:
 	if _hunger_warning_toast == null:

@@ -185,9 +185,9 @@ func choose_move_to_node(node_reference: Variant) -> Dictionary:
 	return result
 
 
-func toggle_inventory_equipment(slot_id: int) -> Dictionary:
+func toggle_inventory_equipment(slot_id: int, discard_slot_id: int = -1) -> Dictionary:
 	ensure_run_state_initialized()
-	return _ensure_run_session_coordinator().toggle_inventory_equipment(slot_id)
+	return _ensure_run_session_coordinator().toggle_inventory_equipment(slot_id, discard_slot_id)
 
 
 func move_inventory_slot(slot_id: int, target_index: int) -> Dictionary:

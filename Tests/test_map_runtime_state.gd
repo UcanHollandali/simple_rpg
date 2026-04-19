@@ -26,6 +26,7 @@ func _run() -> void:
 	test_map_runtime_state_uses_scatter_template_profile_for_stage_one()
 	test_map_runtime_state_uses_scatter_template_profile_for_stage_two()
 	test_map_runtime_state_uses_scatter_template_profile_for_stage_three()
+	test_scatter_opening_shell_keeps_short_spur_as_combat_across_seed_sweep()
 	test_map_runtime_state_generation_is_deterministic_per_profile()
 	test_run_state_map_generation_varies_by_seed_but_stays_deterministic()
 	test_map_runtime_state_profile_graphs_stay_distinct()
@@ -75,6 +76,38 @@ func test_map_runtime_state_uses_scatter_template_profile_for_stage_two() -> voi
 
 func test_map_runtime_state_uses_scatter_template_profile_for_stage_three() -> void:
 	_assert_scatter_runtime_matches_template_profile("procedural_stage_loop_v1", 3)
+
+
+func test_scatter_opening_shell_keeps_short_spur_as_combat_across_seed_sweep() -> void:
+	for stage_index in [1, 2, 3]:
+		for generation_seed in range(0, 32):
+			var map_runtime_state: RefCounted = MapRuntimeStateScript.new()
+			map_runtime_state.reset_for_new_run(stage_index, generation_seed)
+			var support_layout: Dictionary = _expected_stage_support_layout(stage_index)
+			var expected_opening_support_family: String = String(support_layout.get("opening_support_family", "rest"))
+			var family_counts: Dictionary = _build_family_counts(map_runtime_state)
+			var support_count: int = int(family_counts.get("rest", 0)) + int(family_counts.get("merchant", 0)) + int(family_counts.get("blacksmith", 0))
+			assert(int(family_counts.get("combat", 0)) == 6, "Expected stage %d seed %d to keep 6 combat nodes." % [stage_index, generation_seed])
+			assert(int(family_counts.get("reward", 0)) == 1, "Expected stage %d seed %d to keep 1 reward node." % [stage_index, generation_seed])
+			assert(support_count == 2, "Expected stage %d seed %d to keep exactly 2 support nodes." % [stage_index, generation_seed])
+			var start_adjacent_families: Dictionary = {}
+			var start_adjacent_combat_count: int = 0
+			var start_adjacent_leaf_count: int = 0
+			var start_adjacent_leaf_family: String = ""
+			for adjacent_node_id in map_runtime_state.get_adjacent_node_ids(0):
+				var resolved_adjacent_node_id: int = int(adjacent_node_id)
+				var adjacent_family: String = String(map_runtime_state.get_node_family(resolved_adjacent_node_id))
+				start_adjacent_families[adjacent_family] = true
+				if adjacent_family == "combat":
+					start_adjacent_combat_count += 1
+				if int(map_runtime_state.get_adjacent_node_ids(resolved_adjacent_node_id).size()) == 1:
+					start_adjacent_leaf_count += 1
+					start_adjacent_leaf_family = adjacent_family
+			assert(bool(start_adjacent_families.get("reward", false)), "Expected stage %d seed %d to keep reward on a main opening branch." % [stage_index, generation_seed])
+			assert(bool(start_adjacent_families.get(expected_opening_support_family, false)), "Expected stage %d seed %d to keep support on a main opening branch." % [stage_index, generation_seed])
+			assert(start_adjacent_combat_count >= 2, "Expected stage %d seed %d to keep both the combat branch and the short combat spur." % [stage_index, generation_seed])
+			assert(start_adjacent_leaf_count == 1, "Expected stage %d seed %d to keep exactly one short opening spur." % [stage_index, generation_seed])
+			assert(start_adjacent_leaf_family == "combat", "Expected stage %d seed %d to keep the short opening spur as combat." % [stage_index, generation_seed])
 
 
 func test_map_runtime_state_generation_is_deterministic_per_profile() -> void:
@@ -1686,15 +1719,29 @@ func _assert_scatter_runtime_matches_template_profile(template_id: String, stage
 		max_depth = max(max_depth, int(depth))
 
 	var start_adjacent_count: int = int(map_runtime_state.get_adjacent_node_ids(0).size())
-	assert(start_adjacent_count >= 2 and start_adjacent_count <= 4, "Expected controlled center start adjacency to stay in [2, 4].")
+	assert(start_adjacent_count == 4, "Expected controlled scatter fallback topology to expose 3 main routes plus 1 short spur from the start.")
 	assert(int(_count_same_depth_reconnect_links(map_runtime_state)) >= 1, "Expected scatter topology to include at least one late reconnect link.")
+	assert(int(_count_same_depth_reconnect_links_at_or_beyond_depth(map_runtime_state, MapRuntimeStateScript.SCATTER_RECONNECT_DEPTH_LATE)) >= 1, "Expected scatter topology to keep at least one outer-ring reconnect link at the late reconnect depth.")
 	assert(int(_count_extra_edges_from_runtime(map_runtime_state)) >= 1 and int(_count_extra_edges_from_runtime(map_runtime_state)) <= 2, "Expected controlled scatter topology to keep reconnect budget inside [1, 2].")
 	var start_adjacent_families: Dictionary = {}
+	var start_adjacent_combat_count: int = 0
+	var start_adjacent_leaf_count: int = 0
+	var start_adjacent_leaf_family: String = ""
 	for adjacent_node_id in map_runtime_state.get_adjacent_node_ids(0):
-		start_adjacent_families[String(map_runtime_state.get_node_family(int(adjacent_node_id)))] = true
+		var resolved_adjacent_node_id: int = int(adjacent_node_id)
+		var adjacent_family: String = String(map_runtime_state.get_node_family(resolved_adjacent_node_id))
+		start_adjacent_families[adjacent_family] = true
+		if adjacent_family == "combat":
+			start_adjacent_combat_count += 1
+		if int(map_runtime_state.get_adjacent_node_ids(resolved_adjacent_node_id).size()) == 1:
+			start_adjacent_leaf_count += 1
+			start_adjacent_leaf_family = adjacent_family
 	assert(bool(start_adjacent_families.get("combat", false)), "Expected start adjacency to preserve an early combat route.")
 	assert(bool(start_adjacent_families.get("reward", false)), "Expected start adjacency to preserve an early reward route.")
 	assert(bool(start_adjacent_families.get(expected_opening_support_family, false)), "Expected start adjacency to preserve an early support route.")
+	assert(start_adjacent_combat_count >= 2, "Expected the fallback opening shell to keep one main combat route plus one short combat spur.")
+	assert(start_adjacent_leaf_count == 1, "Expected the fallback opening shell to keep exactly one short leaf spur adjacent to the start.")
+	assert(start_adjacent_leaf_family == "combat", "Expected the short opening spur to remain a combat-family detour instead of stealing reward or support ownership.")
 
 	var degree_counts: Dictionary = {}
 	for node_data in map_runtime_state.build_node_snapshots():
@@ -2068,6 +2115,27 @@ func _count_same_depth_reconnect_links(map_runtime_state: RefCounted) -> int:
 			if node_depth < 2 or adjacent_depth < 2:
 				continue
 			if node_depth != adjacent_depth:
+				continue
+			link_count += 1
+	return link_count
+
+
+func _count_same_depth_reconnect_links_at_or_beyond_depth(map_runtime_state: RefCounted, minimum_depth: int) -> int:
+	var link_count: int = 0
+	var depth_by_node_id: Dictionary = _build_depth_map_from_start(map_runtime_state)
+	var seen_edges: Dictionary = {}
+	for node_snapshot in map_runtime_state.build_node_snapshots():
+		var node_id: int = int(node_snapshot.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
+		var node_depth: int = int(depth_by_node_id.get(node_id, -1))
+		for adjacent_node_id in map_runtime_state.get_adjacent_node_ids(node_id):
+			var adjacent_depth: int = int(depth_by_node_id.get(int(adjacent_node_id), -1))
+			var left_id: int = min(node_id, int(adjacent_node_id))
+			var right_id: int = max(node_id, int(adjacent_node_id))
+			var edge_key: String = "%d:%d" % [left_id, right_id]
+			if seen_edges.has(edge_key):
+				continue
+			seen_edges[edge_key] = true
+			if node_depth < minimum_depth or adjacent_depth < minimum_depth or node_depth != adjacent_depth:
 				continue
 			link_count += 1
 	return link_count

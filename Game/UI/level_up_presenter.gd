@@ -4,10 +4,12 @@ class_name LevelUpPresenter
 
 const RunMenuSceneHelperScript = preload("res://Game/UI/run_menu_scene_helper.gd")
 const RunStatusPresenterScript = preload("res://Game/UI/run_status_presenter.gd")
+const UiCompactCopyScript = preload("res://Game/UI/ui_compact_copy.gd")
+const UiAssetPathsScript = preload("res://Game/UI/ui_asset_paths.gd")
 const DEFAULT_BUTTON_COUNT: int = 3
 const CHIP_TEXT: String = "LEVEL UP"
 const UNAVAILABLE_TITLE_TEXT: String = "Level Up unavailable."
-const PERK_NOTE_TEXT: String = "Character perks are run-long bonuses. Passive items stay separate and only work while carried in the backpack."
+const PERK_NOTE_TEXT: String = "No backpack slot."
 
 
 func build_chip_text() -> String:
@@ -26,13 +28,13 @@ func build_title_text(level_up_state: LevelUpState) -> String:
 func build_context_text(level_up_state: LevelUpState) -> String:
 	if level_up_state == null:
 		return ""
-	return "Choose 1 character perk for the rest of this run."
+	return UiCompactCopyScript.pick_one("perk")
 
 
 func build_hint_text(level_up_state: LevelUpState) -> String:
 	if level_up_state == null:
 		return ""
-	return "Perks do not use backpack space, cannot be dropped, and stay active for the whole run."
+	return "Always on."
 
 
 func build_note_text(level_up_state: LevelUpState) -> String:
@@ -58,6 +60,7 @@ func build_offer_view_models(level_up_state: LevelUpState, button_count: int = D
 				"text": "%s\n%s" % [title_text, detail_text],
 				"title_text": title_text,
 				"detail_text": detail_text,
+				"icon_texture_path": UiAssetPathsScript.build_perk_family_icon_texture_path(perk_family_label),
 				"visible": true,
 				"disabled": false,
 			})
@@ -66,6 +69,7 @@ func build_offer_view_models(level_up_state: LevelUpState, button_count: int = D
 				"text": "",
 				"title_text": "",
 				"detail_text": "",
+				"icon_texture_path": "",
 				"visible": false,
 				"disabled": true,
 			})

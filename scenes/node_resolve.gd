@@ -23,9 +23,9 @@ const PORTRAIT_LAYOUT_CONFIG := {
 		{"max_height": 1540.0, "top_margin": 80, "bottom_margin": 80},
 	],
 	"bands": {
-		"large": {"min_width": 660.0, "min_height": 1640.0, "title_font_size": 44, "summary_font_size": 24, "body_font_size": 20, "icon_size": 96.0},
-		"medium": {"min_width": 560.0, "min_height": 1460.0, "title_font_size": 38, "summary_font_size": 21, "body_font_size": 18, "icon_size": 82.0},
-		"compact": {"title_font_size": 32, "summary_font_size": 18, "body_font_size": 16, "icon_size": 68.0},
+		"large": {"min_width": 660.0, "min_height": 1640.0, "title_font_size": 44, "summary_font_size": 20, "body_font_size": 16, "icon_size": 96.0},
+		"medium": {"min_width": 560.0, "min_height": 1460.0, "title_font_size": 38, "summary_font_size": 18, "body_font_size": 15, "icon_size": 82.0},
+		"compact": {"title_font_size": 32, "summary_font_size": 16, "body_font_size": 14, "icon_size": 68.0},
 	},
 }
 

@@ -28,9 +28,9 @@ const PORTRAIT_LAYOUT_CONFIG := {
 		{"max_height": 760.0, "top_margin": 22, "bottom_margin": 22},
 	],
 	"bands": {
-		"large": {"min_width": 520.0, "min_height": 940.0, "panel_width": 520.0, "vbox_separation": 12, "title_font_size": 46, "mood_font_size": 22, "body_font_size": 18, "hint_font_size": 18},
-		"medium": {"min_width": 420.0, "min_height": 760.0, "panel_width": 460.0, "vbox_separation": 10, "title_font_size": 40, "mood_font_size": 20, "body_font_size": 17, "hint_font_size": 16},
-		"compact": {"panel_width": 0.0, "vbox_separation": 10, "title_font_size": 34, "mood_font_size": 18, "body_font_size": 16, "hint_font_size": 15},
+		"large": {"min_width": 520.0, "min_height": 940.0, "panel_width": 520.0, "vbox_separation": 12, "title_font_size": 44, "mood_font_size": 20, "body_font_size": 18, "hint_font_size": 16},
+		"medium": {"min_width": 420.0, "min_height": 760.0, "panel_width": 460.0, "vbox_separation": 10, "title_font_size": 38, "mood_font_size": 18, "body_font_size": 16, "hint_font_size": 15},
+		"compact": {"panel_width": 0.0, "vbox_separation": 10, "title_font_size": 32, "mood_font_size": 16, "body_font_size": 15, "hint_font_size": 14},
 	},
 }
 

@@ -10,6 +10,7 @@ func _init() -> void:
 	test_reward_presenter_builds_combat_reward_cards()
 	test_reward_presenter_hides_unused_small_reward_card()
 	test_reward_presenter_builds_compact_run_status_strip()
+	test_reward_presenter_surfaces_offer_tooltips()
 	print("test_reward_presenter: all assertions passed")
 	quit()
 
@@ -28,12 +29,12 @@ func test_reward_presenter_builds_combat_reward_cards() -> void:
 		"Expected reward presenter to use runtime-backed title text."
 	)
 	assert(
-		presenter.call("build_context_text", reward_state) == "Choose 1 of 3 spoils now before you move on.",
-		"Expected reward presenter to expose the combat reward shell context."
+		presenter.call("build_context_text", reward_state) == "Pick 1 spoil.",
+		"Expected reward presenter to expose the shorter combat reward shell context."
 	)
 	assert(
-		presenter.call("build_hint_text", reward_state) == "Claim one payoff now. The other spoils are left behind.",
-		"Expected reward presenter to explain the one-claim salvage rule."
+		presenter.call("build_hint_text", reward_state) == "",
+		"Expected reward presenter to hide the redundant hint line."
 	)
 
 	var models: Array = presenter.call("build_offer_view_models", reward_state, 3)
@@ -46,6 +47,9 @@ func test_reward_presenter_builds_combat_reward_cards() -> void:
 	assert(String((models[0] as Dictionary).get("button_text", "")) == "Pack It", "Expected inventory reward items to use the pack CTA.")
 	assert(String((models[1] as Dictionary).get("button_text", "")) == "Repair Weapon", "Expected repair rewards to expose the repair CTA.")
 	assert(String((models[2] as Dictionary).get("button_text", "")) == "Pack It", "Expected shield rewards to use the pack CTA.")
+	assert(String((models[0] as Dictionary).get("icon_texture_path", "")) == "res://Assets/Icons/icon_consumable.svg", "Expected consumable rewards to expose the dedicated consumable icon path.")
+	assert(String((models[1] as Dictionary).get("icon_texture_path", "")) == "res://Assets/Icons/icon_weapon.svg", "Expected repair rewards to expose the weapon icon path.")
+	assert(String((models[2] as Dictionary).get("icon_texture_path", "")) == "res://Assets/Icons/icon_shield.svg", "Expected shield rewards to expose the shield icon path.")
 
 
 func test_reward_presenter_hides_unused_small_reward_card() -> void:
@@ -93,3 +97,17 @@ func test_reward_presenter_builds_compact_run_status_strip() -> void:
 		String(status_model.get("fallback_text", "")) == "HP 41 | Hunger 12 | Gold 18 | Durability 7",
 		"Expected reward presenter to keep the compact fallback string inside the shared run-status model."
 	)
+
+
+func test_reward_presenter_surfaces_offer_tooltips() -> void:
+	var presenter: RefCounted = RewardPresenterScript.new()
+	var reward_state: RefCounted = RewardStateScript.new()
+	reward_state.call("setup_for_source", RewardStateScript.SOURCE_COMBAT_VICTORY, {"current_node_id": 0, "stage_index": 1})
+
+	var models: Array = presenter.call("build_offer_view_models", reward_state, 3)
+	var bread_tooltip: String = String((models[0] as Dictionary).get("tooltip_text", ""))
+	var shield_tooltip: String = String((models[2] as Dictionary).get("tooltip_text", ""))
+	assert(bread_tooltip.contains("Traveler Bread"), "Expected reward item tooltip to include the item name.")
+	assert(bread_tooltip.contains("H +"), "Expected reward consumable tooltip to keep compact effect details.")
+	assert(shield_tooltip.contains("Watchman Shield"), "Expected reward gear tooltip to include the item name.")
+	assert(shield_tooltip.contains("Guard first"), "Expected reward shield tooltip to keep the gameplay-facing shield summary compact.")

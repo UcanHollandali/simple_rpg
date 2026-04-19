@@ -45,7 +45,7 @@ func _draw() -> void:
 
 func _draw_board_atmosphere() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0.02, 0.05, 0.04, 0.30), true)
-	var center: Vector2 = size * Vector2(0.5, 0.58) + _board_offset * 0.18
+	var center: Vector2 = size * Vector2(0.5, 0.60) + _board_offset * 0.18
 	var atmosphere_radii: Array[float] = [min(size.x, size.y) * 0.52, min(size.x, size.y) * 0.38]
 	var atmosphere_colors: Array[Color] = [
 		Color(0.16, 0.18, 0.11, 0.16),

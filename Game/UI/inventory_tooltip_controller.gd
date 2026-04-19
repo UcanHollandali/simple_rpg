@@ -9,7 +9,10 @@ const INVENTORY_TOOLTIP_LABEL_NAME := "InventoryTooltipLabel"
 const INVENTORY_TOOLTIP_MARGIN := 16.0
 const INVENTORY_TOOLTIP_GAP := 12.0
 const INVENTORY_TOOLTIP_MAX_WIDTH := 320.0
+const INVENTORY_TOOLTIP_FONT_SIZE := 15
 const INVENTORY_TOOLTIP_META_KEY := "custom_tooltip_text"
+const INVENTORY_TOOLTIP_BASE_Z_INDEX := 160
+const INVENTORY_TOOLTIP_Z_OFFSET := 20
 
 var _owner: Control
 var _inventory_tooltip_panel: PanelContainer
@@ -69,8 +72,7 @@ func _ensure_inventory_tooltip_shell() -> void:
 	_inventory_tooltip_panel.name = INVENTORY_TOOLTIP_PANEL_NAME
 	_inventory_tooltip_panel.visible = false
 	_inventory_tooltip_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_inventory_tooltip_panel.top_level = true
-	_inventory_tooltip_panel.z_index = 120
+	_apply_inventory_tooltip_layering()
 	_owner.add_child(_inventory_tooltip_panel)
 
 	_inventory_tooltip_label = Label.new()
@@ -87,7 +89,7 @@ func _apply_inventory_tooltip_style(accent: Color) -> void:
 		return
 	TempScreenThemeScript.apply_panel(_inventory_tooltip_panel, accent, 16, 0.96)
 	TempScreenThemeScript.apply_label(_inventory_tooltip_label)
-	_inventory_tooltip_label.add_theme_font_size_override("font_size", 18)
+	_inventory_tooltip_label.add_theme_font_size_override("font_size", INVENTORY_TOOLTIP_FONT_SIZE)
 	_inventory_tooltip_label.add_theme_color_override("font_color", TempScreenThemeScript.TEXT_PRIMARY_COLOR)
 
 
@@ -100,11 +102,12 @@ func _show_inventory_tooltip(card: Control, accent: Color, tooltip_text: String)
 		hide()
 		return
 	_apply_inventory_tooltip_style(accent)
+	_apply_inventory_tooltip_layering()
 	_inventory_tooltip_label.text = trimmed_text
 	var viewport_width: float = _owner.get_viewport_rect().size.x
 	var tooltip_width: float = clamp(viewport_width - (INVENTORY_TOOLTIP_MARGIN * 2.0), 200.0, INVENTORY_TOOLTIP_MAX_WIDTH)
 	_inventory_tooltip_panel.custom_minimum_size = Vector2(tooltip_width, 0.0)
-	_inventory_tooltip_panel.size = _inventory_tooltip_panel.get_combined_minimum_size()
+	_inventory_tooltip_panel.size = _measure_inventory_tooltip_size(tooltip_width)
 	_position_inventory_tooltip(card)
 	_inventory_tooltip_panel.visible = true
 
@@ -135,3 +138,36 @@ func _get_inventory_tooltip_text(card: Control) -> String:
 	if card.has_meta(INVENTORY_TOOLTIP_META_KEY):
 		return String(card.get_meta(INVENTORY_TOOLTIP_META_KEY, ""))
 	return card.tooltip_text
+
+
+func _measure_inventory_tooltip_size(panel_width: float) -> Vector2:
+	if _inventory_tooltip_panel == null or _inventory_tooltip_label == null:
+		return Vector2(panel_width, 0.0)
+	var panel_style: StyleBox = _inventory_tooltip_panel.get_theme_stylebox("panel")
+	var horizontal_padding: float = 0.0
+	var vertical_padding: float = 0.0
+	if panel_style != null:
+		horizontal_padding = panel_style.get_margin(SIDE_LEFT) + panel_style.get_margin(SIDE_RIGHT)
+		vertical_padding = panel_style.get_margin(SIDE_TOP) + panel_style.get_margin(SIDE_BOTTOM)
+	var label_width: float = max(1.0, panel_width - horizontal_padding)
+	_inventory_tooltip_label.custom_minimum_size = Vector2(label_width, 0.0)
+	_inventory_tooltip_label.size = Vector2(label_width, 0.0)
+	_inventory_tooltip_label.update_minimum_size()
+	_inventory_tooltip_label.reset_size()
+	var label_size: Vector2 = _inventory_tooltip_label.get_combined_minimum_size()
+	return Vector2(panel_width, max(label_size.y + vertical_padding, vertical_padding))
+
+
+func _apply_inventory_tooltip_layering() -> void:
+	if _inventory_tooltip_panel == null:
+		return
+	_inventory_tooltip_panel.top_level = true
+	_inventory_tooltip_panel.z_as_relative = false
+	_inventory_tooltip_panel.z_index = _resolve_inventory_tooltip_z_index()
+
+
+func _resolve_inventory_tooltip_z_index() -> int:
+	var owner_z_index: int = 0
+	if _owner != null:
+		owner_z_index = _owner.z_index
+	return max(INVENTORY_TOOLTIP_BASE_Z_INDEX, owner_z_index + INVENTORY_TOOLTIP_Z_OFFSET)

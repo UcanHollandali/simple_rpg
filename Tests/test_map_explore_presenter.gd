@@ -4,7 +4,10 @@ class_name TestMapExplorePresenter
 
 const MapExplorePresenterScript = preload("res://Game/UI/map_explore_presenter.gd")
 const MapExploreSceneScript = preload("res://scenes/map_explore.gd")
+const MapExplorePackedScene: PackedScene = preload("res://scenes/map_explore.tscn")
 const MapFocusHelperScript = preload("res://Game/UI/map_focus_helper.gd")
+const MapRouteBindingScript = preload("res://Game/UI/map_route_binding.gd")
+const MapBoardComposerV2Script = preload("res://Game/UI/map_board_composer_v2.gd")
 const EventScenePacked: PackedScene = preload("res://scenes/event.tscn")
 const EventStateScript = preload("res://Game/RuntimeState/event_state.gd")
 const FlowStateScript = preload("res://Game/Application/flow_state.gd")
@@ -25,6 +28,9 @@ func _run() -> void:
 	test_map_scene_accepts_deferred_roadside_transition_for_destination_restore()
 	test_map_scene_keeps_focus_offset_quiet_inside_deadzone()
 	test_map_scene_blends_focus_toward_visible_cluster_context()
+	test_map_route_binding_recomposes_board_positions_after_route_grid_resize()
+	test_map_route_buttons_suppress_default_tooltip_copy()
+	test_map_scene_does_not_spawn_legacy_line2d_roads()
 	test_event_overlay_uses_stable_offers_shell()
 	test_map_scene_delays_camera_follow_until_after_departure()
 	print("test_map_explore_presenter: all assertions passed")
@@ -36,12 +42,19 @@ func test_map_presenter_builds_runtime_graph_labels() -> void:
 	var run_state: RunState = RunState.new()
 	run_state.reset_for_new_run()
 	run_state.stage_index = 2
+	run_state.configure_run_seed(1)
 	run_state.player_hp = 48
 	run_state.hunger = 11
 	run_state.gold = 17
 	run_state.inventory_state.weapon_instance["current_durability"] = 9
 	run_state.map_runtime_state.move_to_node(1)
 	run_state.map_runtime_state.mark_node_resolved(1)
+	var current_family_name: String = String(presenter.call(
+		"build_node_family_display_name",
+		run_state.map_runtime_state.get_current_node_family()
+	))
+	var reward_family_name: String = String(presenter.call("build_node_family_display_name", "reward"))
+	var start_family_name: String = String(presenter.call("build_node_family_display_name", "start"))
 
 	assert(
 		presenter.call("build_title_text", run_state) == "Stage 2",
@@ -89,11 +102,11 @@ func test_map_presenter_builds_runtime_graph_labels() -> void:
 	)
 	assert(
 		String(presenter.call("build_cluster_read_text", run_state)).contains("Ahead:")
-		and String(presenter.call("build_cluster_read_text", run_state)).contains("Reward"),
+		and String(presenter.call("build_cluster_read_text", run_state)).contains(reward_family_name),
 		"Expected the map presenter to summarize discovered pockets beyond the immediate adjacent shell, including the off-path reward pocket."
 	)
 	assert(
-		presenter.call("build_current_anchor_text", run_state) == "At Combat",
+		presenter.call("build_current_anchor_text", run_state) == "At %s" % current_family_name,
 		"Expected map presenter to build a short current-position read from the runtime-owned current node."
 	)
 	assert(
@@ -105,7 +118,7 @@ func test_map_presenter_builds_runtime_graph_labels() -> void:
 		"Expected current-anchor detail text to surface boss-gate legibility before the key is secured."
 	)
 	assert(
-		String(presenter.call("build_route_overview_text", run_state)).contains("At Combat"),
+		String(presenter.call("build_route_overview_text", run_state)).contains("At %s" % current_family_name),
 		"Expected the top route overview to start from the current runtime-owned pocket read."
 	)
 	assert(
@@ -121,8 +134,12 @@ func test_map_presenter_builds_runtime_graph_labels() -> void:
 		"Expected the map inventory pressure read to include the active weapon summary."
 	)
 	assert(
-		presenter.call("build_node_family_display_name", "boss") == "Boss Gate",
+		presenter.call("build_node_family_display_name", "boss") == "Warden",
 		"Expected node-family display names to stay presenter-owned for the route board."
+	)
+	assert(
+		presenter.call("build_node_family_display_name", "reward") == "Cache",
+		"Expected reward routes to expose the current authored cache label."
 	)
 	assert(
 		presenter.call("build_node_family_display_name", "event") == "Trail Event",
@@ -133,7 +150,7 @@ func test_map_presenter_builds_runtime_graph_labels() -> void:
 		"Expected the roadside interruption label to stay reserved for travel-triggered encounters rather than planned map nodes."
 	)
 	assert(
-		presenter.call("build_node_family_display_name", "hamlet") == "Hamlet",
+		presenter.call("build_node_family_display_name", "hamlet") == "Waypost",
 		"Expected hamlet routes to expose the canonical settlement label."
 	)
 	assert(
@@ -179,11 +196,14 @@ func test_map_presenter_builds_runtime_graph_labels() -> void:
 			visible_route_models.append(route_model)
 
 	assert(
-		String(route_models[0].get("text", "")) == "Combat\nOpen Route",
-		"Expected unresolved adjacent combat nodes to sort ahead of revisit-only traversal nodes."
+		String(route_models[0].get("text", "")).ends_with("\nOpen Route"),
+		"Expected unresolved adjacent routes to sort ahead of revisit-only traversal nodes."
 	)
 	assert(
-		String(route_models[0].get("icon_texture_path", "")) == "res://Assets/Icons/icon_attack.svg",
+		String(route_models[0].get("icon_texture_path", "")) == presenter.call(
+			"build_route_icon_texture_path",
+			String(route_models[0].get("node_family", ""))
+		),
 		"Expected route view models to expose the presenter-owned route icon texture path."
 	)
 	assert(
@@ -192,7 +212,7 @@ func test_map_presenter_builds_runtime_graph_labels() -> void:
 	)
 	var spent_start_found: bool = false
 	for route_model in visible_route_models:
-		if String(route_model.get("text", "")) != "Start\nBacktrack":
+		if String(route_model.get("text", "")) != "%s\nBacktrack" % start_family_name:
 			continue
 		spent_start_found = true
 		assert(
@@ -271,11 +291,11 @@ func test_map_presenter_builds_runtime_graph_labels() -> void:
 	)
 	var reward_focus_model: Dictionary = presenter.call("build_focus_panel_model", run_state, reward_node_id)
 	assert(
-		String(reward_focus_model.get("title_text", "")).contains("Reward"),
+		String(reward_focus_model.get("title_text", "")).contains(reward_family_name),
 		"Expected a focused route panel to surface the route family display name."
 	)
 	assert(
-		String(reward_focus_model.get("hint_text", "")).contains("immediate pickup"),
+		String(reward_focus_model.get("hint_text", "")).contains("pickup"),
 		"Expected reward focus panels to expose practical route intent rather than flavor-only copy."
 	)
 
@@ -526,10 +546,10 @@ func test_map_scene_blends_focus_toward_visible_cluster_context() -> void:
 		route_grid,
 		Vector2.ZERO,
 		current_world_position,
-		Vector2(0.5, 0.55),
-		Vector2(0.05, 0.06),
-		Vector2(0.18, 0.20),
-		0.42
+		MapRouteBindingScript.BOARD_FOCUS_ANCHOR_FACTOR,
+		MapRouteBindingScript.BOARD_MAX_OFFSET_FACTOR,
+		MapRouteBindingScript.BOARD_FOCUS_DEADZONE_FACTOR,
+		MapRouteBindingScript.BOARD_FOCUS_DAMPING
 	)
 	var contextual_offset: Vector2 = scene.call("_desired_focus_offset_for_world_position", current_world_position)
 	assert(
@@ -537,6 +557,110 @@ func test_map_scene_blends_focus_toward_visible_cluster_context() -> void:
 		"Expected map focus to preserve more visible-cluster context instead of pulling the board fully toward the current node."
 	)
 	_free_control(scene)
+
+
+func test_map_route_binding_recomposes_board_positions_after_route_grid_resize() -> void:
+	var owner := Control.new()
+	var margin := MarginContainer.new()
+	margin.name = "Margin"
+	owner.add_child(margin)
+	var vbox := VBoxContainer.new()
+	vbox.name = "VBox"
+	margin.add_child(vbox)
+	var route_grid := Control.new()
+	route_grid.name = "RouteGrid"
+	route_grid.size = Vector2(1052.0, 680.0)
+	route_grid.custom_minimum_size = route_grid.size
+	vbox.add_child(route_grid)
+	var route_binding: RefCounted = MapRouteBindingScript.new()
+	route_binding.call("configure", owner, Callable(owner, "get_node_or_null"), MapBoardComposerV2Script.new())
+	var run_state: RunState = RunState.new()
+	run_state.reset_for_new_run()
+	run_state.configure_run_seed(1)
+	var opening_target_id: int = int(run_state.map_runtime_state.get_adjacent_node_ids()[0])
+	run_state.map_runtime_state.move_to_node(opening_target_id)
+	run_state.map_runtime_state.mark_node_resolved(opening_target_id)
+	var branch_target_id: int = -1
+	for adjacent_node_id in run_state.map_runtime_state.get_adjacent_node_ids():
+		if int(adjacent_node_id) == 0:
+			continue
+		branch_target_id = int(adjacent_node_id)
+		break
+	assert(branch_target_id >= 0, "Expected a deeper branch node for resize-stability coverage.")
+	run_state.map_runtime_state.move_to_node(branch_target_id)
+	run_state.map_runtime_state.mark_node_resolved(branch_target_id)
+	route_binding.call("prepare_for_refresh", run_state)
+	var opening_world_positions: Dictionary = route_binding.get("_board_composition_cache").get("world_positions", {})
+	var opening_visible_edges: Array = (route_binding.get("_board_composition_cache").get("visible_edges", []) as Array).duplicate(true)
+	var opening_position: Vector2 = opening_world_positions.get(0, Vector2.ZERO)
+	route_grid.size = Vector2(1052.0, 1322.0)
+	route_binding.call("refresh_layout_for_resize", run_state)
+	var resized_world_positions: Dictionary = route_binding.get("_board_composition_cache").get("world_positions", {})
+	var resized_visible_edges: Array = (route_binding.get("_board_composition_cache").get("visible_edges", []) as Array).duplicate(true)
+	var resized_position: Vector2 = resized_world_positions.get(0, Vector2.ZERO)
+	assert(
+		resized_position.y > opening_position.y + 200.0,
+		"Expected route-grid resize to recompose board positions against the larger map height instead of keeping the startup-sized opening anchor."
+	)
+	assert(
+		absf(resized_position.y - route_grid.size.y * 0.58) <= 0.01,
+		"Expected the recomposed start anchor to track the composer vertical center factor after the route grid expands."
+	)
+	assert(not resized_visible_edges.is_empty(), "Expected the expanded route grid recompose to keep visible roads cached.")
+	route_grid.size = Vector2(1052.0, 1008.0)
+	route_binding.call("refresh_layout_for_resize", run_state)
+	var shrunk_world_positions: Dictionary = route_binding.get("_board_composition_cache").get("world_positions", {})
+	var shrunk_visible_edges: Array = (route_binding.get("_board_composition_cache").get("visible_edges", []) as Array).duplicate(true)
+	var shrunk_position: Vector2 = shrunk_world_positions.get(0, Vector2.ZERO)
+	assert(
+		shrunk_position.distance_to(resized_position) <= 0.001,
+		"Expected internal route-grid shrink from inventory growth to preserve the settled board anchor instead of recomposing known routes."
+	)
+	assert(
+		JSON.stringify(shrunk_visible_edges) == JSON.stringify(resized_visible_edges),
+		"Expected internal route-grid shrink to keep discovered visible roads stable instead of dropping previously known history edges."
+	)
+	_free_control(owner)
+
+
+func test_map_route_buttons_suppress_default_tooltip_copy() -> void:
+	var map_scene: Control = MapExplorePackedScene.instantiate() as Control
+	assert(map_scene != null, "Expected map scene instance for route-tooltip suppression coverage.")
+	get_root().add_child(map_scene)
+	await process_frame
+	var run_state: RunState = RunState.new()
+	run_state.reset_for_new_run()
+	run_state.configure_run_seed(1)
+	var presenter: RefCounted = MapExplorePresenterScript.new()
+	var route_binding: RefCounted = map_scene.get("_route_binding")
+	assert(route_binding != null, "Expected map scene to create the shared route binding.")
+	route_binding.call("set_route_models", presenter.call("build_route_view_models", run_state, 6))
+	route_binding.call("prepare_for_refresh", run_state)
+	route_binding.call("render", run_state)
+	var route_grid: Control = map_scene.get_node_or_null("Margin/VBox/RouteGrid") as Control
+	assert(route_grid != null, "Expected map scene route grid for tooltip suppression coverage.")
+	var visible_route_button: Button = null
+	for button_name in MapRouteBindingScript.ROUTE_BUTTON_NODE_NAMES:
+		var route_button: Button = route_grid.get_node_or_null(button_name) as Button
+		if route_button != null and route_button.visible:
+			visible_route_button = route_button
+			break
+	assert(visible_route_button != null, "Expected at least one visible route button on the map scene.")
+	assert(visible_route_button.text.contains("\n"), "Expected route buttons to keep their internal route label text.")
+	assert(visible_route_button.tooltip_text.is_empty(), "Expected map route buttons to suppress the default Godot tooltip so only the marker chip remains visible.")
+	_free_control(map_scene)
+
+
+func test_map_scene_does_not_spawn_legacy_line2d_roads() -> void:
+	var map_scene: Control = MapExplorePackedScene.instantiate() as Control
+	assert(map_scene != null, "Expected map scene instance for runtime road-node cleanup coverage.")
+	get_root().add_child(map_scene)
+	await process_frame
+	var route_grid: Control = map_scene.get_node_or_null("Margin/VBox/RouteGrid") as Control
+	assert(route_grid != null, "Expected map scene route grid for road-node cleanup coverage.")
+	assert(route_grid.get_node_or_null("RouteRoadBase0") == null, "Expected composed map board rendering to stop spawning legacy base road Line2D nodes.")
+	assert(route_grid.get_node_or_null("RouteRoadHighlight0") == null, "Expected composed map board rendering to stop spawning legacy highlight Line2D nodes.")
+	_free_control(map_scene)
 
 
 func test_event_overlay_uses_stable_offers_shell() -> void:

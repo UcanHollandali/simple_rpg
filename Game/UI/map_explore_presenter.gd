@@ -4,23 +4,11 @@ class_name MapExplorePresenter
 
 const MapRuntimeStateScript = preload("res://Game/RuntimeState/map_runtime_state.gd")
 const LevelUpStateScript = preload("res://Game/RuntimeState/level_up_state.gd")
+const MapDisplayNameHelperScript = preload("res://Game/UI/map_display_name_helper.gd")
 const RunStatusPresenterScript = preload("res://Game/UI/run_status_presenter.gd")
 const UiAssetPathsScript = preload("res://Game/UI/ui_asset_paths.gd")
 const UiFormattingScript = preload("res://Game/UI/ui_formatting.gd")
 const DEFAULT_ROUTE_BUTTON_COUNT: int = 6
-
-const FAMILY_DISPLAY_NAMES: Dictionary = {
-	"start": "Start",
-	"combat": "Combat",
-	"event": "Trail Event",
-	"reward": "Reward",
-	"hamlet": "Hamlet",
-	"rest": "Rest",
-	"merchant": "Merchant",
-	"blacksmith": "Blacksmith",
-	"key": "Key",
-	"boss": "Boss Gate",
-}
 
 const FAMILY_SORT_ORDER: Dictionary = {
 	"start": 0,
@@ -78,15 +66,15 @@ func get_level_up_threshold(run_state: RunState) -> int:
 	return threshold
 
 
-func build_node_family_display_name(node_family: String) -> String:
-	return _display_name_for_family(node_family)
+func build_node_family_display_name(node_family: String, hamlet_personality: String = "") -> String:
+	return _display_name_for_family(node_family, hamlet_personality)
 
 
 func build_current_anchor_text(run_state: RunState) -> String:
 	if run_state == null:
 		return "At the trailhead"
 	var map_runtime_state: RefCounted = run_state.map_runtime_state
-	return "At %s" % _display_name_for_family(map_runtime_state.get_current_node_family())
+	return "At %s" % _display_name_for_node_id(map_runtime_state, int(map_runtime_state.current_node_id))
 
 
 func build_current_anchor_detail_text(run_state: RunState) -> String:
@@ -154,7 +142,7 @@ func build_focus_panel_model(run_state: RunState, focused_node_id: int = MapRunt
 		}
 
 	var is_current: bool = resolved_focus_node_id == int(map_runtime_state.current_node_id)
-	var family_name: String = _display_name_for_family(String(node_snapshot.get("node_family", "")))
+	var family_name: String = _display_name_for_snapshot(node_snapshot)
 	var detail_parts := PackedStringArray(["Node %d" % resolved_focus_node_id])
 	var state_phrase: String = _build_focus_state_phrase(run_state, node_snapshot, is_current)
 	if not state_phrase.is_empty():
@@ -187,11 +175,11 @@ func build_cluster_read_text(run_state: RunState) -> String:
 		var node_state: String = String(node_snapshot.get("node_state", MapRuntimeStateScript.NODE_STATE_UNDISCOVERED))
 		match node_state:
 			MapRuntimeStateScript.NODE_STATE_DISCOVERED:
-				seen_beyond_reach.append(_display_name_for_family(String(node_snapshot.get("node_family", ""))))
+				seen_beyond_reach.append(_display_name_for_snapshot(node_snapshot))
 			MapRuntimeStateScript.NODE_STATE_RESOLVED:
-				seen_beyond_reach.append("%s spent" % _display_name_for_family(String(node_snapshot.get("node_family", ""))))
+				seen_beyond_reach.append("%s spent" % _display_name_for_snapshot(node_snapshot))
 			MapRuntimeStateScript.NODE_STATE_LOCKED:
-				locked_labels.append(_display_name_for_family(String(node_snapshot.get("node_family", ""))))
+				locked_labels.append(_display_name_for_snapshot(node_snapshot))
 
 	var lines: PackedStringArray = []
 	lines.append("Next: %s" % (", ".join(reachable_labels) if not reachable_labels.is_empty() else "none"))
@@ -239,7 +227,7 @@ func build_route_icon_texture_path(node_family: String) -> String:
 			return UiAssetPathsScript.KEY_ICON_TEXTURE_PATH
 		"boss":
 			return UiAssetPathsScript.BOSS_ICON_TEXTURE_PATH
-	if FAMILY_DISPLAY_NAMES.has(node_family):
+	if FAMILY_SORT_ORDER.has(node_family):
 		return UiAssetPathsScript.ROUTE_ICON_TEXTURE_PATH
 	return ""
 
@@ -261,7 +249,7 @@ func build_route_view_models(run_state: RunState, button_count: int = DEFAULT_RO
 				"disabled": node_state == MapRuntimeStateScript.NODE_STATE_LOCKED or not is_adjacent,
 				"node_id": int(node_snapshot.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID)),
 				"node_family": node_family,
-				"family_label": _display_name_for_family(node_family),
+				"family_label": _display_name_for_snapshot(node_snapshot),
 				"state_chip_text": _build_route_state_chip_text(node_snapshot, is_adjacent),
 				"state_semantic": _build_route_state_semantic(node_snapshot),
 				"show_road": is_adjacent,
@@ -302,7 +290,7 @@ func _with_route_visibility_meta(node_snapshot: Dictionary, is_adjacent: bool) -
 func _build_route_button_text(node_snapshot: Dictionary, is_adjacent: bool = true) -> String:
 	var node_family: String = String(node_snapshot.get("node_family", ""))
 	var node_state: String = String(node_snapshot.get("node_state", MapRuntimeStateScript.NODE_STATE_UNDISCOVERED))
-	var family_name: String = _display_name_for_family(node_family)
+	var family_name: String = _display_name_for_snapshot(node_snapshot)
 
 	if not is_adjacent:
 		match node_state:
@@ -377,14 +365,32 @@ func _node_sort_weight(node_snapshot: Dictionary) -> int:
 	return state_weight + int(FAMILY_SORT_ORDER.get(node_family, 999))
 
 
-func _display_name_for_family(node_family: String) -> String:
-	return String(FAMILY_DISPLAY_NAMES.get(node_family, node_family.capitalize()))
+func _display_name_for_family(node_family: String, hamlet_personality: String = "") -> String:
+	return MapDisplayNameHelperScript.build_family_display_name(node_family, hamlet_personality)
+
+
+func _display_name_for_snapshot(node_snapshot: Dictionary) -> String:
+	return _display_name_for_family(
+		String(node_snapshot.get("node_family", "")),
+		String(node_snapshot.get("hamlet_personality", ""))
+	)
+
+
+func _display_name_for_node_id(map_runtime_state: RefCounted, node_id: int) -> String:
+	if map_runtime_state == null:
+		return ""
+	var node_snapshot: Dictionary = _find_node_snapshot_by_id(map_runtime_state, node_id)
+	if not node_snapshot.is_empty():
+		return _display_name_for_snapshot(node_snapshot)
+	var hamlet_personality: String = ""
+	if map_runtime_state.has_method("get_hamlet_personality"):
+		hamlet_personality = String(map_runtime_state.call("get_hamlet_personality", node_id))
+	return _display_name_for_family(String(map_runtime_state.get_node_family(node_id)), hamlet_personality)
 
 
 func _format_cluster_node_label(node_snapshot: Dictionary) -> String:
-	var node_family: String = String(node_snapshot.get("node_family", ""))
 	var node_state: String = String(node_snapshot.get("node_state", MapRuntimeStateScript.NODE_STATE_UNDISCOVERED))
-	var family_name: String = _display_name_for_family(node_family)
+	var family_name: String = _display_name_for_snapshot(node_snapshot)
 	if node_state == MapRuntimeStateScript.NODE_STATE_RESOLVED:
 		return "%s spent" % family_name
 	if node_state == MapRuntimeStateScript.NODE_STATE_LOCKED:
@@ -435,25 +441,25 @@ func _build_focus_hint_text(run_state: RunState, node_snapshot: Dictionary, is_c
 	var key_resolved: bool = bool(run_state.map_runtime_state.is_stage_key_resolved())
 	match node_family:
 		"combat":
-			return "Fight through this pocket to keep pushing outward." if not is_current else "You are on a combat pocket. Review the next route before moving."
+			return "Fight here to move on." if not is_current else "Combat stop. Pick the next route."
 		"reward":
-			return "One immediate pickup lane for gear, recovery, or momentum."
+			return "Quick pickup lane."
 		"event":
-			return "Planned trail discovery with a choice, not a travel interruption."
+			return "Planned choice event."
 		"rest":
-			return "Safe utility stop for HP and hunger."
+			return "Recover HP or hunger."
 		"merchant":
-			return "Spend gold here for supplies, repairs, or a steadier next leg."
+			return "Buy supplies or repairs."
 		"blacksmith":
-			return "Repair or improve gear before the outer push."
+			return "Repair or improve gear."
 		"hamlet":
-			return "Accept or turn in a hamlet request here for marked-objective rewards."
+			return "Take or turn in a request."
 		"key":
-			return "Secure the stage key before committing to the boss lane."
+			return "Take the key first."
 		"boss":
-			return "Boss gate is ready once the key is secured." if key_resolved else "Boss lane stays locked until the stage key is secured."
+			return "Boss lane ready." if key_resolved else "Boss lane locked. Need key."
 		"start":
-			return "Trailhead revisit. Use it to re-center before choosing another branch."
+			return "Trailhead. Re-center here."
 		_:
 			return ""
 

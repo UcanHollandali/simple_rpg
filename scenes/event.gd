@@ -1,15 +1,18 @@
 # Layer: Scenes - presentation only
 extends Control
 
+const FlowStateScript = preload("res://Game/Application/flow_state.gd")
 const EventPresenterScript = preload("res://Game/UI/event_presenter.gd")
 const SceneAudioCleanupScript = preload("res://Game/UI/scene_audio_cleanup.gd")
-const RunStatusStripScript = preload("res://Game/UI/run_status_strip.gd")
+const RunMenuSceneHelperScript = preload("res://Game/UI/run_menu_scene_helper.gd")
 const SceneAudioPlayersScript = preload("res://Game/UI/scene_audio_players.gd")
 const SceneLayoutHelperScript = preload("res://Game/UI/scene_layout_helper.gd")
+const InventoryTooltipControllerScript = preload("res://Game/UI/inventory_tooltip_controller.gd")
 const InventoryOverflowPromptScript = preload("res://Game/UI/inventory_overflow_prompt.gd")
 const TempScreenThemeScript = preload("res://Game/UI/temp_screen_theme.gd")
 const CARD_NODE_NAMES: PackedStringArray = ["ChoiceACard", "ChoiceBCard"]
 const BUTTON_NODE_NAMES: PackedStringArray = ["ChoiceAButton", "ChoiceBButton"]
+const CUSTOM_TOOLTIP_META_KEY := "custom_tooltip_text"
 const ONE_SHOT_UI_TRANSITION_LEAD_IN_SECONDS := 0.06
 const PORTRAIT_SAFE_MAX_WIDTH := 920
 const PORTRAIT_SAFE_MIN_SIDE_MARGIN := 30
@@ -37,9 +40,9 @@ const PORTRAIT_LAYOUT_CONFIG := {
 		{"max_height": 1540.0, "top_margin": 72, "bottom_margin": 72},
 	],
 	"bands": {
-		"large": {"min_width": 760.0, "min_height": 1640.0, "title_font_size": 46, "summary_font_size": 24, "context_font_size": 20, "hint_font_size": 20, "status_font_size": 20, "card_title_font_size": 28, "card_detail_font_size": 20, "button_font_size": 22, "button_height": 78.0, "card_height": 224.0, "button_icon_max_width": 30},
-		"medium": {"min_width": 620.0, "min_height": 1460.0, "title_font_size": 40, "summary_font_size": 21, "context_font_size": 18, "hint_font_size": 18, "status_font_size": 18, "card_title_font_size": 24, "card_detail_font_size": 18, "button_font_size": 20, "button_height": 70.0, "card_height": 196.0, "button_icon_max_width": 26},
-		"compact": {"title_font_size": 34, "summary_font_size": 18, "context_font_size": 16, "hint_font_size": 16, "status_font_size": 16, "card_title_font_size": 21, "card_detail_font_size": 16, "button_font_size": 18, "button_height": 62.0, "card_height": 172.0, "button_icon_max_width": 22},
+		"large": {"min_width": 760.0, "min_height": 1640.0, "title_font_size": 44, "summary_font_size": 20, "context_font_size": 20, "hint_font_size": 16, "status_font_size": 16, "card_title_font_size": 24, "card_detail_font_size": 16, "button_font_size": 20, "button_height": 78.0, "card_height": 224.0, "button_icon_max_width": 30},
+		"medium": {"min_width": 620.0, "min_height": 1460.0, "title_font_size": 38, "summary_font_size": 18, "context_font_size": 18, "hint_font_size": 15, "status_font_size": 15, "card_title_font_size": 22, "card_detail_font_size": 15, "button_font_size": 18, "button_height": 70.0, "card_height": 196.0, "button_icon_max_width": 26},
+		"compact": {"title_font_size": 32, "summary_font_size": 16, "context_font_size": 16, "hint_font_size": 14, "status_font_size": 14, "card_title_font_size": 20, "card_detail_font_size": 14, "button_font_size": 17, "button_height": 62.0, "card_height": 172.0, "button_icon_max_width": 22},
 	},
 }
 
@@ -48,6 +51,8 @@ var _event_state: EventState
 var _run_state: RunState
 var _presenter: EventPresenter
 var _choice_in_flight: bool = false
+var _choice_tooltip_controller: InventoryTooltipController
+var _safe_menu: SafeMenuOverlay
 var _overflow_prompt: InventoryOverflowPrompt
 var _pending_overflow_choice_id: String = ""
 var _scene_node_cache: Dictionary = {}
@@ -72,8 +77,11 @@ func _ready() -> void:
 		_event_state = _bootstrap.get_event_state()
 		_run_state = _bootstrap.get_run_state()
 
+	_setup_choice_tooltip()
 	_connect_buttons()
 	_apply_temp_theme()
+	_hide_run_status_card()
+	_setup_safe_menu()
 	_setup_overflow_prompt()
 	SceneLayoutHelperScript.bind_viewport_size_changed(self, Callable(self, "_apply_portrait_safe_layout"))
 	_apply_portrait_safe_layout()
@@ -83,6 +91,9 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	if _choice_tooltip_controller != null:
+		_choice_tooltip_controller.release()
+		_choice_tooltip_controller = null
 	SceneLayoutHelperScript.unbind_viewport_size_changed(self, Callable(self, "_apply_portrait_safe_layout"))
 	SceneAudioCleanupScript.release_players(self, SceneAudioPlayersScript.node_names_from_config(AUDIO_PLAYER_CONFIG))
 
@@ -100,6 +111,8 @@ func _on_offer_pressed(index: int) -> void:
 	if choice_id.is_empty():
 		return
 
+	if _choice_tooltip_controller != null:
+		_choice_tooltip_controller.hide(true)
 	_choice_in_flight = true
 	_set_offer_buttons_interactable(false)
 	SceneAudioPlayersScript.play(self, "UiConfirmSfxPlayer")
@@ -125,6 +138,12 @@ func _connect_buttons() -> void:
 		var handler: Callable = Callable(self, "_on_offer_pressed").bind(index)
 		if not button.is_connected("pressed", handler):
 			button.connect("pressed", handler)
+		var mouse_entered_handler: Callable = Callable(self, "_on_choice_button_mouse_entered").bind(button)
+		if not button.is_connected("mouse_entered", mouse_entered_handler):
+			button.connect("mouse_entered", mouse_entered_handler)
+		var mouse_exited_handler: Callable = Callable(self, "_on_choice_button_mouse_exited").bind(button)
+		if not button.is_connected("mouse_exited", mouse_exited_handler):
+			button.connect("mouse_exited", mouse_exited_handler)
 
 
 func _render_event_state() -> void:
@@ -139,7 +158,8 @@ func _render_event_state() -> void:
 		_header_summary_label.text = _presenter.build_summary_text(_event_state)
 	if _header_hint_label != null:
 		_header_hint_label.text = _presenter.build_hint_text()
-	_render_run_status_card()
+		_header_hint_label.visible = not _header_hint_label.text.is_empty()
+	_refresh_save_controls()
 
 	var card_models: Array[Dictionary] = _presenter.build_choice_view_models(_event_state, CARD_NODE_NAMES.size())
 	for index in range(CARD_NODE_NAMES.size()):
@@ -149,8 +169,11 @@ func _render_event_state() -> void:
 		var choice_detail_label: Label = _scene_node(_card_label_path(index, "ChoiceDetailLabel")) as Label
 		var button: Button = _scene_node(_button_path(index)) as Button
 		var model: Dictionary = card_models[index]
+		var tooltip_text: String = String(model.get("tooltip_text", ""))
 		if card != null:
 			card.visible = bool(model.get("visible", false))
+			card.tooltip_text = ""
+			card.set_meta(CUSTOM_TOOLTIP_META_KEY, tooltip_text)
 		if badge_label != null:
 			badge_label.text = String(model.get("badge_text", ""))
 		if choice_title_label != null:
@@ -159,8 +182,10 @@ func _render_event_state() -> void:
 			choice_detail_label.text = String(model.get("detail_text", ""))
 		if button != null:
 			button.text = String(model.get("button_text", ""))
+			button.tooltip_text = ""
+			button.set_meta(CUSTOM_TOOLTIP_META_KEY, tooltip_text)
 			button.disabled = bool(model.get("button_disabled", true))
-			button.icon = SceneLayoutHelperScript.load_texture_or_null(_presenter.build_choice_icon_texture_path(_event_state))
+			button.icon = SceneLayoutHelperScript.load_texture_or_null(String(model.get("icon_texture_path", "")))
 
 
 func _set_offer_buttons_interactable(is_interactable: bool) -> void:
@@ -175,6 +200,58 @@ func _set_status_text(text: String) -> void:
 	if _status_label != null:
 		_status_label.text = text
 		_status_label.visible = not text.is_empty()
+
+
+func _on_save_pressed() -> void:
+	if _bootstrap == null:
+		return
+	SceneAudioPlayersScript.play(self, "UiConfirmSfxPlayer")
+	var save_result: Dictionary = _bootstrap.save_game()
+	if _safe_menu != null:
+		_safe_menu.set_status_text(RunMenuSceneHelperScript.build_save_status_text(save_result))
+	_refresh_save_controls()
+
+
+func _on_load_pressed() -> void:
+	if _bootstrap == null:
+		return
+	SceneAudioPlayersScript.play(self, "UiConfirmSfxPlayer")
+	var load_result: Dictionary = _bootstrap.load_game()
+	if bool(load_result.get("ok", false)):
+		return
+	if _safe_menu != null:
+		_safe_menu.set_status_text(RunMenuSceneHelperScript.build_load_failure_status_text(load_result))
+	_refresh_save_controls()
+
+
+func _on_return_to_main_menu_pressed() -> void:
+	if _bootstrap == null:
+		return
+	var flow_manager = _bootstrap.get_flow_manager()
+	if flow_manager == null:
+		return
+	flow_manager.request_transition(FlowStateScript.Type.MAIN_MENU)
+
+
+func _refresh_save_controls() -> void:
+	RunMenuSceneHelperScript.sync_load_available(_safe_menu, _bootstrap)
+
+
+func _setup_choice_tooltip() -> void:
+	_choice_tooltip_controller = InventoryTooltipControllerScript.new()
+	_choice_tooltip_controller.configure(self)
+
+
+func _on_choice_button_mouse_entered(button: Button) -> void:
+	if _choice_tooltip_controller == null or button == null:
+		return
+	_choice_tooltip_controller.on_inventory_card_mouse_entered(button, TempScreenThemeScript.TEAL_ACCENT_COLOR)
+
+
+func _on_choice_button_mouse_exited(button: Button) -> void:
+	if _choice_tooltip_controller == null or button == null:
+		return
+	_choice_tooltip_controller.on_inventory_card_mouse_exited(button)
 
 
 func _card_path(index: int) -> String:
@@ -314,6 +391,20 @@ func _setup_overflow_prompt() -> void:
 	_overflow_prompt.leave_requested.connect(_on_overflow_leave_requested)
 
 
+func _setup_safe_menu() -> void:
+	var menu_config: Dictionary = RunMenuSceneHelperScript.shared_menu_config()
+	_safe_menu = RunMenuSceneHelperScript.ensure_safe_menu(
+		self,
+		_safe_menu,
+		String(menu_config.get("title_text", RunMenuSceneHelperScript.SHARED_MENU_TITLE)),
+		String(menu_config.get("subtitle_text", RunMenuSceneHelperScript.SHARED_MENU_SUBTITLE)),
+		String(menu_config.get("launcher_text", RunMenuSceneHelperScript.SHARED_LAUNCHER_TEXT)),
+		Callable(self, "_on_save_pressed"),
+		Callable(self, "_on_load_pressed"),
+		Callable(self, "_on_return_to_main_menu_pressed")
+	)
+
+
 func _present_inventory_overflow_prompt(choice_id: String, prompt_result: Dictionary) -> void:
 	_pending_overflow_choice_id = choice_id
 	if _overflow_prompt == null:
@@ -384,19 +475,18 @@ func _apply_portrait_safe_layout() -> void:
 			{"path": "%s/%s/VBox" % [CARDS_ROW_PATH, card_name], "size_flags_horizontal": Control.SIZE_EXPAND_FILL, "size_flags_vertical": Control.SIZE_EXPAND_FILL},
 			{"path": "%s/%s/VBox/BadgeLabel" % [CARDS_ROW_PATH, card_name], "font_size": "hint_font_size"},
 			{"path": "%s/%s/VBox/ChoiceTitleLabel" % [CARDS_ROW_PATH, card_name], "font_size": "card_title_font_size"},
-			{"path": "%s/%s/VBox/ChoiceDetailLabel" % [CARDS_ROW_PATH, card_name], "font_size": "card_detail_font_size"},
+			{"path": "%s/%s/VBox/ChoiceDetailLabel" % [CARDS_ROW_PATH, card_name], "font_size": "card_detail_font_size", "max_lines_visible": 2},
 			{"path": "%s/%s/VBox/%s" % [CARDS_ROW_PATH, card_name, _button_name_for_card(card_name)], "font_size": "button_font_size", "custom_minimum_size": {"x": 0.0, "y": "button_height"}, "theme_constants": {"icon_max_width": "button_icon_max_width"}},
 		])
-	_render_run_status_card()
+	if _choice_tooltip_controller != null:
+		_choice_tooltip_controller.refresh_hovered_tooltip()
 
 
-func _render_run_status_card() -> void:
-	RunStatusStripScript.render_into(
-		_run_status_card,
-		_scene_node("%s/RunStatusLabel" % RUN_STATUS_CARD_PATH) as Label,
-		_presenter.build_run_status_model(_run_state),
-		TempScreenThemeScript.PANEL_BORDER_COLOR
-	)
+func _hide_run_status_card() -> void:
+	if _run_status_card == null:
+		return
+	_run_status_card.visible = false
+	_run_status_card.custom_minimum_size = Vector2.ZERO
 
 
 func _scene_node(path: String) -> Node:

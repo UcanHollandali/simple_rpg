@@ -230,6 +230,8 @@ Current runtime-backed prototype node families:
   - click carried `weapon`, `armor`, or `belt` to equip or unequip it immediately
   - click carried `consumable` to use it immediately if it changes HP or hunger
   - drag carried cards to reorder backpack slot order
+- clicking a carried replacement weapon / shield / armor / belt still swaps directly with the equipped lane even when the backpack is already full
+- if unequipping an equipped non-belt item would need a backpack slot and the backpack is already full, map runtime now opens the same discard-or-keep prompt style instead of silently evicting older carried loot
 - Those interactions mutate the canonical inventory owner; they are not separate map-local UI truth.
 
 ## Boss Rule

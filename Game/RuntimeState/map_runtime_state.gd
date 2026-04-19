@@ -22,6 +22,7 @@ const STAGE_SCAFFOLD_TEMPLATE_IDS: PackedStringArray = [
 ]
 const SCATTER_NODE_COUNT: int = 14
 const SCATTER_START_BRANCH_COUNT: int = 3
+const SCATTER_START_SPUR_NODE_COUNT: int = 1
 const SCATTER_MAX_NODE_DEGREE: int = 4
 const SCATTER_EXTRA_EDGES_MIN: int = 2
 const SCATTER_EXTRA_EDGES_MAX: int = 4
@@ -113,7 +114,6 @@ var current_node_index: int:
 		return current_node_id
 	set(value):
 		current_node_id = value
-
 
 func reset_for_new_run(stage_index: int = 1, generation_seed: int = -1) -> void:
 	_reset_runtime_state()
@@ -1090,6 +1090,11 @@ func _build_controlled_scatter_frontier_tree(template_id: String, generation_see
 	var branch_target_lengths: PackedInt32Array = _frontier_branch_target_lengths(template_id)
 	if branch_target_lengths.size() != SCATTER_START_BRANCH_COUNT:
 		return {}
+	var target_node_count: int = SCATTER_START_SPUR_NODE_COUNT
+	for branch_target_length in branch_target_lengths:
+		target_node_count += int(branch_target_length)
+	if target_node_count != SCATTER_NODE_COUNT - 1:
+		return {}
 	var branch_growth_order: PackedInt32Array = _frontier_branch_growth_order(template_id, branch_target_lengths, generation_seed)
 	var node_adjacency: Dictionary = {}
 	for node_id in range(SCATTER_NODE_COUNT):
@@ -1099,6 +1104,11 @@ func _build_controlled_scatter_frontier_tree(template_id: String, generation_see
 	for branch_id in range(SCATTER_START_BRANCH_COUNT):
 		_add_scatter_edge(node_adjacency, 0, next_node_id)
 		(branch_node_ids[branch_id] as Array).append(next_node_id)
+		next_node_id += 1
+	for _spur_index in range(SCATTER_START_SPUR_NODE_COUNT):
+		if next_node_id >= SCATTER_NODE_COUNT:
+			break
+		_add_scatter_edge(node_adjacency, 0, next_node_id)
 		next_node_id += 1
 	for branch_id_variant in branch_growth_order:
 		var branch_id: int = int(branch_id_variant)
@@ -1120,21 +1130,15 @@ func _build_controlled_scatter_frontier_tree(template_id: String, generation_see
 		"node_adjacency": node_adjacency,
 		"branch_node_ids": branch_node_ids,
 	}
-
-
-func _frontier_branch_target_lengths(template_id: String) -> PackedInt32Array:
-	if template_id.find("openfield") != -1:
-		return PackedInt32Array([5, 4, 4])
-	if template_id.find("loop") != -1:
-		return PackedInt32Array([5, 4, 4])
-	return PackedInt32Array([5, 4, 4])
-
-
+func _frontier_branch_target_lengths(_template_id: String) -> PackedInt32Array:
+	return PackedInt32Array([4, 4, 4])
 func _frontier_branch_growth_order(template_id: String, branch_target_lengths: PackedInt32Array, generation_seed: int = DEFAULT_GENERATION_SEED) -> PackedInt32Array:
 	var priority_order: PackedInt32Array = _frontier_branch_priority_order(template_id, generation_seed)
 	var branch_current_lengths: PackedInt32Array = PackedInt32Array([1, 1, 1])
 	var growth_order: PackedInt32Array = PackedInt32Array()
-	var required_growth_steps: int = SCATTER_NODE_COUNT - 1 - SCATTER_START_BRANCH_COUNT
+	var required_growth_steps: int = 0
+	for branch_target_length in branch_target_lengths:
+		required_growth_steps += max(0, int(branch_target_length) - 1)
 	while growth_order.size() < required_growth_steps:
 		var added_this_round: bool = false
 		for branch_id in priority_order:
@@ -1150,8 +1154,6 @@ func _frontier_branch_growth_order(template_id: String, branch_target_lengths: P
 		if not added_this_round:
 			break
 	return growth_order
-
-
 func _frontier_branch_priority_order(template_id: String, generation_seed: int = DEFAULT_GENERATION_SEED) -> PackedInt32Array:
 	var base_order: PackedInt32Array = PackedInt32Array([SCATTER_BRANCH_COMBAT, SCATTER_BRANCH_SUPPORT, SCATTER_BRANCH_REWARD])
 	if template_id.find("openfield") != -1:
@@ -1162,8 +1164,6 @@ func _frontier_branch_priority_order(template_id: String, generation_seed: int =
 	if base_order.size() > 1:
 		rotation_offset = _hash_scatter_seed_string("%s|branch-priority|%d" % [template_id, _normalize_generation_seed(generation_seed)]) % base_order.size()
 	return _rotate_packed_int32_array(base_order, rotation_offset)
-
-
 func _rotate_packed_int32_array(values: PackedInt32Array, rotation_offset: int) -> PackedInt32Array:
 	if values.is_empty():
 		return PackedInt32Array()
@@ -1208,7 +1208,7 @@ func _scatter_reconnect_plans(template_id: String) -> Array:
 			{
 				"left_branch_id": SCATTER_BRANCH_COMBAT,
 				"right_branch_id": SCATTER_BRANCH_SUPPORT,
-				"preferred_depth": SCATTER_RECONNECT_DEPTH_MID,
+				"preferred_depth": SCATTER_RECONNECT_DEPTH_LATE,
 			},
 			{
 				"left_branch_id": SCATTER_BRANCH_REWARD,
@@ -1238,7 +1238,7 @@ func _scatter_reconnect_plans(template_id: String) -> Array:
 		{
 			"left_branch_id": SCATTER_BRANCH_COMBAT,
 			"right_branch_id": SCATTER_BRANCH_SUPPORT,
-			"preferred_depth": SCATTER_RECONNECT_DEPTH_MID,
+			"preferred_depth": SCATTER_RECONNECT_DEPTH_LATE,
 		},
 	]
 
@@ -1270,7 +1270,7 @@ func _pick_controlled_reconnect_edge(
 				continue
 			var left_depth: int = int(depth_by_node_id.get(left_node_id, -1))
 			var right_depth: int = int(depth_by_node_id.get(right_node_id, -1))
-			if left_depth < 2 or right_depth < 2:
+			if left_depth < preferred_depth or right_depth < preferred_depth:
 				continue
 			if left_depth != right_depth:
 				continue
@@ -1403,8 +1403,12 @@ func _build_controlled_scatter_family_assignments(node_adjacency: Dictionary, ro
 	var branch_root_by_node_id: Dictionary = analysis.get("branch_root_by_node_id", {})
 	var start_adjacent_ids: Array[int] = analysis.get("start_adjacent_ids", [])
 	var max_depth: int = int(analysis.get("max_depth", 0))
+	var mainline_start_adjacent_ids: Array[int] = _filter_scatter_node_ids_by_min_degree(start_adjacent_ids, node_adjacency, 2)
+	var opening_shell_candidates: Array[int] = start_adjacent_ids
+	if not mainline_start_adjacent_ids.is_empty():
+		opening_shell_candidates = mainline_start_adjacent_ids
 
-	var opening_support_candidates: Array[int] = _filter_unassigned_node_ids(start_adjacent_ids, assignments)
+	var opening_support_candidates: Array[int] = _filter_unassigned_node_ids(opening_shell_candidates, assignments)
 	var opening_support_id: int = _pick_best_scatter_role_candidate(
 		opening_support_candidates,
 		node_adjacency,
@@ -1417,7 +1421,7 @@ func _build_controlled_scatter_family_assignments(node_adjacency: Dictionary, ro
 	assignments[opening_support_id] = opening_support_family
 	role_assignments[SCATTER_ROLE_OPENING_SUPPORT] = opening_support_id
 
-	var reward_candidates: Array[int] = _filter_unassigned_node_ids(start_adjacent_ids, assignments)
+	var reward_candidates: Array[int] = _filter_unassigned_node_ids(opening_shell_candidates, assignments)
 	var opening_support_branch_root: int = int(branch_root_by_node_id.get(opening_support_id, NO_PENDING_NODE_ID))
 	var diverse_reward_candidates: Array[int] = _filter_nodes_by_branch_root(reward_candidates, branch_root_by_node_id, opening_support_branch_root, false)
 	if not diverse_reward_candidates.is_empty():
@@ -1720,7 +1724,6 @@ func _build_scatter_topology_signature(node_adjacency: Dictionary) -> String:
 		fragments.append("%d:%s" % [node_id, ",".join(adjacent_fragment)])
 	return "|".join(fragments)
 
-
 func _build_unassigned_scatter_node_ids(node_adjacency: Dictionary, assignments: Dictionary) -> Array[int]:
 	var node_ids: Array[int] = []
 	for node_id in _sorted_scatter_node_ids(node_adjacency.keys()):
@@ -1728,7 +1731,6 @@ func _build_unassigned_scatter_node_ids(node_adjacency: Dictionary, assignments:
 			continue
 		node_ids.append(node_id)
 	return node_ids
-
 
 func _filter_unassigned_node_ids(node_ids: Array[int], assignments: Dictionary) -> Array[int]:
 	var filtered_node_ids: Array[int] = []
@@ -1738,6 +1740,13 @@ func _filter_unassigned_node_ids(node_ids: Array[int], assignments: Dictionary) 
 		filtered_node_ids.append(node_id)
 	return filtered_node_ids
 
+func _filter_scatter_node_ids_by_min_degree(node_ids: Array[int], node_adjacency: Dictionary, min_degree: int) -> Array[int]:
+	var filtered_node_ids: Array[int] = []
+	for node_id in node_ids:
+		if _get_scatter_degree(node_adjacency, node_id) < min_degree:
+			continue
+		filtered_node_ids.append(node_id)
+	return filtered_node_ids
 
 func _filter_nodes_by_branch_root(node_ids: Array[int], branch_root_by_node_id: Dictionary, branch_root: int, require_match: bool) -> Array[int]:
 	var filtered_node_ids: Array[int] = []
@@ -1750,14 +1759,12 @@ func _filter_nodes_by_branch_root(node_ids: Array[int], branch_root_by_node_id: 
 		filtered_node_ids.append(node_id)
 	return filtered_node_ids
 
-
 func _filter_nodes_by_min_path_length(node_ids: Array[int], node_adjacency: Dictionary, target_node_id: int, min_path_length: int) -> Array[int]:
 	var filtered_node_ids: Array[int] = []
 	for node_id in node_ids:
 		if _build_scatter_path_length(node_adjacency, node_id, target_node_id) >= min_path_length:
 			filtered_node_ids.append(node_id)
 	return filtered_node_ids
-
 
 func _filter_nodes_adjacent_to_target(node_ids: Array[int], node_adjacency: Dictionary, target_node_id: int) -> Array[int]:
 	var filtered_node_ids: Array[int] = []
@@ -1766,7 +1773,6 @@ func _filter_nodes_adjacent_to_target(node_ids: Array[int], node_adjacency: Dict
 		if adjacent_node_ids.has(node_id):
 			filtered_node_ids.append(node_id)
 	return filtered_node_ids
-
 
 func _filter_leaf_like_scatter_nodes(node_ids: Array[int], analysis: Dictionary) -> Array[int]:
 	var filtered_node_ids: Array[int] = []
@@ -1777,14 +1783,12 @@ func _filter_leaf_like_scatter_nodes(node_ids: Array[int], analysis: Dictionary)
 			filtered_node_ids.append(node_id)
 	return filtered_node_ids
 
-
 func _filter_connector_friendly_scatter_nodes(node_ids: Array[int], analysis: Dictionary) -> Array[int]:
 	var filtered_node_ids: Array[int] = []
 	for node_id in node_ids:
 		if _connector_score_for_scatter_node(node_id, analysis) >= 3.0:
 			filtered_node_ids.append(node_id)
 	return filtered_node_ids
-
 
 func _filter_nodes_away_from_role_branches(node_ids: Array[int], analysis: Dictionary, role_assignments: Dictionary, role_names: Array[String]) -> Array[int]:
 	var filtered_node_ids: Array[int] = []
@@ -2139,14 +2143,12 @@ func _count_scatter_same_depth_reconnects(adjacency_by_node_id: Dictionary, dept
 			reconnect_count += 1
 	return reconnect_count
 
-
 func _count_scatter_extra_edges(node_adjacency: Dictionary) -> int:
 	var undirected_edge_count: int = 0
 	for node_id_variant in node_adjacency.keys():
 		var node_id: int = int(node_id_variant)
 		undirected_edge_count += _coerce_adjacent_ids(node_adjacency.get(node_id, PackedInt32Array())).size()
 	return max(0, int(undirected_edge_count / 2) - (SCATTER_NODE_COUNT - 1))
-
 
 func _build_adjacency_lookup_from_graph(graph: Array[Dictionary]) -> Dictionary:
 	var adjacency_by_node_id: Dictionary = {}
@@ -2156,7 +2158,6 @@ func _build_adjacency_lookup_from_graph(graph: Array[Dictionary]) -> Dictionary:
 			continue
 		adjacency_by_node_id[node_id] = _coerce_adjacent_ids(entry.get("adjacent_node_ids", PackedInt32Array()))
 	return adjacency_by_node_id
-
 
 func _build_family_budget_slot_reservations_from_graph(graph: Array[Dictionary]) -> Dictionary:
 	var reservations: Dictionary = {}
@@ -2192,14 +2193,11 @@ func _build_family_budget_slot_reservations_from_graph(graph: Array[Dictionary])
 		reservations[SCATTER_ROLE_OPENING_COMBAT] = opening_combat_id
 	return reservations
 
-
 func _rebuild_family_budget_slot_reservations_from_graph() -> void:
 	_family_budget_slot_reservations = _build_family_budget_slot_reservations_from_graph(_node_graph)
 
-
 func _has_scatter_edge(node_adjacency: Dictionary, left_id: int, right_id: int) -> bool:
 	return (node_adjacency.get(left_id, []) as Array[int]).has(right_id)
-
 
 func _add_scatter_edge(node_adjacency: Dictionary, left_id: int, right_id: int) -> void:
 	var left_adjacent: Array = node_adjacency.get(left_id, [])

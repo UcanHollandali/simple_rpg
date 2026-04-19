@@ -18,6 +18,7 @@ var _pressed_slot_id: int = -1
 var _pressed_slot_index: int = -1
 var _pressed_family: String = ""
 var _pressed_position: Vector2 = Vector2.ZERO
+var _pressed_is_clickable: bool = false
 var _pressed_is_draggable: bool = false
 var _drag_active: bool = false
 
@@ -88,6 +89,7 @@ func stop_interaction() -> void:
 	_pressed_slot_index = -1
 	_pressed_family = ""
 	_pressed_position = Vector2.ZERO
+	_pressed_is_clickable = false
 	_pressed_is_draggable = false
 	_drag_active = false
 
@@ -121,6 +123,7 @@ func _capture_press(mouse_event: InputEventMouseButton, card: PanelContainer) ->
 	_pressed_slot_index = int(card.get_meta("slot_index", -1))
 	_pressed_slot_id = int(card.get_meta("inventory_slot_id", -1))
 	_pressed_family = String(card.get_meta("card_family", ""))
+	_pressed_is_clickable = bool(card.get_meta("is_clickable", false))
 	_pressed_is_draggable = bool(card.get_meta("is_draggable", false))
 	_pressed_position = mouse_event.position + card.get_global_rect().position
 	_drag_active = false
@@ -133,8 +136,9 @@ func _release_interaction() -> void:
 		var clicked_slot_index: int = _pressed_slot_index
 		var clicked_slot_id: int = _pressed_slot_id
 		var clicked_family: String = _pressed_family
+		var clicked_is_clickable: bool = _pressed_is_clickable
 		stop_interaction()
-		if _click_handler.is_valid():
+		if clicked_is_clickable and _click_handler.is_valid():
 			_click_handler.call_deferred(clicked_slot_index, clicked_slot_id, clicked_family)
 		return
 	stop_interaction()

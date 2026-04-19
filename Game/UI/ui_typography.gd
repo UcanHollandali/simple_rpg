@@ -1,0 +1,84 @@
+extends RefCounted
+class_name UiTypography
+
+const INTER_FONT := preload("res://Assets/UI/Fonts/inter_variable.ttf")
+const CINZEL_FONT := preload("res://Assets/UI/Fonts/cinzel_variable.ttf")
+
+const ROLE_BODY := "body"
+const ROLE_HEADING := "heading"
+const ROLE_BUTTON := "button"
+
+const DEFAULT_BODY_SIZE := 18
+const DEFAULT_MUTED_SIZE := 16
+const DEFAULT_HEADING_SIZE := 18
+const DEFAULT_TITLE_SIZE := 40
+const DEFAULT_DANGER_SIZE := 22
+const DEFAULT_BUTTON_SIZE := 19
+const DEFAULT_SMALL_BUTTON_SIZE := 16
+const DEFAULT_CHIP_SIZE := 15
+
+const OVERLAY_TITLE_LARGE := 44
+const OVERLAY_TITLE_MEDIUM := 38
+const OVERLAY_TITLE_COMPACT := 32
+const OVERLAY_SUMMARY_LARGE := 20
+const OVERLAY_SUMMARY_MEDIUM := 18
+const OVERLAY_SUMMARY_COMPACT := 16
+const OVERLAY_HINT_LARGE := 16
+const OVERLAY_HINT_MEDIUM := 15
+const OVERLAY_HINT_COMPACT := 14
+const OVERLAY_STATUS_LARGE := 16
+const OVERLAY_STATUS_MEDIUM := 15
+const OVERLAY_STATUS_COMPACT := 14
+const OVERLAY_CARD_TITLE_LARGE := 24
+const OVERLAY_CARD_TITLE_MEDIUM := 22
+const OVERLAY_CARD_TITLE_COMPACT := 20
+const OVERLAY_CARD_DETAIL_LARGE := 16
+const OVERLAY_CARD_DETAIL_MEDIUM := 15
+const OVERLAY_CARD_DETAIL_COMPACT := 14
+const OVERLAY_BUTTON_LARGE := 20
+const OVERLAY_BUTTON_MEDIUM := 18
+const OVERLAY_BUTTON_COMPACT := 17
+
+const TRANSITION_TITLE_LARGE := 44
+const TRANSITION_TITLE_MEDIUM := 38
+const TRANSITION_TITLE_COMPACT := 32
+const TRANSITION_SUMMARY_LARGE := 22
+const TRANSITION_SUMMARY_MEDIUM := 20
+const TRANSITION_SUMMARY_COMPACT := 18
+const TRANSITION_RESULT_LARGE := 24
+const TRANSITION_RESULT_MEDIUM := 22
+const TRANSITION_RESULT_COMPACT := 20
+
+const MENU_TITLE_LARGE := 74
+const MENU_TITLE_MEDIUM := 64
+const MENU_TITLE_COMPACT := 54
+const MENU_SUBTITLE_LARGE := 22
+const MENU_SUBTITLE_MEDIUM := 20
+const MENU_SUBTITLE_COMPACT := 18
+const MENU_BODY_LARGE := 20
+const MENU_BODY_MEDIUM := 18
+const MENU_BODY_COMPACT := 16
+const MENU_STATUS_LARGE := 16
+const MENU_STATUS_MEDIUM := 15
+const MENU_STATUS_COMPACT := 14
+const MENU_BUTTON_LARGE := 20
+const MENU_BUTTON_MEDIUM := 18
+const MENU_BUTTON_COMPACT := 17
+
+
+static func resolve_font(role: String = ROLE_BODY) -> Font:
+	match role:
+		ROLE_HEADING:
+			return CINZEL_FONT
+		ROLE_BUTTON:
+			return INTER_FONT
+		_:
+			return INTER_FONT
+
+
+static func resolve_label_role(tone: String = "body") -> String:
+	match tone:
+		"title", "accent", "reward", "danger":
+			return ROLE_HEADING
+		_:
+			return ROLE_BODY

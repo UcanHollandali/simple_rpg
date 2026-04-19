@@ -3,7 +3,6 @@
 [ext_resource type="Script" path="res://scenes/combat.gd" id="1"]
 [ext_resource type="Texture2D" path="res://Assets/Icons/icon_attack.svg" id="2"]
 [ext_resource type="Texture2D" path="res://Assets/Icons/icon_defend.svg" id="3"]
-[ext_resource type="Texture2D" path="res://Assets/Icons/icon_use_item.svg" id="4"]
 [ext_resource type="Texture2D" path="res://Assets/Backgrounds/bg_combat_far.png" id="6"]
 [ext_resource type="Texture2D" path="res://Assets/Backgrounds/bg_combat_mid.png" id="7"]
 [ext_resource type="Texture2D" path="res://Assets/Backgrounds/bg_combat_overlay.png" id="8"]
@@ -131,14 +130,14 @@ theme_override_constants/separation = 6
 text = "Enemy"
 
 [node name="EnemyTypeLabel" type="Label" parent="Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox"]
-text = "Type: Unknown"
+text = "Unknown"
 
 [node name="EnemyTraitLabel" type="Label" parent="Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox"]
 visible = false
 text = "Traits: Unknown"
 
 [node name="EnemyHpLabel" type="Label" parent="Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox"]
-text = "Enemy HP: 0/0"
+text = "HP 0/0 | Armor 0"
 
 [node name="EnemyHpBar" type="ProgressBar" parent="Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox"]
 max_value = 1.0
@@ -162,7 +161,7 @@ size_flags_horizontal = 3
 theme_override_constants/separation = 4
 
 [node name="IntentTitleLabel" type="Label" parent="Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentCard/IntentVBox"]
-text = "Enemy Intent"
+text = "Next Hit"
 
 [node name="IntentRow" type="HBoxContainer" parent="Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentCard/IntentVBox"]
 theme_override_constants/separation = 6
@@ -176,10 +175,11 @@ expand_mode = 1
 stretch_mode = 5
 
 [node name="IntentLabel" type="Label" parent="Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentCard/IntentVBox/IntentRow"]
-text = "Intent: Unknown"
+text = "Would hit for 0 damage"
 
 [node name="IntentDetailLabel" type="Label" parent="Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentCard/IntentVBox"]
-text = "Incoming ? | Guard ?"
+visible = false
+text = ""
 autowrap_mode = 3
 
 [node name="EnemyStatusSection" type="VBoxContainer" parent="Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox"]
@@ -233,7 +233,7 @@ theme_override_constants/separation = 6
 text = "Wayfinder"
 
 [node name="PlayerLoadoutLabel" type="Label" parent="Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox"]
-text = "No armor or belt equipped."
+text = "No offhand / armor / belt."
 autowrap_mode = 3
 
 [node name="PlayerRunSummaryCard" type="PanelContainer" parent="Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox"]
@@ -257,6 +257,7 @@ theme_override_constants/v_separation = 4
 
 [node name="ForecastCard" type="PanelContainer" parent="Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox"]
 size_flags_horizontal = 3
+visible = false
 
 [node name="ForecastVBox" type="VBoxContainer" parent="Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/ForecastCard"]
 theme_override_constants/separation = 4
@@ -294,7 +295,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 0
 
 [node name="ActionSectionTitleLabel" type="Label" parent="Margin/VBox/Buttons"]
-text = "Choose Action"
+text = "Pick Your Move"
 
 [node name="ActionCardsRow" type="HFlowContainer" parent="Margin/VBox/Buttons"]
 size_flags_horizontal = 3
@@ -309,7 +310,7 @@ size_flags_horizontal = 3
 theme_override_constants/separation = 4
 
 [node name="AttackActionEyebrowLabel" type="Label" parent="Margin/VBox/Buttons/ActionCardsRow/AttackActionCard/AttackActionVBox"]
-text = "OFFENSE"
+text = "DEAL DAMAGE"
 
 [node name="AttackButton" type="Button" parent="Margin/VBox/Buttons/ActionCardsRow/AttackActionCard/AttackActionVBox"]
 text = "Attack"
@@ -328,7 +329,7 @@ size_flags_horizontal = 3
 theme_override_constants/separation = 4
 
 [node name="DefenseActionEyebrowLabel" type="Label" parent="Margin/VBox/Buttons/ActionCardsRow/DefenseActionCard/DefenseActionVBox"]
-text = "DEFENSE"
+text = "BLOCK THE HIT"
 
 [node name="DefenseActionButton" type="Button" parent="Margin/VBox/Buttons/ActionCardsRow/DefenseActionCard/DefenseActionVBox"]
 text = "Defend"
@@ -338,25 +339,6 @@ icon = ExtResource("3")
 
 [node name="DefenseActionPreviewLabel" type="Label" parent="Margin/VBox/Buttons/ActionCardsRow/DefenseActionCard/DefenseActionVBox"]
 text = "Guard ? | HP ?"
-autowrap_mode = 3
-
-[node name="UseItemActionCard" type="PanelContainer" parent="Margin/VBox/Buttons/ActionCardsRow"]
-size_flags_horizontal = 3
-
-[node name="UseItemActionVBox" type="VBoxContainer" parent="Margin/VBox/Buttons/ActionCardsRow/UseItemActionCard"]
-theme_override_constants/separation = 4
-
-[node name="UseItemActionEyebrowLabel" type="Label" parent="Margin/VBox/Buttons/ActionCardsRow/UseItemActionCard/UseItemActionVBox"]
-text = "ITEM"
-
-[node name="UseItemButton" type="Button" parent="Margin/VBox/Buttons/ActionCardsRow/UseItemActionCard/UseItemActionVBox"]
-text = "Use Item"
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 46)
-icon = ExtResource("4")
-
-[node name="UseItemActionPreviewLabel" type="Label" parent="Margin/VBox/Buttons/ActionCardsRow/UseItemActionCard/UseItemActionVBox"]
-text = "Select a consumable card below."
 autowrap_mode = 3
 
 [node name="ActionHintPanel" type="PanelContainer" parent="Margin/VBox/Buttons"]
@@ -418,9 +400,16 @@ theme_override_constants/v_separation = 6
 
 [node name="CombatLogCard" type="PanelContainer" parent="Margin/VBox/SecondaryScroll/SecondaryScrollContent"]
 custom_minimum_size = Vector2(0, 46)
-size_flags_vertical = 0
+size_flags_vertical = 3
 
-[node name="CombatLogLabel" type="Label" parent="Margin/VBox/SecondaryScroll/SecondaryScrollContent/CombatLogCard"]
-text = "Combat log"
-autowrap_mode = 3
-vertical_alignment = 1
+[node name="CombatLogVBox" type="VBoxContainer" parent="Margin/VBox/SecondaryScroll/SecondaryScrollContent/CombatLogCard"]
+theme_override_constants/separation = 6
+size_flags_vertical = 3
+
+[node name="CombatLogTitleLabel" type="Label" parent="Margin/VBox/SecondaryScroll/SecondaryScrollContent/CombatLogCard/CombatLogVBox"]
+text = "Combat Log"
+
+[node name="CombatLogEntries" type="VBoxContainer" parent="Margin/VBox/SecondaryScroll/SecondaryScrollContent/CombatLogCard/CombatLogVBox"]
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 4

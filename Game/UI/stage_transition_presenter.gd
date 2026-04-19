@@ -3,6 +3,7 @@ extends RefCounted
 class_name StageTransitionPresenter
 
 const RunStatusPresenterScript = preload("res://Game/UI/run_status_presenter.gd")
+const UiCompactCopyScript = preload("res://Game/UI/ui_compact_copy.gd")
 const PERSONALITY_PILGRIM := "pilgrim"
 const PERSONALITY_FRONTIER := "frontier"
 const PERSONALITY_TRADE := "trade"
@@ -19,17 +20,17 @@ func build_title_text(stage_index: int, stage_personality: String = "") -> Strin
 func build_summary_text(stage_personality: String = "") -> String:
 	match stage_personality:
 		PERSONALITY_FRONTIER:
-			return "Frontier roads. Hard contracts and rougher pay."
+			return "Hard contracts. Rougher pay."
 		PERSONALITY_PILGRIM:
-			return "Pilgrim roads. Safer roadwork and survival pay."
+			return "Safer jobs. Survival pay."
 		PERSONALITY_TRADE:
-			return "Trade roads. Practical contracts and utility pay."
+			return "Practical jobs. Utility pay."
 		_:
-			return "The next route is live. Read the lane, then push when ready."
+			return "New route open."
 
 
 func build_hint_text() -> String:
-	return "Objective: Find the key, then defeat the boss."
+	return UiCompactCopyScript.objective_key_boss()
 
 
 func build_run_status_model(run_state: RunState) -> Dictionary:

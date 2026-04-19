@@ -3,11 +3,15 @@ extends RefCounted
 class_name RewardPresenter
 
 const ContentLoaderScript = preload("res://Game/Infrastructure/content_loader.gd")
+const ItemDefinitionTooltipBuilderScript = preload("res://Game/UI/item_definition_tooltip_builder.gd")
 const InventoryStateScript = preload("res://Game/RuntimeState/inventory_state.gd")
 const RunStatusPresenterScript = preload("res://Game/UI/run_status_presenter.gd")
+const UiCompactCopyScript = preload("res://Game/UI/ui_compact_copy.gd")
+const UiAssetPathsScript = preload("res://Game/UI/ui_asset_paths.gd")
 const DEFAULT_CARD_COUNT: int = 3
 
 var _loader: ContentLoader = ContentLoaderScript.new()
+var _item_tooltip_builder: ItemDefinitionTooltipBuilder = ItemDefinitionTooltipBuilderScript.new()
 
 
 func build_chip_text(reward_state: RefCounted) -> String:
@@ -34,23 +38,15 @@ func build_context_text(reward_state: RefCounted) -> String:
 
 	match String(reward_state.source_context):
 		"combat_victory":
-			return "Choose 1 of 3 spoils now before you move on."
+			return UiCompactCopyScript.pick_one("spoil")
 		"reward_node":
-			return "Choose 1 of 2 finds now before the cache gives way."
+			return UiCompactCopyScript.pick_one("find")
 		_:
-			return "Choose 1 salvage"
+			return UiCompactCopyScript.pick_one("reward")
 
 
 func build_hint_text(reward_state: RefCounted) -> String:
-	if reward_state == null:
-		return ""
-	match String(reward_state.source_context):
-		"combat_victory":
-			return "Claim one payoff now. The other spoils are left behind."
-		"reward_node":
-			return "Claim one cache find now. The rest stays buried."
-		_:
-			return "Choose one salvage result."
+	return ""
 
 
 func build_offer_view_models(reward_state: RefCounted, card_count: int = DEFAULT_CARD_COUNT) -> Array[Dictionary]:
@@ -70,6 +66,8 @@ func build_offer_view_models(reward_state: RefCounted, card_count: int = DEFAULT
 				"title_text": _build_offer_title(offer, effect_type),
 				"detail_text": _build_offer_detail(offer),
 				"button_text": _build_button_text(effect_type, source_context),
+				"tooltip_text": _build_offer_tooltip_text(offer, source_context),
+				"icon_texture_path": _build_offer_icon_texture_path(offer),
 				"button_disabled": false,
 			})
 		else:
@@ -79,6 +77,7 @@ func build_offer_view_models(reward_state: RefCounted, card_count: int = DEFAULT
 				"title_text": "",
 				"detail_text": "",
 				"button_text": "",
+				"icon_texture_path": "",
 				"button_disabled": true,
 			})
 
@@ -152,26 +151,21 @@ func _build_offer_detail(offer: Dictionary) -> String:
 
 	match effect_type:
 		"heal":
-			return "Recover %d HP before the next leg." % amount
+			return "Recover %d HP." % amount
 		"repair_weapon":
-			return "Restore your active weapon to full durability."
+			return "Full weapon repair."
 		"grant_xp":
-			return "Gain %d XP and keep the route moving." % amount
+			return "Gain %d XP." % amount
 		"grant_gold":
-			return "Gain %d gold for the next stop." % amount
+			return "Gain %d gold." % amount
 		"grant_item":
 			var inventory_family: String = String(offer.get("inventory_family", "")).strip_edges()
 			var definition_id: String = String(offer.get("definition_id", "")).strip_edges()
-			var item_name: String = _load_inventory_display_name(inventory_family, definition_id)
-			if inventory_family == InventoryStateScript.INVENTORY_FAMILY_CONSUMABLE:
-				return "Add %s x%d to the backpack." % [item_name, max(1, amount)]
-			if inventory_family == InventoryStateScript.INVENTORY_FAMILY_PASSIVE:
-				return "Carry %s for its backpack-only passive bonus." % item_name
-			if inventory_family == InventoryStateScript.INVENTORY_FAMILY_SHIELD_ATTACHMENT:
-				return "Pack %s as a shield mod for later attachment." % item_name
-			if inventory_family == InventoryStateScript.INVENTORY_FAMILY_QUEST_ITEM:
-				return "Carry %s as quest cargo. It stays separate from normal loot." % item_name
-			return "Add %s to the backpack." % item_name
+			return _item_tooltip_builder.build_definition_summary_text(
+				inventory_family,
+				definition_id,
+				max(1, amount)
+			)
 		_:
 			return String(offer.get("label", String(offer.get("offer_id", ""))))
 
@@ -190,6 +184,37 @@ func _build_button_text(effect_type: String, source_context: String) -> String:
 			return "Pack It"
 		_:
 			return "Pack It" if source_context == "combat_victory" else "Take It"
+
+
+func _build_offer_tooltip_text(offer: Dictionary, source_context: String) -> String:
+	var effect_type: String = String(offer.get("effect_type", ""))
+	var amount: int = int(offer.get("amount", 0))
+	match effect_type:
+		"heal":
+			return "Recover %d HP." % amount
+		"repair_weapon":
+			return "Full weapon repair."
+		"grant_xp":
+			return "Gain %d XP." % amount
+		"grant_gold":
+			return "Gain %d gold." % amount
+		"grant_item":
+			var inventory_family: String = String(offer.get("inventory_family", "")).strip_edges()
+			var definition_id: String = String(offer.get("definition_id", "")).strip_edges()
+			return _item_tooltip_builder.build_definition_tooltip_text(
+				inventory_family,
+				definition_id,
+				max(1, amount)
+			)
+		_:
+			return _build_offer_detail(offer)
+
+
+func _build_offer_icon_texture_path(offer: Dictionary) -> String:
+	return UiAssetPathsScript.build_effect_icon_texture_path(
+		String(offer.get("effect_type", "")),
+		String(offer.get("inventory_family", ""))
+	)
 
 
 func _load_inventory_display_name(inventory_family: String, definition_id: String) -> String:
