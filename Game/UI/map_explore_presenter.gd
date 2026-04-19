@@ -60,7 +60,7 @@ func build_progress_text(run_state: RunState) -> String:
 
 func build_run_status_model(run_state: RunState) -> Dictionary:
 	return RunStatusPresenterScript.build_status_model(run_state, {
-		"variant": RunStatusPresenterScript.VARIANT_COMPACT,
+		"variant": RunStatusPresenterScript.VARIANT_MINIMAL,
 		"include_weapon": false,
 		"include_xp": true,
 	})

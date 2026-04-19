@@ -17,7 +17,7 @@ const ROUTE_BUTTON_NODE_NAMES: PackedStringArray = [
 ]
 
 const MAIN_MENU_START_BUTTON_PATH := "Margin/VBox/ActionPanel/ActionVBox/StartRunButton"
-const MAP_SETTINGS_LAUNCHER_BUTTON_PATH := "SafeMenuOverlay/MenuLauncherButton"
+const MAP_SETTINGS_LAUNCHER_BUTTON_PATH := "Margin/VBox/TopRow/SettingsMenuAnchor/SettingsButton"
 const MAP_SETTINGS_CLOSE_BUTTON_PATH := "SafeMenuOverlay/MenuLayer/PanelHolder/PanelRow/MenuPanel/VBox/ActionsVBox/CloseButton"
 const MAP_SETTINGS_MUSIC_BUTTON_PATH := "SafeMenuOverlay/MenuLayer/PanelHolder/PanelRow/MenuPanel/VBox/ActionsVBox/MusicToggleButton"
 const SUPPORT_ACTION_A_BUTTON_PATH := "Margin/VBox/ActionsRow/ActionAButton"
@@ -25,9 +25,9 @@ const SUPPORT_ACTION_B_BUTTON_PATH := "Margin/VBox/ActionsRow/ActionBButton"
 const SUPPORT_ACTION_C_BUTTON_PATH := "Margin/VBox/ActionsRow/ActionCButton"
 const SUPPORT_LEAVE_BUTTON_PATH := "Margin/VBox/FooterRow/LeaveButton"
 const EVENT_CHOICE_B_BUTTON_PATH := "Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard/VBox/ChoiceBButton"
-const COMBAT_ATTACK_BUTTON_PATH := "Margin/VBox/Buttons/AttackActionCard/AttackActionVBox/AttackButton"
-const COMBAT_DEFEND_BUTTON_PATH := "Margin/VBox/Buttons/DefenseActionCard/DefenseActionVBox/DefenseActionButton"
-const COMBAT_USE_ITEM_BUTTON_PATH := "Margin/VBox/Buttons/UseItemActionCard/UseItemActionVBox/UseItemButton"
+const COMBAT_ATTACK_BUTTON_PATH := "Margin/VBox/Buttons/ActionCardsRow/AttackActionCard/AttackActionVBox/AttackButton"
+const COMBAT_DEFEND_BUTTON_PATH := "Margin/VBox/Buttons/ActionCardsRow/DefenseActionCard/DefenseActionVBox/DefenseActionButton"
+const COMBAT_USE_ITEM_BUTTON_PATH := "Margin/VBox/Buttons/ActionCardsRow/UseItemActionCard/UseItemActionVBox/UseItemButton"
 const COMBAT_CONSUMABLE_3_CARD_PATH := "Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryCard/InventoryCardsFlow/InventorySlot3Card"
 const REWARD_CHOICE_C_BUTTON_PATH := "Margin/VBox/OffersShell/VBox/CardsRow/ChoiceCCard/VBox/ChoiceCButton"
 const LEVEL_UP_CHOICE_B_BUTTON_PATH := "Margin/VBox/ChoicesRow/ChoiceBButton"
@@ -46,6 +46,11 @@ var _event_hp_before: int = 0
 var _event_hunger_before: int = 0
 var _event_xp_before: int = 0
 var _event_inventory_slot_count_before: int = 0
+var _map_inventory_cycle_step: int = 0
+var _map_inventory_current_node_before_equipment: int = -1
+var _map_inventory_signature_before_equipment: String = ""
+var _map_weapon_slot_id_before_equipment: int = -1
+var _map_weapon_definition_id_before_equipment: String = ""
 var _is_finishing: bool = false
 
 
@@ -105,8 +110,36 @@ func _on_process_frame() -> void:
 				_advance_phase(5)
 		5:
 			if _is_scene("MapExplore"):
-				_press_map_route_containing("Rest")
-				_advance_phase(6)
+				var run_state_on_map: RunState = _get_run_state()
+				_require(run_state_on_map != null, "Expected RunState before exercising map equip/unequip flow.")
+				match _map_inventory_cycle_step:
+					0:
+						_map_inventory_current_node_before_equipment = int(run_state_on_map.map_runtime_state.current_node_id)
+						_map_inventory_signature_before_equipment = _build_map_signature(run_state_on_map)
+						_map_weapon_slot_id_before_equipment = int(run_state_on_map.inventory_state.weapon_instance.get("slot_id", -1))
+						_map_weapon_definition_id_before_equipment = String(run_state_on_map.inventory_state.weapon_instance.get("definition_id", ""))
+						_require(_map_weapon_slot_id_before_equipment > 0, "Expected starter weapon slot id before map equip/unequip cycle.")
+						_require(not _map_weapon_definition_id_before_equipment.is_empty(), "Expected starter weapon definition before map equip/unequip cycle.")
+						_click_map_inventory_card("Margin/VBox/InventorySection/EquipmentCard/EquipmentCardsFlow/InventorySlotRIGHTHANDCard")
+						_map_inventory_cycle_step = 1
+					1:
+						_require(_current_state() == FlowStateScript.Type.MAP_EXPLORE, "Expected map equip/unequip to keep the flow in MAP_EXPLORE.")
+						_require(int(run_state_on_map.map_runtime_state.current_node_id) == _map_inventory_current_node_before_equipment, "Expected map equip/unequip not to change the current node.")
+						_require(_build_map_signature(run_state_on_map) == _map_inventory_signature_before_equipment, "Expected map equip/unequip not to rebuild or reset the active map.")
+						_require(run_state_on_map.inventory_state.weapon_instance.is_empty(), "Expected clicking the equipped right-hand card to unequip the weapon on MapExplore.")
+						_require(_inventory_contains_slot_id(run_state_on_map, _map_weapon_slot_id_before_equipment), "Expected unequipped weapon slot to move into the backpack instead of disappearing.")
+						_require_inventory_card_action_copy("Margin/VBox/InventorySection/InventoryCard/InventoryCardsFlow/InventorySlot2Card", "Tap to equip")
+						_click_map_inventory_card("Margin/VBox/InventorySection/InventoryCard/InventoryCardsFlow/InventorySlot2Card")
+						_map_inventory_cycle_step = 2
+					2:
+						_require(_current_state() == FlowStateScript.Type.MAP_EXPLORE, "Expected re-equipping on MapExplore to keep the flow in MAP_EXPLORE.")
+						_require(int(run_state_on_map.map_runtime_state.current_node_id) == _map_inventory_current_node_before_equipment, "Expected re-equipping not to change the current node.")
+						_require(_build_map_signature(run_state_on_map) == _map_inventory_signature_before_equipment, "Expected re-equipping not to rebuild or reset the active map.")
+						_require(String(run_state_on_map.inventory_state.weapon_instance.get("definition_id", "")) == _map_weapon_definition_id_before_equipment, "Expected map re-equip to restore the original weapon definition.")
+						_require(int(run_state_on_map.inventory_state.weapon_instance.get("slot_id", -1)) == _map_weapon_slot_id_before_equipment, "Expected map re-equip to restore the original weapon slot id.")
+						_require(not _inventory_contains_slot_id(run_state_on_map, _map_weapon_slot_id_before_equipment), "Expected re-equipped weapon slot to leave the backpack.")
+						_press_map_route_containing("Rest")
+						_advance_phase(6)
 		6:
 			if _is_scene("SupportInteraction"):
 				_press(SUPPORT_ACTION_A_BUTTON_PATH)
@@ -301,6 +334,16 @@ func _get_run_state() -> RunState:
 	return bootstrap.call("get_run_state")
 
 
+func _current_state() -> int:
+	var bootstrap: Node = _get_bootstrap()
+	if bootstrap == null:
+		return -1
+	var flow_manager: Node = bootstrap.call("get_flow_manager")
+	if flow_manager == null:
+		return -1
+	return int(flow_manager.call("get_current_state"))
+
+
 func _get_support_state() -> RefCounted:
 	var bootstrap: Node = _get_bootstrap()
 	if bootstrap == null:
@@ -328,6 +371,33 @@ func _click_combat_card(node_path: String) -> void:
 	release_event.button_index = MOUSE_BUTTON_LEFT
 	release_event.pressed = false
 	current_scene.call("_input", release_event)
+
+
+func _click_map_inventory_card(node_path: String) -> void:
+	_require(current_scene != null and current_scene.name == "MapExplore", "Expected MapExplore before clicking %s." % node_path)
+	var card: Control = current_scene.get_node(node_path) as Control
+	_require(card != null, "Expected map inventory card at %s." % node_path)
+	var press_event := InputEventMouseButton.new()
+	press_event.button_index = MOUSE_BUTTON_LEFT
+	press_event.pressed = true
+	press_event.position = Vector2(8, 8)
+	card.emit_signal("gui_input", press_event)
+	var release_event := InputEventMouseButton.new()
+	release_event.button_index = MOUSE_BUTTON_LEFT
+	release_event.pressed = false
+	release_event.position = Vector2(8, 8)
+	card.emit_signal("gui_input", release_event)
+
+
+func _require_inventory_card_action_copy(node_path: String, expected_fragment: String) -> void:
+	var card: PanelContainer = _get_scene_root().get_node_or_null(node_path) as PanelContainer
+	_require(card != null, "Expected inventory card at %s." % node_path)
+	var action_hint_label: Label = card.get_node_or_null("VBox/ActionHintLabel") as Label
+	_require(action_hint_label != null, "Expected inventory card action copy label at %s." % node_path)
+	_require(
+		action_hint_label.text.contains(expected_fragment),
+		"Expected inventory card action copy at %s to contain %s, got %s." % [node_path, expected_fragment, action_hint_label.text]
+	)
 
 
 func _combat_has_consumable_definition(combat_flow: Variant, definition_id: String) -> bool:
@@ -409,6 +479,27 @@ func _reset_current_map_for_active_stage() -> void:
 	var run_state: RunState = _get_run_state()
 	_require(run_state != null, "Expected RunState before resetting the active-stage map in the full button tour.")
 	run_state.map_runtime_state.reset_for_new_run(run_state.stage_index)
+
+
+func _build_map_signature(run_state: RunState) -> String:
+	if run_state == null or run_state.map_runtime_state == null:
+		return ""
+	return JSON.stringify({
+		"stage_index": run_state.stage_index,
+		"run_seed": run_state.run_seed,
+		"current_node_id": int(run_state.map_runtime_state.current_node_id),
+		"nodes": run_state.map_runtime_state.build_node_snapshots(),
+	})
+
+
+func _inventory_contains_slot_id(run_state: RunState, slot_id: int) -> bool:
+	if run_state == null or run_state.inventory_state == null or slot_id <= 0:
+		return false
+	for slot_value in run_state.inventory_state.inventory_slots:
+		var slot: Dictionary = slot_value
+		if int(slot.get("slot_id", -1)) == slot_id:
+			return true
+	return false
 
 
 func _advance_phase(new_phase: int) -> void:

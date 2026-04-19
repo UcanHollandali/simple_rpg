@@ -122,6 +122,67 @@ static func apply_choice_card_shell(panel: PanelContainer, accent: Color = PANEL
 	intensify_panel(panel, accent, 3, 20, 0.04, 0.24, 18, 16)
 
 
+static func apply_inventory_section_panel(panel: PanelContainer, accent: Color = PANEL_BORDER_COLOR, density: String = "standard") -> void:
+	if panel == null:
+		return
+
+	var corner_radius: int = 18
+	var fill_alpha: float = 0.9
+	var border_width: int = 3
+	var shadow_size: int = 20
+	var fill_boost: float = 0.04
+	var shadow_alpha: float = 0.24
+	var margin_x: int = 18
+	var margin_y: int = 16
+	match density:
+		"compact":
+			corner_radius = 16
+			fill_alpha = 0.88
+			border_width = 3
+			shadow_size = 18
+			fill_boost = 0.03
+			shadow_alpha = 0.22
+			margin_x = 16
+			margin_y = 13
+		"roomy":
+			corner_radius = 18
+			fill_alpha = 0.9
+			border_width = 3
+			shadow_size = 22
+			fill_boost = 0.04
+			shadow_alpha = 0.24
+			margin_x = 18
+			margin_y = 16
+	apply_panel(panel, accent, corner_radius, fill_alpha)
+	intensify_panel(panel, accent, border_width, shadow_size, fill_boost, shadow_alpha, margin_x, margin_y)
+
+
+static func apply_inventory_section_text(title_label: Label, hint_label: Label, tone: String, density: String = "standard") -> void:
+	if title_label != null:
+		apply_label(title_label, tone)
+		var title_size: int = 20
+		match tone:
+			"accent":
+				title_size = 19
+			"reward":
+				title_size = 21
+			_:
+				title_size = 20
+		if density == "compact":
+			title_size -= 1
+		title_label.add_theme_font_size_override("font_size", title_size)
+		title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		title_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+		title_label.max_lines_visible = 1
+
+	if hint_label != null:
+		apply_label(hint_label, "muted")
+		hint_label.add_theme_font_size_override("font_size", 13 if density == "compact" else 14)
+		hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		hint_label.max_lines_visible = 1 if density == "compact" else 2
+
+
 static func apply_status_chip_shell(panel: PanelContainer, accent: Color = TEAL_ACCENT_COLOR, density: String = "compact") -> void:
 	if panel == null:
 		return

@@ -57,6 +57,11 @@ var equipped_right_hand_slot: Dictionary = {}
 var equipped_left_hand_slot: Dictionary = {}
 var equipped_armor_slot: Dictionary = {}
 var equipped_belt_slot: Dictionary = {}
+var _consumable_slots_cache: Array[Dictionary] = []
+var _consumable_cache_version: int = -1
+var _passive_slots_cache: Array[Dictionary] = []
+var _passive_cache_version: int = -1
+var _inventory_version: int = 0
 
 var active_weapon_slot_id: int:
 	get:
@@ -112,15 +117,25 @@ var belt_instance: Dictionary:
 
 var consumable_slots: Array[Dictionary]:
 	get:
-		return _collect_family_slots(INVENTORY_FAMILY_CONSUMABLE)
+		if _consumable_cache_version != _inventory_version:
+			_consumable_slots_cache = _collect_family_slots(INVENTORY_FAMILY_CONSUMABLE)
+			_consumable_cache_version = _inventory_version
+		return _consumable_slots_cache
 	set(value):
 		set_consumable_slots(value)
 
 var passive_slots: Array[Dictionary]:
 	get:
-		return _collect_family_slots(INVENTORY_FAMILY_PASSIVE)
+		if _passive_cache_version != _inventory_version:
+			_passive_slots_cache = _collect_family_slots(INVENTORY_FAMILY_PASSIVE)
+			_passive_cache_version = _inventory_version
+		return _passive_slots_cache
 	set(value):
 		set_passive_slots(value)
+
+
+func mark_inventory_dirty() -> void:
+	_inventory_version += 1
 
 
 func reset_for_new_run() -> void:
@@ -349,6 +364,7 @@ func attach_backpack_attachment_to_equipped_shield(slot_id: int) -> Dictionary:
 		SHIELD_ATTACHMENT_TARGET_SLOT,
 		int(shield_slot.get("slot_id", -1))
 	)
+	mark_inventory_dirty()
 	return {
 		"ok": true,
 		"action": "attached_attachment",
@@ -393,6 +409,7 @@ func detach_attachment_from_equipped_shield() -> Dictionary:
 		SHIELD_ATTACHMENT_TARGET_SLOT,
 		int(shield_slot.get("slot_id", -1))
 	)
+	mark_inventory_dirty()
 	return {
 		"ok": true,
 		"action": "detached_attachment",
@@ -472,6 +489,7 @@ func move_backpack_slot_to_equipment(slot_id: int, equipment_slot_name: String) 
 		inventory_slots.append(displaced_slot)
 
 	_set_equipment_slot_dictionary(equipment_slot_name, slot)
+	mark_inventory_dirty()
 	return {
 		"ok": true,
 		"slot_id": slot_id,
@@ -508,6 +526,7 @@ func move_equipment_slot_to_backpack(equipment_slot_name: String) -> Dictionary:
 
 	inventory_slots.append(slot)
 	_set_equipment_slot_dictionary(equipment_slot_name, {})
+	mark_inventory_dirty()
 	return {
 		"ok": true,
 		"slot_id": int(slot.get("slot_id", -1)),
@@ -549,6 +568,7 @@ func replace_equipped_slot(equipment_slot_name: String, slot_data: Dictionary) -
 	if not displaced_slot.is_empty():
 		inventory_slots.append(displaced_slot)
 	_set_equipment_slot_dictionary(equipment_slot_name, normalized_slot)
+	mark_inventory_dirty()
 	return {
 		"ok": true,
 		"definition_id": String(normalized_slot.get("definition_id", "")),
@@ -855,6 +875,7 @@ func _normalize_loaded_inventory_state() -> void:
 	equipped_armor_slot = _normalize_loaded_equipment_slot(equipped_armor_slot, EQUIPMENT_SLOT_ARMOR, seen_slot_ids)
 	equipped_belt_slot = _normalize_loaded_equipment_slot(equipped_belt_slot, EQUIPMENT_SLOT_BELT, seen_slot_ids)
 	next_slot_id = max(next_slot_id, _largest_slot_id() + 1)
+	mark_inventory_dirty()
 
 
 func _normalize_loaded_equipment_slot(raw_slot_data: Dictionary, equipment_slot_name: String, seen_slot_ids: Dictionary) -> Dictionary:

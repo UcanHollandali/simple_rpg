@@ -47,7 +47,7 @@ static func render_into(card: PanelContainer, fallback_label: Label, model: Dict
 	root.visible = true
 	_clear_children(root)
 
-	var root_spacing: int = 8 if density == "standard" else 6
+	var root_spacing: int = 8 if density == "standard" else 4 if density == "minimal" else 6
 	root.add_theme_constant_override("separation", root_spacing)
 	root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
@@ -55,8 +55,8 @@ static func render_into(card: PanelContainer, fallback_label: Label, model: Dict
 		var primary_flow: HFlowContainer = HFlowContainer.new()
 		primary_flow.name = "PrimaryFlow"
 		primary_flow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		primary_flow.add_theme_constant_override("h_separation", 8 if density == "standard" else 6)
-		primary_flow.add_theme_constant_override("v_separation", 8 if density == "standard" else 6)
+		primary_flow.add_theme_constant_override("h_separation", 8 if density == "standard" else 4 if density == "minimal" else 6)
+		primary_flow.add_theme_constant_override("v_separation", 8 if density == "standard" else 4 if density == "minimal" else 6)
 		root.add_child(primary_flow)
 		for item in primary_items:
 			primary_flow.add_child(_build_metric_chip(item, accent, density))
@@ -65,8 +65,8 @@ static func render_into(card: PanelContainer, fallback_label: Label, model: Dict
 		var secondary_flow: HFlowContainer = HFlowContainer.new()
 		secondary_flow.name = "SecondaryFlow"
 		secondary_flow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		secondary_flow.add_theme_constant_override("h_separation", 8 if density == "standard" else 6)
-		secondary_flow.add_theme_constant_override("v_separation", 8 if density == "standard" else 6)
+		secondary_flow.add_theme_constant_override("h_separation", 8 if density == "standard" else 4 if density == "minimal" else 6)
+		secondary_flow.add_theme_constant_override("v_separation", 8 if density == "standard" else 4 if density == "minimal" else 6)
 		root.add_child(secondary_flow)
 		for item in secondary_items:
 			secondary_flow.add_child(_build_summary_chip(item, accent, density))
@@ -75,7 +75,7 @@ static func render_into(card: PanelContainer, fallback_label: Label, model: Dict
 		var progress_stack: VBoxContainer = VBoxContainer.new()
 		progress_stack.name = "ProgressStack"
 		progress_stack.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		progress_stack.add_theme_constant_override("separation", 6 if density == "standard" else 4)
+		progress_stack.add_theme_constant_override("separation", 6 if density == "standard" else 3 if density == "minimal" else 4)
 		root.add_child(progress_stack)
 		for item in progress_items:
 			progress_stack.add_child(_build_progress_row(item, accent, density))
@@ -174,7 +174,7 @@ static func _build_metric_chip(item: Dictionary, fallback_accent: Color, density
 	var chip: PanelContainer = PanelContainer.new()
 	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	chip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	chip.custom_minimum_size = Vector2(128.0 if density == "standard" else 112.0, 0.0)
+	chip.custom_minimum_size = Vector2(128.0 if density == "standard" else 96.0 if density == "minimal" else 112.0, 0.0)
 	TempScreenThemeScript.apply_status_chip_shell(chip, accent, density)
 
 	var stack: VBoxContainer = VBoxContainer.new()
@@ -188,7 +188,7 @@ static func _build_metric_chip(item: Dictionary, fallback_accent: Color, density
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	label.text = String(item.get("label_text", ""))
 	label.add_theme_color_override("font_color", TempScreenThemeScript.TEXT_MUTED_COLOR)
-	label.add_theme_font_size_override("font_size", 11 if density == "standard" else 10)
+	label.add_theme_font_size_override("font_size", 11 if density == "standard" else 9 if density == "minimal" else 10)
 	stack.add_child(label)
 
 	var value_label: Label = Label.new()
@@ -196,7 +196,7 @@ static func _build_metric_chip(item: Dictionary, fallback_accent: Color, density
 	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	value_label.text = String(item.get("value_text", ""))
 	value_label.add_theme_color_override("font_color", TempScreenThemeScript.TEXT_PRIMARY_COLOR)
-	value_label.add_theme_font_size_override("font_size", 22 if density == "standard" else 18)
+	value_label.add_theme_font_size_override("font_size", 22 if density == "standard" else 16 if density == "minimal" else 18)
 	stack.add_child(value_label)
 	return chip
 
@@ -218,7 +218,7 @@ static func _build_summary_chip(item: Dictionary, fallback_accent: Color, densit
 		String(item.get("value_text", "")),
 	]
 	label.add_theme_color_override("font_color", TempScreenThemeScript.TEXT_SUBTLE_COLOR)
-	label.add_theme_font_size_override("font_size", 14 if density == "standard" else 13)
+	label.add_theme_font_size_override("font_size", 14 if density == "standard" else 12 if density == "minimal" else 13)
 	chip.add_child(label)
 	return chip
 
@@ -243,7 +243,7 @@ static func _build_progress_row(item: Dictionary, fallback_accent: Color, densit
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	label.text = String(item.get("label_text", ""))
 	label.add_theme_color_override("font_color", TempScreenThemeScript.TEXT_MUTED_COLOR)
-	label.add_theme_font_size_override("font_size", 13 if density == "standard" else 12)
+	label.add_theme_font_size_override("font_size", 13 if density == "standard" else 11 if density == "minimal" else 12)
 	header_row.add_child(label)
 
 	var value_label: Label = Label.new()
@@ -251,7 +251,7 @@ static func _build_progress_row(item: Dictionary, fallback_accent: Color, densit
 	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	value_label.text = String(item.get("value_text", ""))
 	value_label.add_theme_color_override("font_color", TempScreenThemeScript.TEXT_PRIMARY_COLOR)
-	value_label.add_theme_font_size_override("font_size", 14 if density == "standard" else 13)
+	value_label.add_theme_font_size_override("font_size", 14 if density == "standard" else 12 if density == "minimal" else 13)
 	header_row.add_child(value_label)
 
 	var bar: ProgressBar = ProgressBar.new()
@@ -261,7 +261,7 @@ static func _build_progress_row(item: Dictionary, fallback_accent: Color, densit
 	bar.min_value = 0.0
 	bar.max_value = 100.0
 	bar.value = float(clamp(float(item.get("fill_ratio", 0.0)), 0.0, 1.0)) * 100.0
-	bar.custom_minimum_size = Vector2(0.0, 12.0 if density == "standard" else 10.0)
+	bar.custom_minimum_size = Vector2(0.0, 12.0 if density == "standard" else 8.0 if density == "minimal" else 10.0)
 	TempScreenThemeScript.apply_status_progress_bar(bar, accent)
 	row.add_child(bar)
 	return row

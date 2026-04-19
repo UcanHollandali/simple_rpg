@@ -5,6 +5,7 @@ class_name MapExploreSceneUi
 const TempScreenThemeScript = preload("res://Game/UI/temp_screen_theme.gd")
 const MapBoardCanvasScript = preload("res://Game/UI/map_board_canvas.gd")
 const SceneLayoutHelperScript = preload("res://Game/UI/scene_layout_helper.gd")
+const SETTINGS_ICON = preload("res://Assets/Icons/icon_settings.svg")
 const TOP_ROW_PATH := "Margin/VBox/TopRow"
 const HEADER_CARD_PATH := "Margin/VBox/TopRow/HeaderCard"
 const HEADER_STACK_PATH := "Margin/VBox/TopRow/HeaderCard/HeaderRow/HeaderStack"
@@ -163,6 +164,7 @@ static func apply_temp_theme(root: Control) -> void:
 	var top_row_divider: ColorRect = root.get_node_or_null("%s/TopRowDivider" % TOP_ROW_PATH) as ColorRect
 	var stage_badge: PanelContainer = root.get_node_or_null(STAGE_BADGE_PATH) as PanelContainer
 	var stage_badge_label: Label = root.get_node_or_null(STAGE_BADGE_LABEL_PATH) as Label
+	var settings_button: Button = root.get_node_or_null("%s/SettingsButton" % SAFE_MENU_ANCHOR_PATH) as Button
 	var board_frame: PanelContainer = root.get_node_or_null(BOARD_FRAME_PATH) as PanelContainer
 	var equipment_card: PanelContainer = root.get_node_or_null("Margin/VBox/InventorySection/EquipmentCard") as PanelContainer
 	var inventory_card: PanelContainer = root.get_node_or_null("Margin/VBox/InventorySection/InventoryCard") as PanelContainer
@@ -172,13 +174,14 @@ static func apply_temp_theme(root: Control) -> void:
 	_apply_top_shell_cell(header_card, TempScreenThemeScript.PANEL_BORDER_COLOR)
 	_apply_compact_map_panel(run_summary_card, TempScreenThemeScript.TEAL_ACCENT_COLOR.darkened(0.12), 16, 0.46, 12, 10)
 	_apply_top_shell_cell(run_summary_card, TempScreenThemeScript.TEAL_ACCENT_COLOR)
-	TempScreenThemeScript.apply_choice_card_shell(equipment_card, TempScreenThemeScript.TEAL_ACCENT_COLOR)
-	TempScreenThemeScript.apply_choice_card_shell(inventory_card, TempScreenThemeScript.REWARD_ACCENT_COLOR)
+	TempScreenThemeScript.apply_inventory_section_panel(equipment_card, TempScreenThemeScript.TEAL_ACCENT_COLOR, "roomy")
+	TempScreenThemeScript.apply_inventory_section_panel(inventory_card, TempScreenThemeScript.REWARD_ACCENT_COLOR, "roomy")
 	TempScreenThemeScript.apply_choice_card_shell(current_anchor_card, TempScreenThemeScript.TEAL_ACCENT_COLOR)
 	_apply_compact_map_panel(status_card, TempScreenThemeScript.TEAL_ACCENT_COLOR.darkened(0.08), 16, 0.74, 12, 10)
 	_apply_top_row_shell(top_row_shell)
 	_apply_top_row_divider(top_row_divider)
 	_apply_stage_badge_style(stage_badge, stage_badge_label)
+	_apply_settings_button_style(settings_button)
 	_apply_board_frame_style(board_frame)
 
 	var title_label: Label = root.get_node_or_null("%s/TitleLabel" % HEADER_STACK_PATH) as Label
@@ -215,29 +218,13 @@ static func apply_temp_theme(root: Control) -> void:
 		run_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		run_status_label.max_lines_visible = 3
 
-	TempScreenThemeScript.apply_label(root.get_node_or_null("Margin/VBox/InventorySection/EquipmentTitleLabel") as Label, "accent")
 	var equipment_title_label: Label = root.get_node_or_null("Margin/VBox/InventorySection/EquipmentTitleLabel") as Label
-	if equipment_title_label != null:
-		equipment_title_label.add_theme_font_size_override("font_size", 19)
 	var equipment_hint_label: Label = root.get_node_or_null("Margin/VBox/InventorySection/EquipmentHintLabel") as Label
-	TempScreenThemeScript.apply_label(equipment_hint_label, "muted")
-	if equipment_hint_label != null:
-		equipment_hint_label.add_theme_font_size_override("font_size", 14)
-		equipment_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		equipment_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		equipment_hint_label.max_lines_visible = 2
+	TempScreenThemeScript.apply_inventory_section_text(equipment_title_label, equipment_hint_label, "accent", "standard")
 
-	TempScreenThemeScript.apply_label(root.get_node_or_null("Margin/VBox/InventorySection/InventoryTitleLabel") as Label, "reward")
 	var inventory_title_label: Label = root.get_node_or_null("Margin/VBox/InventorySection/InventoryTitleLabel") as Label
-	if inventory_title_label != null:
-		inventory_title_label.add_theme_font_size_override("font_size", 21)
 	var inventory_hint_label: Label = root.get_node_or_null("Margin/VBox/InventorySection/InventoryHintLabel") as Label
-	TempScreenThemeScript.apply_label(inventory_hint_label, "muted")
-	if inventory_hint_label != null:
-		inventory_hint_label.add_theme_font_size_override("font_size", 14)
-		inventory_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		inventory_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		inventory_hint_label.max_lines_visible = 2
+	TempScreenThemeScript.apply_inventory_section_text(inventory_title_label, inventory_hint_label, "reward", "standard")
 
 	var current_anchor_label: Label = root.get_node_or_null("Margin/VBox/BottomRow/CurrentAnchorCard/VBox/CurrentAnchorLabel") as Label
 	TempScreenThemeScript.apply_label(current_anchor_label, "accent")
@@ -404,9 +391,12 @@ static func apply_portrait_safe_layout(root: Control, max_width: int, min_side_m
 			stage_badge.custom_minimum_size = Vector2(badge_size, badge_size)
 		if safe_menu_anchor != null:
 			safe_menu_anchor.size_flags_horizontal = Control.SIZE_SHRINK_END
-			safe_menu_anchor.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+			safe_menu_anchor.size_flags_vertical = Control.SIZE_EXPAND_FILL
 			safe_menu_anchor.size_flags_stretch_ratio = 0.0
-			safe_menu_anchor.custom_minimum_size = Vector2(98 if compact_layout else 108, 52)
+			safe_menu_anchor.custom_minimum_size = Vector2(62 if compact_layout else 68, 70 if compact_layout else 76)
+			var settings_button: Button = safe_menu_anchor.get_node_or_null("SettingsButton") as Button
+			if settings_button != null:
+				settings_button.custom_minimum_size = Vector2(62 if compact_layout else 68, 70 if compact_layout else 76)
 
 	# Middle map (main content)
 	route_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -510,6 +500,49 @@ static func _apply_top_row_divider(divider: ColorRect) -> void:
 		TempScreenThemeScript.PANEL_BORDER_COLOR.b,
 		0.18
 	)
+
+
+static func ensure_settings_menu_button(root: Control, pressed_handler: Callable) -> Button:
+	if root == null:
+		return null
+	var safe_menu_anchor: Control = root.get_node_or_null(SAFE_MENU_ANCHOR_PATH) as Control
+	if safe_menu_anchor == null:
+		return null
+	var button: Button = safe_menu_anchor.get_node_or_null("SettingsButton") as Button
+	if button == null:
+		button = Button.new()
+		button.name = "SettingsButton"
+		button.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		button.anchor_right = 1.0
+		button.anchor_bottom = 1.0
+		button.grow_horizontal = Control.GROW_DIRECTION_BOTH
+		button.grow_vertical = Control.GROW_DIRECTION_BOTH
+		button.text = ""
+		button.tooltip_text = "Settings"
+		button.icon = SETTINGS_ICON
+		button.alignment = HORIZONTAL_ALIGNMENT_CENTER
+		button.mouse_filter = Control.MOUSE_FILTER_STOP
+		safe_menu_anchor.add_child(button)
+		_flush_container_layout(safe_menu_anchor)
+	if pressed_handler.is_valid() and not button.is_connected("pressed", pressed_handler):
+		button.pressed.connect(pressed_handler)
+	_apply_settings_button_style(button)
+	return button
+
+
+static func _apply_settings_button_style(button: Button) -> void:
+	if button == null:
+		return
+	button.text = ""
+	button.tooltip_text = "Settings"
+	button.icon = SETTINGS_ICON
+	button.custom_minimum_size = Vector2(68, 76)
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	TempScreenThemeScript.apply_small_button(button, TempScreenThemeScript.PANEL_BORDER_COLOR, true)
+	button.add_theme_constant_override("h_separation", 0)
+	button.add_theme_constant_override("icon_max_width", 28)
+	button.add_theme_font_size_override("font_size", 1)
 
 
 static func _apply_stage_badge_style(stage_badge: PanelContainer, stage_badge_label: Label) -> void:

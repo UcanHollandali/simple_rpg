@@ -296,60 +296,66 @@ size_flags_vertical = 0
 [node name="ActionSectionTitleLabel" type="Label" parent="Margin/VBox/Buttons"]
 text = "Choose Action"
 
-[node name="AttackActionCard" type="PanelContainer" parent="Margin/VBox/Buttons"]
+[node name="ActionCardsRow" type="HFlowContainer" parent="Margin/VBox/Buttons"]
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 6
+alignment = 1
+
+[node name="AttackActionCard" type="PanelContainer" parent="Margin/VBox/Buttons/ActionCardsRow"]
 size_flags_horizontal = 3
 
-[node name="AttackActionVBox" type="VBoxContainer" parent="Margin/VBox/Buttons/AttackActionCard"]
+[node name="AttackActionVBox" type="VBoxContainer" parent="Margin/VBox/Buttons/ActionCardsRow/AttackActionCard"]
 theme_override_constants/separation = 4
 
-[node name="AttackActionEyebrowLabel" type="Label" parent="Margin/VBox/Buttons/AttackActionCard/AttackActionVBox"]
+[node name="AttackActionEyebrowLabel" type="Label" parent="Margin/VBox/Buttons/ActionCardsRow/AttackActionCard/AttackActionVBox"]
 text = "OFFENSE"
 
-[node name="AttackButton" type="Button" parent="Margin/VBox/Buttons/AttackActionCard/AttackActionVBox"]
+[node name="AttackButton" type="Button" parent="Margin/VBox/Buttons/ActionCardsRow/AttackActionCard/AttackActionVBox"]
 text = "Attack"
 size_flags_horizontal = 3
 custom_minimum_size = Vector2(0, 46)
 icon = ExtResource("2")
 
-[node name="AttackActionPreviewLabel" type="Label" parent="Margin/VBox/Buttons/AttackActionCard/AttackActionVBox"]
+[node name="AttackActionPreviewLabel" type="Label" parent="Margin/VBox/Buttons/ActionCardsRow/AttackActionCard/AttackActionVBox"]
 text = "Hit ? | Swing -? durability"
 autowrap_mode = 3
 
-[node name="DefenseActionCard" type="PanelContainer" parent="Margin/VBox/Buttons"]
+[node name="DefenseActionCard" type="PanelContainer" parent="Margin/VBox/Buttons/ActionCardsRow"]
 size_flags_horizontal = 3
 
-[node name="DefenseActionVBox" type="VBoxContainer" parent="Margin/VBox/Buttons/DefenseActionCard"]
+[node name="DefenseActionVBox" type="VBoxContainer" parent="Margin/VBox/Buttons/ActionCardsRow/DefenseActionCard"]
 theme_override_constants/separation = 4
 
-[node name="DefenseActionEyebrowLabel" type="Label" parent="Margin/VBox/Buttons/DefenseActionCard/DefenseActionVBox"]
+[node name="DefenseActionEyebrowLabel" type="Label" parent="Margin/VBox/Buttons/ActionCardsRow/DefenseActionCard/DefenseActionVBox"]
 text = "DEFENSE"
 
-[node name="DefenseActionButton" type="Button" parent="Margin/VBox/Buttons/DefenseActionCard/DefenseActionVBox"]
+[node name="DefenseActionButton" type="Button" parent="Margin/VBox/Buttons/ActionCardsRow/DefenseActionCard/DefenseActionVBox"]
 text = "Defend"
 size_flags_horizontal = 3
 custom_minimum_size = Vector2(0, 46)
 icon = ExtResource("3")
 
-[node name="DefenseActionPreviewLabel" type="Label" parent="Margin/VBox/Buttons/DefenseActionCard/DefenseActionVBox"]
+[node name="DefenseActionPreviewLabel" type="Label" parent="Margin/VBox/Buttons/ActionCardsRow/DefenseActionCard/DefenseActionVBox"]
 text = "Guard ? | HP ?"
 autowrap_mode = 3
 
-[node name="UseItemActionCard" type="PanelContainer" parent="Margin/VBox/Buttons"]
+[node name="UseItemActionCard" type="PanelContainer" parent="Margin/VBox/Buttons/ActionCardsRow"]
 size_flags_horizontal = 3
 
-[node name="UseItemActionVBox" type="VBoxContainer" parent="Margin/VBox/Buttons/UseItemActionCard"]
+[node name="UseItemActionVBox" type="VBoxContainer" parent="Margin/VBox/Buttons/ActionCardsRow/UseItemActionCard"]
 theme_override_constants/separation = 4
 
-[node name="UseItemActionEyebrowLabel" type="Label" parent="Margin/VBox/Buttons/UseItemActionCard/UseItemActionVBox"]
+[node name="UseItemActionEyebrowLabel" type="Label" parent="Margin/VBox/Buttons/ActionCardsRow/UseItemActionCard/UseItemActionVBox"]
 text = "ITEM"
 
-[node name="UseItemButton" type="Button" parent="Margin/VBox/Buttons/UseItemActionCard/UseItemActionVBox"]
+[node name="UseItemButton" type="Button" parent="Margin/VBox/Buttons/ActionCardsRow/UseItemActionCard/UseItemActionVBox"]
 text = "Use Item"
 size_flags_horizontal = 3
 custom_minimum_size = Vector2(0, 46)
 icon = ExtResource("4")
 
-[node name="UseItemActionPreviewLabel" type="Label" parent="Margin/VBox/Buttons/UseItemActionCard/UseItemActionVBox"]
+[node name="UseItemActionPreviewLabel" type="Label" parent="Margin/VBox/Buttons/ActionCardsRow/UseItemActionCard/UseItemActionVBox"]
 text = "Select a consumable card below."
 autowrap_mode = 3
 

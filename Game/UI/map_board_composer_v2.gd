@@ -5,6 +5,7 @@ class_name MapBoardComposerV2
 const MapRuntimeStateScript = preload("res://Game/RuntimeState/map_runtime_state.gd")
 const UiAssetPathsScript = preload("res://Game/UI/ui_asset_paths.gd")
 const MapBoardBackdropBuilderScript = preload("res://Game/UI/map_board_backdrop_builder.gd")
+const MapBoardGeometryScript = preload("res://Game/UI/map_board_geometry.gd")
 
 const DEFAULT_TEMPLATE_PROFILE := "corridor"
 const BASE_CENTER_FACTOR := Vector2(0.50, 0.56)
@@ -21,6 +22,10 @@ const PATH_FAMILY_SHORT_STRAIGHT := "short_straight"
 const PATH_FAMILY_GENTLE_CURVE := "gentle_curve"
 const PATH_FAMILY_WIDER_CURVE := "wider_curve"
 const PATH_FAMILY_OUTWARD_RECONNECTING_ARC := "outward_reconnecting_arc"
+const EDGE_NODE_AVOIDANCE_PADDING := 18.0
+const EDGE_NODE_AVOIDANCE_MIN_SHIFT := 24.0
+const EDGE_NODE_AVOIDANCE_MAX_SHIFT := 86.0
+const EDGE_NODE_AVOIDANCE_MAX_PASSES := 5
 
 
 func compose(
@@ -546,13 +551,9 @@ func _build_visible_edges(
 		var node_id: int = int(node_entry.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
 		visible_node_ids[node_id] = true
 		visible_node_by_id[node_id] = node_entry
-	var local_focus_node_ids: Dictionary = {current_node_id: true}
-	for node_entry in visible_nodes:
-		var node_id: int = int(node_entry.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
-		if bool(node_entry.get("is_adjacent", false)):
-			local_focus_node_ids[node_id] = true
 
-	var visible_edges: Array[Dictionary] = []
+	var history_edges: Array[Dictionary] = []
+	var local_focus_edges: Array[Dictionary] = []
 	var processed_edges: Dictionary = {}
 	for node_id_variant in graph_by_id.keys():
 		var node_id: int = int(node_id_variant)
@@ -561,33 +562,95 @@ func _build_visible_edges(
 		for adjacent_node_id in _adjacent_ids_for(graph_by_id, node_id):
 			if not visible_node_ids.has(adjacent_node_id):
 				continue
-			if not (local_focus_node_ids.has(node_id) and local_focus_node_ids.has(adjacent_node_id)):
-				continue
 			var edge_key: String = _edge_key(node_id, adjacent_node_id)
 			if processed_edges.has(edge_key):
 				continue
 			processed_edges[edge_key] = true
 			var from_node: Dictionary = visible_node_by_id.get(node_id, {})
 			var to_node: Dictionary = visible_node_by_id.get(adjacent_node_id, {})
+			var is_local_focus_edge: bool = node_id == current_node_id or adjacent_node_id == current_node_id
+			if not is_local_focus_edge and not _should_show_history_edge(from_node, to_node):
+				continue
 			var edge_semantic: String = _edge_semantic_for(from_node, to_node)
 			var path_model: Dictionary = _build_edge_path_model(
 				from_node,
 				to_node,
+				visible_nodes,
 				world_positions,
 				layout_context,
 				template_profile,
 				board_seed,
 				board_size
 			)
-			visible_edges.append({
+			var edge_entry := {
 				"from_node_id": node_id,
 				"to_node_id": adjacent_node_id,
 				"state_semantic": edge_semantic,
+				"is_history": not is_local_focus_edge,
 				"path_family": String(path_model.get("path_family", PATH_FAMILY_GENTLE_CURVE)),
 				"trail_texture_path": _trail_texture_path_for_family(String(path_model.get("path_family", PATH_FAMILY_GENTLE_CURVE))),
 				"points": path_model.get("points", PackedVector2Array()),
-			})
-	return visible_edges
+			}
+			if not is_local_focus_edge and MapBoardGeometryScript.polyline_hits_other_visible_nodes(
+				edge_entry.get("points", PackedVector2Array()),
+				node_id,
+				adjacent_node_id,
+				visible_nodes,
+				EDGE_NODE_AVOIDANCE_PADDING
+			):
+				continue
+			if is_local_focus_edge:
+				local_focus_edges.append(edge_entry)
+			else:
+				history_edges.append(edge_entry)
+	var filtered_history_edges: Array[Dictionary] = _filter_non_crossing_history_edges(local_focus_edges, history_edges)
+	return filtered_history_edges + local_focus_edges
+
+
+func _filter_non_crossing_history_edges(
+	local_focus_edges: Array[Dictionary],
+	history_edges: Array[Dictionary]
+) -> Array[Dictionary]:
+	var accepted_edges: Array[Dictionary] = []
+	for edge_entry in local_focus_edges:
+		accepted_edges.append(edge_entry)
+	var sorted_history_edges: Array[Dictionary] = history_edges.duplicate(true)
+	sorted_history_edges.sort_custom(Callable(self, "_sort_visible_edge_by_priority"))
+	var filtered_history_edges: Array[Dictionary] = []
+	for edge_entry in sorted_history_edges:
+		if _visible_edge_crosses_any(edge_entry, accepted_edges):
+			continue
+		filtered_history_edges.append(edge_entry)
+		accepted_edges.append(edge_entry)
+	return filtered_history_edges
+
+
+func _sort_visible_edge_by_priority(left_edge: Dictionary, right_edge: Dictionary) -> bool:
+	var left_length: float = MapBoardGeometryScript.visible_edge_polyline_length(left_edge)
+	var right_length: float = MapBoardGeometryScript.visible_edge_polyline_length(right_edge)
+	if not is_equal_approx(left_length, right_length):
+		return left_length < right_length
+	return _edge_key(
+		int(left_edge.get("from_node_id", -1)),
+		int(left_edge.get("to_node_id", -1))
+	) < _edge_key(
+		int(right_edge.get("from_node_id", -1)),
+		int(right_edge.get("to_node_id", -1))
+	)
+
+
+func _visible_edge_polyline_length(edge_entry: Dictionary) -> float:
+	var points: PackedVector2Array = edge_entry.get("points", PackedVector2Array())
+	if points.size() < 2:
+		return 0.0
+	var total_length: float = 0.0
+	for point_index in range(points.size() - 1):
+		total_length += points[point_index].distance_to(points[point_index + 1])
+	return total_length
+
+
+func _visible_edge_crosses_any(candidate_edge: Dictionary, accepted_edges: Array[Dictionary]) -> bool:
+	return MapBoardGeometryScript.visible_edge_crosses_any(candidate_edge, accepted_edges)
 
 
 func _build_graph_node_entries(graph_snapshot: Array[Dictionary], world_positions: Dictionary, board_size: Vector2) -> Array[Dictionary]:
@@ -605,6 +668,7 @@ func _build_graph_node_entries(graph_snapshot: Array[Dictionary], world_position
 func _build_edge_path_model(
 	from_node: Dictionary,
 	to_node: Dictionary,
+	visible_nodes: Array[Dictionary],
 	world_positions: Dictionary,
 	layout_context: Dictionary,
 	template_profile: String,
@@ -724,10 +788,56 @@ func _build_edge_path_model(
 			var arc_sign: float = _curve_sign_for(_derive_seed(edge_hash, "arc"), normal, outward_direction, true)
 			p1 += outward_direction * arc_outward * 0.88 + normal * arc_curvature * arc_sign * 0.42
 			p2 += outward_direction * arc_outward * 0.64 + normal * arc_curvature * arc_sign * 0.24
-
+	var points: PackedVector2Array = _sample_cubic_bezier(p0, p1, p2, p3, 16)
+	var avoidance_offset: Vector2 = MapBoardGeometryScript.edge_node_avoidance_offset(
+		points,
+		from_node_id,
+		to_node_id,
+		visible_nodes,
+		p0,
+		p3,
+		midpoint,
+		EDGE_NODE_AVOIDANCE_PADDING,
+		EDGE_NODE_AVOIDANCE_MIN_SHIFT,
+		EDGE_NODE_AVOIDANCE_MAX_SHIFT
+	)
+	var avoidance_pass: int = 0
+	while avoidance_pass < EDGE_NODE_AVOIDANCE_MAX_PASSES and avoidance_offset != Vector2.ZERO:
+		var avoidance_scale: float = 1.0 + float(avoidance_pass) * 0.55
+		p1 += avoidance_offset * avoidance_scale
+		p2 += avoidance_offset * avoidance_scale * 0.92
+		points = _sample_cubic_bezier(p0, p1, p2, p3, 16)
+		if not MapBoardGeometryScript.polyline_hits_other_visible_nodes(
+			points,
+			from_node_id,
+			to_node_id,
+			visible_nodes,
+			EDGE_NODE_AVOIDANCE_PADDING
+		):
+			break
+		avoidance_offset = MapBoardGeometryScript.edge_node_avoidance_offset(
+			points,
+			from_node_id,
+			to_node_id,
+			visible_nodes,
+			p0,
+			p3,
+			midpoint,
+			EDGE_NODE_AVOIDANCE_PADDING,
+			EDGE_NODE_AVOIDANCE_MIN_SHIFT,
+			EDGE_NODE_AVOIDANCE_MAX_SHIFT
+		)
+		avoidance_pass += 1
+	if MapBoardGeometryScript.polyline_hits_other_visible_nodes(points, from_node_id, to_node_id, visible_nodes, EDGE_NODE_AVOIDANCE_PADDING):
+		path_family = PATH_FAMILY_OUTWARD_RECONNECTING_ARC
+		var outward_escape: float = clampf(distance * 0.42, 46.0, 148.0)
+		var fallback_tangent: float = clampf(distance * 0.18, 24.0, 92.0)
+		p1 = p0 + direction_normalized * fallback_tangent + outward_direction * outward_escape
+		p2 = p3 - direction_normalized * fallback_tangent + outward_direction * outward_escape * 0.92
+		points = _sample_cubic_bezier(p0, p1, p2, p3, 16)
 	return {
 		"path_family": path_family,
-		"points": _sample_cubic_bezier(p0, p1, p2, p3, 16),
+		"points": points,
 	}
 
 
@@ -816,6 +926,14 @@ func _edge_semantic_for(from_node: Dictionary, to_node: Dictionary) -> String:
 	return "open"
 
 
+func _should_show_history_edge(from_node: Dictionary, to_node: Dictionary) -> bool:
+	var from_node_state: String = String(from_node.get("node_state", MapRuntimeStateScript.NODE_STATE_UNDISCOVERED))
+	var to_node_state: String = String(to_node.get("node_state", MapRuntimeStateScript.NODE_STATE_UNDISCOVERED))
+	if from_node_state == MapRuntimeStateScript.NODE_STATE_UNDISCOVERED or to_node_state == MapRuntimeStateScript.NODE_STATE_UNDISCOVERED:
+		return false
+	return true
+
+
 func _semantic_for_node(node_state: String, is_current: bool) -> String:
 	if is_current:
 		return "current"
@@ -874,7 +992,6 @@ func _clearing_decal_texture_path_for(node_family: String) -> String:
 
 func _trail_texture_path_for_family(path_family: String) -> String:
 	return String(UiAssetPathsScript.MAP_TRAIL_TEXTURE_PATHS_BY_FAMILY.get(path_family, ""))
-
 func _clearing_radius_for(node_family: String, state_semantic: String, board_size: Vector2) -> float:
 	var board_unit: float = min(board_size.x, board_size.y)
 	var factor: float = 0.054
@@ -908,12 +1025,15 @@ func _clamp_to_board(position: Vector2, board_size: Vector2) -> Vector2:
 
 func _relax_collisions(world_positions: Dictionary, graph_snapshot: Array[Dictionary], board_size: Vector2, layout_context: Dictionary) -> void:
 	var ordered_node_ids: Array[int] = []
+	var node_family_by_id: Dictionary = {}
 	for node_entry in graph_snapshot:
-		ordered_node_ids.append(int(node_entry.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID)))
+		var node_id: int = int(node_entry.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
+		ordered_node_ids.append(node_id)
+		node_family_by_id[node_id] = String(node_entry.get("node_family", ""))
 	var board_unit: float = min(board_size.x, board_size.y)
 	var depth_by_node_id: Dictionary = layout_context.get("depth_by_node_id", {})
 	var branch_root_by_node_id: Dictionary = layout_context.get("branch_root_by_node_id", {})
-	for _iteration in range(18):
+	for _iteration in range(24):
 		for left_index in range(ordered_node_ids.size()):
 			var left_node_id: int = ordered_node_ids[left_index]
 			for right_index in range(left_index + 1, ordered_node_ids.size()):
@@ -926,7 +1046,9 @@ func _relax_collisions(world_positions: Dictionary, graph_snapshot: Array[Dictio
 				var distance: float = delta.length()
 				var left_depth: int = int(depth_by_node_id.get(left_node_id, 0))
 				var right_depth: int = int(depth_by_node_id.get(right_node_id, 0))
-				var minimum_spacing: float = clampf(board_unit * 0.204, 160.0, 214.0)
+				var left_radius: float = _clearing_radius_for(String(node_family_by_id.get(left_node_id, "")), "open", board_size)
+				var right_radius: float = _clearing_radius_for(String(node_family_by_id.get(right_node_id, "")), "open", board_size)
+				var minimum_spacing: float = left_radius + right_radius + clampf(board_unit * 0.066, 58.0, 82.0)
 				if left_depth <= 1 or right_depth <= 1:
 					minimum_spacing += 26.0
 				elif left_depth == 2 and right_depth == 2:
@@ -959,7 +1081,7 @@ func _reduce_edge_crossings(world_positions: Dictionary, graph_snapshot: Array[D
 				var right_edge: Dictionary = edge_entries[right_index]
 				if _layout_edges_share_node(left_edge, right_edge):
 					continue
-				if not _segments_intersect(
+				if not MapBoardGeometryScript.segments_intersect(
 					Vector2(left_edge.get("from_position", Vector2.ZERO)),
 					Vector2(left_edge.get("to_position", Vector2.ZERO)),
 					Vector2(right_edge.get("from_position", Vector2.ZERO)),
@@ -1045,26 +1167,6 @@ func _preferred_crossing_move_node_id(edge_entry: Dictionary, depth_by_node_id: 
 	if from_depth == to_depth:
 		return max(from_node_id, to_node_id)
 	return from_node_id if from_depth > to_depth else to_node_id
-
-
-func _segments_intersect(a0: Vector2, a1: Vector2, b0: Vector2, b1: Vector2) -> bool:
-	var a0_to_b0: Vector2 = b0 - a0
-	var a0_to_b1: Vector2 = b1 - a0
-	var a0_to_a1: Vector2 = a1 - a0
-	var b0_to_a0: Vector2 = a0 - b0
-	var b0_to_a1: Vector2 = a1 - b0
-	var b0_to_b1: Vector2 = b1 - b0
-	var d1: float = a0_to_a1.cross(a0_to_b0)
-	var d2: float = a0_to_a1.cross(a0_to_b1)
-	var d3: float = b0_to_b1.cross(b0_to_a0)
-	var d4: float = b0_to_b1.cross(b0_to_a1)
-	if _segment_straddles(d1, d2) and _segment_straddles(d3, d4):
-		return true
-	return false
-
-
-func _segment_straddles(left: float, right: float) -> bool:
-	return (left > 0.0 and right < 0.0) or (left < 0.0 and right > 0.0)
 
 
 func _build_board_seed(run_state: RunState, active_template_id: String, graph_snapshot: Array[Dictionary]) -> int:

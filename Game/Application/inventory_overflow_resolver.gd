@@ -67,6 +67,7 @@ static func discard_backpack_slot(inventory_state: InventoryState, slot_id: int)
 		}
 
 	inventory_state.inventory_slots.remove_at(slot_index)
+	inventory_state.mark_inventory_dirty()
 	return {
 		"ok": true,
 		"slot_id": slot_id,

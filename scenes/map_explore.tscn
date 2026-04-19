@@ -143,7 +143,7 @@ autowrap_mode = 3
 mouse_filter = 2
 
 [node name="SettingsMenuAnchor" type="Control" parent="Margin/VBox/TopRow"]
-custom_minimum_size = Vector2(96, 40)
+custom_minimum_size = Vector2(68, 76)
 size_flags_horizontal = 0
 size_flags_vertical = 1
 mouse_filter = 2

@@ -55,10 +55,19 @@ var _reward_claim_in_flight: bool = false
 var _safe_menu: SafeMenuOverlay
 var _overflow_prompt: InventoryOverflowPrompt
 var _pending_overflow_offer_id: String = ""
+var _scene_node_cache: Dictionary = {}
+
+@onready var _header_chip_label: Label = _scene_node("%s/ChipCard/ChipLabel" % HEADER_STACK_PATH) as Label
+@onready var _header_title_label: Label = _scene_node("%s/TitleLabel" % HEADER_STACK_PATH) as Label
+@onready var _header_context_label: Label = _scene_node("%s/ContextLabel" % HEADER_STACK_PATH) as Label
+@onready var _header_hint_label: Label = _scene_node("%s/HintLabel" % HEADER_STACK_PATH) as Label
+@onready var _status_label: Label = _scene_node(STATUS_LABEL_PATH) as Label
+@onready var _run_status_card: PanelContainer = _scene_node(RUN_STATUS_CARD_PATH) as PanelContainer
 
 
 func _ready() -> void:
-	_bootstrap = get_node_or_null("/root/AppBootstrap")
+	_scene_node_cache.clear()
+	_bootstrap = _scene_node("/root/AppBootstrap")
 	_reward_state = null
 	_run_state = null
 	_presenter = RewardPresenterScript.new()
@@ -146,7 +155,7 @@ func _on_return_to_main_menu_pressed() -> void:
 
 func _connect_buttons() -> void:
 	for index in range(BUTTON_NODE_NAMES.size()):
-		var button: Button = get_node_or_null(_button_path(index)) as Button
+		var button: Button = _scene_node(_button_path(index)) as Button
 		if button == null:
 			continue
 		var handler: Callable = Callable(self, "_on_offer_pressed").bind(index)
@@ -155,28 +164,24 @@ func _connect_buttons() -> void:
 
 
 func _render_reward_state() -> void:
-	var chip_label: Label = get_node_or_null("%s/ChipCard/ChipLabel" % HEADER_STACK_PATH) as Label
-	var title_label: Label = get_node_or_null("%s/TitleLabel" % HEADER_STACK_PATH) as Label
-	var context_label: Label = get_node_or_null("%s/ContextLabel" % HEADER_STACK_PATH) as Label
-	var hint_label: Label = get_node_or_null("%s/HintLabel" % HEADER_STACK_PATH) as Label
 	_set_status_text("")
-	if chip_label != null:
-		chip_label.text = _presenter.build_chip_text(_reward_state)
-	if title_label != null:
-		title_label.text = _presenter.build_title_text(_reward_state)
-	if context_label != null:
-		context_label.text = _presenter.build_context_text(_reward_state)
-	if hint_label != null:
-		hint_label.text = _presenter.build_hint_text(_reward_state)
+	if _header_chip_label != null:
+		_header_chip_label.text = _presenter.build_chip_text(_reward_state)
+	if _header_title_label != null:
+		_header_title_label.text = _presenter.build_title_text(_reward_state)
+	if _header_context_label != null:
+		_header_context_label.text = _presenter.build_context_text(_reward_state)
+	if _header_hint_label != null:
+		_header_hint_label.text = _presenter.build_hint_text(_reward_state)
 	_render_run_status_card()
 
 	var card_models: Array[Dictionary] = _presenter.build_offer_view_models(_reward_state, CARD_NODE_NAMES.size())
 	for index in range(CARD_NODE_NAMES.size()):
-		var card: Control = get_node_or_null(_card_path(index)) as Control
-		var badge_label: Label = get_node_or_null(_card_label_path(index, "BadgeLabel")) as Label
-		var offer_title_label: Label = get_node_or_null(_card_label_path(index, "OfferTitleLabel")) as Label
-		var offer_detail_label: Label = get_node_or_null(_card_label_path(index, "OfferDetailLabel")) as Label
-		var button: Button = get_node_or_null(_button_path(index)) as Button
+		var card: Control = _scene_node(_card_path(index)) as Control
+		var badge_label: Label = _scene_node(_card_label_path(index, "BadgeLabel")) as Label
+		var offer_title_label: Label = _scene_node(_card_label_path(index, "OfferTitleLabel")) as Label
+		var offer_detail_label: Label = _scene_node(_card_label_path(index, "OfferDetailLabel")) as Label
+		var button: Button = _scene_node(_button_path(index)) as Button
 		var model: Dictionary = card_models[index]
 		if card != null:
 			card.visible = bool(model.get("visible", false))
@@ -194,17 +199,16 @@ func _render_reward_state() -> void:
 
 func _set_offer_buttons_interactable(is_interactable: bool) -> void:
 	for index in range(BUTTON_NODE_NAMES.size()):
-		var button: Button = get_node_or_null(_button_path(index)) as Button
+		var button: Button = _scene_node(_button_path(index)) as Button
 		if button == null or not button.visible:
 			continue
 		button.disabled = not is_interactable
 
 
 func _set_status_text(text: String) -> void:
-	var status_label: Label = get_node_or_null(STATUS_LABEL_PATH) as Label
-	if status_label != null:
-		status_label.text = text
-		status_label.visible = not text.is_empty()
+	if _status_label != null:
+		_status_label.text = text
+		_status_label.visible = not text.is_empty()
 
 
 func _refresh_save_controls() -> void:
@@ -227,15 +231,15 @@ func _apply_temp_theme() -> void:
 	var is_overlay: bool = self.top_level
 	if is_overlay:
 		for node_name in ["BackgroundFar", "BackgroundMid", "BackgroundOverlay"]:
-			var backdrop: CanvasItem = get_node_or_null(node_name) as CanvasItem
+			var backdrop: CanvasItem = _scene_node(node_name) as CanvasItem
 			if backdrop != null:
 				backdrop.visible = false
-		var scrim: ColorRect = get_node_or_null("Scrim") as ColorRect
+		var scrim: ColorRect = _scene_node("Scrim") as ColorRect
 		if scrim != null:
 			scrim.visible = true
 			TempScreenThemeScript.apply_scrim(scrim)
 			scrim.color = Color(scrim.color.r, scrim.color.g, scrim.color.b, 0.38)
-		var margin: MarginContainer = get_node_or_null("Margin") as MarginContainer
+		var margin: MarginContainer = _scene_node("Margin") as MarginContainer
 		if margin != null:
 			var overlay_margins: Dictionary = TempScreenThemeScript.compute_overlay_margins(get_viewport_rect().size, PORTRAIT_SAFE_MAX_WIDTH, PORTRAIT_SAFE_MIN_SIDE_MARGIN)
 			margin.add_theme_constant_override("margin_left", int(overlay_margins.get("left", PORTRAIT_SAFE_MIN_SIDE_MARGIN)))
@@ -245,8 +249,8 @@ func _apply_temp_theme() -> void:
 	else:
 		TempScreenThemeScript.apply_modal_popup_shell(
 			self,
-			get_node_or_null("Margin") as MarginContainer,
-			get_node_or_null("Margin/VBox") as Control,
+			_scene_node("Margin") as MarginContainer,
+			_scene_node("Margin/VBox") as Control,
 			TempScreenThemeScript.REWARD_ACCENT_COLOR,
 			"ContentShell",
 			34,
@@ -255,13 +259,13 @@ func _apply_temp_theme() -> void:
 			96
 		)
 	TempScreenThemeScript.apply_panel(
-		get_node_or_null(OFFERS_SHELL_PATH) as PanelContainer,
+		_scene_node(OFFERS_SHELL_PATH) as PanelContainer,
 		TempScreenThemeScript.PANEL_BORDER_COLOR,
 		28,
 		0.6
 	)
 	TempScreenThemeScript.intensify_panel(
-		get_node_or_null(OFFERS_SHELL_PATH) as PanelContainer,
+		_scene_node(OFFERS_SHELL_PATH) as PanelContainer,
 		TempScreenThemeScript.PANEL_BORDER_COLOR,
 		3,
 		28,
@@ -271,13 +275,13 @@ func _apply_temp_theme() -> void:
 		18
 	)
 	TempScreenThemeScript.apply_panel(
-		get_node_or_null(HEADER_CARD_PATH) as PanelContainer,
+		_scene_node(HEADER_CARD_PATH) as PanelContainer,
 		TempScreenThemeScript.REWARD_ACCENT_COLOR,
 		20,
 		0.74
 	)
 	TempScreenThemeScript.intensify_panel(
-		get_node_or_null(HEADER_CARD_PATH) as PanelContainer,
+		_scene_node(HEADER_CARD_PATH) as PanelContainer,
 		TempScreenThemeScript.REWARD_ACCENT_COLOR,
 		3,
 		18,
@@ -287,12 +291,12 @@ func _apply_temp_theme() -> void:
 		14
 	)
 	TempScreenThemeScript.apply_chip(
-		get_node_or_null("%s/ChipCard" % HEADER_STACK_PATH) as PanelContainer,
-		get_node_or_null("%s/ChipCard/ChipLabel" % HEADER_STACK_PATH) as Label,
+		_scene_node("%s/ChipCard" % HEADER_STACK_PATH) as PanelContainer,
+		_header_chip_label,
 		TempScreenThemeScript.REWARD_ACCENT_COLOR
 	)
 	TempScreenThemeScript.apply_compact_status_area(
-		get_node_or_null(RUN_STATUS_CARD_PATH) as PanelContainer,
+		_run_status_card,
 		TempScreenThemeScript.PANEL_BORDER_COLOR
 	)
 	SceneLayoutHelperScript.apply_label_tones(self, [
@@ -304,15 +308,15 @@ func _apply_temp_theme() -> void:
 	])
 
 	for card_name in CARD_NODE_NAMES:
-		var choice_card: PanelContainer = get_node_or_null("%s/%s" % [CARDS_ROW_PATH, card_name]) as PanelContainer
+		var choice_card: PanelContainer = _scene_node("%s/%s" % [CARDS_ROW_PATH, card_name]) as PanelContainer
 		TempScreenThemeScript.apply_choice_card_shell(choice_card, TempScreenThemeScript.REWARD_ACCENT_COLOR)
-		TempScreenThemeScript.apply_label(get_node_or_null("%s/%s/VBox/BadgeLabel" % [CARDS_ROW_PATH, card_name]) as Label, "reward")
-		TempScreenThemeScript.apply_label(get_node_or_null("%s/%s/VBox/OfferTitleLabel" % [CARDS_ROW_PATH, card_name]) as Label, "title")
-		TempScreenThemeScript.apply_label(get_node_or_null("%s/%s/VBox/OfferDetailLabel" % [CARDS_ROW_PATH, card_name]) as Label)
+		TempScreenThemeScript.apply_label(_scene_node("%s/%s/VBox/BadgeLabel" % [CARDS_ROW_PATH, card_name]) as Label, "reward")
+		TempScreenThemeScript.apply_label(_scene_node("%s/%s/VBox/OfferTitleLabel" % [CARDS_ROW_PATH, card_name]) as Label, "title")
+		TempScreenThemeScript.apply_label(_scene_node("%s/%s/VBox/OfferDetailLabel" % [CARDS_ROW_PATH, card_name]) as Label)
 
 	for button_name in BUTTON_NODE_NAMES:
 		TempScreenThemeScript.apply_button(
-			get_node_or_null("%s/%s/VBox/%s" % [CARDS_ROW_PATH, _reward_card_name_for_button(button_name), button_name]) as Button,
+			_scene_node("%s/%s/VBox/%s" % [CARDS_ROW_PATH, _reward_card_name_for_button(button_name), button_name]) as Button,
 			TempScreenThemeScript.REWARD_ACCENT_COLOR
 		)
 	SceneLayoutHelperScript.apply_control_overrides(self, {}, [
@@ -322,9 +326,8 @@ func _apply_temp_theme() -> void:
 		{"path": "%s/RunStatusLabel" % RUN_STATUS_CARD_PATH, "font_size": 14},
 		{"path": STATUS_LABEL_PATH, "font_size": 14},
 	])
-	var status_label: Label = get_node_or_null(STATUS_LABEL_PATH) as Label
-	if status_label != null:
-		status_label.modulate = Color(1, 1, 1, 0.74)
+	if _status_label != null:
+		_status_label.modulate = Color(1, 1, 1, 0.74)
 	for card_name in CARD_NODE_NAMES:
 		SceneLayoutHelperScript.apply_control_overrides(self, {}, [
 			{"path": "%s/%s" % [CARDS_ROW_PATH, card_name], "custom_minimum_size": {"x": 0.0, "y": 124.0}},
@@ -433,11 +436,25 @@ func _apply_portrait_safe_layout() -> void:
 
 func _render_run_status_card() -> void:
 	RunStatusStripScript.render_into(
-		get_node_or_null(RUN_STATUS_CARD_PATH) as PanelContainer,
-		get_node_or_null("%s/RunStatusLabel" % RUN_STATUS_CARD_PATH) as Label,
+		_run_status_card,
+		_scene_node("%s/RunStatusLabel" % RUN_STATUS_CARD_PATH) as Label,
 		_presenter.build_run_status_model(_run_state),
 		TempScreenThemeScript.PANEL_BORDER_COLOR
 	)
+
+
+func _scene_node(path: String) -> Node:
+	if not is_inside_tree() and path.begins_with("/root/"):
+		return null
+	if _scene_node_cache.has(path):
+		var cached_node: Node = _scene_node_cache.get(path) as Node
+		if cached_node != null and is_instance_valid(cached_node):
+			return cached_node
+		_scene_node_cache.erase(path)
+	var node: Node = get_node_or_null(path)
+	if node != null:
+		_scene_node_cache[path] = node
+	return node
 
 
 func _reward_card_name_for_button(button_name: String) -> String:

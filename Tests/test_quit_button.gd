@@ -6,7 +6,7 @@ const AppBootstrapScript = preload("res://Game/Application/app_bootstrap.gd")
 const SceneRouterScript = preload("res://Game/Infrastructure/scene_router.gd")
 
 const MAIN_MENU_START_BUTTON_PATH := "Margin/VBox/ActionPanel/ActionVBox/StartRunButton"
-const MAP_SETTINGS_LAUNCHER_BUTTON_PATH := "SafeMenuOverlay/MenuLauncherButton"
+const MAP_SETTINGS_LAUNCHER_BUTTON_PATH := "Margin/VBox/TopRow/SettingsMenuAnchor/SettingsButton"
 const MAP_SETTINGS_QUIT_BUTTON_PATH := "SafeMenuOverlay/MenuLayer/PanelHolder/PanelRow/MenuPanel/VBox/ActionsVBox/QuitGameButton"
 const PHASE_TIMEOUT_MS := 6000
 

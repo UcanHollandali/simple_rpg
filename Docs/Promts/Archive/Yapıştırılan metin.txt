@@ -1,0 +1,111 @@
+Bu repo için kapsamlı bir pre-implementation architecture + production review yapmanı istiyorum.
+Önce repodaki bütün ilgili dosyaları ve klasörleri oku:
+- root’taki .md dosyaları
+- Docs/ altındaki bütün dokümanlar
+- project.godot
+- mevcut klasör yapısı
+- Game/
+- ContentDefinitions/
+- Tests/
+- Tools/
+- scenes/
+- Assets/
+- SourceArt/
+- AssetManifest/
+Amaç:
+Bu projeyi uzun vadede AI destekli ama maintainable şekilde geliştirmek istiyorum. Kodun ve dokümantasyonun zamanla spagettiye dönmemesi, refactor riskinin erken aşamada minimize edilmesi, AI’ın ve gelecekte gerçek bir yazılımcının projeyi anlayıp sürdürebilmesi en önemli hedef. Aynı şey visual / audio / asset pipeline için de geçerli.
+Proje bağlamı:
+- küçük scope’lu “Simple RPG”
+- mobile portrait
+- 2D
+- preparation-focused roguelite RPG
+- oyun kimliği combat-first değil; preparation, route, inventory pressure, hold-vs-use odaklı
+- Godot 4.6.2 stable
+- typed GDScript
+- content data JSON tabanlı
+- görsel yön: Clean Relic Fantasy
+- UI source of truth: Figma
+- karakter/düşman ilk üretim formu: bust + token
+- prototype music policy: library only
+- AI rolü: concept, placeholder, variation, production acceleration
+- kritik final alanlar insan kontrollü kalmalı: UI system, icon system, logo, store art, final key art
+Özellikle şu sorulara cevap istiyorum:
+1. Mevcut architecture gerçekten oturmuş mu, yoksa doküman seviyesi ile gerçek implementation-ready seviye arasında tehlikeli boşluklar var mı?
+2. Uzun vadede refactor riskini artıracak erken tasarım hataları var mı?
+3. Kodun spagettiye dönmemesi için hâlâ eksik kilitlenmesi gereken kararlar var mı?
+4. “Yeni content = yeni kod” tuzağını önlemek için mevcut yapı yeterince güçlü mü?
+5. State/flow/screen ayrımı yeterince net mi?
+6. Combat’in zamanla oyunun ana kimliğini ele geçirme riski dokümanlarda yeterince kontrol altına alınmış mı?
+7. Visual/audio tarafında source-of-truth, naming, asset pipeline, provenance, manifest ve placeholder discipline yeterince net mi?
+8. Şu anki doküman setinde gereksiz ağır, tekrar eden, merge edilmesi gereken veya silinmesi gereken dosyalar var mı?
+9. AI ile kod yazdırma / review / patch üretme süreçlerinde ileride yavaşlama, token israfı, bağlam şişmesi yaratacak yapısal sorunlar var mı?
+10. Gelecekte gerçek bir yazılımcı projeyi devralırsa zorlanacağı karanlık alanlar var mı?
+11. Yeni item, silah, armor, enemy, passive, consumable eklemek AI için gerçekten kolay olur mu, yoksa şu anki yapı hâlâ gizli biçimde özel-case bağımlı mı?
+12. Görsel ve ses pipeline’ı da aynı şekilde sürdürülebilir mi, yoksa orada da ileride asset chaos / style drift / license confusion çıkacak açıklar var mı?
+13. Cross-machine / GitHub / farklı cihazda devam etme açısından riskli kararlar var mı?
+14. Henüz kod aşamasına tam girmeden önce mutlaka çözülmesi gereken başka kritik noktalar var mı?
+İnceleme yaklaşımın:
+- Kesin bilgi ile varsayımı ayır.
+- Emin olmadığın noktaları açıkça “varsayım” diye işaretle.
+- Dokümanları tek tek değerlendir.
+- Sadece genel yorum yapma; dosya bazlı somut eleştiri getir.
+- Tekrarlanan, çelişen, zayıf, muğlak, fazla ağır veya yanlış yerde duran dokümanları tespit et.
+- Sadece sorun söyleme; daha iyi alternatif öner.
+- Gerekirse “sil”, “merge et”, “böl”, “authority değiştir”, “burayı kilitle”, “burayı açık bırak” diye net karar ver.
+- Mümkünse AI destekli uzun vadeli oyun geliştirmede internette sonradan sorun çıkarabilecek pattern’leri de aklında tutarak değerlendir:
+  - refactor pain
+  - state coupling
+  - content/mechanic karışması
+  - asset pipeline dağılması
+  - AI-generated asset/license sorunları
+  - documentation overload
+  - placeholder becoming architecture
+  - combat scope creep
+  - save/schema drift
+  - scene/core boundary erosion
+Cevap formatın şu olsun:
+1. Critical Findings
+- En önemli riskleri severity sırasıyla ver.
+- Her bulgu için ilgili dosyayı belirt.
+- Neden risk olduğunu açıkla.
+- Mümkünse neye dönüşeceğini açıkla: spaghetti, refactor cost, AI confusion, save breakage, scope drift, asset chaos vb.
+2. Medium Risks
+- Kritik olmayan ama erkenden ele alınırsa büyük sorun önleyecek noktalar.
+3. What Is Already Strong
+- Şu an iyi kurulmuş ve korunması gereken kararlar.
+4. Missing Locks
+- Hemen şimdi kilitlenmesi gereken ama eksik kalan kararlar.
+5. Docs To Merge / Delete / Rewrite
+- Hangi dosyalar fazla ağır
+- hangileri referans-only kalmalı
+- hangileri merge edilmeli
+- hangileri silinmeli
+- hangileri yeniden yazılmalı
+6. Architecture Review
+- Core / Application / RuntimeState / Infrastructure / UI ayrımı yeterli mi?
+- State flow yeterli mi?
+- Save-sensitive alanlar doğru tanımlanmış mı?
+- Content schema yeterli mi?
+- “new content != new code” hedefi için yapı yeterli mi?
+7. Visual/Audio Review
+- style guide yeterli mi?
+- asset pipeline yeterli mi?
+- manifest yaklaşımı yeterli mi?
+- Figma / runtime / source art ayrımı doğru mu?
+- hangi riskler henüz çözülmemiş?
+8. AI Workflow Review
+- AI’ın zorlanacağı yerler
+- bağlamı gereksiz şişiren yerler
+- gelecekte token ve zaman israfı yaratacak noktalar
+- daha iyi agent workflow önerileri
+9. Concrete Recommended Changes
+- kısa, uygulanabilir, önceliklendirilmiş değişiklik listesi
+- “now / soon / later” olarak ayır
+10. Final Verdict
+- Bu proje şu haliyle implementation’a geçmeye hazır mı?
+- Evetse hangi şartlarla?
+- Hayırsa önce ne düzeltilmeli?
+Ek not:
+Lütfen “nazik genel yorum” yapma. Sert ama faydalı ol. Amaç övmek değil, gelecekte patlayacak yerleri erken görmek. Bu review’ü özellikle refactor riskini, spaghetti riskini, AI ile uzun vadeli geliştirme riskini ve visual/audio production riskini minimize etmek için istiyorum.
+
+sadece incele henüz bir şey yapma

@@ -65,11 +65,11 @@ func test_map_presenter_builds_runtime_graph_labels() -> void:
 	)
 	assert(
 		secondary_status_items.is_empty(),
-		"Expected the map HUD status model to keep the compact strip focused on primary attrition plus XP."
+		"Expected the map HUD status model to keep the compact strip focused on primary attrition only."
 	)
 	assert(
 		progress_status_items.size() == 1,
-		"Expected the map HUD status model to include compact XP progress."
+		"Expected the map HUD status model to keep a compact XP progress read in the top-row strip."
 	)
 	assert(
 		String(run_status_model.get("fallback_text", "")) == "HP 48 | Hunger 11 | Gold 17 | Durability 9",

@@ -13,6 +13,8 @@ const TempScreenThemeScript = preload("res://Game/UI/temp_screen_theme.gd")
 const ONE_SHOT_UI_TRANSITION_LEAD_IN_SECONDS := 0.06
 const PORTRAIT_SAFE_MAX_WIDTH := 920
 const PORTRAIT_SAFE_MIN_SIDE_MARGIN := 30
+const HEADER_CARD_PATH := "Margin/VBox/HeaderRow/HeaderCard"
+const HEADER_STACK_PATH := HEADER_CARD_PATH + "/HeaderStack"
 const AUDIO_PLAYER_CONFIG := {
 	"UiConfirmSfxPlayer": {"path": "res://Assets/Audio/SFX/sfx_ui_confirm_01.ogg"},
 	"PanelOpenSfxPlayer": {"path": "res://Assets/Audio/SFX/sfx_panel_open_01.ogg"},
@@ -38,10 +40,19 @@ var _bootstrap
 var _presenter: LevelUpPresenter
 var _level_up_state: LevelUpState
 var _safe_menu: SafeMenuOverlay
+var _scene_node_cache: Dictionary = {}
+
+@onready var _header_chip_label: Label = _scene_node("%s/ChipCard/ChipLabel" % HEADER_STACK_PATH) as Label
+@onready var _header_title_label: Label = _scene_node("%s/TitleLabel" % HEADER_STACK_PATH) as Label
+@onready var _header_context_label: Label = _scene_node("%s/ContextLabel" % HEADER_STACK_PATH) as Label
+@onready var _header_hint_label: Label = _scene_node("%s/HintLabel" % HEADER_STACK_PATH) as Label
+@onready var _header_note_label: Label = _scene_node("%s/NoteLabel" % HEADER_STACK_PATH) as Label
+@onready var _status_label: Label = _scene_node("Margin/VBox/HeaderRow/StatusCard/StatusLabel") as Label
 
 
 func _ready() -> void:
-	_bootstrap = get_node_or_null("/root/AppBootstrap")
+	_scene_node_cache.clear()
+	_bootstrap = _scene_node("/root/AppBootstrap")
 	_presenter = LevelUpPresenterScript.new()
 	_level_up_state = null
 	SceneAudioPlayersScript.configure_from_config(self, AUDIO_PLAYER_CONFIG)
@@ -113,7 +124,7 @@ func _on_return_to_main_menu_pressed() -> void:
 
 func _connect_buttons() -> void:
 	for index in range(BUTTON_NODE_NAMES.size()):
-		var button: Button = get_node_or_null("Margin/VBox/ChoicesRow/%s" % BUTTON_NODE_NAMES[index]) as Button
+		var button: Button = _scene_node("Margin/VBox/ChoicesRow/%s" % BUTTON_NODE_NAMES[index]) as Button
 		if button == null:
 			continue
 		var handler: Callable = Callable(self, "_on_offer_pressed").bind(index)
@@ -123,7 +134,7 @@ func _connect_buttons() -> void:
 
 func _ensure_choice_button_content() -> void:
 	for button_name in BUTTON_NODE_NAMES:
-		var button: Button = get_node_or_null("Margin/VBox/ChoicesRow/%s" % button_name) as Button
+		var button: Button = _scene_node("Margin/VBox/ChoicesRow/%s" % button_name) as Button
 		if button == null:
 			continue
 		button.text = ""
@@ -169,28 +180,23 @@ func _ensure_choice_button_content() -> void:
 
 
 func _render_level_up_state() -> void:
-	var chip_label: Label = get_node_or_null("Margin/VBox/HeaderRow/HeaderStack/ChipCard/ChipLabel") as Label
-	var title_label: Label = get_node_or_null("Margin/VBox/HeaderRow/HeaderStack/TitleLabel") as Label
-	var context_label: Label = get_node_or_null("Margin/VBox/HeaderRow/HeaderStack/ContextLabel") as Label
-	var hint_label: Label = get_node_or_null("Margin/VBox/HeaderRow/HeaderStack/HintLabel") as Label
-	var note_label: Label = get_node_or_null("Margin/VBox/HeaderRow/HeaderStack/NoteLabel") as Label
 	_set_status_text("")
-	if chip_label != null:
-		chip_label.text = _presenter.build_chip_text()
-	if title_label != null:
-		title_label.text = _presenter.build_title_text(_level_up_state)
-	if context_label != null:
-		context_label.text = _presenter.build_context_text(_level_up_state)
-	if hint_label != null:
-		hint_label.text = _presenter.build_hint_text(_level_up_state)
-	if note_label != null:
-		note_label.text = _presenter.build_note_text(_level_up_state)
-		note_label.visible = not note_label.text.is_empty()
+	if _header_chip_label != null:
+		_header_chip_label.text = _presenter.build_chip_text()
+	if _header_title_label != null:
+		_header_title_label.text = _presenter.build_title_text(_level_up_state)
+	if _header_context_label != null:
+		_header_context_label.text = _presenter.build_context_text(_level_up_state)
+	if _header_hint_label != null:
+		_header_hint_label.text = _presenter.build_hint_text(_level_up_state)
+	if _header_note_label != null:
+		_header_note_label.text = _presenter.build_note_text(_level_up_state)
+		_header_note_label.visible = not _header_note_label.text.is_empty()
 	_render_run_status_card(_get_run_state())
 
 	var button_models: Array[Dictionary] = _presenter.build_offer_view_models(_level_up_state, BUTTON_NODE_NAMES.size())
 	for index in range(BUTTON_NODE_NAMES.size()):
-		var button: Button = get_node_or_null("Margin/VBox/ChoicesRow/%s" % BUTTON_NODE_NAMES[index]) as Button
+		var button: Button = _scene_node("Margin/VBox/ChoicesRow/%s" % BUTTON_NODE_NAMES[index]) as Button
 		if button == null:
 			continue
 		var model: Dictionary = button_models[index]
@@ -200,10 +206,10 @@ func _render_level_up_state() -> void:
 		button.tooltip_text = String(model.get("text", ""))
 		button.visible = bool(model.get("visible", false))
 		button.disabled = bool(model.get("disabled", true))
-		var title_copy_label: Label = get_node_or_null(_choice_title_path(BUTTON_NODE_NAMES[index])) as Label
+		var title_copy_label: Label = _scene_node(_choice_title_path(BUTTON_NODE_NAMES[index])) as Label
 		if title_copy_label != null:
 			title_copy_label.text = title_text
-		var detail_copy_label: Label = get_node_or_null(_choice_detail_path(BUTTON_NODE_NAMES[index])) as Label
+		var detail_copy_label: Label = _scene_node(_choice_detail_path(BUTTON_NODE_NAMES[index])) as Label
 		if detail_copy_label != null:
 			detail_copy_label.text = detail_text
 
@@ -211,10 +217,9 @@ func _render_level_up_state() -> void:
 
 
 func _set_status_text(text: String) -> void:
-	var status_label: Label = get_node_or_null("Margin/VBox/HeaderRow/StatusCard/StatusLabel") as Label
-	if status_label != null:
-		status_label.text = text
-		status_label.visible = not text.is_empty()
+	if _status_label != null:
+		_status_label.text = text
+		_status_label.visible = not text.is_empty()
 
 
 func _refresh_save_controls() -> void:
@@ -227,15 +232,15 @@ func _apply_temp_theme() -> void:
 	var is_overlay: bool = self.top_level
 	if is_overlay:
 		for node_name in ["BackgroundFar", "BackgroundMid", "BackgroundOverlay"]:
-			var backdrop: CanvasItem = get_node_or_null(node_name) as CanvasItem
+			var backdrop: CanvasItem = _scene_node(node_name) as CanvasItem
 			if backdrop != null:
 				backdrop.visible = false
-		var scrim: ColorRect = get_node_or_null("Scrim") as ColorRect
+		var scrim: ColorRect = _scene_node("Scrim") as ColorRect
 		if scrim != null:
 			scrim.visible = true
 			TempScreenThemeScript.apply_scrim(scrim)
 			scrim.color = Color(scrim.color.r, scrim.color.g, scrim.color.b, 0.38)
-		var margin: MarginContainer = get_node_or_null("Margin") as MarginContainer
+		var margin: MarginContainer = _scene_node("Margin") as MarginContainer
 		if margin != null:
 			var overlay_margins: Dictionary = TempScreenThemeScript.compute_overlay_margins(get_viewport_rect().size, PORTRAIT_SAFE_MAX_WIDTH, PORTRAIT_SAFE_MIN_SIDE_MARGIN)
 			margin.add_theme_constant_override("margin_left", int(overlay_margins.get("left", PORTRAIT_SAFE_MIN_SIDE_MARGIN)))
@@ -245,8 +250,8 @@ func _apply_temp_theme() -> void:
 	else:
 		TempScreenThemeScript.apply_modal_popup_shell(
 			self,
-			get_node_or_null("Margin") as MarginContainer,
-			get_node_or_null("Margin/VBox") as Control,
+			_scene_node("Margin") as MarginContainer,
+			_scene_node("Margin/VBox") as Control,
 			TempScreenThemeScript.REWARD_ACCENT_COLOR,
 			"ContentShell",
 			34,
@@ -255,49 +260,60 @@ func _apply_temp_theme() -> void:
 			100
 		)
 	TempScreenThemeScript.apply_chip(
-		get_node_or_null("Margin/VBox/HeaderRow/HeaderStack/ChipCard") as PanelContainer,
-		get_node_or_null("Margin/VBox/HeaderRow/HeaderStack/ChipCard/ChipLabel") as Label,
+		_scene_node("%s/ChipCard" % HEADER_STACK_PATH) as PanelContainer,
+		_header_chip_label,
+		TempScreenThemeScript.REWARD_ACCENT_COLOR
+	)
+	TempScreenThemeScript.apply_choice_card_shell(
+		_scene_node(HEADER_CARD_PATH) as PanelContainer,
 		TempScreenThemeScript.REWARD_ACCENT_COLOR
 	)
 	TempScreenThemeScript.apply_compact_status_area(
-		get_node_or_null("Margin/VBox/HeaderRow/StatusCard") as PanelContainer,
+		_scene_node("Margin/VBox/HeaderRow/StatusCard") as PanelContainer,
 		TempScreenThemeScript.PANEL_BORDER_COLOR
 	)
 	SceneLayoutHelperScript.apply_label_tones(self, [
-		{"path": "Margin/VBox/HeaderRow/HeaderStack/TitleLabel", "tone": "title"},
-		{"path": "Margin/VBox/HeaderRow/HeaderStack/ContextLabel", "tone": "reward"},
-		{"path": "Margin/VBox/HeaderRow/HeaderStack/HintLabel", "tone": "muted"},
-		{"path": "Margin/VBox/HeaderRow/HeaderStack/NoteLabel", "tone": "muted"},
+		{"path": "%s/TitleLabel" % HEADER_STACK_PATH, "tone": "title"},
+		{"path": "%s/ContextLabel" % HEADER_STACK_PATH, "tone": "reward"},
+		{"path": "%s/HintLabel" % HEADER_STACK_PATH, "tone": "muted"},
+		{"path": "%s/NoteLabel" % HEADER_STACK_PATH, "tone": "muted"},
 		{"path": "Margin/VBox/HeaderRow/StatusCard/StatusLabel", "tone": "muted"},
 	])
 
 	for button_name in BUTTON_NODE_NAMES:
-		var action_button: Button = get_node_or_null("Margin/VBox/ChoicesRow/%s" % button_name) as Button
+		var action_button: Button = _scene_node("Margin/VBox/ChoicesRow/%s" % button_name) as Button
 		TempScreenThemeScript.apply_button(action_button, TempScreenThemeScript.REWARD_ACCENT_COLOR)
 		if action_button != null:
 			action_button.custom_minimum_size = Vector2(0, 112)
 			action_button.icon = null
 			action_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 
-		var content_margin: MarginContainer = get_node_or_null(_choice_margin_path(button_name)) as MarginContainer
+		var content_margin: MarginContainer = _scene_node(_choice_margin_path(button_name)) as MarginContainer
 		if content_margin != null:
 			content_margin.add_theme_constant_override("margin_left", 22)
 			content_margin.add_theme_constant_override("margin_top", 16)
 			content_margin.add_theme_constant_override("margin_right", 22)
 			content_margin.add_theme_constant_override("margin_bottom", 16)
 
-		var content_vbox: VBoxContainer = get_node_or_null(_choice_vbox_path(button_name)) as VBoxContainer
+		var content_vbox: VBoxContainer = _scene_node(_choice_vbox_path(button_name)) as VBoxContainer
 		if content_vbox != null:
 			content_vbox.add_theme_constant_override("separation", 6)
 
-		TempScreenThemeScript.apply_label(get_node_or_null(_choice_title_path(button_name)) as Label, "accent")
-		TempScreenThemeScript.apply_label(get_node_or_null(_choice_detail_path(button_name)) as Label, "body")
+		TempScreenThemeScript.apply_label(_scene_node(_choice_title_path(button_name)) as Label, "accent")
+		TempScreenThemeScript.apply_label(_scene_node(_choice_detail_path(button_name)) as Label, "body")
 	SceneLayoutHelperScript.apply_control_overrides(self, {}, [
-		{"path": "Margin/VBox/HeaderRow/HeaderStack/TitleLabel", "font_size": 34},
-		{"path": "Margin/VBox/HeaderRow/HeaderStack/ContextLabel", "font_size": 16},
-		{"path": "Margin/VBox/HeaderRow/HeaderStack/HintLabel", "font_size": 15},
-		{"path": "Margin/VBox/HeaderRow/HeaderStack/NoteLabel", "font_size": 16},
+		{"path": "%s/TitleLabel" % HEADER_STACK_PATH, "font_size": 34},
+		{"path": "%s/ContextLabel" % HEADER_STACK_PATH, "font_size": 16},
+		{"path": "%s/HintLabel" % HEADER_STACK_PATH, "font_size": 15},
+		{"path": "%s/NoteLabel" % HEADER_STACK_PATH, "font_size": 16},
 		{"path": "Margin/VBox/HeaderRow/StatusCard/StatusLabel", "font_size": 14},
+		{"path": HEADER_STACK_PATH, "size_flags_horizontal": Control.SIZE_EXPAND_FILL},
+		{"paths": [
+			"%s/TitleLabel" % HEADER_STACK_PATH,
+			"%s/ContextLabel" % HEADER_STACK_PATH,
+			"%s/HintLabel" % HEADER_STACK_PATH,
+			"%s/NoteLabel" % HEADER_STACK_PATH,
+		], "horizontal_alignment": HORIZONTAL_ALIGNMENT_LEFT, "size_flags_horizontal": Control.SIZE_EXPAND_FILL, "autowrap_mode": TextServer.AUTOWRAP_WORD_SMART},
 	])
 	for button_name in BUTTON_NODE_NAMES:
 		SceneLayoutHelperScript.apply_control_overrides(self, {}, [
@@ -305,7 +321,7 @@ func _apply_temp_theme() -> void:
 			{"path": _choice_title_path(button_name), "font_size": 24},
 			{"path": _choice_detail_path(button_name), "font_size": 16},
 		])
-		var detail_copy_label: Label = get_node_or_null(_choice_detail_path(button_name)) as Label
+		var detail_copy_label: Label = _scene_node(_choice_detail_path(button_name)) as Label
 		if detail_copy_label != null:
 			detail_copy_label.add_theme_color_override("font_color", TempScreenThemeScript.TEXT_MUTED_COLOR)
 
@@ -333,12 +349,13 @@ func _apply_portrait_safe_layout() -> void:
 		{"path": "Margin/VBox", "theme_constants": {"separation": "vbox_separation"}},
 		{"path": "Margin/VBox/HeaderRow", "theme_constants": {"separation": "vbox_separation"}},
 		{"path": "Margin/VBox/ChoicesRow", "theme_constants": {"separation": "vbox_separation"}},
-		{"path": "Margin/VBox/HeaderRow/HeaderStack/TitleLabel", "font_size": "title_font_size"},
-		{"path": "Margin/VBox/HeaderRow/HeaderStack/ContextLabel", "font_size": "context_font_size"},
-		{"path": "Margin/VBox/HeaderRow/HeaderStack/HintLabel", "font_size": "hint_font_size"},
-		{"path": "Margin/VBox/HeaderRow/HeaderStack/NoteLabel", "font_size": "note_font_size"},
+		{"path": "%s/TitleLabel" % HEADER_STACK_PATH, "font_size": "title_font_size"},
+		{"path": "%s/ContextLabel" % HEADER_STACK_PATH, "font_size": "context_font_size"},
+		{"path": "%s/HintLabel" % HEADER_STACK_PATH, "font_size": "hint_font_size"},
+		{"path": "%s/NoteLabel" % HEADER_STACK_PATH, "font_size": "note_font_size"},
 		{"path": "Margin/VBox/HeaderRow/StatusCard/StatusLabel", "font_size": "status_font_size"},
 		{"path": "Margin/VBox/HeaderRow/StatusCard", "custom_minimum_size": {"x": "status_width", "y": 0.0}},
+		{"path": HEADER_STACK_PATH, "size_flags_horizontal": Control.SIZE_EXPAND_FILL},
 	])
 	for button_name in BUTTON_NODE_NAMES:
 		SceneLayoutHelperScript.apply_control_overrides(self, values, [
@@ -351,8 +368,8 @@ func _apply_portrait_safe_layout() -> void:
 
 func _render_run_status_card(run_state: RunState) -> void:
 	RunStatusStripScript.render_into(
-		get_node_or_null("Margin/VBox/HeaderRow/StatusCard") as PanelContainer,
-		get_node_or_null("Margin/VBox/HeaderRow/StatusCard/StatusLabel") as Label,
+		_scene_node("Margin/VBox/HeaderRow/StatusCard") as PanelContainer,
+		_status_label,
 		_presenter.build_run_status_model(run_state),
 		TempScreenThemeScript.PANEL_BORDER_COLOR
 	)
@@ -378,3 +395,17 @@ func _choice_title_path(button_name: String) -> String:
 
 func _choice_detail_path(button_name: String) -> String:
 	return "%s/DetailLabel" % _choice_vbox_path(button_name)
+
+
+func _scene_node(path: String) -> Node:
+	if not is_inside_tree() and path.begins_with("/root/"):
+		return null
+	if _scene_node_cache.has(path):
+		var cached_node: Node = _scene_node_cache.get(path) as Node
+		if cached_node != null and is_instance_valid(cached_node):
+			return cached_node
+		_scene_node_cache.erase(path)
+	var node: Node = get_node_or_null(path)
+	if node != null:
+		_scene_node_cache[path] = node
+	return node

@@ -46,7 +46,7 @@ func build_run_inventory_hint_text() -> String:
 
 
 func build_combat_inventory_hint_text() -> String:
-	return "Tap consumables to use them. Gear, shield mods, quest cargo, and backpack order stay locked during combat."
+	return "Tap consumables. Gear, quest cargo, shield mods, and order stay locked during combat."
 
 
 func build_run_equipment_cards(run_state: RunState) -> Array[Dictionary]:
@@ -85,6 +85,7 @@ func decorate_card_interaction_state(
 	var decorated_model: Dictionary = card_model
 	decorated_model["action_hint_text"] = _build_action_hint_text(card_model, is_combat, is_clickable, is_selected)
 	decorated_model["action_hint_tone"] = _build_action_hint_tone(card_model, is_clickable, is_selected)
+	decorated_model["compact_mode"] = is_combat
 	return decorated_model
 
 
@@ -717,10 +718,9 @@ func _build_action_hint_text(
 			return "Stored"
 		InventoryStateScript.INVENTORY_FAMILY_CONSUMABLE:
 			if is_clickable:
-				var consumable_hint: String = "Tap to use"
-				if is_selected and is_combat:
-					consumable_hint = "Ready to use"
-				return consumable_hint + (" | Ends turn" if is_combat else "")
+				if is_combat:
+					return "Ends turn" if is_selected else "Tap to use"
+				return "Tap to use"
 			return "No HP or hunger gain right now"
 		InventoryStateScript.INVENTORY_FAMILY_PASSIVE:
 			return "Active while carried | not a perk"

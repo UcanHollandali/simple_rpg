@@ -26,7 +26,7 @@ static func build_status_model(run_state: RunState, options: Dictionary = {}) ->
 	var variant: String = _normalize_variant(String(options.get("variant", VARIANT_COMPACT)))
 	var include_weapon: bool = bool(options.get("include_weapon", variant != VARIANT_MINIMAL))
 	var include_xp: bool = bool(options.get("include_xp", variant == VARIANT_STANDARD))
-	var density: String = variant if variant != VARIANT_MINIMAL else VARIANT_COMPACT
+	var density: String = variant
 	if run_state == null:
 		return {
 			"variant": variant,

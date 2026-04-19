@@ -185,7 +185,7 @@ dosyasında tekrarlanan şu operasyonları oraya taşı:
   - TextureRect için null-güvenli doku yükleme (_load_texture_or_null yerine)
 
 12 sahne:
-  main.gd, main_menu.gd, run_setup.gd, map_explore.gd, node_resolve.gd,
+  main.gd, main_menu.gd, map_explore.gd, node_resolve.gd,
   combat.gd, event.gd, reward.gd, support_interaction.gd, level_up.gd,
   stage_transition.gd, run_end.gd
 

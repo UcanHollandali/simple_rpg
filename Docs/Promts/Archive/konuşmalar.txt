@@ -1,0 +1,33 @@
+ ek olarak;
+
+
+
+Şöyle bir şey güncel repoda UI revizyonuda yapmak istiyrum. Repoyu github'a açıp bir yapay zekaya yorumlattım. Senden istediğim önce klasörü repoyu oku  hem .gd'leri hem textleri sonra  bu konuşmayı okuyup. Promtları doğru olmuş değerlendirip ek farkedeceğin sıkıntılar varsa onlarıda ekleyip benim codex'e vereceğim şekilde part part düzenleyebilir misin? sen bir .md dosyası oluştur içinnde part part promtlar olsun ben tek tek onları codex'de queqe koyacağım. Tek seferde yap istediğin kadar parta bölebilirsin
+
+konuşma linki baştan sona kadar oku konuşmamızın tamamı C:\Users\kemal\Documents\Codex\simple_rpg\UI revizyon.txt
+
+
+
+
+
+
+
+şimdi şöyle bir part yığını oldu hepsini sıra sıra codex'e yaptırcağım. Bunları hangi sırayla vereyim/paralel'de verebilirim. Önceki promt sırası sonrakini bozmasın bütün promt dosyalarını okuyup birbinire ters durumlar varsa rafine eder misin? sonraki durumlar için ekstra birşeyler ön hazırlık gerekiyorsa ilk vereceğimiz kısımlara onlarıda ekleyelim. Sonra bende sıra sıra bütün promtları vereyim queue atayım.  Baya bir geliştirmek istiyorum oyunu bu süreçten. İyi oynanabilir bir yere gelir diye düşünüyorum. En azından play test seviyesi güzel mi değil mi kararını verebilirim. 
+
+
+
+
+
+dosyalar bunlar bunlar üzerinde revize yapabilirisn bende sırayla queue eklerim
+
+
+
+
+
+C:\Users\kemal\Documents\Codex\simple_rpg\codex_refactor_plan.md
+
+C:\Users\kemal\Documents\Codex\simple_rpg\codex_migration_prompts.md
+
+C:\Users\kemal\Documents\Codex\simple_rpg\codex_map_redesign_plan.md
+
+C:\Users\kemal\Documents\Codex\simple_rpg\

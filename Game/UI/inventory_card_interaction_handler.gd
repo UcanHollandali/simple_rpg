@@ -129,8 +129,14 @@ func _capture_press(mouse_event: InputEventMouseButton, card: PanelContainer) ->
 func _release_interaction() -> void:
 	if _drag_active:
 		_complete_drag()
-	elif _click_handler.is_valid():
-		_click_handler.call(_pressed_slot_index, _pressed_slot_id, _pressed_family)
+	else:
+		var clicked_slot_index: int = _pressed_slot_index
+		var clicked_slot_id: int = _pressed_slot_id
+		var clicked_family: String = _pressed_family
+		stop_interaction()
+		if _click_handler.is_valid():
+			_click_handler.call_deferred(clicked_slot_index, clicked_slot_id, clicked_family)
+		return
 	stop_interaction()
 
 

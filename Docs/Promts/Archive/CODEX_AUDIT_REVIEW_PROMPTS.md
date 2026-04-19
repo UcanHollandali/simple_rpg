@@ -267,7 +267,7 @@ Docs/Audit/2026-04-18-scene-audit.md raporunu yaz.
 KAPSAM:
 - scenes/*.gd (özellikle combat.gd, map_explore.gd, main_menu.gd,
   support_interaction.gd, run_end.gd, reward.gd, event.gd, level_up.gd,
-  stage_transition.gd, run_setup.gd, boot.gd, main.gd, node_resolve.gd,
+  stage_transition.gd, boot.gd, main.gd, node_resolve.gd,
   safe_menu_overlay.gd)
 - scenes/*.tscn dosyaları (sadece okuma)
 
@@ -598,7 +598,7 @@ Bu görev REPORT-ONLY — sentez raporu.
 
 KURAL:
 - A1–A6 raporları girdi; sen sadece okur, birleştirir, önceliklendirirsin.
-- CODEX_POLISH_PROMPTS.md zaten var olan patch planıyla çakışmayı tespit et.
+- `Docs/Promts/CODEX_POLISH_PROMPTS.md` zaten var olan patch planıyla çakışmayı tespit et.
 - AGENTS.md risk lane sınıflandırması zorunlu.
 
 GÖREV:
@@ -612,7 +612,7 @@ KAPSAM:
 - Docs/Audit/2026-04-18-ui-audit.md
 - Docs/Audit/2026-04-18-architecture-audit.md
 - Docs/Audit/2026-04-18-maintainability-audit.md
-- CODEX_POLISH_PROMPTS.md (çakışma kontrolü için)
+- `Docs/Promts/CODEX_POLISH_PROMPTS.md` (çakışma kontrolü için)
 
 SENTEZ ADIMLAR:
 
@@ -690,7 +690,7 @@ RAPOR FORMATI:
 DOKUNMA:
 - Kod YOK.
 - Audit raporlarını değiştirme — sadece oku.
-- CODEX_POLISH_PROMPTS.md'ye yazma.
+- `Docs/Promts/CODEX_POLISH_PROMPTS.md`'ye yazma.
 
 ÇIKTI:
 - Docs/Audit/2026-04-18-patch-backlog.md
@@ -716,7 +716,7 @@ Faz B1 çıktısı geldiğinde:
 
 - **`Confirmed`**: Audit aşaması Codex tokenı harcar; her rapor 500–2000 satır arası olabilir. Faz A1–A6 peş peşe değil, 2'şer 2'şer sırayla çalıştırmak daha güvenli (ara ara okumalar).
 - **`Confirmed`**: Rapor dosyaları `Docs/Audit/` altında. `Docs/DOC_PRECEDENCE.md`'ye göre audit raporları authority değil, reference-only. Eğer bu klasör DOC_PRECEDENCE'te listelenmiyorsa Codex'e "Docs/Audit/ reference-only, authority doc değil" diye açıkça söyle.
-- **`Confirmed`**: CODEX_POLISH_PROMPTS.md'deki patch'ler audit bulgularıyla çakışabilir; B1 çakışma matrisi bunu çözer.
+- **`Confirmed`**: `Docs/Promts/CODEX_POLISH_PROMPTS.md`'deki patch'ler audit bulgularıyla çakışabilir; B1 çakışma matrisi bunu çözer.
 - **`Inferred`**: Audit sonrası patch kümesi CODEX_POLISH_PROMPTS'un %30–60'ı kadar büyüyebilir (gerçek bulgu sayısı audit'ten sonra belli olur).
 
 ## `Confirmed` Kısıt

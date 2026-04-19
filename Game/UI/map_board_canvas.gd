@@ -128,13 +128,18 @@ func _draw_edges(draw_highlight_pass: bool) -> void:
 		var points: PackedVector2Array = edge.get("points", PackedVector2Array())
 		if points.size() < 2:
 			continue
+		var is_history: bool = bool(edge.get("is_history", false))
 		var translated_points := PackedVector2Array()
 		for point in points:
 			translated_points.append(point + _board_offset)
 		var state_semantic: String = String(edge.get("state_semantic", "open"))
 		var emphasis_level: int = _edge_emphasis_level(edge)
 		if draw_highlight_pass:
+			if is_history and emphasis_level == 0:
+				continue
 			var highlight_width: float = 4.0
+			if is_history:
+				highlight_width = 4.4
 			if emphasis_level >= 2:
 				highlight_width = 7.0
 			elif emphasis_level == 1:
@@ -147,14 +152,20 @@ func _draw_edges(draw_highlight_pass: bool) -> void:
 			)
 		else:
 			var base_width: float = 14.0
+			var shadow_width: float = 7.0
+			var shadow_alpha: float = 0.34
+			if is_history:
+				base_width = 12.0
+				shadow_width = 6.0
+				shadow_alpha = 0.26
 			if emphasis_level >= 2:
 				base_width = 19.0
 			elif emphasis_level == 1:
 				base_width = 16.0
 			draw_polyline(
 				translated_points,
-				Color(0.02, 0.03, 0.02, 0.34),
-				base_width + 7.0,
+				Color(0.02, 0.03, 0.02, shadow_alpha),
+				base_width + shadow_width,
 				true
 			)
 			draw_polyline(

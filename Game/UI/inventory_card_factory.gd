@@ -33,11 +33,15 @@ static func _build_card(card_model: Dictionary) -> PanelContainer:
 	var is_selected: bool = bool(card_model.get("is_selected", false))
 	var is_equipped: bool = bool(card_model.get("is_equipped", false))
 	var is_draggable: bool = bool(card_model.get("is_draggable", false))
+	var compact_mode: bool = bool(card_model.get("compact_mode", false))
+	var density_preset: String = String(card_model.get("density_preset", "map"))
+	var combat_compact_density: bool = density_preset == "combat_compact"
 	var action_hint_tone: String = String(card_model.get("action_hint_tone", "muted"))
 	var accent: Color = Color(card_model.get("accent_color", TempScreenThemeScript.PANEL_BORDER_COLOR))
 	card.name = String(card_model.get("card_name", "InventoryCard"))
-	card.custom_minimum_size = Vector2(128, 148)
+	card.custom_minimum_size = Vector2(104, 96) if compact_mode else Vector2(118, 126) if combat_compact_density else Vector2(128, 148)
 	card.mouse_filter = Control.MOUSE_FILTER_STOP
+	card.clip_contents = compact_mode
 	if is_clickable:
 		card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	elif is_draggable:
@@ -63,7 +67,7 @@ static func _build_card(card_model: Dictionary) -> PanelContainer:
 	var vbox := VBoxContainer.new()
 	vbox.name = "VBox"
 	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	vbox.add_theme_constant_override("separation", 4)
+	vbox.add_theme_constant_override("separation", 1 if compact_mode else 3 if combat_compact_density else 4)
 	card.add_child(vbox)
 
 	var accent_bar := ColorRect.new()
@@ -88,7 +92,7 @@ static func _build_card(card_model: Dictionary) -> PanelContainer:
 	var header_row := HBoxContainer.new()
 	header_row.name = "HeaderRow"
 	header_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	header_row.add_theme_constant_override("separation", 8)
+	header_row.add_theme_constant_override("separation", 6 if combat_compact_density else 8)
 	vbox.add_child(header_row)
 
 	var slot_label := Label.new()
@@ -98,7 +102,7 @@ static func _build_card(card_model: Dictionary) -> PanelContainer:
 	slot_label.text = String(card_model.get("slot_label", ""))
 	slot_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	TempScreenThemeScript.apply_label(slot_label, "muted")
-	slot_label.add_theme_font_size_override("font_size", 13)
+	slot_label.add_theme_font_size_override("font_size", 10 if compact_mode else 12 if combat_compact_density else 13)
 	header_row.add_child(slot_label)
 
 	var count_label := Label.new()
@@ -108,7 +112,7 @@ static func _build_card(card_model: Dictionary) -> PanelContainer:
 	count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	count_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	TempScreenThemeScript.apply_label(count_label, "accent")
-	count_label.add_theme_font_size_override("font_size", 14)
+	count_label.add_theme_font_size_override("font_size", 10 if compact_mode else 13 if combat_compact_density else 14)
 	count_label.visible = not count_label.text.is_empty()
 	header_row.add_child(count_label)
 
@@ -130,7 +134,7 @@ static func _build_card(card_model: Dictionary) -> PanelContainer:
 	placeholder_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	placeholder_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	TempScreenThemeScript.apply_label(placeholder_label, "muted")
-	placeholder_label.add_theme_font_size_override("font_size", 24)
+	placeholder_label.add_theme_font_size_override("font_size", 16 if compact_mode else 22 if combat_compact_density else 24)
 	placeholder_label.visible = icon_rect.texture == null
 	vbox.add_child(placeholder_label)
 
@@ -139,9 +143,10 @@ static func _build_card(card_model: Dictionary) -> PanelContainer:
 	title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	title_label.text = String(card_model.get("title_text", ""))
 	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	title_label.autowrap_mode = TextServer.AUTOWRAP_OFF if combat_compact_density else TextServer.AUTOWRAP_WORD_SMART
+	title_label.clip_text = compact_mode or combat_compact_density
 	TempScreenThemeScript.apply_label(title_label)
-	title_label.add_theme_font_size_override("font_size", 17)
+	title_label.add_theme_font_size_override("font_size", 13 if compact_mode else 15 if combat_compact_density else 17)
 	vbox.add_child(title_label)
 
 	var detail_label := Label.new()
@@ -149,9 +154,10 @@ static func _build_card(card_model: Dictionary) -> PanelContainer:
 	detail_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	detail_label.text = String(card_model.get("detail_text", ""))
 	detail_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	detail_label.autowrap_mode = TextServer.AUTOWRAP_OFF if (compact_mode or combat_compact_density) else TextServer.AUTOWRAP_WORD_SMART
+	detail_label.clip_text = compact_mode or combat_compact_density
 	TempScreenThemeScript.apply_label(detail_label, "muted")
-	detail_label.add_theme_font_size_override("font_size", 14)
+	detail_label.add_theme_font_size_override("font_size", 10 if compact_mode else 11 if combat_compact_density else 14)
 	detail_label.visible = not detail_label.text.is_empty()
 	vbox.add_child(detail_label)
 
@@ -160,9 +166,10 @@ static func _build_card(card_model: Dictionary) -> PanelContainer:
 	action_hint_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	action_hint_label.text = String(card_model.get("action_hint_text", ""))
 	action_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	action_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	action_hint_label.autowrap_mode = TextServer.AUTOWRAP_OFF if (compact_mode or combat_compact_density) else TextServer.AUTOWRAP_WORD_SMART
+	action_hint_label.clip_text = compact_mode or combat_compact_density
 	_apply_action_hint_style(action_hint_label, accent, action_hint_tone, false)
-	action_hint_label.add_theme_font_size_override("font_size", 12)
+	action_hint_label.add_theme_font_size_override("font_size", 10 if compact_mode else 11 if combat_compact_density else 12)
 	action_hint_label.visible = not action_hint_label.text.is_empty()
 	vbox.add_child(action_hint_label)
 

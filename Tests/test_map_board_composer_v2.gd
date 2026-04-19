@@ -25,7 +25,8 @@ func _init() -> void:
 	test_map_board_composer_keeps_layout_backdrop_stable_across_progression()
 	test_map_board_composer_does_not_scale_current_nodes()
 	test_map_board_composer_keeps_visible_edges_readable_without_crossings()
-	test_map_board_composer_limits_visible_edges_to_local_pocket()
+	test_map_board_composer_keeps_visible_edges_clear_of_other_node_clearings()
+	test_map_board_composer_keeps_discovered_history_edges_visible()
 	print("test_map_board_composer_v2: all assertions passed")
 	quit()
 
@@ -421,7 +422,42 @@ func test_map_board_composer_keeps_visible_edges_readable_without_crossings() ->
 		)
 
 
-func test_map_board_composer_limits_visible_edges_to_local_pocket() -> void:
+func test_map_board_composer_keeps_visible_edges_clear_of_other_node_clearings() -> void:
+	var composer: RefCounted = MapBoardComposerV2Script.new()
+	for seed in [11, 29, 41]:
+		var run_state: RunState = RunState.new()
+		run_state.reset_for_new_run()
+		run_state.configure_run_seed(seed)
+		_advance_visible_branch(run_state, 6)
+		var composition: Dictionary = composer.call("compose", run_state, Vector2(920, 1180), Vector2(0.5, 0.58), Vector2(148, 212))
+		var visible_nodes: Array = composition.get("visible_nodes", [])
+		for edge_variant in composition.get("visible_edges", []):
+			if typeof(edge_variant) != TYPE_DICTIONARY:
+				continue
+			var edge_entry: Dictionary = edge_variant
+			var points: PackedVector2Array = edge_entry.get("points", PackedVector2Array())
+			var from_node_id: int = int(edge_entry.get("from_node_id", -1))
+			var to_node_id: int = int(edge_entry.get("to_node_id", -1))
+			for node_variant in visible_nodes:
+				if typeof(node_variant) != TYPE_DICTIONARY:
+					continue
+				var node_entry: Dictionary = node_variant
+				var node_id: int = int(node_entry.get("node_id", -1))
+				if node_id == from_node_id or node_id == to_node_id:
+					continue
+				var node_center: Vector2 = Vector2(node_entry.get("world_position", Vector2.ZERO))
+				var clearance_floor: float = float(node_entry.get("clearing_radius", 0.0)) + 10.0
+				assert(
+					_polyline_distance_to_point(points, node_center) >= clearance_floor,
+					"Expected visible roads to stay out of other node clearings. Seed=%d edge=%s blocking_node=%d." % [
+						seed,
+						JSON.stringify([from_node_id, to_node_id]),
+						node_id,
+					]
+				)
+
+
+func test_map_board_composer_keeps_discovered_history_edges_visible() -> void:
 	var composer: RefCounted = MapBoardComposerV2Script.new()
 	for seed in [11, 29, 41]:
 		var run_state: RunState = RunState.new()
@@ -438,6 +474,14 @@ func test_map_board_composer_limits_visible_edges_to_local_pocket() -> void:
 			if bool(node_entry.get("is_adjacent", false)):
 				adjacent_node_ids.append(int(node_entry.get("node_id", -1)))
 		assert(not adjacent_node_ids.is_empty(), "Expected a progressed map pocket to keep adjacent actionable routes.")
+		var history_edge_count: int = 0
+		var local_edge_count: int = 0
+		var visible_node_ids: PackedInt32Array = _visible_node_ids(composition)
+		var non_local_visible_node_count: int = 0
+		for visible_node_id in visible_node_ids:
+			if visible_node_id == current_node_id or adjacent_node_ids.has(visible_node_id):
+				continue
+			non_local_visible_node_count += 1
 		for edge_variant in composition.get("visible_edges", []):
 			if typeof(edge_variant) != TYPE_DICTIONARY:
 				continue
@@ -445,10 +489,41 @@ func test_map_board_composer_limits_visible_edges_to_local_pocket() -> void:
 			var from_node_id: int = int(edge_entry.get("from_node_id", -1))
 			var to_node_id: int = int(edge_entry.get("to_node_id", -1))
 			assert(
-				(from_node_id == current_node_id or adjacent_node_ids.has(from_node_id))
-				and (to_node_id == current_node_id or adjacent_node_ids.has(to_node_id)),
-				"Expected visible roads to stay limited to the current actionable local pocket instead of rendering the full discovered graph."
+				visible_node_ids.has(from_node_id) and visible_node_ids.has(to_node_id),
+				"Expected composed visible roads to stay scoped to already-visible nodes."
 			)
+			if bool(edge_entry.get("is_history", false)):
+				history_edge_count += 1
+				assert(
+					not (
+						(from_node_id == current_node_id or adjacent_node_ids.has(from_node_id))
+						and (to_node_id == current_node_id or adjacent_node_ids.has(to_node_id))
+					),
+					"Expected history roads to cover discovered traversal memory outside the immediate actionable pocket."
+				)
+				assert(
+					String(edge_entry.get("state_semantic", "")) in ["open", "resolved", "locked"],
+					"Expected non-local discovered roads to keep their underlying traversal semantic instead of disappearing."
+				)
+			else:
+				local_edge_count += 1
+				assert(
+					(from_node_id == current_node_id or adjacent_node_ids.has(from_node_id))
+					and (to_node_id == current_node_id or adjacent_node_ids.has(to_node_id)),
+					"Expected actionable roads to stay anchored to the current local movement pocket."
+				)
+		assert(
+			history_edge_count > 0 or non_local_visible_node_count == 0,
+			"Expected progressed map views to preserve at least one discovered history road. Seed=%d current=%d adjacent=%s non_local_visible=%d local_edges=%d history_edges=%d." % [
+				seed,
+				current_node_id,
+				JSON.stringify(adjacent_node_ids),
+				non_local_visible_node_count,
+				local_edge_count,
+				history_edge_count,
+			]
+		)
+		assert(local_edge_count > 0, "Expected progressed map views to keep immediate actionable roads visible.")
 
 
 func _visible_node_ids(composition: Dictionary) -> PackedInt32Array:
@@ -498,6 +573,30 @@ func _min_visible_node_spacing(composition: Dictionary) -> float:
 			var right_position: Vector2 = world_positions.get(visible_node_ids[right_index], Vector2.ZERO)
 			minimum_spacing = min(minimum_spacing, left_position.distance_to(right_position))
 	return minimum_spacing
+
+
+func _polyline_distance_to_point(points: PackedVector2Array, point: Vector2) -> float:
+	if points.is_empty():
+		return INF
+	if points.size() == 1:
+		return points[0].distance_to(point)
+	var closest_distance: float = INF
+	for point_index in range(points.size() - 1):
+		closest_distance = min(
+			closest_distance,
+			_distance_point_to_segment(point, points[point_index], points[point_index + 1])
+		)
+	return closest_distance
+
+
+func _distance_point_to_segment(point: Vector2, start_point: Vector2, end_point: Vector2) -> float:
+	var segment: Vector2 = end_point - start_point
+	var segment_length_squared: float = segment.length_squared()
+	if segment_length_squared <= 0.001:
+		return point.distance_to(start_point)
+	var t: float = clampf((point - start_point).dot(segment) / segment_length_squared, 0.0, 1.0)
+	var projection: Vector2 = start_point + segment * t
+	return point.distance_to(projection)
 
 
 func _advance_visible_branch(run_state: RunState, steps: int) -> void:

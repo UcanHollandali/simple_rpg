@@ -412,6 +412,7 @@ func _overlay_consumable_slots(inventory_state: InventoryState) -> void:
 			continue
 		combat_slots_by_id[slot_id] = combat_slot.duplicate(true)
 
+	var inventory_changed: bool = false
 	for index in range(inventory_state.inventory_slots.size() - 1, -1, -1):
 		var slot: Dictionary = inventory_state.inventory_slots[index]
 		if String(slot.get("inventory_family", "")) != InventoryStateScript.INVENTORY_FAMILY_CONSUMABLE:
@@ -419,10 +420,14 @@ func _overlay_consumable_slots(inventory_state: InventoryState) -> void:
 		var slot_id: int = int(slot.get("slot_id", -1))
 		if not combat_slots_by_id.has(slot_id):
 			inventory_state.inventory_slots.remove_at(index)
+			inventory_changed = true
 			continue
 		var merged_slot: Dictionary = slot.duplicate(true)
 		merged_slot["current_stack"] = int((combat_slots_by_id[slot_id] as Dictionary).get("current_stack", merged_slot.get("current_stack", 0)))
 		inventory_state.inventory_slots[index] = merged_slot
+		inventory_changed = true
+	if inventory_changed:
+		inventory_state.mark_inventory_dirty()
 
 
 func _extract_inventory_slot_order(inventory_state: InventoryState) -> Array[int]:
@@ -453,6 +458,7 @@ func _apply_inventory_slot_order(inventory_state: InventoryState) -> void:
 		reordered_slots.append((slot_by_id[remaining_slot_id] as Dictionary).duplicate(true))
 
 	inventory_state.inventory_slots = reordered_slots
+	inventory_state.mark_inventory_dirty()
 
 
 func _apply_passive_item_effects(passive_slot_list: Array[Dictionary]) -> void:

@@ -6,7 +6,11 @@ const InventoryCardInteractionHandlerScript = preload("res://Game/UI/inventory_c
 
 
 func _init() -> void:
-	test_rebuild_cards_binds_click_and_hover_interactions()
+	call_deferred("_run")
+
+
+func _run() -> void:
+	await test_rebuild_cards_binds_click_and_hover_interactions()
 	test_global_release_mode_tracks_drag_state_and_card_targets()
 	print("test_inventory_card_interaction_handler: all assertions passed")
 	quit()
@@ -43,6 +47,7 @@ func test_rebuild_cards_binds_click_and_hover_interactions() -> void:
 	cards[0].emit_signal("gui_input", _mouse_button_event(Vector2(6, 6), true))
 	cards[0].emit_signal("gui_input", _mouse_button_event(Vector2(6, 6), false))
 	cards[0].emit_signal("mouse_exited")
+	await process_frame
 
 	assert(hover_calls == ["InventorySlot1Card"], "Expected the shared handler to preserve mouse-entered wiring for card tooltips.")
 	assert(exit_calls == ["InventorySlot1Card"], "Expected the shared handler to preserve mouse-exited wiring for card tooltips.")

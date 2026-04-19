@@ -9,7 +9,6 @@ This file defines the high-level flow states and allowed transitions.
 - `Boot`
 - `MainMenu`
 - `MapExplore`
-- `NodeResolve`
 - `Combat`
 - `Event`
 - `Reward`
@@ -19,6 +18,14 @@ This file defines the high-level flow states and allowed transitions.
 - `RunEnd`
 
 Only one main flow state is active at a time.
+
+## Legacy-Compat Flow State
+
+- `NodeResolve`
+
+`NodeResolve` remains implemented as a legacy transition-shell state.
+It is not on the current live map-to-interaction path.
+Current repo truth: it is reached only from direct-entry fallback for legacy `side_mission` saves or equivalent legacy-compatible pending-node restore paths.
 
 ## Main Principles
 
@@ -39,7 +46,6 @@ Only one main flow state is active at a time.
 - `Boot -> MainMenu`
 - `MainMenu -> MapExplore`
 - `MapExplore -> Combat | Event | Reward | SupportInteraction | RunEnd | MainMenu`
-- `NodeResolve -> Event | Reward | LevelUp | SupportInteraction | StageTransition | MapExplore | RunEnd`
 - `Event -> LevelUp | MapExplore | RunEnd`
 - `Combat -> Reward | StageTransition | RunEnd`
 - `Reward -> LevelUp | MapExplore | RunEnd | MainMenu`
@@ -47,6 +53,10 @@ Only one main flow state is active at a time.
 - `SupportInteraction -> MapExplore | MainMenu`
 - `StageTransition -> MapExplore | RunEnd | MainMenu`
 - `RunEnd -> MainMenu`
+
+## Legacy-Compat Transition
+
+- `NodeResolve -> Event | Reward | LevelUp | SupportInteraction | StageTransition | MapExplore | RunEnd`
 
 ## Transition Rules
 
@@ -87,6 +97,9 @@ Only one main flow state is active at a time.
 - This safe-menu exit path does not add a new flow state and does not change save ownership; it only routes the active save-safe state back to the menu shell.
 - `RunEnd` is terminal for the active run, even if the app later returns to `MainMenu`.
 - `NodeResolve` remains implemented as a legacy transition-shell state, but the current live map traversal does not route into it.
+- Current intended compat entry is narrow:
+  - direct-entry fallback for legacy `side_mission` save restoration
+  - equivalent pending-node restore paths that still deserialize that legacy family
 - The dedicated `event` node family now reads as `Trail Event` in player-facing UI, while `Roadside Encounter` is reserved for the movement-triggered interruption.
 - Current `MapExplore` runtime opens `Combat` directly for:
   - `combat`
@@ -137,9 +150,11 @@ Current implemented safe-state baseline is intentionally the same list today:
 
 Initial non-save-safe states:
 - `Boot`
-- `NodeResolve`
 - `Combat`
 - `Event`
+
+Legacy-compat non-save-safe state:
+- `NodeResolve`
 
 ## Autosave Note
 

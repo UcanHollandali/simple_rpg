@@ -141,25 +141,31 @@ size_flags_horizontal = 3
 theme_override_constants/separation = 12
 
 [node name="ChoiceACard" type="PanelContainer" parent="Margin/VBox/OffersShell/VBox/CardsRow"]
-size_flags_horizontal = 4
+size_flags_horizontal = 3
 size_flags_vertical = 1
 custom_minimum_size = Vector2(0, 100)
 
 [node name="VBox" type="VBoxContainer" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard"]
+size_flags_horizontal = 3
+size_flags_vertical = 3
 theme_override_constants/separation = 6
 
 [node name="BadgeLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard/VBox"]
 text = "Choice"
-horizontal_alignment = 1
+horizontal_alignment = 0
 
 [node name="ChoiceTitleLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard/VBox"]
 text = "Choice A"
-horizontal_alignment = 1
+horizontal_alignment = 0
 
 [node name="ChoiceDetailLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard/VBox"]
 text = "Detail"
 autowrap_mode = 3
-horizontal_alignment = 1
+horizontal_alignment = 0
+
+[node name="Fill" type="Control" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard/VBox"]
+size_flags_horizontal = 3
+size_flags_vertical = 3
 
 [node name="ChoiceAButton" type="Button" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard/VBox"]
 text = "Choose This"
@@ -167,25 +173,31 @@ size_flags_horizontal = 3
 icon = ExtResource("5")
 
 [node name="ChoiceBCard" type="PanelContainer" parent="Margin/VBox/OffersShell/VBox/CardsRow"]
-size_flags_horizontal = 4
+size_flags_horizontal = 3
 size_flags_vertical = 1
 custom_minimum_size = Vector2(0, 100)
 
 [node name="VBox" type="VBoxContainer" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard"]
+size_flags_horizontal = 3
+size_flags_vertical = 3
 theme_override_constants/separation = 6
 
 [node name="BadgeLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard/VBox"]
 text = "Choice"
-horizontal_alignment = 1
+horizontal_alignment = 0
 
 [node name="ChoiceTitleLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard/VBox"]
 text = "Choice B"
-horizontal_alignment = 1
+horizontal_alignment = 0
 
 [node name="ChoiceDetailLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard/VBox"]
 text = "Detail"
 autowrap_mode = 3
-horizontal_alignment = 1
+horizontal_alignment = 0
+
+[node name="Fill" type="Control" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard/VBox"]
+size_flags_horizontal = 3
+size_flags_vertical = 3
 
 [node name="ChoiceBButton" type="Button" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard/VBox"]
 text = "Choose This"

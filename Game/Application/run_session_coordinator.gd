@@ -67,7 +67,6 @@ var level_up_state: LevelUpState
 var support_interaction_state: SupportInteractionState
 var last_run_result: String = ""
 var _last_combat_reward_context: Dictionary = {}
-
 func setup(flow_manager: GameFlowManager, active_run_state: RunState) -> void:
 	game_flow_manager = flow_manager
 	run_state = active_run_state
@@ -88,7 +87,8 @@ func setup(flow_manager: GameFlowManager, active_run_state: RunState) -> void:
 func ensure_run_state_initialized() -> RunState:
 	if run_state == null:
 		return null
-	if run_state.inventory_state.weapon_instance.is_empty():
+	var map_runtime_state: MapRuntimeState = run_state.map_runtime_state as MapRuntimeState
+	if map_runtime_state == null or not map_runtime_state.has_node(MapRuntimeStateScript.DEFAULT_NODE_INDEX):
 		run_state.reset_for_new_run()
 	return run_state
 
@@ -281,6 +281,7 @@ func use_inventory_consumable(slot_id: int) -> Dictionary:
 	else:
 		slot["current_stack"] = current_stack
 		inventory_state.inventory_slots[slot_index] = slot
+	inventory_state.mark_inventory_dirty()
 
 	var display_name: String = String(consumable_definition.get("display", {}).get("name", definition_id))
 	return {

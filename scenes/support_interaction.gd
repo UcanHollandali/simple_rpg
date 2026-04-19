@@ -47,10 +47,20 @@ var _safe_menu: SafeMenuOverlay
 var _overflow_prompt: InventoryOverflowPrompt
 var _pending_overflow_action_id: String = ""
 var _action_in_flight: bool = false
+var _scene_node_cache: Dictionary = {}
+
+@onready var _header_chip_label: Label = _scene_node("%s/ChipCard/ChipLabel" % HEADER_STACK_PATH) as Label
+@onready var _header_title_label: Label = _scene_node("%s/TitleLabel" % HEADER_STACK_PATH) as Label
+@onready var _header_context_label: Label = _scene_node("%s/ContextLabel" % HEADER_STACK_PATH) as Label
+@onready var _header_summary_label: Label = _scene_node("%s/SummaryLabel" % HEADER_STACK_PATH) as Label
+@onready var _header_hint_label: Label = _scene_node("%s/HintLabel" % HEADER_STACK_PATH) as Label
+@onready var _leave_button: Button = _scene_node("Margin/VBox/FooterRow/LeaveButton") as Button
+@onready var _run_status_card: PanelContainer = _scene_node("Margin/VBox/HeaderRow/RunStatusCard") as PanelContainer
 
 
 func _ready() -> void:
-	_bootstrap = get_node_or_null("/root/AppBootstrap")
+	_scene_node_cache.clear()
+	_bootstrap = _scene_node("/root/AppBootstrap")
 	_presenter = SupportInteractionPresenterScript.new()
 	_support_state = null
 	SceneAudioPlayersScript.configure_from_config(self, AUDIO_PLAYER_CONFIG)
@@ -118,42 +128,35 @@ func _on_leave_pressed() -> void:
 
 func _connect_buttons() -> void:
 	for index in range(BUTTON_NODE_NAMES.size()):
-		var button: Button = get_node_or_null("Margin/VBox/ActionsRow/%s" % BUTTON_NODE_NAMES[index]) as Button
+		var button: Button = _scene_node("Margin/VBox/ActionsRow/%s" % BUTTON_NODE_NAMES[index]) as Button
 		if button == null:
 			continue
 		var handler: Callable = Callable(self, "_on_action_pressed").bind(index)
 		if not button.is_connected("pressed", handler):
 			button.connect("pressed", handler)
 
-	var leave_button: Button = get_node_or_null("Margin/VBox/FooterRow/LeaveButton") as Button
-	if leave_button != null and not leave_button.is_connected("pressed", Callable(self, "_on_leave_pressed")):
-		leave_button.connect("pressed", Callable(self, "_on_leave_pressed"))
+	if _leave_button != null and not _leave_button.is_connected("pressed", Callable(self, "_on_leave_pressed")):
+		_leave_button.connect("pressed", Callable(self, "_on_leave_pressed"))
 
 
 func _render_support_state() -> void:
-	var chip_label: Label = get_node_or_null("%s/ChipCard/ChipLabel" % HEADER_STACK_PATH) as Label
-	var title_label: Label = get_node_or_null("%s/TitleLabel" % HEADER_STACK_PATH) as Label
-	var context_label: Label = get_node_or_null("%s/ContextLabel" % HEADER_STACK_PATH) as Label
-	var summary_label: Label = get_node_or_null("%s/SummaryLabel" % HEADER_STACK_PATH) as Label
-	var hint_label: Label = get_node_or_null("%s/HintLabel" % HEADER_STACK_PATH) as Label
-
-	if chip_label != null:
-		chip_label.text = _presenter.build_chip_text(_support_state)
-	if title_label != null:
-		title_label.text = _presenter.build_title_text(_support_state)
-	if context_label != null:
-		context_label.text = _presenter.build_context_text(_support_state)
-	if summary_label != null:
-		summary_label.text = _presenter.build_summary_text(_support_state)
-	if hint_label != null:
-		hint_label.text = _presenter.build_hint_text(_support_state)
+	if _header_chip_label != null:
+		_header_chip_label.text = _presenter.build_chip_text(_support_state)
+	if _header_title_label != null:
+		_header_title_label.text = _presenter.build_title_text(_support_state)
+	if _header_context_label != null:
+		_header_context_label.text = _presenter.build_context_text(_support_state)
+	if _header_summary_label != null:
+		_header_summary_label.text = _presenter.build_summary_text(_support_state)
+	if _header_hint_label != null:
+		_header_hint_label.text = _presenter.build_hint_text(_support_state)
 
 	var run_state: RunState = _get_run_state()
 	_render_run_status_card(run_state)
 
 	var button_models: Array[Dictionary] = _presenter.build_action_view_models(_support_state, BUTTON_NODE_NAMES.size())
 	for index in range(BUTTON_NODE_NAMES.size()):
-		var button: Button = get_node_or_null("Margin/VBox/ActionsRow/%s" % BUTTON_NODE_NAMES[index]) as Button
+		var button: Button = _scene_node("Margin/VBox/ActionsRow/%s" % BUTTON_NODE_NAMES[index]) as Button
 		if button == null:
 			continue
 
@@ -162,9 +165,8 @@ func _render_support_state() -> void:
 		button.visible = bool(model.get("visible", false))
 		button.disabled = bool(model.get("disabled", true))
 
-	var leave_button: Button = get_node_or_null("Margin/VBox/FooterRow/LeaveButton") as Button
-	if leave_button != null:
-		leave_button.text = _presenter.build_leave_button_text(_support_state)
+	if _leave_button != null:
+		_leave_button.text = _presenter.build_leave_button_text(_support_state)
 
 	_refresh_save_controls()
 
@@ -217,14 +219,14 @@ func _get_run_state() -> RunState:
 
 func _apply_temp_theme() -> void:
 	# In overlay mode keep the map bed visible and let the action cards carry the visual weight.
-	var margin: MarginContainer = get_node_or_null("Margin") as MarginContainer
+	var margin: MarginContainer = _scene_node("Margin") as MarginContainer
 	var is_overlay: bool = self.top_level
 	if is_overlay:
 		for node_name in ["BackgroundFar", "BackgroundMid", "BackgroundOverlay"]:
-			var backdrop: CanvasItem = get_node_or_null(node_name) as CanvasItem
+			var backdrop: CanvasItem = _scene_node(node_name) as CanvasItem
 			if backdrop != null:
 				backdrop.visible = false
-		var scrim: ColorRect = get_node_or_null("Scrim") as ColorRect
+		var scrim: ColorRect = _scene_node("Scrim") as ColorRect
 		if scrim != null:
 			scrim.visible = true
 			TempScreenThemeScript.apply_scrim(scrim)
@@ -239,7 +241,7 @@ func _apply_temp_theme() -> void:
 		TempScreenThemeScript.apply_modal_popup_shell(
 			self,
 			margin,
-			get_node_or_null("Margin/VBox") as Control,
+			_scene_node("Margin/VBox") as Control,
 			TempScreenThemeScript.TEAL_ACCENT_COLOR,
 			"ContentShell",
 			34,
@@ -248,16 +250,16 @@ func _apply_temp_theme() -> void:
 			102
 		)
 	TempScreenThemeScript.apply_choice_card_shell(
-		get_node_or_null(HEADER_CARD_PATH) as PanelContainer,
+		_scene_node(HEADER_CARD_PATH) as PanelContainer,
 		TempScreenThemeScript.TEAL_ACCENT_COLOR
 	)
 	TempScreenThemeScript.apply_chip(
-		get_node_or_null("%s/ChipCard" % HEADER_STACK_PATH) as PanelContainer,
-		get_node_or_null("%s/ChipCard/ChipLabel" % HEADER_STACK_PATH) as Label,
+		_scene_node("%s/ChipCard" % HEADER_STACK_PATH) as PanelContainer,
+		_header_chip_label,
 		TempScreenThemeScript.TEAL_ACCENT_COLOR
 	)
 	TempScreenThemeScript.apply_compact_status_area(
-		get_node_or_null("Margin/VBox/HeaderRow/RunStatusCard") as PanelContainer,
+		_run_status_card,
 		TempScreenThemeScript.PANEL_BORDER_COLOR
 	)
 	SceneLayoutHelperScript.apply_label_tones(self, [
@@ -269,10 +271,10 @@ func _apply_temp_theme() -> void:
 	])
 
 	for button_name in BUTTON_NODE_NAMES:
-		var action_button: Button = get_node_or_null("Margin/VBox/ActionsRow/%s" % button_name) as Button
+		var action_button: Button = _scene_node("Margin/VBox/ActionsRow/%s" % button_name) as Button
 		TempScreenThemeScript.apply_button(action_button, TempScreenThemeScript.TEAL_ACCENT_COLOR)
 
-	TempScreenThemeScript.apply_button(get_node_or_null("Margin/VBox/FooterRow/LeaveButton") as Button, TempScreenThemeScript.PANEL_BORDER_COLOR, true)
+	TempScreenThemeScript.apply_button(_leave_button, TempScreenThemeScript.PANEL_BORDER_COLOR, true)
 	SceneLayoutHelperScript.apply_control_overrides(self, {}, [
 		{"path": "%s/TitleLabel" % HEADER_STACK_PATH, "font_size": 34},
 		{"path": "%s/ContextLabel" % HEADER_STACK_PATH, "font_size": 16},
@@ -286,9 +288,8 @@ func _apply_temp_theme() -> void:
 		], "font_size": 19, "alignment": HORIZONTAL_ALIGNMENT_LEFT, "custom_minimum_size": {"x": 0.0, "y": 78.0}},
 		{"path": "Margin/VBox/FooterRow/LeaveButton", "font_size": 16},
 	])
-	var leave_button: Button = get_node_or_null("Margin/VBox/FooterRow/LeaveButton") as Button
-	if leave_button != null:
-		leave_button.text = "Back to the Road"
+	if _leave_button != null:
+		_leave_button.text = "Back to the Road"
 
 
 func _setup_safe_menu() -> void:
@@ -329,13 +330,12 @@ func _clear_overflow_prompt() -> void:
 
 func _set_action_buttons_interactable(is_interactable: bool) -> void:
 	for button_name in BUTTON_NODE_NAMES:
-		var button: Button = get_node_or_null("Margin/VBox/ActionsRow/%s" % button_name) as Button
+		var button: Button = _scene_node("Margin/VBox/ActionsRow/%s" % button_name) as Button
 		if button == null or not button.visible:
 			continue
 		button.disabled = not is_interactable
-	var leave_button: Button = get_node_or_null("Margin/VBox/FooterRow/LeaveButton") as Button
-	if leave_button != null:
-		leave_button.disabled = not is_interactable
+	if _leave_button != null:
+		_leave_button.disabled = not is_interactable
 
 
 func _on_overflow_discard_requested(slot_id: int) -> void:
@@ -394,8 +394,22 @@ func _apply_portrait_safe_layout() -> void:
 
 func _render_run_status_card(run_state: RunState) -> void:
 	RunStatusStripScript.render_into(
-		get_node_or_null("Margin/VBox/HeaderRow/RunStatusCard") as PanelContainer,
-		get_node_or_null("Margin/VBox/HeaderRow/RunStatusCard/StatusLabel") as Label,
+		_run_status_card,
+		_scene_node("Margin/VBox/HeaderRow/RunStatusCard/StatusLabel") as Label,
 		_presenter.build_run_status_model(run_state),
 		TempScreenThemeScript.PANEL_BORDER_COLOR
 	)
+
+
+func _scene_node(path: String) -> Node:
+	if not is_inside_tree() and path.begins_with("/root/"):
+		return null
+	if _scene_node_cache.has(path):
+		var cached_node: Node = _scene_node_cache.get(path) as Node
+		if cached_node != null and is_instance_valid(cached_node):
+			return cached_node
+		_scene_node_cache.erase(path)
+	var node: Node = get_node_or_null(path)
+	if node != null:
+		_scene_node_cache[path] = node
+	return node

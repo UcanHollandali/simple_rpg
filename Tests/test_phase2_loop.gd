@@ -17,7 +17,7 @@ const MAIN_MENU_LOAD_BUTTON_PATH := "Margin/VBox/ActionPanel/ActionVBox/LoadRunB
 const LEVEL_UP_CHOICE_A_BUTTON_PATH := "Margin/VBox/ChoicesRow/ChoiceAButton"
 const LEVEL_UP_CHOICE_B_BUTTON_PATH := "Margin/VBox/ChoicesRow/ChoiceBButton"
 const LEVEL_UP_CHOICE_C_BUTTON_PATH := "Margin/VBox/ChoicesRow/ChoiceCButton"
-const SAFE_MENU_LAUNCHER_BUTTON_PATH := "SafeMenuOverlay/MenuLauncherButton"
+const SAFE_MENU_LAUNCHER_BUTTON_PATH := "Margin/VBox/TopRow/SettingsMenuAnchor/SettingsButton"
 const SAFE_MENU_SAVE_BUTTON_PATH := "SafeMenuOverlay/MenuLayer/PanelHolder/PanelRow/MenuPanel/VBox/ActionsVBox/SaveRunButton"
 const SAFE_MENU_LOAD_BUTTON_PATH := "SafeMenuOverlay/MenuLayer/PanelHolder/PanelRow/MenuPanel/VBox/ActionsVBox/LoadRunButton"
 const ROUTE_BUTTON_NODE_NAMES: PackedStringArray = [
@@ -154,7 +154,7 @@ func _on_process_frame() -> void:
 				_require_combat_inventory_tooltip("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryCard/InventoryCardsFlow/InventorySlot1Card")
 				_require_combat_bust_shell("", true)
 				_require_combat_action_tooltips()
-				_press("Margin/VBox/Buttons/AttackActionCard/AttackActionVBox/AttackButton")
+				_press("Margin/VBox/Buttons/ActionCardsRow/AttackActionCard/AttackActionVBox/AttackButton")
 			elif _is_scene("Reward"):
 				_require_modal_popup_shell()
 				_require_audio_player_stream("RewardClaimSfxPlayer")
@@ -279,7 +279,7 @@ func _on_process_frame() -> void:
 				_require_inventory_card("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/EquipmentCard/EquipmentCardsFlow/InventorySlotRIGHTHANDCard")
 				_require_inventory_card("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryCard/InventoryCardsFlow/InventorySlot1Card")
 				_require_combat_bust_shell("", true)
-				_press("Margin/VBox/Buttons/AttackActionCard/AttackActionVBox/AttackButton")
+				_press("Margin/VBox/Buttons/ActionCardsRow/AttackActionCard/AttackActionVBox/AttackButton")
 			elif _is_scene("Reward"):
 				print("phase2_loop: second reward")
 				_require_audio_player_stream("RewardMusicPlayer")
@@ -318,7 +318,7 @@ func _on_process_frame() -> void:
 				_require_inventory_card("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/EquipmentCard/EquipmentCardsFlow/InventorySlotRIGHTHANDCard")
 				_require_inventory_card("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryCard/InventoryCardsFlow/InventorySlot1Card")
 				_defeat_attack_sent = true
-				_press("Margin/VBox/Buttons/AttackActionCard/AttackActionVBox/AttackButton")
+				_press("Margin/VBox/Buttons/ActionCardsRow/AttackActionCard/AttackActionVBox/AttackButton")
 			elif _is_scene("RunEnd"):
 				print("phase2_loop: run end")
 				_require_generic_background_shell()
@@ -792,24 +792,40 @@ func _require_safe_menu_launcher_shell() -> void:
 	_require(settings_anchor != null, "Expected MapExplore top row to expose the settings-menu anchor lane for the safe menu launcher.")
 	_require(overlay.z_index > top_row.z_index, "Expected safe menu overlay to render above the top row.")
 	var launcher_rect: Rect2 = launcher_button.get_global_rect()
+	var top_row_rect: Rect2 = top_row.get_global_rect()
 	var run_summary_rect: Rect2 = run_summary_card.get_global_rect()
+	var settings_anchor_rect: Rect2 = settings_anchor.get_global_rect()
+	print("launcher_rect=", launcher_rect, " top_row_rect=", top_row_rect, " settings_anchor_rect=", settings_anchor_rect, " run_summary_rect=", run_summary_rect)
 	var viewport_size: Vector2 = current_scene.get_viewport_rect().size
 	var launcher_is_right: bool = (launcher_rect.position.x + launcher_rect.size.x * 0.5) >= (viewport_size.x * 0.5)
 	if launcher_is_right:
 		_require(settings_anchor.size.x >= launcher_button.size.x, "Expected the top-row settings anchor to reserve at least one launcher width.")
 	_require(launcher_rect.size.x > 0.0 and launcher_rect.size.y > 0.0, "Expected safe menu launcher to have a laid-out global rect.")
+	_require(top_row_rect.size.x > 0.0 and top_row_rect.size.y > 0.0, "Expected top-row shell to have a laid-out global rect.")
+	_require(settings_anchor_rect.size.x > 0.0 and settings_anchor_rect.size.y > 0.0, "Expected settings anchor to have a laid-out global rect.")
 	_require(not launcher_rect.intersects(run_summary_rect), "Expected safe menu launcher to stay clear of the map run summary card.")
-	var launcher_gap: float = launcher_rect.position.x - run_summary_rect.end.x
-	_require(launcher_gap <= 22.0, "Expected safe menu launcher gap to stay tight after layout, got %.2f." % launcher_gap)
+	var launcher_center: Vector2 = launcher_rect.position + (launcher_rect.size * 0.5)
+	_require(
+		launcher_rect.position.x >= run_summary_rect.end.x + 8.0,
+		"Expected safe menu launcher to stay in the trailing top-row slot after the run summary card."
+	)
+	_require(
+		launcher_rect.end.x <= top_row_rect.end.x + 2.0,
+		"Expected safe menu launcher to stay inside the top-row shell."
+	)
+	_require(
+		launcher_center.y >= top_row_rect.position.y - 2.0 and launcher_center.y <= top_row_rect.end.y + 2.0,
+		"Expected safe menu launcher to stay vertically inside the top-row shell."
+	)
 
 
 func _require_combat_action_tooltips() -> void:
 	_require(current_scene != null and current_scene.name == "Combat", "Expected Combat scene before reading action tooltips.")
-	_require_action_hint_copy_contains("Margin/VBox/Buttons/AttackActionCard/AttackActionVBox/AttackButton", "durability")
-	_require_action_hint_copy_contains("Margin/VBox/Buttons/DefenseActionCard/DefenseActionVBox/DefenseActionButton", "temporary guard")
-	_require_action_hint_copy_contains("Margin/VBox/Buttons/UseItemActionCard/UseItemActionVBox/UseItemButton", "consumable card")
+	_require_action_hint_copy_contains("Margin/VBox/Buttons/ActionCardsRow/AttackActionCard/AttackActionVBox/AttackButton", "durability")
+	_require_action_hint_copy_contains("Margin/VBox/Buttons/ActionCardsRow/DefenseActionCard/DefenseActionVBox/DefenseActionButton", "temporary guard")
+	_require_action_hint_copy_contains("Margin/VBox/Buttons/ActionCardsRow/UseItemActionCard/UseItemActionVBox/UseItemButton", "consumable card")
 
-	var attack_button: Button = current_scene.get_node_or_null("Margin/VBox/Buttons/AttackActionCard/AttackActionVBox/AttackButton") as Button
+	var attack_button: Button = current_scene.get_node_or_null("Margin/VBox/Buttons/ActionCardsRow/AttackActionCard/AttackActionVBox/AttackButton") as Button
 	var tooltip_panel: PanelContainer = current_scene.get_node_or_null("Margin/VBox/Buttons/ActionHintPanel") as PanelContainer
 	_require(tooltip_panel != null, "Expected Combat to create the action-hint panel.")
 	var tooltip_label: Label = current_scene.get_node_or_null("Margin/VBox/Buttons/ActionHintPanel/ActionHintVBox/ActionContextLabel") as Label

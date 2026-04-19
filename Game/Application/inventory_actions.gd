@@ -154,6 +154,7 @@ func move_slot_to_index(inventory_owner: Variant, slot_id: int, target_index: in
 		destination_index -= 1
 	destination_index = clamp(destination_index, 0, inventory_state.inventory_slots.size())
 	inventory_state.inventory_slots.insert(destination_index, slot)
+	inventory_state.mark_inventory_dirty()
 	return {
 		"ok": true,
 		"slot_id": slot_id,
@@ -229,6 +230,7 @@ func upgrade_weapon_slot(inventory_owner: Variant, slot_id: int) -> Dictionary:
 
 	slot["upgrade_level"] = max(0, int(slot.get("upgrade_level", 0))) + 1
 	inventory_state.inventory_slots[slot_index] = slot
+	inventory_state.mark_inventory_dirty()
 	return {
 		"ok": true,
 		"slot_id": slot_id,
@@ -264,6 +266,7 @@ func upgrade_armor_slot(inventory_owner: Variant, slot_id: int) -> Dictionary:
 
 	slot["upgrade_level"] = max(0, int(slot.get("upgrade_level", 0))) + 1
 	inventory_state.inventory_slots[slot_index] = slot
+	inventory_state.mark_inventory_dirty()
 	return {
 		"ok": true,
 		"slot_id": slot_id,
@@ -343,6 +346,7 @@ func add_consumable_stack(inventory_owner: Variant, definition_id: String, amoun
 			"total_capacity": inventory_state.get_total_capacity(),
 		}
 
+	inventory_state.mark_inventory_dirty()
 	return {
 		"ok": true,
 		"definition_id": definition_id,
@@ -433,6 +437,7 @@ func remove_consumable_stack(inventory_owner: Variant, definition_id: String, am
 			"requested_amount": requested_amount,
 		}
 
+	inventory_state.mark_inventory_dirty()
 	return {
 		"ok": true,
 		"definition_id": definition_id,
@@ -493,6 +498,7 @@ func add_passive_item(inventory_owner: Variant, definition_id: String, capacity:
 		"inventory_family": InventoryStateScript.INVENTORY_FAMILY_PASSIVE,
 		"definition_id": definition_id,
 	})
+	inventory_state.mark_inventory_dirty()
 
 	return {
 		"ok": true,
@@ -537,6 +543,7 @@ func add_quest_item(inventory_owner: Variant, definition_id: String) -> Dictiona
 		"inventory_family": InventoryStateScript.INVENTORY_FAMILY_QUEST_ITEM,
 		"definition_id": definition_id,
 	})
+	inventory_state.mark_inventory_dirty()
 	return {
 		"ok": true,
 		"inventory_family": InventoryStateScript.INVENTORY_FAMILY_QUEST_ITEM,
@@ -570,6 +577,7 @@ func remove_quest_item(inventory_owner: Variant, definition_id: String) -> Dicti
 			continue
 		var slot_id: int = int(slot.get("slot_id", -1))
 		inventory_state.inventory_slots.remove_at(index)
+		inventory_state.mark_inventory_dirty()
 		return {
 			"ok": true,
 			"inventory_family": InventoryStateScript.INVENTORY_FAMILY_QUEST_ITEM,
@@ -628,6 +636,7 @@ func add_carried_weapon(inventory_owner: Variant, definition_id: String) -> Dict
 		"current_durability": max_durability,
 		"upgrade_level": 0,
 	})
+	inventory_state.mark_inventory_dirty()
 	return {
 		"ok": true,
 		"inventory_family": InventoryStateScript.INVENTORY_FAMILY_WEAPON,
@@ -673,6 +682,7 @@ func add_carried_shield(inventory_owner: Variant, definition_id: String) -> Dict
 		"inventory_family": InventoryStateScript.INVENTORY_FAMILY_SHIELD,
 		"definition_id": definition_id,
 	})
+	inventory_state.mark_inventory_dirty()
 	return {
 		"ok": true,
 		"inventory_family": InventoryStateScript.INVENTORY_FAMILY_SHIELD,
@@ -718,6 +728,7 @@ func add_carried_armor(inventory_owner: Variant, definition_id: String) -> Dicti
 		"definition_id": definition_id,
 		"upgrade_level": 0,
 	})
+	inventory_state.mark_inventory_dirty()
 	return {
 		"ok": true,
 		"inventory_family": InventoryStateScript.INVENTORY_FAMILY_ARMOR,
@@ -762,6 +773,7 @@ func add_carried_belt(inventory_owner: Variant, definition_id: String) -> Dictio
 		"inventory_family": InventoryStateScript.INVENTORY_FAMILY_BELT,
 		"definition_id": definition_id,
 	})
+	inventory_state.mark_inventory_dirty()
 	return {
 		"ok": true,
 		"inventory_family": InventoryStateScript.INVENTORY_FAMILY_BELT,
@@ -806,6 +818,7 @@ func add_shield_attachment(inventory_owner: Variant, definition_id: String) -> D
 		"inventory_family": InventoryStateScript.INVENTORY_FAMILY_SHIELD_ATTACHMENT,
 		"definition_id": definition_id,
 	})
+	inventory_state.mark_inventory_dirty()
 	return {
 		"ok": true,
 		"inventory_family": InventoryStateScript.INVENTORY_FAMILY_SHIELD_ATTACHMENT,
@@ -1039,6 +1052,7 @@ func _ensure_capacity_for_carried_item(inventory_state: InventoryState, definiti
 
 	var evicted_slot: Dictionary = inventory_state.inventory_slots[eviction_index]
 	inventory_state.inventory_slots.remove_at(eviction_index)
+	inventory_state.mark_inventory_dirty()
 	return {
 		"ok": true,
 		"definition_id": definition_id,
