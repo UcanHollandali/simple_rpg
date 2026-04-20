@@ -5,14 +5,12 @@ class_name EventPresenter
 const ContentLoaderScript = preload("res://Game/Infrastructure/content_loader.gd")
 const ItemDefinitionTooltipBuilderScript = preload("res://Game/UI/item_definition_tooltip_builder.gd")
 const MapDisplayNameHelperScript = preload("res://Game/UI/map_display_name_helper.gd")
-const InventoryStateScript = preload("res://Game/RuntimeState/inventory_state.gd")
 const RunStatusPresenterScript = preload("res://Game/UI/run_status_presenter.gd")
 const UiCompactCopyScript = preload("res://Game/UI/ui_compact_copy.gd")
 const UiAssetPathsScript = preload("res://Game/UI/ui_asset_paths.gd")
 const DEFAULT_CARD_COUNT: int = 2
 const ROADSIDE_EVENT_CHIP_TEXT: String = "ROADSIDE ENCOUNTER"
 
-var _loader: ContentLoader = ContentLoaderScript.new()
 var _item_tooltip_builder: ItemDefinitionTooltipBuilder = ItemDefinitionTooltipBuilderScript.new()
 
 
@@ -210,36 +208,6 @@ func _build_choice_icon_texture_path_for_choice(choice: Dictionary, event_state:
 	if not effect_icon_path.is_empty():
 		return effect_icon_path
 	return build_choice_icon_texture_path(event_state)
-
-
-func _load_inventory_display_name(inventory_family: String, definition_id: String) -> String:
-	var family_name: String = _definition_family_for_inventory_family(inventory_family)
-	if family_name.is_empty() or definition_id.is_empty():
-		return definition_id
-	var definition: Dictionary = _loader.load_definition(family_name, definition_id)
-	return String(definition.get("display", {}).get("name", definition_id))
-
-
-func _definition_family_for_inventory_family(inventory_family: String) -> String:
-	match inventory_family:
-		InventoryStateScript.INVENTORY_FAMILY_WEAPON:
-			return "Weapons"
-		InventoryStateScript.INVENTORY_FAMILY_SHIELD:
-			return "Shields"
-		InventoryStateScript.INVENTORY_FAMILY_ARMOR:
-			return "Armors"
-		InventoryStateScript.INVENTORY_FAMILY_BELT:
-			return "Belts"
-		InventoryStateScript.INVENTORY_FAMILY_CONSUMABLE:
-			return "Consumables"
-		InventoryStateScript.INVENTORY_FAMILY_PASSIVE:
-			return "PassiveItems"
-		InventoryStateScript.INVENTORY_FAMILY_SHIELD_ATTACHMENT:
-			return "ShieldAttachments"
-		InventoryStateScript.INVENTORY_FAMILY_QUEST_ITEM:
-			return "QuestItems"
-		_:
-			return ""
 
 
 func _compact_summary_text(summary_text: String, max_length: int = 110) -> String:

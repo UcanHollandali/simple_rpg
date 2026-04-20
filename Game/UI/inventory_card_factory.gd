@@ -2,6 +2,7 @@
 extends RefCounted
 class_name InventoryCardFactory
 
+const SceneLayoutHelperScript = preload("res://Game/UI/scene_layout_helper.gd")
 const TempScreenThemeScript = preload("res://Game/UI/temp_screen_theme.gd")
 const CUSTOM_TOOLTIP_META_KEY := "custom_tooltip_text"
 const ACCENT_COLOR_META_KEY := "accent_color"
@@ -125,7 +126,7 @@ static func _build_card(card_model: Dictionary) -> PanelContainer:
 	icon_rect.custom_minimum_size = Vector2(42, 42)
 	icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	icon_rect.texture = _load_texture_or_null(String(card_model.get("icon_texture_path", "")))
+	icon_rect.texture = SceneLayoutHelperScript.load_texture_or_null(String(card_model.get("icon_texture_path", "")))
 	icon_rect.modulate = Color(0.96, 0.93, 0.82, 0.98)
 	icon_rect.visible = icon_rect.texture != null
 	vbox.add_child(icon_rect)
@@ -341,13 +342,3 @@ static func _apply_action_hint_style(label: Label, accent: Color, tone: String, 
 		_:
 			color = TempScreenThemeScript.TEXT_MUTED_COLOR.lightened(0.04 if is_emphasized else 0.0)
 	label.add_theme_color_override("font_color", color)
-
-
-static func _load_texture_or_null(asset_path: String) -> Texture2D:
-	if asset_path.is_empty():
-		return null
-
-	var resource: Resource = load(asset_path)
-	if resource is Texture2D:
-		return resource as Texture2D
-	return null

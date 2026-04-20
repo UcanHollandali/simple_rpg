@@ -22,6 +22,36 @@ static func visible_edge_crosses_any(candidate_edge: Dictionary, accepted_edges:
 	return false
 
 
+static func conflicting_visible_edge_indexes(candidate_edge: Dictionary, accepted_edges: Array[Dictionary]) -> Array[int]:
+	var conflicting_indexes: Array[int] = []
+	for edge_index in range(accepted_edges.size()):
+		var edge_entry: Dictionary = accepted_edges[edge_index]
+		if visible_edges_share_node(candidate_edge, edge_entry):
+			continue
+		if visible_edge_polylines_intersect(candidate_edge, edge_entry):
+			conflicting_indexes.append(edge_index)
+	return conflicting_indexes
+
+
+static func remove_visible_edges_at_indexes(edges: Array[Dictionary], indexes_to_remove: Array[int]) -> void:
+	var sorted_indexes: Array[int] = indexes_to_remove.duplicate()
+	sorted_indexes.sort()
+	for remove_offset in range(sorted_indexes.size() - 1, -1, -1):
+		edges.remove_at(sorted_indexes[remove_offset])
+
+
+static func compare_visible_edge_priority(left_edge: Dictionary, right_edge: Dictionary) -> bool:
+	var left_depth_delta: int = int(left_edge.get("depth_delta", 1))
+	var right_depth_delta: int = int(right_edge.get("depth_delta", 1))
+	if left_depth_delta != right_depth_delta:
+		return left_depth_delta < right_depth_delta
+	var left_length: float = visible_edge_polyline_length(left_edge)
+	var right_length: float = visible_edge_polyline_length(right_edge)
+	if not is_equal_approx(left_length, right_length):
+		return left_length < right_length
+	return _visible_edge_key(left_edge) < _visible_edge_key(right_edge)
+
+
 static func visible_edges_share_node(left_edge: Dictionary, right_edge: Dictionary) -> bool:
 	var left_ids: Array[int] = [int(left_edge.get("from_node_id", -1)), int(left_edge.get("to_node_id", -1))]
 	var right_ids: Array[int] = [int(right_edge.get("from_node_id", -1)), int(right_edge.get("to_node_id", -1))]
@@ -148,3 +178,9 @@ static func segments_intersect(a0: Vector2, a1: Vector2, b0: Vector2, b1: Vector
 
 static func segment_straddles(left: float, right: float) -> bool:
 	return (left > 0.0 and right < 0.0) or (left < 0.0 and right > 0.0)
+
+
+static func _visible_edge_key(edge_entry: Dictionary) -> String:
+	var from_node_id: int = int(edge_entry.get("from_node_id", -1))
+	var to_node_id: int = int(edge_entry.get("to_node_id", -1))
+	return "%d:%d" % [min(from_node_id, to_node_id), max(from_node_id, to_node_id)]

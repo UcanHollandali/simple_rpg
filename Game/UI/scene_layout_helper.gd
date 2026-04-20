@@ -80,6 +80,8 @@ static func load_texture_or_null(asset_path: String) -> Texture2D:
 		return null
 	if _texture_cache.has(asset_path):
 		return _texture_cache[asset_path] as Texture2D
+	if not ResourceLoader.exists(asset_path):
+		return null
 
 	var texture: Texture2D = load(asset_path) as Texture2D
 	if texture != null:

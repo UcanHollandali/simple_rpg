@@ -434,10 +434,8 @@ func _left_hand_inventory_family(state: Dictionary) -> String:
 	return String((left_hand_variant as Dictionary).get("inventory_family", ""))
 
 
-static func _refresh_boss_phase(combat_state) -> Dictionary:
+static func _refresh_boss_phase(combat_state: CombatState) -> Dictionary:
 	if combat_state == null:
-		return {}
-	if not combat_state.has_method("refresh_boss_phase_from_enemy_hp"):
 		return {}
 
 	var phase_change_variant: Variant = combat_state.refresh_boss_phase_from_enemy_hp()

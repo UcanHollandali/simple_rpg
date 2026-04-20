@@ -129,7 +129,7 @@ func _on_action_pressed(index: int) -> void:
 func _on_leave_pressed() -> void:
 	if _bootstrap == null:
 		return
-	if _support_state != null and bool(_support_state.call("is_blacksmith_target_selection_active")):
+	if _support_state != null and _support_state.is_blacksmith_target_selection_active():
 		if _action_tooltip_controller != null:
 			_action_tooltip_controller.hide(true)
 		SceneAudioPlayersScript.play(self, "UiConfirmSfxPlayer")

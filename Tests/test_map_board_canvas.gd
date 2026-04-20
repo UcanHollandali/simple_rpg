@@ -3,6 +3,7 @@ extends SceneTree
 class_name TestMapBoardCanvas
 
 const MapBoardCanvasScript = preload("res://Game/UI/map_board_canvas.gd")
+const SceneLayoutHelperScript = preload("res://Game/UI/scene_layout_helper.gd")
 const TestExitCleanupHelperScript = preload("res://Tests/_exit_cleanup_helper.gd")
 
 
@@ -20,7 +21,7 @@ func _run() -> void:
 func test_map_board_canvas_returns_null_for_missing_asset_paths() -> void:
 	var board_canvas: Control = MapBoardCanvasScript.new()
 	assert(
-		board_canvas.call("_load_texture_or_null", "res://Assets/UI/Map/Canopy/not_real.svg") == null,
+		SceneLayoutHelperScript.load_texture_or_null("res://Assets/UI/Map/Canopy/not_real.svg") == null,
 		"Expected missing prototype map assets to resolve to null so board rendering can fall back cleanly instead of crashing."
 	)
 	board_canvas.free()

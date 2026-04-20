@@ -553,6 +553,7 @@ func _build_visible_edges(
 				"to_node_id": adjacent_node_id,
 				"state_semantic": edge_semantic,
 				"is_history": not is_local_focus_edge,
+				"is_reconnect_edge": bool(path_model.get("is_reconnect_edge", false)),
 				"depth_delta": edge_depth_delta,
 				"path_family": String(path_model.get("path_family", PATH_FAMILY_GENTLE_CURVE)),
 				"trail_texture_path": _trail_texture_path_for_family(String(path_model.get("path_family", PATH_FAMILY_GENTLE_CURVE))),
@@ -578,50 +579,53 @@ func _filter_non_crossing_history_edges(
 	local_focus_edges: Array[Dictionary],
 	history_edges: Array[Dictionary]
 ) -> Array[Dictionary]:
-	var accepted_edges: Array[Dictionary] = []
-	for edge_entry in local_focus_edges:
-		accepted_edges.append(edge_entry)
 	var sorted_history_edges: Array[Dictionary] = history_edges.duplicate(true)
-	sorted_history_edges.sort_custom(Callable(self, "_sort_visible_edge_by_priority"))
+	sorted_history_edges.sort_custom(func(left_edge: Dictionary, right_edge: Dictionary) -> bool:
+		return MapBoardGeometryScript.compare_visible_edge_priority(left_edge, right_edge)
+	)
 	var filtered_history_edges: Array[Dictionary] = []
 	for edge_entry in sorted_history_edges:
-		if _visible_edge_crosses_any(edge_entry, accepted_edges):
+		var conflicting_history_indexes: Array[int] = MapBoardGeometryScript.conflicting_visible_edge_indexes(edge_entry, filtered_history_edges)
+		if conflicting_history_indexes.is_empty():
+			if MapBoardGeometryScript.visible_edge_crosses_any(edge_entry, local_focus_edges):
+				continue
+			filtered_history_edges.append(edge_entry)
 			continue
+		if bool(edge_entry.get("is_reconnect_edge", false)) or MapBoardGeometryScript.visible_edge_crosses_any(edge_entry, local_focus_edges):
+			continue
+		var can_replace_reconnects: bool = true
+		for edge_index in conflicting_history_indexes:
+			if not bool((filtered_history_edges[edge_index] as Dictionary).get("is_reconnect_edge", false)):
+				can_replace_reconnects = false
+				break
+		if not can_replace_reconnects:
+			continue
+		MapBoardGeometryScript.remove_visible_edges_at_indexes(filtered_history_edges, conflicting_history_indexes)
 		filtered_history_edges.append(edge_entry)
-		accepted_edges.append(edge_entry)
+	var has_same_depth_reconnect: bool = false
+	for edge_entry in filtered_history_edges:
+		if bool(edge_entry.get("is_reconnect_edge", false)) and int(edge_entry.get("depth_delta", 1)) == 0:
+			has_same_depth_reconnect = true
+			break
+	if has_same_depth_reconnect:
+		return filtered_history_edges
+	var accepted_edge_keys: Dictionary = {}
+	for edge_entry in filtered_history_edges:
+		accepted_edge_keys[_edge_key(int(edge_entry.get("from_node_id", -1)), int(edge_entry.get("to_node_id", -1)))] = true
+	for edge_entry in sorted_history_edges:
+		if not bool(edge_entry.get("is_reconnect_edge", false)) or int(edge_entry.get("depth_delta", 1)) != 0:
+			continue
+		var edge_key: String = _edge_key(int(edge_entry.get("from_node_id", -1)), int(edge_entry.get("to_node_id", -1)))
+		if accepted_edge_keys.has(edge_key) or MapBoardGeometryScript.visible_edge_crosses_any(edge_entry, local_focus_edges):
+			continue
+		var conflicting_history_indexes: Array[int] = MapBoardGeometryScript.conflicting_visible_edge_indexes(edge_entry, filtered_history_edges)
+		if not conflicting_history_indexes.is_empty():
+			if filtered_history_edges.size() - conflicting_history_indexes.size() < 2:
+				continue
+			MapBoardGeometryScript.remove_visible_edges_at_indexes(filtered_history_edges, conflicting_history_indexes)
+		filtered_history_edges.append(edge_entry)
+		break
 	return filtered_history_edges
-
-
-func _sort_visible_edge_by_priority(left_edge: Dictionary, right_edge: Dictionary) -> bool:
-	var left_depth_delta: int = int(left_edge.get("depth_delta", 1))
-	var right_depth_delta: int = int(right_edge.get("depth_delta", 1))
-	if left_depth_delta != right_depth_delta:
-		return left_depth_delta < right_depth_delta
-	var left_length: float = MapBoardGeometryScript.visible_edge_polyline_length(left_edge)
-	var right_length: float = MapBoardGeometryScript.visible_edge_polyline_length(right_edge)
-	if not is_equal_approx(left_length, right_length):
-		return left_length < right_length
-	return _edge_key(
-		int(left_edge.get("from_node_id", -1)),
-		int(left_edge.get("to_node_id", -1))
-	) < _edge_key(
-		int(right_edge.get("from_node_id", -1)),
-		int(right_edge.get("to_node_id", -1))
-	)
-
-
-func _visible_edge_polyline_length(edge_entry: Dictionary) -> float:
-	var points: PackedVector2Array = edge_entry.get("points", PackedVector2Array())
-	if points.size() < 2:
-		return 0.0
-	var total_length: float = 0.0
-	for point_index in range(points.size() - 1):
-		total_length += points[point_index].distance_to(points[point_index + 1])
-	return total_length
-
-
-func _visible_edge_crosses_any(candidate_edge: Dictionary, accepted_edges: Array[Dictionary]) -> bool:
-	return MapBoardGeometryScript.visible_edge_crosses_any(candidate_edge, accepted_edges)
 
 
 func _build_graph_node_entries(graph_snapshot: Array[Dictionary], world_positions: Dictionary, board_size: Vector2) -> Array[Dictionary]:
@@ -654,6 +658,7 @@ func _build_edge_path_model(
 	var distance: float = direction.length()
 	if distance <= 0.001:
 		return {
+			"is_reconnect_edge": false,
 			"path_family": PATH_FAMILY_SHORT_STRAIGHT,
 			"points": PackedVector2Array([start_point, end_point]),
 		}
@@ -818,6 +823,7 @@ func _build_edge_path_model(
 			if not fallback_points.is_empty():
 				points = fallback_points
 	return {
+		"is_reconnect_edge": is_reconnect_edge,
 		"path_family": path_family,
 		"points": points,
 	}

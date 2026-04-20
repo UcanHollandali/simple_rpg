@@ -13,7 +13,7 @@ Save stores authoritative runtime truth, not presentation data.
 - Current save-sensitive truth lives in implemented owners only:
   - `GameFlowManager` for active flow state
   - `RunState` for current run-level data
-  - `MapRuntimeState` for the current controlled-scatter stage-local realized graph slice, current node identity, realized graph truth, node-state truth, stage-local key / boss-gate truth, stage-local support-node local state, stage-local side-mission local state, roadside encounter quota state, and pending-node continuity, serialized through `RunState`
+  - `MapRuntimeState` for the current controlled-scatter stage-local realized graph slice, current node identity, realized graph truth, node-state truth, stage-local key / boss-gate truth, stage-local support-node local state, stage-local side-mission local state, roadside encounter quota state, and canonical pending-node continuity, serialized through `RunState`
   - `InventoryState` for backpack slot order plus explicit equipment-slot dictionaries
   - `CombatState` for active combat-only truth
   - `EventState` for pending event offer truth during the dedicated `Event` flow
@@ -24,6 +24,7 @@ Save stores authoritative runtime truth, not presentation data.
   - `RunSessionCoordinator` for a few transitional orchestration fields such as `last_run_result`
 - `MapRuntimeState` is now an implemented repo class; broader map-graph ownership is still later architecture.
 - Current map save payload now includes stable node identity, exact realized graph payload, and per-node gameplay state for the live procedural slice.
+- Locked continuation decision: pending-node truth belongs to `MapRuntimeState`; the current `app_state.pending_node_id` / `app_state.pending_node_type` lane is a compatibility mirror used by save/restore orchestration, not a second owner.
 - `save_schema_version = 8` writes the current exact-restore procedural payload, run-level deterministic stream continuity, the explicit backpack-plus-equipment inventory payload, character perk ownership, side-mission node persistence, roadside encounter quota state, and item-taxonomy fields for quest cargo plus shield attachments.
 - `save_schema_version = 2` is still accepted for backward-compatible load of the pre-seeded reward baseline.
 - `save_schema_version = 1` is still accepted for backward-compatible load and rebuilds the old fixed template path from `fixed_stage_cluster.json` / `fixed_stage_detour.json`.
@@ -103,7 +104,7 @@ Current prototype note:
 - `EventState` now exists as explicit pending event truth, but `Event` is still outside the safe-state baseline.
 - `SupportInteractionState` now exists as explicit pending support truth.
 - `FlowState.is_architecturally_save_safe`, `FlowState.is_implemented_save_safe_now`, and `SaveService.is_implemented_save_safe_now` now name the split explicitly.
-- The older names `FlowState.is_save_safe` and `SaveService.is_supported_save_state_now` remain compatibility aliases only.
+- `FlowState.is_save_safe` remains the older compatibility alias; `SaveService` no longer keeps the older mirror helper.
 
 ## Persisted Runtime Areas
 
@@ -190,7 +191,9 @@ Current baseline note:
   - `support_node_states`
   - `side_mission_node_states`
   - `roadside_encounters_this_stage`
-  - pending node identity/type when that context exists in runtime
+- current pending-node continuity is not written by `MapRuntimeState.to_save_dict()`
+- pending node identity/type currently lives under `RunSessionCoordinator.get_app_state_save_data()` as `app_state.pending_node_id` / `app_state.pending_node_type`
+- those `app_state` fields are a compatibility mirror over `MapRuntimeState` owner truth and must not be widened into a second pending-node payload without an explicit save audit
 - `map_realized_graph` is the exact restore truth for schema-2 procedural saves; load does not rely on re-running scaffold fill from seed alone.
 - Legacy schema-1 map saves still rebuild the old fixed authored adjacency graph from content under the matching `content_version` baseline.
 - Current safe-state support snapshots may also carry blacksmith-local pending UI truth inside `SupportInteractionState`:

@@ -21,7 +21,7 @@ func build_chip_text(support_state: RefCounted) -> String:
 		"merchant":
 			return "MERCHANT"
 		"blacksmith":
-			if bool(support_state.call("is_blacksmith_target_selection_active")):
+			if _is_blacksmith_target_selection_active(support_state):
 				return "FORGE TARGET"
 			return "FORGE SERVICE"
 		"hamlet":
@@ -49,7 +49,7 @@ func build_context_text(support_state: RefCounted) -> String:
 		"merchant":
 			return "Buy what helps."
 		"blacksmith":
-			if bool(support_state.call("is_blacksmith_target_selection_active")):
+			if _is_blacksmith_target_selection_active(support_state):
 				return "Pick a target."
 			return UiCompactCopyScript.pick_one("service")
 		"hamlet":
@@ -83,7 +83,7 @@ func build_hint_text(support_state: RefCounted) -> String:
 		"merchant":
 			return "Hover for stats."
 		"blacksmith":
-			if bool(support_state.call("is_blacksmith_target_selection_active")):
+			if _is_blacksmith_target_selection_active(support_state):
 				return "Pick 1 target."
 			return "One service."
 		"hamlet":
@@ -149,9 +149,16 @@ func build_action_view_models(support_state: RefCounted, button_count: int = DEF
 
 
 func build_leave_button_text(support_state: RefCounted) -> String:
-	if support_state != null and String(support_state.support_type) == "blacksmith" and bool(support_state.call("is_blacksmith_target_selection_active")):
+	if support_state != null and String(support_state.support_type) == "blacksmith" and _is_blacksmith_target_selection_active(support_state):
 		return "Back to Services"
 	return "Back to the Road"
+
+
+func _is_blacksmith_target_selection_active(support_state: RefCounted) -> bool:
+	var typed_support_state: SupportInteractionState = support_state as SupportInteractionState
+	if typed_support_state == null:
+		return false
+	return typed_support_state.is_blacksmith_target_selection_active()
 
 
 func _build_offer_text(label_text: String, detail_text: String, support_type: String, is_available: bool, unavailable_reason: String = "") -> String:

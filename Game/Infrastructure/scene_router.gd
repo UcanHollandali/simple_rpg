@@ -1,6 +1,7 @@
 # Layer: Infrastructure
 extends Node
 
+const AppBootstrapScript = preload("res://Game/Application/app_bootstrap.gd")
 const FlowStateScript = preload("res://Game/Application/flow_state.gd")
 
 const MAP_EXPLORE_SCENE_PATH := "res://scenes/map_explore.tscn"
@@ -48,7 +49,7 @@ func _ready() -> void:
 
 
 func _connect_to_flow_manager() -> void:
-	var bootstrap = get_node_or_null("/root/AppBootstrap")
+	var bootstrap: AppBootstrapScript = _get_app_bootstrap()
 	if bootstrap == null:
 		push_error("SceneRouter could not find AppBootstrap.")
 		return
@@ -118,7 +119,7 @@ func _is_overlay_state(state: int) -> bool:
 
 
 func _can_present_overlay_state(state: int) -> bool:
-	var bootstrap = get_node_or_null("/root/AppBootstrap")
+	var bootstrap: AppBootstrapScript = _get_app_bootstrap()
 	if bootstrap == null:
 		return false
 	match state:
@@ -193,9 +194,11 @@ func _apply_overlay_scene_scale_if_needed() -> void:
 
 
 func _apply_ui_scale_for_current_scene() -> void:
-	var bootstrap = get_node_or_null("/root/AppBootstrap")
+	var bootstrap: AppBootstrapScript = _get_app_bootstrap()
 	if bootstrap == null:
 		return
-	if not bootstrap.has_method("apply_ui_scale_to_active_scene"):
-		return
 	bootstrap.apply_ui_scale_to_active_scene()
+
+
+func _get_app_bootstrap() -> AppBootstrapScript:
+	return get_node_or_null("/root/AppBootstrap") as AppBootstrapScript

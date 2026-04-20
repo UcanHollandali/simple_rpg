@@ -198,7 +198,9 @@ Current runtime-backed prototype node families:
   - `blacksmith` -> `SupportInteraction`
   - `hamlet` -> `SupportInteraction`
   - `key` resolves in place on `MapExplore` while updating stage-key and boss-gate truth
-- `NodeResolve` remains implemented as a legacy transition shell, but it is no longer on the live map-to-interaction path for the current runtime-backed node families.
+- `NodeResolve` remains implemented as a legacy transition shell.
+- current runtime-backed node families no longer use it on their normal direct-entry path
+- generic pending-node fallback and legacy-compatible pending-node restore can still route into it
 - Planned `event` nodes and movement-triggered roadside encounters are distinct:
   - the planned map-node family remains `event` and routes directly into `Event`
   - travel-triggered roadside encounters are transient movement interruptions and do not occupy or consume a map-node slot
@@ -208,7 +210,7 @@ Current runtime-backed prototype node families:
   - attempt happens after the move is chosen and its hunger cost is paid, but before destination arrival commits
   - only unresolved `discovered` combat/reward-style travel targets are eligible
   - current roadside tune allows up to `3` movement interruptions per stage through `MapRuntimeState.MAX_ROADSIDE_ENCOUNTERS_PER_STAGE`
-  - roadside-tagged `EventTemplates` may optionally gate themselves behind `rules.trigger_condition` using current route-state stats such as hunger, HP percent, gold, or backpack room
+  - roadside-tagged `EventTemplates` may optionally gate themselves behind `rules.trigger_condition` using current route-state stats such as hunger, HP percent, or gold
   - start, planned `event`, key, boss, hamlet, and direct support-family destinations stay untouched
   - an accepted side-quest marked combat target also stays untouched so that route opens `Combat` directly
   - while the roadside interruption is open, the player has not yet arrived on the destination node

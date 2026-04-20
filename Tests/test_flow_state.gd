@@ -20,7 +20,7 @@ func _init() -> void:
 
 func test_valid_transition_boot_to_main_menu() -> void:
 	var manager = GameFlowManagerScript.new()
-	manager.call("transition_to", FlowStateScript.Type.MAIN_MENU)
+	manager.call("request_transition", FlowStateScript.Type.MAIN_MENU)
 	assert(
 		manager.call("get_current_state") == FlowStateScript.Type.MAIN_MENU,
 		"Expected BOOT -> MAIN_MENU to be valid."
@@ -32,7 +32,7 @@ func test_invalid_transition_combat_to_map_explore() -> void:
 	var manager = GameFlowManagerScript.new()
 	manager.current_state = FlowStateScript.Type.COMBAT
 	print("test_flow_state: expecting an invalid transition log next; COMBAT -> MAP_EXPLORE is a negative assertion, not a runtime bug.")
-	manager.call("transition_to", FlowStateScript.Type.MAP_EXPLORE)
+	manager.call("request_transition", FlowStateScript.Type.MAP_EXPLORE)
 	assert(
 		manager.call("get_current_state") == FlowStateScript.Type.COMBAT,
 		"Expected COMBAT -> MAP_EXPLORE to be rejected."
@@ -43,7 +43,7 @@ func test_invalid_transition_combat_to_map_explore() -> void:
 func test_valid_transition_main_menu_to_map_explore() -> void:
 	var manager = GameFlowManagerScript.new()
 	manager.current_state = FlowStateScript.Type.MAIN_MENU
-	manager.call("transition_to", FlowStateScript.Type.MAP_EXPLORE)
+	manager.call("request_transition", FlowStateScript.Type.MAP_EXPLORE)
 	assert(
 		manager.call("get_current_state") == FlowStateScript.Type.MAP_EXPLORE,
 		"Expected MAIN_MENU -> MAP_EXPLORE to be valid."
@@ -54,7 +54,7 @@ func test_valid_transition_main_menu_to_map_explore() -> void:
 func test_valid_transition_map_explore_to_event() -> void:
 	var manager = GameFlowManagerScript.new()
 	manager.current_state = FlowStateScript.Type.MAP_EXPLORE
-	manager.call("transition_to", FlowStateScript.Type.EVENT)
+	manager.call("request_transition", FlowStateScript.Type.EVENT)
 	assert(
 		manager.call("get_current_state") == FlowStateScript.Type.EVENT,
 		"Expected MAP_EXPLORE -> EVENT to be valid."
@@ -73,7 +73,7 @@ func test_valid_transition_save_safe_states_to_main_menu() -> void:
 	]:
 		var manager = GameFlowManagerScript.new()
 		manager.current_state = state
-		manager.call("transition_to", FlowStateScript.Type.MAIN_MENU)
+		manager.call("request_transition", FlowStateScript.Type.MAIN_MENU)
 		assert(
 			manager.call("get_current_state") == FlowStateScript.Type.MAIN_MENU,
 			"Expected %s -> MAIN_MENU to be valid." % FlowStateScript.name_of(state)

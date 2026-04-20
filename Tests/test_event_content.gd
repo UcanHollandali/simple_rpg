@@ -78,7 +78,6 @@ func test_roadside_trigger_conditions_filter_template_pool() -> void:
 		EventStateScript.TRIGGER_STAT_HUNGER: 20,
 		EventStateScript.TRIGGER_STAT_HP_PERCENT: 100.0,
 		EventStateScript.TRIGGER_STAT_GOLD: 9,
-		EventStateScript.TRIGGER_STAT_HAS_EMPTY_BACKPACK_SLOT: true,
 	}
 	var poor_context: Dictionary = wealthy_context.duplicate(true)
 	poor_context[EventStateScript.TRIGGER_STAT_GOLD] = 0
@@ -90,8 +89,6 @@ func test_roadside_trigger_conditions_filter_template_pool() -> void:
 	wounded_context[EventStateScript.TRIGGER_STAT_HP_PERCENT] = 45.0
 	var healthy_context: Dictionary = wealthy_context.duplicate(true)
 	healthy_context[EventStateScript.TRIGGER_STAT_HP_PERCENT] = 100.0
-	var full_pack_context: Dictionary = wealthy_context.duplicate(true)
-	full_pack_context[EventStateScript.TRIGGER_STAT_HAS_EMPTY_BACKPACK_SLOT] = false
 
 	var wealthy_ids: Array[String] = roadside_state.call("_filter_template_ids_for_source_context", template_ids, loader, wealthy_context)
 	var poor_ids: Array[String] = roadside_state.call("_filter_template_ids_for_source_context", template_ids, loader, poor_context)
@@ -99,8 +96,6 @@ func test_roadside_trigger_conditions_filter_template_pool() -> void:
 	var fed_ids: Array[String] = roadside_state.call("_filter_template_ids_for_source_context", template_ids, loader, fed_context)
 	var wounded_ids: Array[String] = roadside_state.call("_filter_template_ids_for_source_context", template_ids, loader, wounded_context)
 	var healthy_ids: Array[String] = roadside_state.call("_filter_template_ids_for_source_context", template_ids, loader, healthy_context)
-	var empty_pack_ids: Array[String] = roadside_state.call("_filter_template_ids_for_source_context", template_ids, loader, wealthy_context)
-	var full_pack_ids: Array[String] = roadside_state.call("_filter_template_ids_for_source_context", template_ids, loader, full_pack_context)
 
 	assert(wealthy_ids.has("yellow_road_cutpurses"), "Expected gold-triggered roadside cutpurses to join the eligible roadside pool when the player is carrying gold.")
 	assert(not poor_ids.has("yellow_road_cutpurses"), "Expected gold-triggered roadside cutpurses to stay out of the eligible pool when the player is broke.")
@@ -108,8 +103,8 @@ func test_roadside_trigger_conditions_filter_template_pool() -> void:
 	assert(not fed_ids.has("zigzag_wolf_sign"), "Expected hunger-triggered wolf-sign roadside content to stay out when hunger is still healthy.")
 	assert(wounded_ids.has("zz_sunken_toll_fire"), "Expected HP-triggered toll-fire roadside content to join the eligible pool when the player is wounded.")
 	assert(not healthy_ids.has("zz_sunken_toll_fire"), "Expected HP-triggered toll-fire roadside content to stay out when the player is healthy.")
-	assert(empty_pack_ids.has("wrenched_supply_cart"), "Expected pack-sensitive roadside supply-cart content to join the eligible pool when the backpack has room.")
-	assert(not full_pack_ids.has("wrenched_supply_cart"), "Expected pack-sensitive roadside supply-cart content to stay out when the backpack is full.")
+	assert(wealthy_ids.has("wrenched_supply_cart"), "Expected supply-cart roadside content to stay eligible without a backpack-room precheck.")
+	assert(poor_ids.has("wrenched_supply_cart"), "Expected supply-cart roadside content to remain eligible even when gold-gated roadside templates fall out.")
 
 
 func test_event_template_pool_covers_named_event_and_roadside_pack() -> void:

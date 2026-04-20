@@ -774,14 +774,12 @@ func _has_eligible_roadside_template(active_run_state: RunState, target_node_id:
 func _build_roadside_trigger_context(active_run_state: RunState) -> Dictionary:
 	if active_run_state == null:
 		return {}
-	var inventory_state: InventoryState = active_run_state.inventory_state
 	var max_hp: int = max(1, RunState.DEFAULT_PLAYER_HP)
 	var hp_percent: float = (float(active_run_state.player_hp) / float(max_hp)) * 100.0
 	return {
 		EventStateScript.TRIGGER_STAT_HUNGER: active_run_state.hunger,
 		EventStateScript.TRIGGER_STAT_HP_PERCENT: hp_percent,
 		EventStateScript.TRIGGER_STAT_GOLD: active_run_state.gold,
-		EventStateScript.TRIGGER_STAT_HAS_EMPTY_BACKPACK_SLOT: inventory_state != null and inventory_state.has_capacity_for_new_slot(),
 	}
 
 

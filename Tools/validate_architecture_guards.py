@@ -12,10 +12,61 @@ APPLICATION_ROOT = GAME_ROOT / "Application"
 INFRASTRUCTURE_ROOT = GAME_ROOT / "Infrastructure"
 SCENES_ROOT = PROJECT_ROOT / "scenes"
 TESTS_ROOT = PROJECT_ROOT / "Tests"
+DOCS_ROOT = PROJECT_ROOT / "Docs"
+DOCS_ARCHIVE_ROOT = DOCS_ROOT / "Archive"
 APP_BOOTSTRAP_FILE = APPLICATION_ROOT / "app_bootstrap.gd"
 APP_BOOTSTRAP_PUBLIC_METHOD_LIMIT = 35
+APP_BOOTSTRAP_ALLOWED_PUBLIC_METHODS = {
+    "get_flow_manager",
+    "get_run_state",
+    "get_map_runtime_state",
+    "get_reward_state",
+    "get_level_up_state",
+    "get_event_state",
+    "get_support_interaction_state",
+    "build_combat_setup_data",
+    "save_game",
+    "load_game",
+    "build_save_snapshot",
+    "restore_from_snapshot",
+    "apply_fullscreen_mode",
+    "apply_ui_scale_to_active_scene",
+    "apply_resolution_by_index",
+    "has_save_game",
+    "delete_save_game",
+    "reset_run_state_for_new_run",
+    "ensure_run_state_initialized",
+    "get_last_run_result",
+    "choose_move_to_node",
+    "toggle_inventory_equipment",
+    "move_inventory_slot",
+    "use_inventory_consumable",
+    "resolve_pending_node",
+    "choose_reward_option",
+    "choose_event_option",
+    "resolve_combat_result",
+    "choose_level_up_option",
+    "choose_support_action",
+    "finish_boot_to_main_menu",
+}
+APP_BOOTSTRAP_LOOKUP_ALLOWED_FILES = {
+    PROJECT_ROOT / "Game" / "Infrastructure" / "scene_router.gd",
+    PROJECT_ROOT / "Game" / "UI" / "map_overlay_director.gd",
+    PROJECT_ROOT / "scenes" / "combat.gd",
+    PROJECT_ROOT / "scenes" / "event.gd",
+    PROJECT_ROOT / "scenes" / "level_up.gd",
+    PROJECT_ROOT / "scenes" / "main.gd",
+    PROJECT_ROOT / "scenes" / "main_menu.gd",
+    PROJECT_ROOT / "scenes" / "map_explore.gd",
+    PROJECT_ROOT / "scenes" / "node_resolve.gd",
+    PROJECT_ROOT / "scenes" / "reward.gd",
+    PROJECT_ROOT / "scenes" / "run_end.gd",
+    PROJECT_ROOT / "scenes" / "stage_transition.gd",
+    PROJECT_ROOT / "scenes" / "support_interaction.gd",
+}
 RUN_SESSION_COORDINATOR_FILE = APPLICATION_ROOT / "run_session_coordinator.gd"
 RUN_SESSION_COORDINATOR_PUBLIC_METHOD_LIMIT = 21
+COMMAND_EVENT_CATALOG_FILE = DOCS_ROOT / "COMMAND_EVENT_CATALOG.md"
 COMBAT_INVENTORY_SLOT_BRIDGE_ALLOWED_FILES = {
     PROJECT_ROOT / "Game" / "RuntimeState" / "combat_state.gd",
     PROJECT_ROOT / "Game" / "UI" / "inventory_presenter.gd",
@@ -34,6 +85,7 @@ HOTSPOT_FILE_LINE_LIMITS = {
     PROJECT_ROOT / "Game" / "Application" / "run_session_coordinator.gd": 1018,
     PROJECT_ROOT / "Game" / "RuntimeState" / "inventory_state.gd": 1060,
     PROJECT_ROOT / "Game" / "RuntimeState" / "support_interaction_state.gd": 976,
+    PROJECT_ROOT / "Game" / "UI" / "map_route_binding.gd": 1095,
     PROJECT_ROOT / "Game" / "UI" / "combat_presenter.gd": 845,
     PROJECT_ROOT / "Game" / "UI" / "safe_menu_overlay.gd": 645,
     PROJECT_ROOT / "Game" / "Application" / "combat_flow.gd": 764,
@@ -93,9 +145,69 @@ RUN_SUMMARY_CARD_WORKAROUND_PATTERNS = [
 DISPATCH_CALL_PATTERN = re.compile(r"\bdispatch\s*\(")
 CURRENT_NODE_INDEX_PATTERN = re.compile(r'"current_node_index"|current_node_index')
 PUBLIC_FUNC_PATTERN = re.compile(r"^func\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(")
+APP_BOOTSTRAP_LOOKUP_PATTERN = re.compile(r'["\']/root/AppBootstrap["\']')
 APPLICATION_INFRASTRUCTURE_PRESENTATION_NODE_PATTERN = re.compile(
     r'"[^"\n]*(RunSummaryCard|ActionContextLabel|EventOverlay|SupportOverlay|RewardOverlay|LevelUpOverlay|HpStatusLabel|HungerStatusLabel|DurabilityStatusLabel|GoldStatusValueLabel|XpProgressBar|XpLabel)[^"\n]*"'
 )
+STALE_WRAPPER_DEFINITIONS = {
+    GAME_ROOT / "Application" / "game_flow_manager.gd": "transition_to",
+    GAME_ROOT / "Infrastructure" / "save_service.gd": "is_supported_save_state_now",
+}
+REQUIRED_COMMAND_EVENT_CATALOG_ENTRIES = (
+    "CombatFlow.turn_phase_resolved",
+    "BossPhaseChanged",
+)
+RETIRED_GATE_WARDEN_TOKEN = "gate_warden"
+RETIRED_GATE_WARDEN_ALLOWED_FILES = {
+    DOCS_ROOT / "ROADMAP.md",
+    DOCS_ROOT / "Promts" / "01_foundation_fastlane.md",
+}
+RETIRED_GATE_WARDEN_SCAN_ROOTS = (
+    DOCS_ROOT,
+    GAME_ROOT,
+    PROJECT_ROOT / "scenes",
+    TESTS_ROOT,
+    PROJECT_ROOT / "ContentDefinitions",
+    PROJECT_ROOT / "AssetManifest",
+    PROJECT_ROOT / "Assets",
+    PROJECT_ROOT / "SourceArt",
+)
+RETIRED_GATE_WARDEN_TEXT_SUFFIXES = {
+    ".csv",
+    ".gd",
+    ".import",
+    ".json",
+    ".md",
+    ".tscn",
+    ".txt",
+    ".uid",
+}
+TYPED_REFLECTION_REGRESSION_FRAGMENTS = {
+    PROJECT_ROOT / "Game" / "Core" / "combat_resolver.gd": (
+        'has_method("refresh_boss_phase_from_enemy_hp")',
+    ),
+    PROJECT_ROOT / "Game" / "UI" / "map_explore_presenter.gd": (
+        'has_method("get_hamlet_personality")',
+        '.call("get_hamlet_personality"',
+        'has_method("build_side_quest_highlight_snapshot")',
+        '.call("build_side_quest_highlight_snapshot"',
+    ),
+    PROJECT_ROOT / "Game" / "UI" / "map_route_binding.gd": (
+        '_board_composer.call(',
+        '.call("set_composition"',
+        '.call("set_board_offset"',
+        '.call("set_interaction_state"',
+    ),
+    PROJECT_ROOT / "Game" / "UI" / "support_interaction_presenter.gd": (
+        '.call("is_blacksmith_target_selection_active")',
+    ),
+    PROJECT_ROOT / "scenes" / "support_interaction.gd": (
+        '.call("is_blacksmith_target_selection_active")',
+    ),
+    PROJECT_ROOT / "Game" / "Infrastructure" / "scene_router.gd": (
+        'has_method("apply_ui_scale_to_active_scene")',
+    ),
+}
 
 
 def iter_gd_files(*roots: Path) -> list[Path]:
@@ -316,12 +428,125 @@ def validate_hotspot_file_growth() -> list[str]:
     return errors
 
 
+def validate_stale_wrapper_regressions() -> list[str]:
+    errors: list[str] = []
+    for path, method_name in STALE_WRAPPER_DEFINITIONS.items():
+        if not path.is_file():
+            continue
+
+        pattern = re.compile(rf"^func\s+{re.escape(method_name)}\s*\(", re.MULTILINE)
+        if pattern.search(path.read_text(encoding="utf-8")) is None:
+            continue
+
+        rel_path = path.relative_to(PROJECT_ROOT).as_posix()
+        errors.append(
+            f"{rel_path}: stale wrapper {method_name}() should stay removed instead of regaining compatibility surface"
+        )
+    return errors
+
+
+def validate_command_event_catalog_alignment() -> list[str]:
+    errors: list[str] = []
+    if not COMMAND_EVENT_CATALOG_FILE.is_file():
+        return errors
+
+    catalog_text = COMMAND_EVENT_CATALOG_FILE.read_text(encoding="utf-8")
+    for entry_name in REQUIRED_COMMAND_EVENT_CATALOG_ENTRIES:
+        if entry_name in catalog_text:
+            continue
+        rel_path = COMMAND_EVENT_CATALOG_FILE.relative_to(PROJECT_ROOT).as_posix()
+        errors.append(
+            f"{rel_path}: missing implemented command/event catalog entry for {entry_name}"
+        )
+    return errors
+
+
 def validate_app_bootstrap_public_surface() -> list[str]:
-    return validate_public_method_budget(
+    errors = validate_public_method_budget(
         APP_BOOTSTRAP_FILE,
         APP_BOOTSTRAP_PUBLIC_METHOD_LIMIT,
         "AppBootstrap",
     )
+    actual_public_methods = set(public_method_names(APP_BOOTSTRAP_FILE))
+    unexpected_methods = sorted(actual_public_methods - APP_BOOTSTRAP_ALLOWED_PUBLIC_METHODS)
+    if unexpected_methods:
+        rel_path = APP_BOOTSTRAP_FILE.relative_to(PROJECT_ROOT).as_posix()
+        errors.append(
+            f"{rel_path}: AppBootstrap public surface added unexpected method(s) {', '.join(unexpected_methods)}; freeze the facade or explicitly escalate before widening it"
+        )
+    return errors
+
+
+def validate_app_bootstrap_lookup_spread() -> list[str]:
+    errors: list[str] = []
+    for path in iter_gd_files(GAME_ROOT, SCENES_ROOT):
+        for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            if APP_BOOTSTRAP_LOOKUP_PATTERN.search(line) is None:
+                continue
+            if path in APP_BOOTSTRAP_LOOKUP_ALLOWED_FILES:
+                continue
+            rel_path = path.relative_to(PROJECT_ROOT).as_posix()
+            errors.append(
+                f"{rel_path}:{line_number}: new /root/AppBootstrap lookup widens the scene/bootstrap dependency surface; reuse an existing allowed shell or explicitly escalate"
+            )
+    return errors
+
+
+def validate_retired_gate_warden_surface() -> list[str]:
+    errors: list[str] = []
+    for root in RETIRED_GATE_WARDEN_SCAN_ROOTS:
+        if not root.exists():
+            continue
+
+        for path in sorted(root.rglob("*")):
+            if not path.is_file():
+                continue
+
+            if path in RETIRED_GATE_WARDEN_ALLOWED_FILES:
+                continue
+
+            try:
+                path.relative_to(DOCS_ARCHIVE_ROOT)
+                continue
+            except ValueError:
+                pass
+
+            rel_path = path.relative_to(PROJECT_ROOT).as_posix()
+            if RETIRED_GATE_WARDEN_TOKEN in rel_path:
+                errors.append(
+                    f"{rel_path}: retired gate_warden surface should stay removed from live repo paths"
+                )
+                continue
+
+            if path.suffix.lower() not in RETIRED_GATE_WARDEN_TEXT_SUFFIXES:
+                continue
+
+            if RETIRED_GATE_WARDEN_TOKEN not in path.read_text(encoding="utf-8", errors="ignore"):
+                continue
+
+            errors.append(
+                f"{rel_path}: retired gate_warden identifier should stay trapped in archive/history docs or explicit active planning notes"
+            )
+    return errors
+
+
+def validate_typed_reflection_regressions() -> list[str]:
+    errors: list[str] = []
+    for path, forbidden_fragments in TYPED_REFLECTION_REGRESSION_FRAGMENTS.items():
+        if not path.is_file():
+            continue
+
+        lines = path.read_text(encoding="utf-8").splitlines()
+        for line_number, line in enumerate(lines, start=1):
+            for fragment in forbidden_fragments:
+                if fragment not in line:
+                    continue
+
+                rel_path = path.relative_to(PROJECT_ROOT).as_posix()
+                errors.append(
+                    f"{rel_path}:{line_number}: typed owner reflection fragment {fragment!r} should stay removed; prefer direct typed calls over string-based call()/has_method()"
+                )
+    return errors
 
 
 def validate_run_session_coordinator_public_surface() -> list[str]:
@@ -343,8 +568,13 @@ def main() -> int:
     errors.extend(validate_run_summary_cleanup_workaround_creep())
     errors.extend(validate_application_infrastructure_presentation_coupling())
     errors.extend(validate_app_bootstrap_public_surface())
+    errors.extend(validate_app_bootstrap_lookup_spread())
+    errors.extend(validate_retired_gate_warden_surface())
+    errors.extend(validate_typed_reflection_regressions())
     errors.extend(validate_run_session_coordinator_public_surface())
     errors.extend(validate_hotspot_file_growth())
+    errors.extend(validate_stale_wrapper_regressions())
+    errors.extend(validate_command_event_catalog_alignment())
 
     if errors:
         print("Architecture guard validation failed.", file=sys.stderr)

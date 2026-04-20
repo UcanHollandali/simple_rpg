@@ -62,11 +62,6 @@ func request_transition(new_state: int) -> Dictionary:
 		"new_state": current_state,
 	}
 
-
-func transition_to(new_state: int) -> void:
-	request_transition(new_state)
-
-
 func get_current_state() -> int:
 	return current_state
 

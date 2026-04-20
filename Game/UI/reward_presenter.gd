@@ -2,7 +2,6 @@
 extends RefCounted
 class_name RewardPresenter
 
-const ContentLoaderScript = preload("res://Game/Infrastructure/content_loader.gd")
 const ItemDefinitionTooltipBuilderScript = preload("res://Game/UI/item_definition_tooltip_builder.gd")
 const InventoryStateScript = preload("res://Game/RuntimeState/inventory_state.gd")
 const RunStatusPresenterScript = preload("res://Game/UI/run_status_presenter.gd")
@@ -10,7 +9,6 @@ const UiCompactCopyScript = preload("res://Game/UI/ui_compact_copy.gd")
 const UiAssetPathsScript = preload("res://Game/UI/ui_asset_paths.gd")
 const DEFAULT_CARD_COUNT: int = 3
 
-var _loader: ContentLoader = ContentLoaderScript.new()
 var _item_tooltip_builder: ItemDefinitionTooltipBuilder = ItemDefinitionTooltipBuilderScript.new()
 
 
@@ -140,7 +138,7 @@ func _build_offer_title(offer: Dictionary, effect_type: String) -> String:
 		"grant_item":
 			var inventory_family: String = String(offer.get("inventory_family", ""))
 			var definition_id: String = String(offer.get("definition_id", ""))
-			return _load_inventory_display_name(inventory_family, definition_id)
+			return _item_tooltip_builder.build_definition_display_name(inventory_family, definition_id)
 		_:
 			return "Reward"
 
@@ -215,33 +213,3 @@ func _build_offer_icon_texture_path(offer: Dictionary) -> String:
 		String(offer.get("effect_type", "")),
 		String(offer.get("inventory_family", ""))
 	)
-
-
-func _load_inventory_display_name(inventory_family: String, definition_id: String) -> String:
-	var family_name: String = _definition_family_for_inventory_family(inventory_family)
-	if family_name.is_empty() or definition_id.is_empty():
-		return definition_id
-	var definition: Dictionary = _loader.load_definition(family_name, definition_id)
-	return String(definition.get("display", {}).get("name", definition_id))
-
-
-func _definition_family_for_inventory_family(inventory_family: String) -> String:
-	match inventory_family:
-		InventoryStateScript.INVENTORY_FAMILY_WEAPON:
-			return "Weapons"
-		InventoryStateScript.INVENTORY_FAMILY_SHIELD:
-			return "Shields"
-		InventoryStateScript.INVENTORY_FAMILY_ARMOR:
-			return "Armors"
-		InventoryStateScript.INVENTORY_FAMILY_BELT:
-			return "Belts"
-		InventoryStateScript.INVENTORY_FAMILY_CONSUMABLE:
-			return "Consumables"
-		InventoryStateScript.INVENTORY_FAMILY_PASSIVE:
-			return "PassiveItems"
-		InventoryStateScript.INVENTORY_FAMILY_SHIELD_ATTACHMENT:
-			return "ShieldAttachments"
-		InventoryStateScript.INVENTORY_FAMILY_QUEST_ITEM:
-			return "QuestItems"
-		_:
-			return ""

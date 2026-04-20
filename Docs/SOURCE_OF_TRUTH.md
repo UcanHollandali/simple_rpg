@@ -25,7 +25,7 @@ Derived data, cached data, facade reads, and UI view state do not replace that o
 |---|---|---|
 | active flow state | `GameFlowManager` | reached through `AppBootstrap` only as a facade |
 | run result, stage index, hunger, XP, gold, outside-combat HP, run seed, named RNG stream cursors | `RunState` | stable run-level scalars plus live deterministic stream continuity |
-| current node id, discovery state, resolved state, locked state, pending node context, stage key state, boss-gate state, support-node revisit state, hamlet side-quest state | `MapRuntimeState` | runtime graph materialized from the active procedural stage-profile ids using center-start frontier growth plus controlled reconnect; legacy fixed templates remain load-compat only |
+| current node id, discovery state, resolved state, locked state, pending node context, stage key state, boss-gate state, support-node revisit state, hamlet side-quest state | `MapRuntimeState` | runtime graph materialized from the active procedural stage-profile ids using center-start frontier growth plus controlled reconnect; legacy fixed templates remain load-compat only; current save snapshots still mirror pending-node id/type through `app_state` for compatibility restore, but that mirror does not change the owner |
 | backpack slots and order, plus explicit equipment slots for right hand / left hand / armor / belt | `InventoryState` | starter recipe comes from `ContentDefinitions/RunLoadouts/starter_loadout.json`; equipped gear no longer consumes backpack capacity |
 | combat turn state, enemy HP, revealed intent, boss phase tracking, combat-only statuses, combat-local hunger/HP/durability mutation, combat-local guard, and combat-local interpretation of right-hand / left-hand / armor / belt loadout | `CombatState` | committed back to `RunState` at combat end; left-hand shield/offhand behavior and guard truth now live here; boss phase truth stays combat-local only |
 | combat setup selection and post-combat/post-node progression routing | `RunSessionCoordinator` | orchestration owner, not long-lived state owner |
@@ -99,6 +99,7 @@ Derived data, cached data, facade reads, and UI view state do not replace that o
 ### Map
 
 - `MapRuntimeState` owns the stage-local exploration graph and all per-node runtime state.
+- `MapRuntimeState` is the canonical owner of pending-node truth.
 - The current graph is realized from the active controlled-scatter stage profiles, but that does not make the content template the runtime owner.
 - `RunSessionCoordinator` may:
   - validate adjacency-limited movement
@@ -106,6 +107,7 @@ Derived data, cached data, facade reads, and UI view state do not replace that o
   - consume pending node context
   - reopen support nodes on revisit
   - route to the next flow state
+- `RunSessionCoordinator.get_app_state_save_data()` may mirror `pending_node_id` / `pending_node_type` for compatibility restore, but that mirror is not an ownership transfer and must not grow into a second pending-node owner.
 - `RunState.current_node_index` is compatibility-only.
 
 ### Event / Reward / Level-Up / Support
@@ -141,6 +143,8 @@ Current implemented baseline:
 - pending level-up truth from `LevelUpState` when `LevelUp` is active
 - pending support truth from `SupportInteractionState` when `SupportInteraction` is active
 - application continuity from `RunSessionCoordinator.get_app_state_save_data()`
+  - `last_run_result` is real application continuity there
+  - current pending-node fields there are compatibility mirrors over `MapRuntimeState` owner truth, not a second owner
 - snapshot assembly and restore via `SaveRuntimeBridge`
 - file IO and baseline snapshot validation via `SaveService`
 

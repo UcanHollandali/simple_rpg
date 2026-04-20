@@ -9,6 +9,26 @@ const InventoryStateScript = preload("res://Game/RuntimeState/inventory_state.gd
 var _loader: ContentLoader = ContentLoaderScript.new()
 
 
+func build_definition_display_name(
+	inventory_family: String,
+	definition_id: String,
+	slot_overrides: Dictionary = {}
+) -> String:
+	var normalized_inventory_family: String = String(inventory_family).strip_edges()
+	var normalized_definition_id: String = String(definition_id).strip_edges()
+	if normalized_inventory_family.is_empty() or normalized_definition_id.is_empty():
+		return normalized_definition_id
+
+	var definition_family: String = _definition_family_for_inventory_family(normalized_inventory_family)
+	var definition: Dictionary = _load_definition(definition_family, normalized_definition_id)
+	if definition.is_empty():
+		return normalized_definition_id
+
+	var slot: Dictionary = slot_overrides.duplicate(true)
+	slot["definition_id"] = normalized_definition_id
+	return _build_item_display_name(definition, normalized_definition_id, slot)
+
+
 func build_definition_summary_text(
 	inventory_family: String,
 	definition_id: String,

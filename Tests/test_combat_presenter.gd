@@ -144,17 +144,17 @@ func test_state_text_reflects_combat_snapshot() -> void:
 		"Expected combat-state bust lookup to resolve through the stable enemy_<definition_id>_bust naming convention."
 	)
 	assert(
-		presenter.call("build_enemy_bust_texture_path_from_definition_id", "gate_warden") == "res://Assets/Enemies/enemy_gate_warden_bust.png",
-		"Expected boss bust lookup to reuse the same definition_id-based runtime naming convention."
+		presenter.call("build_enemy_bust_texture_path_from_definition_id", "tollhouse_captain") == "res://Assets/Enemies/enemy_tollhouse_captain_bust.png",
+		"Expected live stage-1 boss bust lookup to resolve through the direct definition_id-based runtime naming convention."
 	)
 	var boss_combat_state: CombatState = CombatState.new()
 	boss_combat_state.enemy_definition = {
-		"definition_id": "gate_warden",
-		"display": {"icon_key": "enemy_gate_warden"},
+		"definition_id": "tollhouse_captain",
+		"display": {"icon_key": "enemy_tollhouse_captain"},
 		"tags": ["enemy", "boss"],
 	}
 	assert(
-		presenter.call("build_enemy_token_texture_path", boss_combat_state) == "res://Assets/Enemies/enemy_gate_warden_token.png",
+		presenter.call("build_enemy_token_texture_path", boss_combat_state) == "res://Assets/Enemies/enemy_tollhouse_captain_token.png",
 		"Expected boss token lookup to resolve through the authored icon_key at the stable runtime token path."
 	)
 	assert(
@@ -180,8 +180,8 @@ func test_state_text_reflects_combat_snapshot() -> void:
 		"tags": ["enemy", "boss"],
 	}
 	assert(
-		presenter.call("build_enemy_token_texture_path", early_boss_combat_state) == "res://Assets/Enemies/enemy_gate_warden_token.png",
-		"Expected early bosses without a bespoke token to reuse the current prototype boss token fallback."
+		presenter.call("build_enemy_token_texture_path", early_boss_combat_state) == "res://Assets/Enemies/enemy_tollhouse_captain_token.png",
+		"Expected the stage-1 live boss to resolve its direct token path instead of depending on a legacy fallback mapping."
 	)
 	assert(
 		presenter.call("build_enemy_bust_texture_path_from_definition_id", "").is_empty(),
