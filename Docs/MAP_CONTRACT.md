@@ -9,6 +9,7 @@ This file defines the minimum map topology, traversal, and viability contract fo
 - Each stage uses a bounded node graph centered on local exploration.
 - The player starts from a center anchor node.
 - Stage visibility uses partial undiscovered information; the player explores from local revealed information rather than full-route certainty.
+- Board presentation may pre-compose a full derived stage layout at stage start, but discovery should only change visibility/readability, not graph truth or traversal semantics.
 - Dedicated fog presentation on the board is currently suspended; hidden nodes stay runtime-undiscovered without separate fog cards or fog labels.
 - Movement is adjacency-based between neighboring reachable nodes.
 - Revisit is allowed inside a stage.

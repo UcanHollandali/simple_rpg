@@ -28,18 +28,18 @@ Gameplay and technical rules still live where `Docs/DOC_PRECEDENCE.md` says they
   - pending-node continuity still spans `RunSessionCoordinator` save orchestration and `MapRuntimeState` owner-side load/consume behavior; any owner move there is escalate-first.
 - Hotspot measurements:
   - `Game/RuntimeState/map_runtime_state.gd`: `2395` lines
-  - `Game/UI/map_board_composer_v2.gd`: `1257` lines
+  - `Game/UI/map_board_composer_v2.gd`: `1247` lines
   - `scenes/combat.gd`: `1184` lines
   - `scenes/map_explore.gd`: `1000` lines
   - `Game/Application/inventory_actions.gd`: `1087` lines
-  - `Game/UI/map_route_binding.gd`: `1093` lines
+  - `Game/UI/map_route_binding.gd`: `1079` lines
   - `Game/RuntimeState/inventory_state.gd`: `1060` lines
   - `Game/Application/run_session_coordinator.gd`: `1016` lines
   - `Game/RuntimeState/support_interaction_state.gd`: `976` lines
   - `Game/Application/combat_flow.gd`: `764` lines
 - Measured map-pass status:
-  - already landed: display-name helper, presenter wiring, topology refactor, composer path-family differentiation
-  - still open: reconnect tuning follow-up, placement tuning follow-up, asset hook wiring, variation cleanup
+  - already landed: display-name helper, presenter wiring, topology refactor, composer path-family differentiation, graph-stable frozen full-layout filtering, and initial board-footprint widening
+  - still open: reconnect tuning follow-up, widened-footprint follow-up, approved asset hook wiring from the `SourceArt/Generated/new` candidate pack, and variation cleanup
 
 ## Already Applied
 
@@ -75,8 +75,8 @@ Gameplay and technical rules still live where `Docs/DOC_PRECEDENCE.md` says they
    - Goal: clear the remaining flow/application/scene drift without changing save shape, pending-node ownership, or gameplay authority boundaries.
    - Exit: guarded cleanup is green with targeted tests, scene isolation, and full suite.
 3. [03_extraction_and_next_wave.md](Promts/03_extraction_and_next_wave.md)
-   - Goal: execute the extraction wave, then carry the map-specific next steps in order.
-   - Exit: hotspot owners have visible headroom, extraction docs/caps are updated, and the map wave is either completed or explicitly blocked on approved asset filenames.
+   - Goal: execute the extraction wave, then carry the remaining map-specific next steps without regressing the frozen-layout baseline.
+   - Exit: hotspot owners have visible headroom, extraction docs/caps are updated, and the remaining map wave is either completed or explicitly blocked on approved asset filenames.
 
 ## Continuation Launch Order
 
@@ -109,6 +109,7 @@ Gameplay and technical rules still live where `Docs/DOC_PRECEDENCE.md` says they
 
 - Bring approved visual/audio assets into the runtime with manifest-tracked provenance.
 - Finish map asset hook wiring and variation cleanup after the extraction work is stable.
+- Treat `SourceArt/Generated/new` as the current candidate prototype kit, not as an authority doc surface.
 
 ### Phase G - Expansion
 

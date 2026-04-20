@@ -94,7 +94,6 @@ var _roadside_visual_state: Dictionary = {}
 var _roadside_transition_in_flight: bool = false
 var _route_selection_in_flight: bool = false
 var _board_graph_signature: String = ""
-var _board_visibility_signature: String = ""
 var _force_next_layout_recompose: bool = false
 var _composed_board_size: Vector2 = Vector2.ZERO
 var _allow_large_resize_recompose_once: bool = true
@@ -172,19 +171,15 @@ func prepare_for_refresh(run_state) -> void:
 	_current_run_state = run_state
 	var route_grid: Control = get_route_grid()
 	var graph_signature: String = _build_board_graph_signature(run_state)
-	var visibility_signature: String = _build_board_visibility_signature(run_state)
 	var stable_layout: Dictionary = {}
 	if not _force_next_layout_recompose and graph_signature == _board_graph_signature and not _board_composition_cache.is_empty():
 		stable_layout = {
 			"world_positions": (_board_composition_cache.get("world_positions", {}) as Dictionary).duplicate(true),
 			"forest_shapes": (_board_composition_cache.get("forest_shapes", []) as Array).duplicate(true),
+			"layout_edges": (_board_composition_cache.get("layout_edges", []) as Array).duplicate(true),
 		}
-		if visibility_signature == _board_visibility_signature:
-			stable_layout["visible_nodes"] = (_board_composition_cache.get("visible_nodes", []) as Array).duplicate(true)
-			stable_layout["visible_edges"] = (_board_composition_cache.get("visible_edges", []) as Array).duplicate(true)
 	_board_composition_cache = _build_board_composition(run_state, stable_layout)
 	_board_graph_signature = graph_signature
-	_board_visibility_signature = visibility_signature
 	_force_next_layout_recompose = false
 	_composed_board_size = route_grid.size if route_grid != null else Vector2.ZERO
 	if not _route_selection_in_flight:
@@ -685,15 +680,6 @@ func _build_board_graph_signature(run_state) -> String:
 		"stage_index": int(run_state.stage_index),
 		"template_id": String(map_runtime_state.get_active_template_id()),
 		"nodes": normalized_nodes,
-	})
-
-
-func _build_board_visibility_signature(run_state) -> String:
-	if run_state == null or run_state.map_runtime_state == null:
-		return ""
-	return JSON.stringify({
-		"current_node_id": int(run_state.map_runtime_state.current_node_id),
-		"nodes": run_state.map_runtime_state.build_node_snapshots(),
 	})
 
 

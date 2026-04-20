@@ -23,8 +23,10 @@ These points are based on the current repo state, not on proposal:
 - The realized graph currently stores `node_id`, `node_family`, `node_state`, and `adjacent_node_ids`.
 - The current save payload does not store board coordinates, spline points, clearing masks, or decor placements.
 - `MapBoardComposerV2` currently derives world positions, visible edge trails, forest shapes, and focus offset from runtime graph truth plus board seed.
+- The current graph-stable board cache now preserves `world_positions`, frozen `layout_edges`, and `forest_shapes` when the realized graph signature stays unchanged.
+- The current visible-node and visible-edge read is now filtered from that frozen full-layout cache instead of regenerating edge geometry from the currently visible subset.
 - `scenes/map_explore.gd` keeps only a narrow emergency fixed-slot fallback when composer world positions are missing; live board presentation is composer-driven.
-- The current stage graph truth is controlled-scatter and compact, with one start anchor and bounded portrait readability.
+- The current stage graph truth is controlled-scatter and compact, with one start anchor and bounded portrait readability; the latest footprint tuning widens depth spread and reduces margins so the board uses more of the available portrait surface without changing owner truth.
 - Dedicated fog cards are currently suspended by contract; undiscovered nodes remain runtime-hidden instead.
 
 ## Problem Statement
@@ -50,6 +52,8 @@ Map Composer V2 should keep the existing gameplay truth and stage contract while
 - Preserve portrait readability and the `2-3` meaningful outward-option target.
 - Keep gameplay truth in `MapRuntimeState`, not in scenes or UI.
 - Keep save-safe exact restore without introducing presentation-owned save truth for the baseline.
+- Reveal should change visibility, not layout.
+- Use more of the available board surface before resorting to aggressive camera/focus drift.
 - Let `corridor`, `openfield`, and `loop` scaffolds feel different in presentation without changing their runtime guarantee floor.
 - Match `VISUAL_AUDIO_STYLE_GUIDE.md` "Dark Forest Wayfinder" direction: readable before atmospheric, stylized before realistic.
 
@@ -145,6 +149,25 @@ The composer may derive:
 
 This preserves save/load visual stability without changing save shape.
 
+## Frozen Layout Rule
+
+## Full Layout Snapshot (Current Baseline + Kept)
+
+- For a stable realized-graph signature, the board should keep one frozen derived layout snapshot.
+- The frozen snapshot currently includes:
+  - all node world positions
+  - full edge/path geometry (`layout_edges`)
+  - forest-pocket shape output
+- Clearing anchors and decor/filler anchors may remain derived presentation data, but they should follow the same rule: graph-stable layout artifacts do not get regenerated from the visible subset alone.
+
+## Visibility Filter Rule (Proposed)
+
+- Discovery should widen or narrow the visible subset only.
+- `visible_nodes` should be filtered from the frozen node layout.
+- `visible_edges` should be filtered from the frozen full edge geometry.
+- Visibility changes must not generate new control points, new trail families, or new alternate path shapes for already-frozen graph edges.
+- If implementation pressure requires saving layout payload or moving owner meaning, stop and escalate first instead of widening the baseline.
+
 ## Node Placement Rule
 
 ## Placement Principle (Proposed)
@@ -152,6 +175,7 @@ This preserves save/load visual stability without changing save shape.
 - The graph should be laid out from a center-start anchor, then read as radial/local neighborhoods rather than horizontal rows.
 - The absolute composition should stay start-rooted.
 - Camera/focus drift may follow the current node, but the underlying node positions should remain stable for the stage.
+- Placement should use more of the available portrait board before drift/follow logic recenters the player too aggressively.
 
 ## Placement Steps (Proposed)
 
@@ -161,6 +185,7 @@ This preserves save/load visual stability without changing save shape.
 4. Grow deeper nodes outward from their primary parent, with deterministic within-branch jitter and sibling spread.
 5. Place reconnect nodes between their contributing parent pockets, then push them slightly outward so the trail reads as a detour.
 6. Resolve collisions by shrinking local drift first, then nudging inside the branch corridor before allowing broader cross-branch movement.
+7. Prefer footprint widening through margin reduction plus depth-step/spread tuning before adding more focus-follow compensation.
 
 ## Ring Baseline (Proposed)
 
@@ -187,6 +212,7 @@ This is a proposed composition baseline, not a map-rule contract:
 - The visible pocket should still read as one local neighborhood.
 - At normal portrait zoom, the player should usually judge `2-3` outward choices, not all unresolved nodes at once.
 - Node overlays must not overlap each other or sit on top of the current-node walker lane.
+- Footprint widening must preserve overlap safety, edge-crossing readability, and mobile tap clarity.
 
 ## Path Generation Rule
 
@@ -211,6 +237,7 @@ This is a proposed composition baseline, not a map-rule contract:
 - `discovered` and `resolved` nodes may reveal their connecting trail inside the visible pocket.
 - `locked` boss approaches may show the visible locked approach if the boss node is already discovered.
 - `undiscovered` deeper edges must stay hidden under canopy / non-readable fill.
+- Hidden nodes and hidden edges may stay pre-composed internally, but the player-facing board must reveal them by visibility filtering rather than by regenerating path geometry.
 - V2 must not reintroduce dedicated fog cards or readable hidden-node labels.
 
 ## Trail Rendering Layers (Proposed)

@@ -96,6 +96,15 @@ static func polyline_hits_other_visible_nodes(
 	return false
 
 
+static func polyline_stays_inside_board_frame(points: PackedVector2Array, board_size: Vector2, tolerance: float = 12.0) -> bool:
+	for point in points:
+		if point.x < -tolerance or point.x > board_size.x + tolerance:
+			return false
+		if point.y < -tolerance or point.y > board_size.y + tolerance:
+			return false
+	return true
+
+
 static func edge_node_avoidance_offset(
 	points: PackedVector2Array,
 	from_node_id: int,
