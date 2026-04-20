@@ -45,7 +45,7 @@ This file locks the technical baseline that should not stay ambiguous.
 - macOS/Linux asset validator: `python3 Tools/validate_assets.py`
 - Windows architecture guard validator: `py -3 Tools/validate_architecture_guards.py`
 - macOS/Linux architecture guard validator: `python3 Tools/validate_architecture_guards.py`
-  - current guard scope: no new in-repo `dispatch()` callers, no new runtime-side `RunState` compatibility reads, no new test-side inventory compatibility reads, no new runtime-side `current_node_index` creep outside explicit compatibility files, no new scene/UI direct gameplay-truth mutation creep, no new combat inventory slot-id compatibility bridge spread, no new stale `RunSummaryCard` tree-scan workaround growth, no new Application/Infrastructure presentation-node coupling, no new hotspot large-file line-count creep on the current extraction-first slices, and no new `AppBootstrap` / `RunSessionCoordinator` public-surface growth
+  - current guard scope: no new in-repo `dispatch()` callers, no new runtime-side `RunState` compatibility reads, no new test-side inventory compatibility reads, no new runtime-side `current_node_index` creep outside explicit compatibility files, no new scene/UI direct gameplay-truth mutation creep, no new combat inventory slot-id compatibility bridge spread, no new stale `RunSummaryCard` tree-scan workaround growth, no new Application/Infrastructure presentation-node coupling, no new hotspot large-file line-count creep on the current extraction-first slices, no stale wrapper regression, no implemented command/event catalog drift, no typed-owner reflection regression on the current locked low-risk slices, no new `AppBootstrap` / `RunSessionCoordinator` public-surface growth, no new `/root/AppBootstrap` lookup spread, and no retired stage-1 boss surface regressions outside explicit planning/history docs
 - Windows playtest export: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/export_windows_playtest.ps1`
 - Windows portrait screenshot review capture: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_portrait_review_capture.ps1`
 - Windows local cache/build cleanup: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/clean_local_artifacts.ps1`
@@ -127,7 +127,7 @@ Layer-oriented suffixes are encouraged:
 
 ## Repo Layout
 
-- `Docs/`: authoritative docs
+- `Docs/`: mixed authority and reference docs; use `Docs/DOC_PRECEDENCE.md` for topic routing instead of treating the whole folder as a single authority surface
 - `Game/`: code by layer
 - `scenes/`: Godot presentation/composition
 - `ContentDefinitions/`: canonical content data

@@ -24,8 +24,11 @@ Only one main flow state is active at a time.
 - `NodeResolve`
 
 `NodeResolve` remains implemented as a legacy transition-shell state.
-It is not on the current live map-to-interaction path.
-Current repo truth: it is reached only from direct-entry fallback for legacy `side_mission` saves or equivalent legacy-compatible pending-node restore paths.
+Current repo truth:
+- current runtime-backed direct-entry node families bypass it in the normal path
+- generic pending-node fallback can still route `MapExplore -> NodeResolve`
+- legacy-compatible pending-node restore paths can still route into it
+- locked continuation decision: this live generic fallback is an explicit legacy-compat path for now, not an accidental stale branch to remove opportunistically
 
 ## Main Principles
 
@@ -57,6 +60,7 @@ Current repo truth: it is reached only from direct-entry fallback for legacy `si
 ## Legacy-Compat Transition
 
 - `NodeResolve -> Event | Reward | LevelUp | SupportInteraction | StageTransition | MapExplore | RunEnd`
+- `MapExplore -> NodeResolve` still exists as the generic pending-node fallback when direct-entry family routing does not claim the destination
 
 ## Transition Rules
 
@@ -96,10 +100,14 @@ Current repo truth: it is reached only from direct-entry fallback for legacy `si
   - `StageTransition`
 - This safe-menu exit path does not add a new flow state and does not change save ownership; it only routes the active save-safe state back to the menu shell.
 - `RunEnd` is terminal for the active run, even if the app later returns to `MainMenu`.
-- `NodeResolve` remains implemented as a legacy transition-shell state, but the current live map traversal does not route into it.
+- `NodeResolve` remains implemented as a legacy transition-shell state, but the current mainline runtime-backed node families do not route into it.
 - Current intended compat entry is narrow:
   - direct-entry fallback for legacy `side_mission` save restoration
   - equivalent pending-node restore paths that still deserialize that legacy family
+- Current generic-fallback note:
+  - if direct-entry family routing does not claim a destination, runtime may still open `NodeResolve`
+  - `NodeResolve -> Combat` therefore remains part of the live transition table even though normal `combat` / `boss` routing is direct
+  - behavior-changing removal of that fallback requires a dedicated flow audit; prompt cleanup should only make the path explicit, not silently remove it
 - The dedicated `event` node family now reads as `Trail Event` in player-facing UI, while `Roadside Encounter` is reserved for the movement-triggered interruption.
 - Current `MapExplore` runtime opens `Combat` directly for:
   - `combat`

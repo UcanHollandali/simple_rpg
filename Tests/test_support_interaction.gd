@@ -202,9 +202,9 @@ func _on_process_frame() -> void:
 				_advance_phase(12)
 		12:
 			if _is_scene("SupportInteraction"):
-				var blacksmith_target_state: RefCounted = _get_support_state()
+				var blacksmith_target_state: SupportInteractionState = _get_support_state() as SupportInteractionState
 				_require(blacksmith_target_state != null, "Expected blacksmith target-selection state after opening weapon tempering.")
-				_require(bool(blacksmith_target_state.call("is_blacksmith_target_selection_active")), "Expected blacksmith to switch into target-selection mode.")
+				_require(blacksmith_target_state.is_blacksmith_target_selection_active(), "Expected blacksmith to switch into target-selection mode.")
 				_require(String(blacksmith_target_state.title_text) == "Temper Weapon", "Expected blacksmith target-selection title to stay explicit.")
 				_require(String(blacksmith_target_state.offers[0].get("label", "")).contains("Iron Sword"), "Expected the first blacksmith target to include the carried non-active weapon.")
 				var support_root: Node = _get_scene_root("SupportInteraction")

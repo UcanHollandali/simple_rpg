@@ -37,11 +37,6 @@ func is_implemented_save_safe_now(state: int) -> bool:
 	return FlowStateScript.is_implemented_save_safe_now(state)
 
 
-func is_supported_save_state_now(state: int) -> bool:
-	# Compatibility alias. Prefer is_implemented_save_safe_now().
-	return is_implemented_save_safe_now(state)
-
-
 func create_snapshot(
 	save_path: String,
 	active_flow_state: int,

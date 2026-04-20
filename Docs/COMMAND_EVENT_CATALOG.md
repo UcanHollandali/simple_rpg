@@ -40,11 +40,13 @@ Implemented now:
 - `GameFlowManager.flow_state_changed`
 - `CombatFlow.combat_ended_signal`
 - `CombatFlow.domain_event_emitted`
+- `CombatFlow.turn_phase_resolved`
 
 Current emitted `domain_event_emitted` names:
 - `CombatStarted`
 - `PlayerActionChosen`
 - `EnemyIntentRevealed`
+- `BossPhaseChanged`
 - `DamageApplied`
 - `StatusApplied`
 - `StatusTicked`
@@ -55,6 +57,11 @@ Current emitted `domain_event_emitted` names:
 - `GuardAbsorbed`
 - `ConsumableUsed`
 - `EnemyDefeated`
+
+Current `turn_phase_resolved` phase names:
+- `player_action`
+- `enemy_action`
+- `turn_end`
 
 ## Future Naming Registry Only
 

@@ -52,10 +52,8 @@ const ENEMY_BUST_FALLBACK_TEXTURE_PATHS := {
 	"cutpurse_duelist": "res://Assets/Enemies/enemy_lantern_cutpurse_bust.png",
 	"gatebreaker_brute": "res://Assets/Enemies/enemy_bone_raider_bust.png",
 	"thornwood_warder": "res://Assets/Enemies/enemy_dusk_pikeman_bust.png",
-	"tollhouse_captain": "res://Assets/Enemies/enemy_gate_warden_bust.png",
 }
 const ENEMY_TOKEN_FALLBACK_TEXTURE_PATHS := {
-	"enemy_tollhouse_captain": "res://Assets/Enemies/enemy_gate_warden_token.png",
 }
 const MAP_TRAIL_TEXTURE_PATHS_BY_FAMILY := {
 	"short_straight": "res://Assets/UI/Map/Trails/ui_map_v2_trail_short_straight.svg",

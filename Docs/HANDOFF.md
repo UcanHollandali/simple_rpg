@@ -1,6 +1,6 @@
 # SIMPLE RPG - Handoff
 
-Last updated: 2026-04-18
+Last updated: 2026-04-20
 
 This file is a current-state snapshot only.
 It is not a rule contract. If it conflicts with an authority doc, the authority doc wins.
@@ -20,12 +20,15 @@ It is not a rule contract. If it conflicts with an authority doc, the authority 
   - `Combat -> Reward -> LevelUp? -> MapExplore` on non-boss wins
   - `Combat -> StageTransition -> MapExplore` on stage `1-2` boss wins
   - `Combat -> RunEnd` on final boss or defeat
-  - `NodeResolve` remains implemented as legacy transition-shell code, but it is no longer on the live map-to-interaction path
+  - `NodeResolve` remains implemented as legacy transition-shell code; current runtime-backed node families bypass it on the normal path, but generic fallback and legacy-compatible pending-node restore can still route into it
 - Runtime ownership remains stable:
   - `MapRuntimeState` owns realized graph truth, node state, pending node context, key/boss-gate state, support revisit state, and hamlet side-quest state
   - `RunSessionCoordinator` owns movement resolution, roadside interruption continuation, and pending screen orchestration
   - `MapBoardComposerV2` derives graph-native board positions / trails / forest shapes from runtime truth plus seed; it does not write layout back into runtime state
   - `AppBootstrap` remains a facade over flow/run/save coordination; do not widen its gameplay-facing convenience surface without explicit escalation
+  - pending-node save continuity is still a compatibility-sensitive split:
+    - `RunSessionCoordinator` writes/restores the current save-facing `app_state` pending-node fields
+    - `MapRuntimeState` remains the runtime owner that consumes/loads the effective pending-node context
   - no owner split has happened for `MapRuntimeState`; a planning-only extraction report now lives at `Docs/MAP_RUNTIME_STATE_EXTRACTION_PLAN.md`
 - Current inventory baseline:
   - `InventoryState` now uses explicit `right_hand` / `left_hand` / `armor` / `belt` equipment slots plus backpack-only carried slots
@@ -133,16 +136,25 @@ It is not a rule contract. If it conflicts with an authority doc, the authority 
   - the remaining historical removed-action text in the repo is now limited to historical decision-log rows, deprecation notes, and a regression test assertion
   - the old pre-migration balance-analysis lane has been removed; use current contracts, targeted tests, and live playtests for balance claims
   - a reference-only current content inventory now lives at `Docs/CONTENT_BALANCE_TRACKER.md` so future balance passes do not have to reconstruct the full item/enemy/event surface from scattered contracts
+  - legacy audit and prompt material has been consolidated under `Docs/Archive/`; the active continuation queue now lives in `Docs/ROADMAP.md` plus the three active prompt packs under `Docs/Promts/`
+  - live entry docs now keep authority routing explicit: `README.md` and `Docs/TECH_BASELINE.md` no longer describe the whole `Docs/` tree as one flat authority surface
   - `Game/Application/game_flow_manager.gd` no longer keeps the old deprecated `dispatch()` surface
   - `Game/Infrastructure/playtest_logger.gd` is now live for debug / `--playtest-log` local session capture
   - the `get_node_or_null()` hot path in `combat.gd` was reduced sharply through scene-cache extraction; the old `118` refresh-heavy lookups are no longer live, though raw file grep still finds a small set of local card-shell lookups
+  - typed-owner reflection cleanup now stays guard-locked on the current low-risk slices:
+    - `Game/UI/map_explore_presenter.gd`
+    - `Game/UI/map_route_binding.gd`
+    - `Game/UI/support_interaction_presenter.gd`
+    - `scenes/support_interaction.gd`
+    - `Game/Infrastructure/scene_router.gd`
+    - `Game/Core/combat_resolver.gd`
   - recent extraction passes significantly reduced the two largest scene hotspots:
-    - `scenes/combat.gd` is now `1099` lines
-    - `scenes/map_explore.gd` is now `906` lines
+    - `scenes/combat.gd` is now `1184` lines
+    - `scenes/map_explore.gd` is now `1000` lines
   - `save_service.gd` is now split:
-    - `Game/Infrastructure/save_service.gd` keeps schema-8 write, dispatch, and validation (`661` lines)
+    - `Game/Infrastructure/save_service.gd` keeps schema-8 write, dispatch, and validation (`660` lines)
     - `Game/Infrastructure/save_service_legacy_loader.gd` carries schema `1/2/5/6/7` compat checks
-  - `map_runtime_state.gd` still remains a large high-risk owner file (`2398` lines / `146` functions), but there is now a report-only extraction plan instead of live owner-changing cleanup
+  - `map_runtime_state.gd` still remains a large high-risk owner file (`2395` lines / `147` functions), but there is now a report-only extraction plan instead of live owner-changing cleanup
 - Current save baseline:
   - `save_schema_version = 8`
   - `content_version = prototype_content_v7`
@@ -171,10 +183,12 @@ Re-run them after new dirty-worktree changes before treating them as live proof 
   - map/combat visual family consistency
   - hover/click readability on portrait targets
 - `NodeResolve` is still present as legacy code. Do not remove it without an explicit flow audit.
+- The live generic `NodeResolve` fallback and legacy-compatible pending-node restore still exist. Behavior-changing cleanup there is not fast-lane work.
+- Pending-node continuity still crosses `RunSessionCoordinator` save orchestration and `MapRuntimeState` runtime ownership. Do not move that boundary without an explicit save audit.
 - `ContentDefinitions/EventTemplates/` still contains `10` `zz_*.json` alphabetical-hack files; stable-ID cleanup has not been approved yet.
-- `gate_warden` remains outside the live stage boss pool, but its content definition, tests, and enemy art assets are still present.
 - Shield/offhand content is no longer a one-item lane; the current content pack now includes `5` shield definitions and `3` offhand-capable weapons, but live combat semantics over that wider authored surface are still intentionally narrow and still need manual feel checks.
 - `AppBootstrap` and several other hotspot files remain large; extraction-first guardrails are now in place, but no owner-changing cleanup happened in the latest passes.
+- `AppBootstrap` public-surface growth and new `/root/AppBootstrap` lookup spread are now validator-locked, but the existing dependency surface is still live and belongs to guarded cleanup only.
 - the current architecture guard now blocks silent line-count growth on the current extraction-first hotspot files, including:
   - `map_runtime_state.gd`
   - `combat.gd`
@@ -185,7 +199,6 @@ Re-run them after new dirty-worktree changes before treating them as live proof 
   - `inventory_state.gd`
   - `inventory_actions.gd`
   - `map_route_binding.gd`
-- there is still no `Docs/Audit/` folder and no RuntimeState owner audit beyond the current report-only `Docs/MAP_RUNTIME_STATE_EXTRACTION_PLAN.md`.
 - Windows export playtests no longer require a preinstalled local template copy if the machine can reach the official Godot `4.6.2` export-template archive during export helper setup.
   - fully offline machines still need a local matching template copy
 - Current validated headless snapshot no longer leaves known shutdown-only `ObjectDB instances leaked at exit` / `resources still in use at exit` warnings in `_godot_profile/logs` after the explicit full-suite lane.
@@ -194,14 +207,61 @@ Re-run them after new dirty-worktree changes before treating them as live proof 
 
 ## Next Step
 
-1. Manual playtest the current map/combat/shared-inventory polish pass:
-   - listen to menu/map/combat/run-end transitions for fatigue and loop feel
-   - verify short-route vs long-route map travel rhythm and board follow
-   - visual playtest the map board and overlay screens at portrait targets (`1080x2400`, `1080x1920`, `720x1280`)
-   - visual playtest a roadside interruption into a normal destination and confirm the destination still resolves after the roadside flow closes
-   - visual playtest defend/guard turns, low-HP recovery turns, and action-hint hover timing in combat
-   - verify shared inventory panel feel across `MapExplore` and `Combat`, especially compact combat density and hover stability
-   - verify equip/unequip on map no longer causes run reset or item loss
-2. If/when `map_runtime_state.gd` extraction starts, use `Docs/MAP_RUNTIME_STATE_EXTRACTION_PLAN.md` first and keep it in escalate-first lane.
-3. If another machine needs local Windows export/playtest runs, allow `Tools/export_windows_playtest.ps1` to fetch the official `4.6.2` export templates or install the matching templates locally first for offline use.
-4. If future headless teardown/resource warnings reappear, inspect the current `_godot_profile/logs/` snapshot first before assuming runtime drift.
+1. Close `Docs/Promts/01_foundation_fastlane.md` by keeping `HANDOFF.md`, `ROADMAP.md`, `TECH_BASELINE.md`, and `MAP_RUNTIME_STATE_EXTRACTION_PLAN.md` aligned to the current measurements, guard-backed retired surfaces, and explicit escalation items.
+   - treat Prompt 01 as a short closeout-only sanity pass; if the active docs/guards are already aligned, do not invent filler cleanup
+2. After the foundation closeout is green, run `Docs/Promts/02_guarded_cleanup.md` to clear the remaining flow/application/scene drift without changing pending-node ownership, save shape, or live `NodeResolve` behavior.
+3. Start `Docs/Promts/03_extraction_and_next_wave.md` only after the guarded pass is green; keep `MapRuntimeState` and the big-file chain owner-preserving, and treat pending-node / key-boss-gate / save-codec drift as escalate-first.
+4. Keep manual map/combat/shared-inventory playtests as the human verification lane between the guarded cleanup and the later playtest/telemetry phase.
+
+## Continuation Status
+
+- Ready now: `Docs/Promts/01_foundation_fastlane.md`
+  - scope: doc/guard sanity pass only; if it comes up clean, close it and move directly to Prompt 02
+- Not ready yet: `Docs/Promts/02_guarded_cleanup.md`
+  - blocked by Prompt 01 closeout
+- Not ready yet: `Docs/Promts/03_extraction_and_next_wave.md`
+  - blocked by Prompt 02 guarded cleanup
+- Locked continuation decisions:
+  - canonical pending-node owner: `MapRuntimeState`
+  - `app_state.pending_node_id` / `app_state.pending_node_type` remain compatibility mirrors for save/restore orchestration; they are not a second owner
+  - the live `NodeResolve` generic fallback stays until an explicit flow audit approves behavior-changing removal
+  - existing `/root/AppBootstrap` usage may shrink only when owner meaning and live flow behavior stay unchanged
+- Explicit escalation items before owner/flow cleanup:
+  - changing the pending-node save lane beyond the current compatibility mirror
+  - changing or removing the live `NodeResolve` generic fallback behavior
+  - narrowing the existing `/root/AppBootstrap` dependency surface if ownership or flow meaning would change
+
+## New Chat Start Order
+
+Use this exact continuation order in a fresh chat:
+
+1. `AGENTS.md`
+2. `Docs/DOC_PRECEDENCE.md`
+3. `Docs/HANDOFF.md`
+4. `Docs/ROADMAP.md`
+5. `Docs/Promts/01_foundation_fastlane.md`
+
+Prompt progression rule:
+
+- Start only with Prompt 01.
+- If Prompt 01 finds no real fast-lane drift, close it quickly and move directly to Prompt 02.
+- Do not start Prompt 03 before Prompt 02 is green.
+
+Copy/paste start message for a new chat:
+
+```text
+AGENTS.md, Docs/DOC_PRECEDENCE.md, Docs/HANDOFF.md ve Docs/ROADMAP.md oku.
+Sonra yalnız Docs/Promts/01_foundation_fastlane.md promptunu uygula.
+Fast-lane dışına taşıyorsa dur ve "escalate first" de.
+
+Verilmiş kararları yeniden tartışma:
+- canonical pending-node owner = MapRuntimeState
+- app_state.pending_node_id / app_state.pending_node_type = compatibility mirror only, ikinci owner değil
+- live NodeResolve generic fallback stays unless explicit flow audit approves removal
+- existing /root/AppBootstrap usage may shrink only if owner meaning and live flow behavior stay unchanged
+
+Cleanup kuralı:
+- provably dead surface ise sil
+- live runtime/restore/test/validator use varsa koru
+- aktif sette "belki lazım olur" ballast tutma
+```

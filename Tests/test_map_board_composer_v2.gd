@@ -3,6 +3,7 @@ extends SceneTree
 class_name TestMapBoardComposerV2
 
 const MapBoardComposerV2Script = preload("res://Game/UI/map_board_composer_v2.gd")
+const MapBoardEdgeRoutingScript = preload("res://Game/UI/map_board_edge_routing.gd")
 const ALLOWED_PATH_FAMILIES := [
 	"short_straight",
 	"gentle_curve",
@@ -28,8 +29,11 @@ func _init() -> void:
 	test_map_board_composer_keeps_visible_edges_readable_without_crossings()
 	test_map_board_composer_keeps_visible_edges_clear_of_other_node_clearings()
 	test_map_board_composer_keeps_visible_edges_inside_board_frame()
+	test_map_board_composer_penalizes_edge_hugging_outer_reconnect_fallbacks()
+	test_map_board_composer_keeps_outer_reconnect_fallbacks_inside_the_inner_frame()
 	test_map_board_composer_keeps_discovered_history_edges_visible()
 	test_map_board_composer_keeps_one_visible_outer_reconnect_in_late_route_history()
+	test_map_board_composer_prefers_non_reconnect_history_when_crossing_reconnect_conflicts()
 	print("test_map_board_composer_v2: all assertions passed")
 	quit()
 
@@ -234,6 +238,68 @@ func test_map_board_composer_rotates_opening_shell_beyond_the_upper_half() -> vo
 	assert(observed_above, "Expected some seeded opening-shell branches to remain above the start anchor.")
 	assert(observed_below, "Expected seeded opening-shell branches to sometimes rotate below the start anchor instead of always clustering upward.")
 	assert(observed_left and observed_right, "Expected seeded opening-shell branches to span both left and right sides around the start anchor.")
+
+
+func test_map_board_composer_penalizes_edge_hugging_outer_reconnect_fallbacks() -> void:
+	var board_size := Vector2(920.0, 1180.0)
+	var p0 := Vector2(452.0, 348.0)
+	var p3 := Vector2(216.0, 662.0)
+	var edge_hugging_candidate := PackedVector2Array([
+		p0,
+		Vector2(p0.x, 84.0),
+		Vector2(72.0, 84.0),
+		Vector2(72.0, p3.y),
+		p3,
+	])
+	var safer_candidate := PackedVector2Array([
+		p0,
+		Vector2(p0.x, 196.0),
+		Vector2(264.0, 196.0),
+		Vector2(264.0, p3.y),
+		p3,
+	])
+	var edge_hugging_score: float = MapBoardEdgeRoutingScript._outer_reconnect_candidate_score(
+		edge_hugging_candidate,
+		p0,
+		p3,
+		board_size
+	)
+	var safer_score: float = MapBoardEdgeRoutingScript._outer_reconnect_candidate_score(
+		safer_candidate,
+		p0,
+		p3,
+		board_size
+	)
+	assert(
+		edge_hugging_score > safer_score,
+		"Expected outer reconnect fallback scoring to demote frame-hugging detours when a more centered candidate is available."
+	)
+
+
+func test_map_board_composer_keeps_outer_reconnect_fallbacks_inside_the_inner_frame() -> void:
+	var board_size := Vector2(920.0, 1180.0)
+	var p0 := Vector2(786.0, 522.0)
+	var p3 := Vector2(212.0, 296.0)
+	var fallback_points: PackedVector2Array = MapBoardEdgeRoutingScript.build_outer_reconnect_fallback_points(
+		p0,
+		p3,
+		[],
+		7,
+		3,
+		board_size,
+		MapBoardComposerV2Script.MIN_BOARD_MARGIN,
+		18.0
+	)
+	assert(
+		fallback_points.size() >= 4,
+		"Expected outer reconnect fallback generation to keep a usable multi-segment detour candidate."
+	)
+	for point_index in range(1, fallback_points.size() - 1):
+		var point: Vector2 = fallback_points[point_index]
+		assert(
+			point.x >= 84.0 and point.x <= board_size.x - 84.0 and point.y >= 96.0 and point.y <= board_size.y - 96.0,
+			"Expected outer reconnect fallback points to stay inside the inner board frame instead of hugging the hard edge. Point=%s" % [str(point)]
+		)
 
 
 func test_map_board_composer_surfaces_known_icons_for_seen_non_adjacent_nodes() -> void:
@@ -596,6 +662,40 @@ func test_map_board_composer_keeps_one_visible_outer_reconnect_in_late_route_his
 			String(reconnect_edge.get("path_family", "")) == "outward_reconnecting_arc",
 			"Expected visible same-depth reconnects to use the dedicated outward reconnect family instead of blending back into the ordinary corridor curves. Seed=%d." % seed
 		)
+
+
+func test_map_board_composer_prefers_non_reconnect_history_when_crossing_reconnect_conflicts() -> void:
+	var composer: RefCounted = MapBoardComposerV2Script.new()
+	var local_focus_edges: Array[Dictionary] = []
+	var history_edges: Array[Dictionary] = [
+		{
+			"from_node_id": 10,
+			"to_node_id": 11,
+			"is_reconnect_edge": true,
+			"depth_delta": 0,
+			"points": PackedVector2Array([Vector2(160.0, 160.0), Vector2(420.0, 420.0)]),
+		},
+		{
+			"from_node_id": 20,
+			"to_node_id": 21,
+			"is_reconnect_edge": false,
+			"depth_delta": 1,
+			"points": PackedVector2Array([Vector2(160.0, 420.0), Vector2(420.0, 160.0)]),
+		},
+	]
+	var filtered_history_edges: Array[Dictionary] = composer.call(
+		"_filter_non_crossing_history_edges",
+		local_focus_edges,
+		history_edges
+	)
+	assert(
+		filtered_history_edges.size() == 1,
+		"Expected the crossing-history filter to keep only one of two crossing history edges in this synthetic priority case."
+	)
+	assert(
+		not bool((filtered_history_edges[0] as Dictionary).get("is_reconnect_edge", true)),
+		"Expected non-reconnect history roads to win over crossing reconnect history edges so ordinary discovered routes do not disappear behind a decorative reconnect."
+	)
 
 
 func _visible_node_ids(composition: Dictionary) -> PackedInt32Array:

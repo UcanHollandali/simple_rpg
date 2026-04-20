@@ -116,7 +116,7 @@ Use this file to answer:
   - combat-time gear swap as a normal player-facing loop
   - combat-time backpack reorder as a normal player-facing loop
 - removed live flow role:
-  - `NodeResolve` as the active map-to-interaction bridge
+  - `NodeResolve` as the normal active map-to-interaction bridge for current runtime-backed node families
 - removed live music lane:
   - old `temp_01` music set
 
@@ -304,10 +304,7 @@ Use this file to answer:
 
 ### Legacy / Non-Active Boss Content
 
-- `gate_warden`
-  - still exists as valid content and test surface
-  - not part of the current live stage boss breadth
-  - keep in mind when reading enemy counts so you do not overestimate live boss variety
+- none in the live repo surface after the 2026-04-20 cleanup pass
 
 ## Status Pool
 

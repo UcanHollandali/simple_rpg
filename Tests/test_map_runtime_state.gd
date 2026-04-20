@@ -236,7 +236,6 @@ func test_content_loader_respects_enemy_authoring_order() -> void:
 		"venom_scavenger",
 		"skeletal_hound",
 		"forest_brigand",
-		"gate_warden",
 		"ash_gnawer",
 		"lantern_cutpurse",
 		"mossback_ram",

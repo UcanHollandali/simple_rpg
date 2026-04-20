@@ -11,9 +11,9 @@ Do not treat it as implementation authorization.
 Measured against the current repo snapshot, not the stale prompt numbers:
 
 - file: `Game/RuntimeState/map_runtime_state.gd`
-- current line count: `2044`
-- current function count: `146`
-- reference SHA256 at planning time: `7E2B09AAC9527288F22F42948FA6932BDB7A770F717C5967E7CA5D905191381B`
+- current line count: `2395`
+- current function count: `147`
+- reference SHA256 at planning time: `D6089EB1ECC73CD9C9516C830819986C817B7BB5D7CA73265F469B15C47C2FE1`
 
 ## Reading Rule
 

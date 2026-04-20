@@ -9,53 +9,53 @@ var _domain_events: Array[Dictionary] = []
 
 
 func _init() -> void:
-	test_gate_warden_starts_in_first_phase()
-	test_gate_warden_threshold_change_waits_until_turn_end()
+	test_tollhouse_captain_starts_in_first_phase()
+	test_tollhouse_captain_threshold_change_waits_until_turn_end()
 	test_briar_sovereign_can_reach_deepest_phase_from_threshold_check()
 	test_authored_bosses_define_phase_blocks()
 	print("test_boss_phases: all assertions passed")
 	quit()
 
 
-func test_gate_warden_starts_in_first_phase() -> void:
-	var flow: CombatFlow = _build_boss_flow("gate_warden")
-	assert(flow.combat_state.has_boss_phases(), "Expected gate_warden boss combat to expose boss phase truth.")
-	assert(String(flow.combat_state.boss_phase_id) == "iron_watch", "Expected gate_warden combat to start in the authored first phase.")
-	assert(String(flow.combat_state.boss_phase_display_name) == "Iron Watch", "Expected first boss phase display name to stay authored.")
-	assert(String(flow.combat_state.current_intent.get("intent_id", "")) == "pressing_bash", "Expected setup to reveal the first intent from the first phase pool.")
+func test_tollhouse_captain_starts_in_first_phase() -> void:
+	var flow: CombatFlow = _build_boss_flow("tollhouse_captain")
+	assert(flow.combat_state.has_boss_phases(), "Expected tollhouse_captain boss combat to expose boss phase truth.")
+	assert(String(flow.combat_state.boss_phase_id) == "road_toll", "Expected tollhouse_captain combat to start in the authored first phase.")
+	assert(String(flow.combat_state.boss_phase_display_name) == "Road Toll", "Expected first boss phase display name to stay authored.")
+	assert(String(flow.combat_state.current_intent.get("intent_id", "")) == "captain_test_cut", "Expected setup to reveal the first intent from the first phase pool.")
 	var presenter: RefCounted = CombatPresenterScript.new()
 	assert(
-		presenter.call("build_enemy_token_texture_path", flow.combat_state) == "res://Assets/Enemies/enemy_gate_warden_token.png",
-		"Expected live gate_warden boss combat to expose the dedicated boss token path."
+		presenter.call("build_enemy_token_texture_path", flow.combat_state) == "res://Assets/Enemies/enemy_tollhouse_captain_token.png",
+		"Expected live tollhouse_captain boss combat to expose the dedicated boss token path."
 	)
 
 	var combat_started_event: Dictionary = _find_domain_event("CombatStarted")
 	assert(not combat_started_event.is_empty(), "Expected CombatStarted signal payload to be emitted during boss setup.")
-	assert(String(combat_started_event.get("boss_phase_id", "")) == "iron_watch", "Expected CombatStarted payload to expose the initial boss phase id.")
-	assert(String(combat_started_event.get("boss_phase_display_name", "")) == "Iron Watch", "Expected CombatStarted payload to expose the initial boss phase display name.")
+	assert(String(combat_started_event.get("boss_phase_id", "")) == "road_toll", "Expected CombatStarted payload to expose the initial boss phase id.")
+	assert(String(combat_started_event.get("boss_phase_display_name", "")) == "Road Toll", "Expected CombatStarted payload to expose the initial boss phase display name.")
 
 
-func test_gate_warden_threshold_change_waits_until_turn_end() -> void:
-	var flow: CombatFlow = _build_boss_flow("gate_warden")
+func test_tollhouse_captain_threshold_change_waits_until_turn_end() -> void:
+	var flow: CombatFlow = _build_boss_flow("tollhouse_captain")
 	_domain_events.clear()
-	flow.combat_state.enemy_hp = 18
-	flow.combat_state.enemy_state["hp"] = 18
+	flow.combat_state.enemy_hp = 20
+	flow.combat_state.enemy_state["hp"] = 20
 
-	assert(String(flow.combat_state.current_intent.get("intent_id", "")) == "pressing_bash", "Expected threshold crossing alone not to replace the already revealed current intent.")
+	assert(String(flow.combat_state.current_intent.get("intent_id", "")) == "captain_test_cut", "Expected threshold crossing alone not to replace the already revealed current intent.")
 
 	var turn_end_result: Dictionary = flow.process_turn_end()
 	assert(int(turn_end_result.get("current_turn", -1)) == 2, "Expected turn end to advance the combat turn before revealing the new phase intent.")
-	assert(String(flow.combat_state.boss_phase_id) == "chain_unbound", "Expected gate_warden to enter the second authored phase once HP is at or below 60 percent.")
-	assert(String(flow.combat_state.current_intent.get("intent_id", "")) == "warden_cleave", "Expected phase change to reset the phase-local intent pool to its first intent.")
+	assert(String(flow.combat_state.boss_phase_id) == "captains_push", "Expected tollhouse_captain to enter the second authored phase once HP is at or below 60 percent.")
+	assert(String(flow.combat_state.current_intent.get("intent_id", "")) == "tollhouse_command", "Expected phase change to reset the phase-local intent pool to its first intent.")
 
 	var phase_event: Dictionary = _find_domain_event("BossPhaseChanged")
 	assert(not phase_event.is_empty(), "Expected BossPhaseChanged signal when the boss phase threshold is crossed.")
-	assert(String(phase_event.get("phase_id", "")) == "chain_unbound", "Expected BossPhaseChanged payload to expose the authored phase id.")
+	assert(String(phase_event.get("phase_id", "")) == "captains_push", "Expected BossPhaseChanged payload to expose the authored phase id.")
 	assert(int(phase_event.get("threshold_percent", -1)) == 60, "Expected BossPhaseChanged payload to expose the authored threshold percent.")
 
 	var presenter: RefCounted = CombatPresenterScript.new()
 	assert(
-		presenter.format_domain_event_line("BossPhaseChanged", phase_event) == "Boss phase: Chain Unbound.",
+		presenter.format_domain_event_line("BossPhaseChanged", phase_event) == "Boss phase: Captain's Push.",
 		"Expected combat presenter to expose a player-facing boss phase line."
 	)
 
@@ -74,7 +74,7 @@ func test_briar_sovereign_can_reach_deepest_phase_from_threshold_check() -> void
 
 func test_authored_bosses_define_phase_blocks() -> void:
 	var loader: ContentLoader = ContentLoader.new()
-	for definition_id in ["gate_warden", "chain_herald", "briar_sovereign"]:
+	for definition_id in ["tollhouse_captain", "chain_herald", "briar_sovereign"]:
 		var enemy_definition: Dictionary = loader.load_definition("Enemies", definition_id)
 		var rules: Dictionary = enemy_definition.get("rules", {})
 		var boss_phases: Array = rules.get("boss_phases", [])

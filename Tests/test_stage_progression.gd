@@ -232,4 +232,4 @@ func _expected_boss_enemy_definition_id(stage_index: int) -> String:
 		3:
 			return "briar_sovereign"
 		_:
-			return "gate_warden"
+			return ""

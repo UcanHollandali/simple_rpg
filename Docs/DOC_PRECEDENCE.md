@@ -45,7 +45,7 @@ Do not infer ownership from convenience accessors exposed on `RunState` or `AppB
 
 ### Context and History
 
-- [IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADMAP.md): project phasing and rollout order; not a rolling status log
+- [ROADMAP.md](ROADMAP.md): active short-horizon roadmap and queue index; not a rule source
 - [PRODUCTION_RISK_REGISTER.md](PRODUCTION_RISK_REGISTER.md): reference-only continuation guardrails for growth risks; non-authoritative
 - [COMMAND_EVENT_CATALOG.md](COMMAND_EVENT_CATALOG.md): implemented command/event name reference plus reserved naming registry; non-authoritative
 - [FIGMA_TRUTH_ALIGNMENT_PASS.md](FIGMA_TRUTH_ALIGNMENT_PASS.md): reference-only Figma sync bridge for the placeholder shell; non-authoritative and subordinate to the relevant design/technical/production docs
@@ -62,6 +62,7 @@ Do not infer ownership from convenience accessors exposed on `RunState` or `AppB
 - Open archive files only when the task explicitly needs dated review history.
 - If you need archive history, search it explicitly by path instead of widening normal repo scans.
 - Prompt dumps, frozen checklists, and stale bridge ballast should not be restored into the active doc set.
+- Archived audits, retired prompt packs, and superseded roadmaps belong under `Docs/Archive/`.
 
 ## Fast Topic Map
 
@@ -83,7 +84,7 @@ Do not infer ownership from convenience accessors exposed on `RunState` or `AppB
 | test expectations | `TEST_STRATEGY.md` |
 | command/event architecture sensitivity | `ARCHITECTURE.md` |
 | implemented command/event names | `COMMAND_EVENT_CATALOG.md` (reference only) |
-| project phasing and rollout order | `IMPLEMENTATION_ROADMAP.md` |
+| short-horizon roadmap and queue order | `ROADMAP.md` |
 | core game north star | `GDD.md` |
 | visual/audio style | `VISUAL_AUDIO_STYLE_GUIDE.md` |
 | asset source-of-truth, folder flow, promotion stages, and runtime approval boundary | `ASSET_PIPELINE.md` |
@@ -99,6 +100,7 @@ Do not infer ownership from convenience accessors exposed on `RunState` or `AppB
 - `CLAUDE.md` is not an independent rule source. It is a Claude working-memory alias over `AGENTS.md`.
 - continuation gate/checklist requirements belong in `AGENTS.md` as workflow discipline, not in gameplay or technical authority docs.
 - `HANDOFF.md` is a current-state handoff file, not a rule contract.
+- `ROADMAP.md` is the active planning and queue file, not a rule contract.
 - `SOURCE_OF_TRUTH.md` decides runtime ownership questions. `RunState` or `AppBootstrap` convenience access does not override the owner named there.
 - `COMMAND_EVENT_CATALOG.md` is a naming/reference file, not the authority for whether a command family or event family should exist.
 - `PRODUCTION_RISK_REGISTER.md` is a reference-only continuation guardrail, not a rule contract or current-state source.
@@ -110,6 +112,7 @@ Do not infer ownership from convenience accessors exposed on `RunState` or `AppB
 - `DEFERRED_DECISIONS.md` tracks open timing, not active rules.
 - `EXPERIMENT_BANK.md` is non-authoritative by design.
 - dated review history lives in `Docs/Archive/`, not in the active doc set.
+- retired prompt packs, audit snapshots, and superseded roadmap drafts live in `Docs/Archive/`, not in the active doc set.
 - root keeps only the stable entry docs: `README.md`, `AGENTS.md`, and `CLAUDE.md`.
 - use `Docs/` as the active authority location and `Docs/Archive/` for historical material.
 - do not treat archive prompt sets as a fallback authority when active docs already answer the question.

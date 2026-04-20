@@ -517,6 +517,10 @@ func test_map_scene_keeps_focus_offset_quiet_inside_deadzone() -> void:
 		"Expected the board focus deadzone still to allow a limited corrective offset for extreme edge positions."
 	)
 	assert(
+		edge_offset.y >= route_grid.size.y * 0.10,
+		"Expected extreme upper-edge positions to pull the board downward enough to keep the current node and walker out of the crowded top band."
+	)
+	assert(
 		edge_offset.length() < Vector2(540.0, 780.0).length(),
 		"Expected corrective map focus movement to stay damped instead of fully re-centering the board every step."
 	)

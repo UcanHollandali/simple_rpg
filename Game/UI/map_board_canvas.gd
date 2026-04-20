@@ -2,13 +2,13 @@
 extends Control
 class_name MapBoardCanvas
 
+const SceneLayoutHelperScript = preload("res://Game/UI/scene_layout_helper.gd")
 const MapBoardStyleScript = preload("res://Game/UI/map_board_style.gd")
 
 var _composition: Dictionary = {}
 var _board_offset: Vector2 = Vector2.ZERO
 var _active_target_node_id: int = -1
 var _hovered_target_node_id: int = -1
-var _texture_cache: Dictionary = {}
 
 
 func set_composition(composition: Dictionary) -> void:
@@ -72,7 +72,7 @@ func _draw_forest_shapes(shape_family: String) -> void:
 		var radius: float = float(shape.get("radius", 0.0))
 		var tone: Color = shape.get("tone", Color(0.0, 0.0, 0.0, 0.0))
 		var texture_path: String = String(shape.get("texture_path", ""))
-		var texture: Texture2D = _load_texture_or_null(texture_path)
+		var texture: Texture2D = SceneLayoutHelperScript.load_texture_or_null(texture_path)
 		if texture != null:
 			var texture_scale: float = 2.12 if shape_family == "canopy" else 1.72
 			_draw_texture_stamp(
@@ -93,10 +93,10 @@ func _draw_trail_decals() -> void:
 			continue
 		var edge: Dictionary = edge_variant
 		var trail_texture_path: String = String(edge.get("trail_texture_path", ""))
-		var trail_texture: Texture2D = _load_texture_or_null(trail_texture_path)
+		var trail_texture: Texture2D = SceneLayoutHelperScript.load_texture_or_null(trail_texture_path)
 		if trail_texture == null:
 			continue
-		var translated_points: PackedVector2Array = _translated_edge_points(edge.get("points", PackedVector2Array()))
+		var translated_points: PackedVector2Array = _display_edge_points(edge.get("points", PackedVector2Array()))
 		if translated_points.size() < 2:
 			continue
 		var center: Vector2 = _midpoint_for_polyline(translated_points)
@@ -129,9 +129,7 @@ func _draw_edges(draw_highlight_pass: bool) -> void:
 		if points.size() < 2:
 			continue
 		var is_history: bool = bool(edge.get("is_history", false))
-		var translated_points := PackedVector2Array()
-		for point in points:
-			translated_points.append(point + _board_offset)
+		var translated_points: PackedVector2Array = _display_edge_points(points)
 		var state_semantic: String = String(edge.get("state_semantic", "open"))
 		var emphasis_level: int = _edge_emphasis_level(edge)
 		if draw_highlight_pass:
@@ -191,7 +189,7 @@ func _draw_clearings() -> void:
 		var is_current: bool = bool(node_entry.get("is_current", false))
 		var is_resolved: bool = state_semantic == "resolved"
 		var node_id: int = int(node_entry.get("node_id", -1))
-		var plate_texture: Texture2D = _load_texture_or_null(String(node_entry.get("node_plate_texture_path", "")))
+		var plate_texture: Texture2D = SceneLayoutHelperScript.load_texture_or_null(String(node_entry.get("node_plate_texture_path", "")))
 		if plate_texture != null:
 			var plate_size: float = radius * 2.46
 			_draw_texture_stamp(
@@ -200,7 +198,7 @@ func _draw_clearings() -> void:
 				Vector2.ONE * plate_size,
 				Color(1, 1, 1, 0.84 if is_current else 0.82 if is_resolved else 0.76)
 			)
-		var clearing_texture: Texture2D = _load_texture_or_null(String(node_entry.get("clearing_decal_texture_path", "")))
+		var clearing_texture: Texture2D = SceneLayoutHelperScript.load_texture_or_null(String(node_entry.get("clearing_decal_texture_path", "")))
 		if clearing_texture != null:
 			var clearing_size := Vector2(radius * 2.54, radius * 1.82)
 			_draw_texture_stamp(
@@ -325,7 +323,7 @@ func _draw_known_node_icon(node_entry: Dictionary, center: Vector2, radius: floa
 	var icon_texture_path: String = String(node_entry.get("icon_texture_path", ""))
 	if icon_texture_path.is_empty():
 		return
-	var icon_texture: Texture2D = _load_texture_or_null(icon_texture_path)
+	var icon_texture: Texture2D = SceneLayoutHelperScript.load_texture_or_null(icon_texture_path)
 	if icon_texture == null:
 		return
 	var state_semantic: String = String(node_entry.get("state_semantic", "open"))
@@ -345,6 +343,63 @@ func _translated_edge_points(points: PackedVector2Array) -> PackedVector2Array:
 	for point in points:
 		translated_points.append(point + _board_offset)
 	return translated_points
+
+
+func _display_edge_points(points: PackedVector2Array) -> PackedVector2Array:
+	var translated_points: PackedVector2Array = _translated_edge_points(points)
+	if translated_points.size() < 3:
+		return translated_points
+	var smoothed_points := PackedVector2Array()
+	_append_display_point(smoothed_points, translated_points[0])
+	for point_index in range(1, translated_points.size() - 1):
+		var previous_point: Vector2 = translated_points[point_index - 1]
+		var corner_point: Vector2 = translated_points[point_index]
+		var next_point: Vector2 = translated_points[point_index + 1]
+		var incoming: Vector2 = corner_point - previous_point
+		var outgoing: Vector2 = next_point - corner_point
+		var incoming_length: float = incoming.length()
+		var outgoing_length: float = outgoing.length()
+		if incoming_length <= 0.001 or outgoing_length <= 0.001:
+			_append_display_point(smoothed_points, corner_point)
+			continue
+		var incoming_direction: Vector2 = incoming / incoming_length
+		var outgoing_direction: Vector2 = outgoing / outgoing_length
+		if absf(incoming_direction.dot(outgoing_direction)) >= 0.999:
+			_append_display_point(smoothed_points, corner_point)
+			continue
+		var corner_radius: float = clampf(minf(incoming_length, outgoing_length) * 0.26, 18.0, 52.0)
+		var entry_point: Vector2 = corner_point - incoming_direction * corner_radius
+		var exit_point: Vector2 = corner_point + outgoing_direction * corner_radius
+		_append_display_point(smoothed_points, entry_point)
+		var curved_points: PackedVector2Array = _sample_quadratic_display_curve(entry_point, corner_point, exit_point, 5)
+		for curved_point_index in range(1, curved_points.size()):
+			_append_display_point(smoothed_points, curved_points[curved_point_index])
+	_append_display_point(smoothed_points, translated_points[translated_points.size() - 1])
+	return smoothed_points
+
+
+func _sample_quadratic_display_curve(
+	p0: Vector2,
+	p1: Vector2,
+	p2: Vector2,
+	segment_count: int
+) -> PackedVector2Array:
+	var sampled_points := PackedVector2Array()
+	for index in range(segment_count + 1):
+		var t: float = float(index) / float(segment_count)
+		var one_minus_t: float = 1.0 - t
+		var point: Vector2 = (
+			p0 * one_minus_t * one_minus_t
+			+ p1 * 2.0 * one_minus_t * t
+			+ p2 * t * t
+		)
+		sampled_points.append(point)
+	return sampled_points
+
+
+func _append_display_point(points: PackedVector2Array, point: Vector2) -> void:
+	if points.is_empty() or points[points.size() - 1].distance_to(point) > 0.5:
+		points.append(point)
 
 
 func _midpoint_for_polyline(points: PackedVector2Array) -> Vector2:
@@ -389,16 +444,3 @@ func _draw_texture_stamp(
 		modulate
 	)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-
-
-func _load_texture_or_null(asset_path: String) -> Texture2D:
-	if asset_path.is_empty():
-		return null
-	if _texture_cache.has(asset_path):
-		return _texture_cache[asset_path] as Texture2D
-	var resource: Resource = load(asset_path)
-	if resource is Texture2D:
-		var texture: Texture2D = resource as Texture2D
-		_texture_cache[asset_path] = texture
-		return texture
-	return null

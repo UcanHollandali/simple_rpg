@@ -377,15 +377,14 @@ func _display_name_for_snapshot(node_snapshot: Dictionary) -> String:
 
 
 func _display_name_for_node_id(map_runtime_state: RefCounted, node_id: int) -> String:
-	if map_runtime_state == null:
+	var typed_map_runtime_state: MapRuntimeState = map_runtime_state as MapRuntimeState
+	if typed_map_runtime_state == null:
 		return ""
-	var node_snapshot: Dictionary = _find_node_snapshot_by_id(map_runtime_state, node_id)
+	var node_snapshot: Dictionary = _find_node_snapshot_by_id(typed_map_runtime_state, node_id)
 	if not node_snapshot.is_empty():
 		return _display_name_for_snapshot(node_snapshot)
-	var hamlet_personality: String = ""
-	if map_runtime_state.has_method("get_hamlet_personality"):
-		hamlet_personality = String(map_runtime_state.call("get_hamlet_personality", node_id))
-	return _display_name_for_family(String(map_runtime_state.get_node_family(node_id)), hamlet_personality)
+	var hamlet_personality: String = typed_map_runtime_state.get_hamlet_personality(node_id)
+	return _display_name_for_family(String(typed_map_runtime_state.get_node_family(node_id)), hamlet_personality)
 
 
 func _format_cluster_node_label(node_snapshot: Dictionary) -> String:
@@ -399,9 +398,10 @@ func _format_cluster_node_label(node_snapshot: Dictionary) -> String:
 
 
 func _build_side_quest_highlight_read_text(map_runtime_state: RefCounted) -> String:
-	if map_runtime_state == null or not map_runtime_state.has_method("build_side_quest_highlight_snapshot"):
+	var typed_map_runtime_state: MapRuntimeState = map_runtime_state as MapRuntimeState
+	if typed_map_runtime_state == null:
 		return ""
-	var highlight_snapshot: Dictionary = map_runtime_state.build_side_quest_highlight_snapshot()
+	var highlight_snapshot: Dictionary = typed_map_runtime_state.build_side_quest_highlight_snapshot()
 	match String(highlight_snapshot.get("highlight_state", "")):
 		"target":
 			return "Marked target"

@@ -15,6 +15,7 @@ This repository is documentation-first. The project is intentionally being built
 Use these docs as the repo entry surface:
 - [Docs/HANDOFF.md](Docs/HANDOFF.md): current implementation state, active blockers, recommended next step
 - [Docs/DOC_PRECEDENCE.md](Docs/DOC_PRECEDENCE.md): topic routing and authority-doc ownership
+- [Docs/ROADMAP.md](Docs/ROADMAP.md): active cleanup queue and forward roadmap
 - [Docs/TECH_BASELINE.md](Docs/TECH_BASELINE.md): validator commands, Godot runners, platform/tooling rules
 - [Docs/WINDOWS_PLAYTEST_BRIEF.md](Docs/WINDOWS_PLAYTEST_BRIEF.md): Windows playtest build brief for shared prototype builds
 
@@ -29,7 +30,7 @@ Do not treat `README.md` as the rolling status file or as the detailed topic aut
 
 - [AGENTS.md](AGENTS.md): repo-level AI operating rules
 - [CLAUDE.md](CLAUDE.md): short memory layer for Claude-style agents
-- [Docs/](Docs/): authoritative design and technical docs
+- [Docs/](Docs/): mixed authority and reference docs; route by `Docs/DOC_PRECEDENCE.md` instead of treating the whole folder as one authority surface
 - [Game/](Game/): layered gameplay/application/runtime code
 - [scenes/](scenes/): Godot presentation/composition scenes
 - [ContentDefinitions/](ContentDefinitions/): canonical JSON gameplay content

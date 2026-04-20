@@ -40,12 +40,12 @@ const EMERGENCY_ROUTE_SLOT_FORWARD := Vector2(0.50, 0.24)
 const ROUTE_MARKER_SIZE := Vector2(144, 144)
 const ROUTE_HITBOX_SIZE := Vector2(160, 160)
 const CURRENT_MARKER_SIZE := Vector2(36, 36)
-const BOARD_FOCUS_ANCHOR_FACTOR := Vector2(0.5, 0.65)
-const BOARD_MAX_OFFSET_FACTOR := Vector2(0.05, 0.06)
-const BOARD_FOCUS_DEADZONE_FACTOR := Vector2(0.18, 0.15)
+const BOARD_FOCUS_ANCHOR_FACTOR := Vector2(0.5, 0.68)
+const BOARD_MAX_OFFSET_FACTOR := Vector2(0.05, 0.16)
+const BOARD_FOCUS_DEADZONE_FACTOR := Vector2(0.18, 0.18)
 const BOARD_FOCUS_DAMPING := 0.42
 const BOARD_FOCUS_CONTEXT_BLEND_MIN := 0.08
-const BOARD_FOCUS_CONTEXT_BLEND_MAX := 0.24
+const BOARD_FOCUS_CONTEXT_BLEND_MAX := 0.20
 const WALKER_ROOT_SIZE := Vector2(122, 150)
 const WALKER_SHADOW_SIZE := Vector2(40, 10)
 const WALKER_SPRITE_SIZE := Vector2(100, 120)
@@ -68,12 +68,12 @@ const STATE_PIP_SIZE := Vector2(14, 14)
 
 var _owner: Control
 var _scene_node_getter: Callable
-var _board_composer: RefCounted
+var _board_composer: MapBoardComposerV2
 var _route_models_cache: Array[Dictionary] = []
 var _board_composition_cache: Dictionary = {}
 var _current_run_state
 var _current_marker: TextureRect
-var _board_canvas: Control
+var _board_canvas: MapBoardCanvas
 var _walker_root: Control
 var _walker_shadow: PanelContainer
 var _walker_sprite: TextureRect
@@ -100,7 +100,7 @@ var _composed_board_size: Vector2 = Vector2.ZERO
 var _allow_large_resize_recompose_once: bool = true
 
 
-func configure(owner: Control, scene_node_getter: Callable, board_composer: RefCounted) -> void:
+func configure(owner: Control, scene_node_getter: Callable, board_composer: MapBoardComposerV2) -> void:
 	_owner = owner
 	_scene_node_getter = scene_node_getter
 	_board_composer = board_composer
@@ -158,7 +158,7 @@ func ensure_runtime_board_nodes() -> void:
 		_board_canvas
 	)
 	_current_marker = setup_result.get("current_marker", _current_marker) as TextureRect
-	_board_canvas = setup_result.get("board_canvas", _board_canvas) as Control
+	_board_canvas = setup_result.get("board_canvas", _board_canvas) as MapBoardCanvas
 	_walker_root = setup_result.get("walker_root", _walker_root) as Control
 	_walker_shadow = setup_result.get("walker_shadow", _walker_shadow) as PanelContainer
 	_walker_sprite = setup_result.get("walker_sprite", _walker_sprite) as TextureRect
@@ -239,12 +239,11 @@ func _refresh_cached_visible_node_radii(board_size: Vector2) -> void:
 		if typeof(node_variant) != TYPE_DICTIONARY:
 			continue
 		var node_entry: Dictionary = (node_variant as Dictionary).duplicate(true)
-		node_entry["clearing_radius"] = float(_board_composer.call(
-			"_clearing_radius_for",
+		node_entry["clearing_radius"] = _board_composer._clearing_radius_for(
 			String(node_entry.get("node_family", "")),
 			String(node_entry.get("state_semantic", "open")),
 			board_size
-		))
+		)
 		refreshed_visible_nodes.append(node_entry)
 	_board_composition_cache["visible_nodes"] = refreshed_visible_nodes
 
@@ -548,15 +547,15 @@ func _refresh_route_roads() -> void:
 	if _current_marker == null or _route_models_cache.is_empty():
 		return
 	if _board_canvas != null:
-		_board_canvas.call("set_composition", _board_composition_cache)
-		_board_canvas.call("set_board_offset", _route_layout_offset)
-		_board_canvas.call("set_interaction_state", _active_target_node_id(), _hovered_target_node_id())
+		_board_canvas.set_composition(_board_composition_cache)
+		_board_canvas.set_board_offset(_route_layout_offset)
+		_board_canvas.set_interaction_state(_active_target_node_id(), _hovered_target_node_id())
 
 
 func _refresh_route_board_offset() -> void:
 	if _board_canvas == null:
 		return
-	_board_canvas.call("set_board_offset", _route_layout_offset)
+	_board_canvas.set_board_offset(_route_layout_offset)
 
 
 func _layout_route_grid() -> void:
@@ -702,8 +701,7 @@ func _build_board_composition(run_state, stable_layout: Dictionary = {}) -> Dict
 	var route_grid: Control = get_route_grid()
 	if route_grid == null or _board_composer == null:
 		return {}
-	return _board_composer.call(
-		"compose",
+	return _board_composer.compose(
 		run_state,
 		route_grid.size,
 		BOARD_FOCUS_ANCHOR_FACTOR,
@@ -808,7 +806,7 @@ func _sync_walker_to_pending_roadside_visual() -> void:
 
 
 func _position_for_walker_center(center: Vector2) -> Vector2:
-	return center - Vector2(WALKER_ROOT_SIZE.x * 0.5, WALKER_ROOT_SIZE.y * 0.82)
+	return center - Vector2(WALKER_ROOT_SIZE.x * 0.5, WALKER_ROOT_SIZE.y * 0.74)
 
 
 func _set_walker_facing(facing_right: bool) -> void:
