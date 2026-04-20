@@ -62,6 +62,12 @@ It is not a rule contract. If it conflicts with an authority doc, the authority 
   - active procedural stage profiles realize `14`-node center-start controlled-scatter graphs
   - family placement is a separate post-topology step
   - start currently exposes one early combat, one early reward, and one early support route
+  - stage start now freezes the full derived board layout for a stable graph signature:
+    - `world_positions`
+    - frozen `layout_edges`
+    - `forest_shapes`
+  - discovery now widens `visible_nodes` / `visible_edges` by filtering that frozen layout instead of regenerating route geometry from the visible subset
+  - the current board footprint tuning now uses more of the available portrait route-grid surface while keeping the same runtime owner boundary and save shape
   - hamlet request presentation/tests are aligned to the current runtime-backed `hamlet` node family while persistence remains under the legacy `side_mission_*` save/runtime helper surface
   - hamlet nodes now expose a stage-derived personality read without widening save payload:
     - stage `1` -> `pilgrim`
@@ -124,7 +130,14 @@ It is not a rule contract. If it conflicts with an authority doc, the authority 
   - hunger threshold warning toast is now live on both `MapExplore` and `Combat`
   - resolution/fullscreen controls are no longer exposed in the live main menu or safe-menu overlay; current AppBootstrap window-preview lane has also dropped the old unused display getter residue and remains internal startup-only placeholder glue
   - map route travel now follows composed edge geometry, delays board catch-up slightly on departure, and adds restrained stride/arrival polish
+  - the board no longer recomposes path geometry from visibility changes alone; graph-stable route geometry now stays fixed while discovery only changes the visible subset
   - the prototype map asset kit is now live on the board surface: trail decals, clearing decals, state plates, canopy clumps, the dedicated `Trail Event` icon, and the refreshed side-mission icon all render through presentation-only hooks with procedural fallback still in place
+  - `SourceArt/Generated/new` has now been reviewed as a candidate prototype kit for the later map asset-wave:
+    - it is a candidate/source pack, not an authority doc set
+    - the pack now uses normalized source-master subfolders plus a short local `README.md`
+    - the operational prompt reference kept in-place is `asset_prompts.md`
+    - redundant source-planning markdowns now live under `SourceArt/Archive/2026-04-20-map_prototype_pack/docs/`
+    - its first intended runtime-adoption families are missing/weak node icons plus path filler, canopy, clutter, fog, and ruin-scatter support
   - combat feedback now resolves on phase beats, keeps same-target feedback from overwriting itself, and gives action-hint / intent / button feedback a narrow motion pass
   - combat defend SFX path now uses the renamed `sfx_defend_01.ogg`; stale `sfx_brace` live references are gone
   - high-visibility runtime asset polish is now live on the current prototype slice:
@@ -151,6 +164,9 @@ It is not a rule contract. If it conflicts with an authority doc, the authority 
   - recent extraction passes significantly reduced the two largest scene hotspots:
     - `scenes/combat.gd` is now `1184` lines
     - `scenes/map_explore.gd` is now `1000` lines
+  - the frozen-layout map pass is now live and test-backed:
+    - `MapRouteBinding` preserves graph-stable `world_positions`, `layout_edges`, and `forest_shapes`
+    - `MapBoardComposerV2` now filters visible edges from the frozen full edge layout instead of regenerating them from the visible subset
   - `save_service.gd` is now split:
     - `Game/Infrastructure/save_service.gd` keeps schema-8 write, dispatch, and validation (`660` lines)
     - `Game/Infrastructure/save_service_legacy_loader.gd` carries schema `1/2/5/6/7` compat checks
@@ -162,15 +178,15 @@ It is not a rule contract. If it conflicts with an authority doc, the authority 
 
 ## Last Verified Validation Checkpoint
 
-These commands were last verified against the then-current checked-out repo snapshot.
-Re-run them after new dirty-worktree changes before treating them as live proof for the current local state.
+These commands were re-run on the current frozen-layout pass and are the freshest headless proof for the checked-out workspace:
 
 - Passed: `py -3 Tools/validate_architecture_guards.py`
-- Passed: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_full_suite.ps1`
-- Passed: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_smoke.ps1`
+- Passed: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_tests.ps1 test_map_board_composer_v2.gd`
+- Passed: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_tests.ps1 test_map_board_canvas.gd`
+- Passed: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_tests.ps1 test_map_explore_presenter.gd`
 - Passed: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_scene_isolation.ps1 -ScenePath scenes/map_explore.tscn`
-- Passed: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_tests.ps1 test_save_file_roundtrip.gd test_save_support_interaction.gd test_save_terminal_states.gd test_save_ui.gd`
-- Passed: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_tests.ps1 test_stage_transition.gd`
+- Passed: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_full_suite.ps1`
+- Not re-run in this pass because scope stayed inside map presentation/docs: `Tools/run_godot_smoke.ps1`, `py -3 Tools/validate_content.py`, `py -3 Tools/validate_assets.py`
 - Current repo truth: there is still no dedicated image-diff regression harness; portrait screenshot capture exists, but final visual judgment remains human review.
 
 ## Open Risks
@@ -188,6 +204,7 @@ Re-run them after new dirty-worktree changes before treating them as live proof 
 - `ContentDefinitions/EventTemplates/` still contains `10` `zz_*.json` alphabetical-hack files; stable-ID cleanup has not been approved yet.
 - Shield/offhand content is no longer a one-item lane; the current content pack now includes `5` shield definitions and `3` offhand-capable weapons, but live combat semantics over that wider authored surface are still intentionally narrow and still need manual feel checks.
 - `AppBootstrap` and several other hotspot files remain large; extraction-first guardrails are now in place, but no owner-changing cleanup happened in the latest passes.
+- The frozen-layout baseline is live, but manual playtest is still needed for reconnect feel, widened footprint comfort, and overall board readability on portrait targets.
 - `AppBootstrap` public-surface growth and new `/root/AppBootstrap` lookup spread are now validator-locked, but the existing dependency surface is still live and belongs to guarded cleanup only.
 - the current architecture guard now blocks silent line-count growth on the current extraction-first hotspot files, including:
   - `map_runtime_state.gd`
@@ -211,6 +228,11 @@ Re-run them after new dirty-worktree changes before treating them as live proof 
    - treat Prompt 01 as a short closeout-only sanity pass; if the active docs/guards are already aligned, do not invent filler cleanup
 2. After the foundation closeout is green, run `Docs/Promts/02_guarded_cleanup.md` to clear the remaining flow/application/scene drift without changing pending-node ownership, save shape, or live `NodeResolve` behavior.
 3. Start `Docs/Promts/03_extraction_and_next_wave.md` only after the guarded pass is green; keep `MapRuntimeState` and the big-file chain owner-preserving, and treat pending-node / key-boss-gate / save-codec drift as escalate-first.
+   - Prompt 03 now also owns the remaining map next-wave follow-up:
+     - reconnect tuning re-check
+     - widened-footprint follow-up
+     - candidate asset-wave hookup from `SourceArt/Generated/new`
+     - variation/residue cleanup
 4. Keep manual map/combat/shared-inventory playtests as the human verification lane between the guarded cleanup and the later playtest/telemetry phase.
 
 ## Continuation Status

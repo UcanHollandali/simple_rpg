@@ -41,6 +41,24 @@ Reuse current assets where they still fit the V2 role:
 - keep the existing walker family for traversal readability
 - keep the existing `bg_map_*` family as the large-screen backdrop layer
 
+## Prototype Asset-Wave Rule (Current Direction)
+
+- `SourceArt/Generated/new/` is a candidate/source pack for the generated-map overhaul.
+- Those files are not authority docs and they are not automatically approved runtime assets.
+- The current direction is selective adoption:
+  - use the pack to replace or augment weak older node/path/pocket visuals
+  - keep runtime graph truth and composer ownership unchanged
+  - generate missing families only when the current prototype pack leaves a real gap
+- The source pack now keeps normalized master folders under `SourceArt/Generated/new/`:
+  - `node_shell_variants`
+  - `state_overlays`
+  - `path_assets`
+  - `clearing_ground`
+  - `canopy_fog_filler`
+- The operational source prompt reference remains `SourceArt/Generated/new/asset_prompts.md`.
+- Redundant source-planning markdowns were archived under `SourceArt/Archive/2026-04-20-map_prototype_pack/docs/`.
+- Treat this as a prototype kit for the graph-backed board, not as final release art.
+
 ## Replacement Rule (Proposed)
 
 The current `ui_map_board_backdrop` shell should become optional fallback art, not the primary map-surface identity.
@@ -67,6 +85,18 @@ These are the minimum new families for baseline V2.
 | route landmark accents | `ui_map_v2_landmark_*` | yes | boss approach, key hint, guide-light accents | used sparingly, not one per node family |
 | foreground branch overlays | `ui_map_v2_foreground_*` | optional-baseline | light depth and framing | only if readability remains strong |
 
+## Generated-Map Pipeline Fit
+
+The intended board pipeline for the current overhaul is:
+
+1. scatter node layout from graph truth
+2. freeze full path layout for the stage
+3. filter visible subset from that frozen layout
+4. wrap the pocket with filler / canopy / clutter / fog assets
+
+Asset families must support that order.
+They must not assume that visibility changes can redraw path geometry.
+
 ## Minimum New Counts (Proposed)
 
 These counts are a pragmatic baseline, not a strict contract:
@@ -78,6 +108,26 @@ These counts are a pragmatic baseline, not a strict contract:
 - forest props: `10-16`
 - route landmark accents: `4-6`
 - foreground overlays: `3-4` if used
+
+## Current Prototype Priority Families
+
+The current prototype wave should favor these runtime-facing families first:
+
+- node identity/icon completion
+  - `icon_map_combat`
+  - `icon_map_key`
+  - `icon_map_boss`
+- path support
+  - `ui_map_v2_path_edge_filler_*`
+  - `ui_map_v2_path_breakup_decal_*`
+  - `ui_map_v2_junction_patch_*`
+- canopy / clutter / atmosphere
+  - `ui_map_v2_canopy_clump_d/e/f`
+  - `ui_map_v2_ground_clutter_*`
+  - `ui_map_v2_fog_patch_*`
+  - `ui_map_v2_ruin_scatter_*`
+
+These are the first families that make the generated board feel less like isolated node plates and more like a connected forest pocket.
 
 ## Overlay Asset Policy
 
@@ -100,6 +150,12 @@ These are optional refinements, not baseline blockers:
 - `ui_map_v2_current_beacon_*`
 
 The baseline V2 design can keep these procedurally styled in UI rather than requiring new art exports.
+
+## State Overlay Caution
+
+- The current live state-plate lane is already readable and wired.
+- SourceArt overlay experiments and heavy boss-shell concepts may be useful references, but they do not automatically replace the live state-plate baseline.
+- Treat those heavier shell/overlay ideas as optional later adoption, not as first-pass runtime requirements.
 
 ## Scaffold-Specific Presentation Need
 
@@ -184,17 +240,24 @@ Those are optional polish, not baseline blockers.
 - `ui_map_v2_trail_*`
 - `ui_map_v2_clearing_*`
 - `ui_map_v2_canopy_*`
+- `icon_map_combat`
+- `icon_map_key`
+- `icon_map_boss`
 
 ## Priority 2 - Required For Strong Wayfinder Identity
 
 - `ui_map_v2_prop_*`
 - `ui_map_v2_landmark_*`
+- `ui_map_v2_path_edge_filler_*`
+- `ui_map_v2_path_breakup_decal_*`
+- `ui_map_v2_junction_patch_*`
 
 ## Priority 3 - Nice To Have
 
 - `ui_map_v2_foreground_*`
 - optional overlay refresh families
 - optional audio polish families
+- larger shell-first node repaints if they still respect the live overlay/readability baseline
 
 ## Suggested Authoring Notes
 

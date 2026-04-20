@@ -610,7 +610,7 @@ func test_map_route_binding_recomposes_board_positions_after_route_grid_resize()
 		"Expected route-grid resize to recompose board positions against the larger map height instead of keeping the startup-sized opening anchor."
 	)
 	assert(
-		absf(resized_position.y - route_grid.size.y * 0.58) <= 0.01,
+		absf(resized_position.y - route_grid.size.y * MapBoardComposerV2Script.BASE_CENTER_FACTOR.y) <= 0.01,
 		"Expected the recomposed start anchor to track the composer vertical center factor after the route grid expands."
 	)
 	assert(not resized_visible_edges.is_empty(), "Expected the expanded route grid recompose to keep visible roads cached.")

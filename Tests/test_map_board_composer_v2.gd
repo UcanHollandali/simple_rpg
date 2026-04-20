@@ -25,6 +25,7 @@ func _init() -> void:
 	test_map_board_composer_keeps_visible_nodes_portrait_safe_without_overlap()
 	test_map_board_composer_emits_deterministic_forest_shapes()
 	test_map_board_composer_keeps_layout_backdrop_stable_across_progression()
+	test_map_board_composer_keeps_full_edge_layout_stable_across_progression()
 	test_map_board_composer_does_not_scale_current_nodes()
 	test_map_board_composer_keeps_visible_edges_readable_without_crossings()
 	test_map_board_composer_keeps_visible_edges_clear_of_other_node_clearings()
@@ -484,6 +485,35 @@ func test_map_board_composer_keeps_layout_backdrop_stable_across_progression() -
 	)
 
 
+func test_map_board_composer_keeps_full_edge_layout_stable_across_progression() -> void:
+	var composer: RefCounted = MapBoardComposerV2Script.new()
+	var run_state: RunState = RunState.new()
+	run_state.reset_for_new_run()
+	run_state.configure_run_seed(41)
+	var board_size := Vector2(920, 1180)
+	var opening_composition: Dictionary = composer.call("compose", run_state, board_size, Vector2(0.5, 0.58), Vector2(148, 212))
+	_advance_visible_branch(run_state, 2)
+	var progressed_composition: Dictionary = composer.call("compose", run_state, board_size, Vector2(0.5, 0.58), Vector2(148, 212))
+	assert(
+		opening_composition.get("layout_edges", []) == progressed_composition.get("layout_edges", []),
+		"Expected full edge layout geometry to stay fixed while progression only widens visibility."
+	)
+	for edge_variant in progressed_composition.get("visible_edges", []):
+		if typeof(edge_variant) != TYPE_DICTIONARY:
+			continue
+		var edge_entry: Dictionary = edge_variant
+		var layout_edge: Dictionary = _find_layout_edge_by_node_ids(
+			progressed_composition,
+			int(edge_entry.get("from_node_id", -1)),
+			int(edge_entry.get("to_node_id", -1))
+		)
+		assert(not layout_edge.is_empty(), "Expected every visible edge to come from the frozen full edge layout set.")
+		assert(
+			layout_edge.get("points", PackedVector2Array()) == edge_entry.get("points", PackedVector2Array()),
+			"Expected visible edge rendering to filter the frozen layout instead of mutating path geometry during reveal."
+		)
+
+
 func test_map_board_composer_does_not_scale_current_nodes() -> void:
 	var composer: RefCounted = MapBoardComposerV2Script.new()
 	var board_size := Vector2(920, 1180)
@@ -833,6 +863,18 @@ func _find_visible_node_by_id(composition: Dictionary, node_id: int) -> Dictiona
 		var node_entry: Dictionary = node_variant
 		if int(node_entry.get("node_id", -1)) == node_id:
 			return node_entry
+	return {}
+
+
+func _find_layout_edge_by_node_ids(composition: Dictionary, from_node_id: int, to_node_id: int) -> Dictionary:
+	for edge_variant in composition.get("layout_edges", []):
+		if typeof(edge_variant) != TYPE_DICTIONARY:
+			continue
+		var edge_entry: Dictionary = edge_variant
+		var left_id: int = int(edge_entry.get("from_node_id", -1))
+		var right_id: int = int(edge_entry.get("to_node_id", -1))
+		if (left_id == from_node_id and right_id == to_node_id) or (left_id == to_node_id and right_id == from_node_id):
+			return edge_entry
 	return {}
 
 

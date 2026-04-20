@@ -16,10 +16,14 @@ Execute the extraction wave in a controlled order, then carry the remaining map-
 ## Current Baseline
 
 - `Game/RuntimeState/map_runtime_state.gd`: `2395` lines
-- `Game/UI/map_board_composer_v2.gd`: `1257` lines
-- `Game/UI/map_route_binding.gd`: `1093` lines
+- `Game/UI/map_board_composer_v2.gd`: `1247` lines
+- `Game/UI/map_route_binding.gd`: `1079` lines
 - `Game/Application/run_session_coordinator.gd`: `1016` lines
 - typed-reflection cleanup is already landed on the map/support/router/core low-risk slices; extraction must not reintroduce string-based owner calls that are already guard-locked.
+- frozen full-layout filtering is already live on the current map board slice:
+  - graph-stable `world_positions`, `layout_edges`, and `forest_shapes` now stay cached together
+  - `visible_nodes` / `visible_edges` filter from the frozen layout instead of regenerating edge geometry from the visible subset
+  - initial footprint widening is already landed; follow-up work must tune it, not undo it
 
 ## Order
 
@@ -58,16 +62,24 @@ Rules:
 
 After the extraction chain is stable:
 
-1. re-check reconnect tuning
-2. re-check placement tuning
-3. wire approved map assets into runtime hooks
-4. run variation and residue cleanup
+1. re-check reconnect tuning against the frozen-layout baseline
+2. re-check placement / footprint widening
+3. audit visibility-driven recomposition regressions
+4. extend frozen full-layout filtering only if the audit proves a remaining gap
+5. wire approved map assets into runtime hooks
+6. run variation and residue cleanup
+
+Rules:
+- do not generate new path geometry from the currently visible subset
+- keep full-layout stability when the graph signature is unchanged
+- treat `SourceArt/Generated/new` as a candidate/reference pack, not as an authority doc set
 
 ## Asset Blocker Rule
 
 The asset-hook step is blocked until approved runtime filenames and truthful manifest rows exist.
 If approved filenames are missing, stop at that step and report the exact filenames/families still needed.
 Do not generate assets in this prompt pack.
+Approved prototype candidates may come from `SourceArt/Generated/new`, but those files stay reference-only until runtime filenames and manifest rows are explicit.
 
 ## Guardrails
 
@@ -92,5 +104,5 @@ Do not generate assets in this prompt pack.
 - Hotspot owners drop below their current caps with visible headroom.
 - Validator caps and active measurement docs are updated to the new baselines.
 - Save roundtrip remains stable where required.
-- Map next-wave items are either completed or explicitly blocked on approved asset filenames.
+- Map next-wave items are either completed or explicitly blocked on approved asset filenames, with no regression back to visibility-driven path regeneration.
 - The repo is ready to move into playtest/telemetry, then balance, then the asset wave.

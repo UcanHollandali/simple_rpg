@@ -9,16 +9,16 @@ const MapBoardGeometryScript = preload("res://Game/UI/map_board_geometry.gd")
 const MapBoardEdgeRoutingScript = preload("res://Game/UI/map_board_edge_routing.gd")
 
 const DEFAULT_TEMPLATE_PROFILE := "corridor"
-const BASE_CENTER_FACTOR := Vector2(0.50, 0.58)
-const MIN_BOARD_MARGIN := Vector2(118.0, 132.0)
+const BASE_CENTER_FACTOR := Vector2(0.50, 0.60)
+const MIN_BOARD_MARGIN := Vector2(96.0, 108.0)
 const OPENING_BRANCH_ANGLE_PRESETS := {
 	1: [-PI * 0.5],
 	2: [-2.18, -0.96],
 	3: [-2.50, -1.58, -0.66],
 	4: [-2.66, -2.08, -1.08, -0.48],
 }
-const DEPTH_STEP_FACTORS := [0.0, 0.208, 0.182, 0.160, 0.144, 0.130]
-const DEPTH_SPREAD_FACTORS := [0.0, 0.032, 0.062, 0.074, 0.082, 0.088]
+const DEPTH_STEP_FACTORS := [0.0, 0.224, 0.196, 0.176, 0.160, 0.146]
+const DEPTH_SPREAD_FACTORS := [0.0, 0.040, 0.074, 0.090, 0.100, 0.108]
 const PATH_FAMILY_SHORT_STRAIGHT := "short_straight"
 const PATH_FAMILY_GENTLE_CURVE := "gentle_curve"
 const PATH_FAMILY_WIDER_CURVE := "wider_curve"
@@ -65,16 +65,15 @@ func compose(
 	var world_positions: Dictionary = (stable_layout.get("world_positions", {}) as Dictionary).duplicate(true)
 	if world_positions.is_empty():
 		world_positions = _build_world_positions(graph_snapshot, board_size, layout_context, template_profile, board_seed)
-	var visible_nodes: Array = (stable_layout.get("visible_nodes", []) as Array).duplicate(true)
-	if visible_nodes.is_empty():
-		visible_nodes = _build_visible_node_entries(graph_snapshot, graph_by_id, world_positions, current_node_id, board_size)
-	var visible_edges: Array = (stable_layout.get("visible_edges", []) as Array).duplicate(true)
-	if visible_edges.is_empty():
-		visible_edges = _build_visible_edges(graph_by_id, visible_nodes, current_node_id, world_positions, layout_context, template_profile, board_seed, board_size)
+	var graph_nodes: Array[Dictionary] = _build_graph_node_entries(graph_snapshot, world_positions, board_size)
+	var layout_edges: Array = (stable_layout.get("layout_edges", []) as Array).duplicate(true)
+	if layout_edges.is_empty():
+		layout_edges = _build_full_edge_layouts(graph_by_id, graph_nodes, world_positions, layout_context, template_profile, board_seed, board_size)
+	var visible_nodes: Array = _build_visible_node_entries(graph_snapshot, graph_by_id, world_positions, current_node_id, board_size)
+	var visible_edges: Array = _build_visible_edges(layout_edges, visible_nodes, current_node_id, board_size)
 	var focus_anchor: Vector2 = board_size * focus_anchor_factor
 	var current_world_position: Vector2 = world_positions.get(current_node_id, board_size * BASE_CENTER_FACTOR)
 	var focus_offset: Vector2 = _clamp_focus_offset(focus_anchor - current_world_position, max_focus_offset)
-	var graph_nodes: Array[Dictionary] = _build_graph_node_entries(graph_snapshot, world_positions, board_size)
 	var forest_shapes: Array = (stable_layout.get("forest_shapes", []) as Array).duplicate(true)
 	if forest_shapes.is_empty():
 		forest_shapes = MapBoardBackdropBuilderScript.build_forest_shapes(board_size, graph_nodes, graph_by_id, world_positions, template_profile, board_seed, BASE_CENTER_FACTOR, MIN_BOARD_MARGIN)
@@ -85,6 +84,7 @@ func compose(
 		"side_quest_highlight_node_id": int(side_quest_highlight.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID)),
 		"side_quest_highlight_state": String(side_quest_highlight.get("highlight_state", "")),
 		"world_positions": world_positions,
+		"layout_edges": layout_edges,
 		"visible_nodes": visible_nodes,
 		"visible_edges": visible_edges,
 		"forest_shapes": forest_shapes,
@@ -98,6 +98,7 @@ func _empty_composition() -> Dictionary:
 		"side_quest_highlight_node_id": MapRuntimeStateScript.NO_PENDING_NODE_ID,
 		"side_quest_highlight_state": "",
 		"world_positions": {},
+		"layout_edges": [],
 		"visible_nodes": [],
 		"visible_edges": [],
 		"forest_shapes": [],
@@ -180,8 +181,6 @@ func _build_primary_parent_by_node_id(parent_ids_by_node_id: Dictionary) -> Dict
 			continue
 		primary_parent_by_node_id[node_id] = parent_ids[0]
 	return primary_parent_by_node_id
-
-
 func _build_branch_root_by_node_id(
 	graph_snapshot: Array[Dictionary],
 	depth_by_node_id: Dictionary,
@@ -202,8 +201,6 @@ func _build_branch_root_by_node_id(
 			walker_id = int(primary_parent_by_node_id.get(walker_id, start_node_id))
 		branch_root_by_node_id[node_id] = walker_id
 	return branch_root_by_node_id
-
-
 func _build_child_ids_by_parent(primary_parent_by_node_id: Dictionary) -> Dictionary:
 	var child_ids_by_parent: Dictionary = {}
 	var sorted_node_ids: Array[int] = []
@@ -218,8 +215,6 @@ func _build_child_ids_by_parent(primary_parent_by_node_id: Dictionary) -> Dictio
 		child_ids.append(node_id)
 		child_ids_by_parent[parent_id] = child_ids
 	return child_ids_by_parent
-
-
 func _build_branch_direction_by_root(
 	graph_by_id: Dictionary,
 	start_node_id: int,
@@ -248,8 +243,6 @@ func _build_branch_direction_by_root(
 		var angle: float = wrapf(base_angle + global_rotation + profile_rotation + branch_rng.randf_range(-0.05, 0.05), -PI, PI)
 		branch_direction_by_root[branch_root_id] = Vector2(cos(angle), sin(angle)).normalized()
 	return branch_direction_by_root
-
-
 func _branch_angles_for_count(branch_count: int) -> Array[float]:
 	if OPENING_BRANCH_ANGLE_PRESETS.has(branch_count):
 		var preset_angles: Array = OPENING_BRANCH_ANGLE_PRESETS[branch_count]
@@ -262,8 +255,6 @@ func _branch_angles_for_count(branch_count: int) -> Array[float]:
 		var t: float = 0.5 if branch_count <= 1 else float(index) / float(branch_count - 1)
 		angles.append(lerpf(-2.72, -0.42, t))
 	return angles
-
-
 func _build_world_positions(
 	graph_snapshot: Array[Dictionary],
 	board_size: Vector2,
@@ -331,8 +322,6 @@ func _build_world_positions(
 	_reduce_edge_crossings(world_positions, graph_snapshot, board_size, layout_context)
 	_relax_collisions(world_positions, graph_snapshot, board_size, layout_context)
 	return world_positions
-
-
 func _sorted_node_ids_by_depth(graph_snapshot: Array[Dictionary], depth_by_node_id: Dictionary) -> Array[int]:
 	var node_ids: Array[int] = []
 	for node_entry in graph_snapshot:
@@ -345,8 +334,6 @@ func _sorted_node_ids_by_depth(graph_snapshot: Array[Dictionary], depth_by_node_
 		return left_depth < right_depth
 	)
 	return node_ids
-
-
 func _int_array_from_variant(value: Variant) -> Array[int]:
 	var result: Array[int] = []
 	if typeof(value) != TYPE_ARRAY:
@@ -354,14 +341,10 @@ func _int_array_from_variant(value: Variant) -> Array[int]:
 	for item in value:
 		result.append(int(item))
 	return result
-
-
 func _branch_direction_for_root(layout_context: Dictionary, branch_root_id: int) -> Vector2:
 	var branch_direction_by_root: Dictionary = layout_context.get("branch_direction_by_root", {})
 	var direction: Vector2 = branch_direction_by_root.get(branch_root_id, Vector2(0.0, -1.0))
 	return direction if direction.length_squared() > 0.001 else Vector2(0.0, -1.0)
-
-
 func _position_reconnect_node(
 	node_id: int,
 	parent_ids: Array[int],
@@ -402,14 +385,10 @@ func _position_reconnect_node(
 	var tangent_jitter: float = reconnect_rng.randf_range(-board_unit * 0.010, board_unit * 0.010)
 	var outward_jitter: float = reconnect_rng.randf_range(-board_unit * 0.008, board_unit * 0.014)
 	return midpoint + outward_direction * (outward_distance + outward_jitter) + tangent_direction * (tangent_distance * tangent_sign + tangent_jitter)
-
-
 func _symmetric_offset_for_index(index: int, count: int) -> float:
 	if count <= 1 or index < 0:
 		return 0.0
 	return float(index) - (float(count - 1) * 0.5)
-
-
 func _depth_step_factor(depth: int) -> float:
 	var factor_index: int = clampi(depth, 0, DEPTH_STEP_FACTORS.size() - 1)
 	return float(DEPTH_STEP_FACTORS[factor_index])
@@ -495,18 +474,7 @@ func _build_visible_node_entries(
 		})
 	visible_nodes.sort_custom(Callable(self, "_sort_visible_node_entries"))
 	return visible_nodes
-
-
-func _build_visible_edges(
-	graph_by_id: Dictionary,
-	visible_nodes: Array[Dictionary],
-	current_node_id: int,
-	world_positions: Dictionary,
-	layout_context: Dictionary,
-	template_profile: String,
-	board_seed: int,
-	board_size: Vector2
-) -> Array[Dictionary]:
+func _build_visible_edges(layout_edges: Array, visible_nodes: Array[Dictionary], current_node_id: int, board_size: Vector2) -> Array[Dictionary]:
 	var visible_node_ids: Dictionary = {}
 	var visible_node_by_id: Dictionary = {}
 	for node_entry in visible_nodes:
@@ -516,65 +484,87 @@ func _build_visible_edges(
 
 	var history_edges: Array[Dictionary] = []
 	var local_focus_edges: Array[Dictionary] = []
+	for edge_variant in layout_edges:
+		if typeof(edge_variant) != TYPE_DICTIONARY:
+			continue
+		var base_edge: Dictionary = edge_variant
+		var from_node_id: int = int(base_edge.get("from_node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
+		var to_node_id: int = int(base_edge.get("to_node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
+		if not visible_node_ids.has(from_node_id) or not visible_node_ids.has(to_node_id):
+			continue
+		var from_node: Dictionary = visible_node_by_id.get(from_node_id, {})
+		var to_node: Dictionary = visible_node_by_id.get(to_node_id, {})
+		var is_local_focus_edge: bool = from_node_id == current_node_id or to_node_id == current_node_id
+		if not is_local_focus_edge and not _should_show_history_edge(from_node, to_node):
+			continue
+		var edge_points: PackedVector2Array = base_edge.get("points", PackedVector2Array())
+		if not is_local_focus_edge and (
+			MapBoardGeometryScript.polyline_hits_other_visible_nodes(
+				edge_points,
+				from_node_id,
+				to_node_id,
+				visible_nodes,
+				EDGE_NODE_AVOIDANCE_PADDING
+			)
+			or not MapBoardGeometryScript.polyline_stays_inside_board_frame(edge_points, board_size)
+		):
+			continue
+		var edge_entry: Dictionary = base_edge.duplicate(true)
+		edge_entry["state_semantic"] = _edge_semantic_for(from_node, to_node)
+		edge_entry["is_history"] = not is_local_focus_edge
+		if is_local_focus_edge:
+			local_focus_edges.append(edge_entry)
+		else:
+			history_edges.append(edge_entry)
+	var filtered_history_edges: Array[Dictionary] = _filter_non_crossing_history_edges(local_focus_edges, history_edges)
+	return filtered_history_edges + local_focus_edges
+func _build_full_edge_layouts(
+	graph_by_id: Dictionary,
+	graph_nodes: Array[Dictionary],
+	world_positions: Dictionary,
+	layout_context: Dictionary,
+	template_profile: String,
+	board_seed: int,
+	board_size: Vector2
+) -> Array[Dictionary]:
+	var node_layout_by_id: Dictionary = {}
+	for node_entry in graph_nodes:
+		node_layout_by_id[int(node_entry.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))] = node_entry
+	var depth_by_node_id: Dictionary = layout_context.get("depth_by_node_id", {})
+	var layout_edges: Array[Dictionary] = []
 	var processed_edges: Dictionary = {}
 	for node_id_variant in graph_by_id.keys():
 		var node_id: int = int(node_id_variant)
-		if not visible_node_ids.has(node_id):
-			continue
 		for adjacent_node_id in _adjacent_ids_for(graph_by_id, node_id):
-			if not visible_node_ids.has(adjacent_node_id):
-				continue
 			var edge_key: String = _edge_key(node_id, adjacent_node_id)
 			if processed_edges.has(edge_key):
 				continue
 			processed_edges[edge_key] = true
-			var from_node: Dictionary = visible_node_by_id.get(node_id, {})
-			var to_node: Dictionary = visible_node_by_id.get(adjacent_node_id, {})
-			var is_local_focus_edge: bool = node_id == current_node_id or adjacent_node_id == current_node_id
-			if not is_local_focus_edge and not _should_show_history_edge(from_node, to_node):
-				continue
-			var edge_semantic: String = _edge_semantic_for(from_node, to_node)
-			var depth_by_node_id: Dictionary = layout_context.get("depth_by_node_id", {})
-			var edge_depth_delta: int = abs(
-				int(depth_by_node_id.get(node_id, 0)) - int(depth_by_node_id.get(adjacent_node_id, 0))
-			)
 			var path_model: Dictionary = _build_edge_path_model(
-				from_node,
-				to_node,
-				visible_nodes,
+				node_layout_by_id.get(node_id, {}),
+				node_layout_by_id.get(adjacent_node_id, {}),
+				graph_nodes,
 				world_positions,
 				layout_context,
 				template_profile,
 				board_seed,
 				board_size
 			)
-			var edge_entry := {
+			layout_edges.append({
 				"from_node_id": node_id,
 				"to_node_id": adjacent_node_id,
-				"state_semantic": edge_semantic,
-				"is_history": not is_local_focus_edge,
 				"is_reconnect_edge": bool(path_model.get("is_reconnect_edge", false)),
-				"depth_delta": edge_depth_delta,
+				"depth_delta": abs(int(depth_by_node_id.get(node_id, 0)) - int(depth_by_node_id.get(adjacent_node_id, 0))),
 				"path_family": String(path_model.get("path_family", PATH_FAMILY_GENTLE_CURVE)),
 				"trail_texture_path": _trail_texture_path_for_family(String(path_model.get("path_family", PATH_FAMILY_GENTLE_CURVE))),
 				"points": path_model.get("points", PackedVector2Array()),
-			}
-			if not is_local_focus_edge and MapBoardGeometryScript.polyline_hits_other_visible_nodes(
-				edge_entry.get("points", PackedVector2Array()),
-				node_id,
-				adjacent_node_id,
-				visible_nodes,
-				EDGE_NODE_AVOIDANCE_PADDING
-			):
-				continue
-			if is_local_focus_edge:
-				local_focus_edges.append(edge_entry)
-			else:
-				history_edges.append(edge_entry)
-	var filtered_history_edges: Array[Dictionary] = _filter_non_crossing_history_edges(local_focus_edges, history_edges)
-	return filtered_history_edges + local_focus_edges
-
-
+			})
+	layout_edges.sort_custom(func(left_edge: Dictionary, right_edge: Dictionary) -> bool:
+		var left_key: String = _edge_key(int(left_edge.get("from_node_id", -1)), int(left_edge.get("to_node_id", -1)))
+		var right_key: String = _edge_key(int(right_edge.get("from_node_id", -1)), int(right_edge.get("to_node_id", -1)))
+		return left_key < right_key
+	)
+	return layout_edges
 func _filter_non_crossing_history_edges(
 	local_focus_edges: Array[Dictionary],
 	history_edges: Array[Dictionary]
