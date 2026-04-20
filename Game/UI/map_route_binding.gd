@@ -214,6 +214,7 @@ func refresh_layout_for_resize(run_state) -> void:
 		return
 	_allow_large_resize_recompose_once = false
 	_composed_board_size = route_grid.size
+	_refresh_cached_visible_node_radii(route_grid.size)
 	var current_node_id: int = int(run_state.map_runtime_state.current_node_id)
 	var current_world_position: Vector2 = _get_node_world_position(current_node_id)
 	if current_world_position != Vector2.ZERO:
@@ -225,6 +226,27 @@ func refresh_layout_for_resize(run_state) -> void:
 func request_next_refresh_full_recompose() -> void:
 	_force_next_layout_recompose = true
 	_allow_large_resize_recompose_once = true
+
+
+func _refresh_cached_visible_node_radii(board_size: Vector2) -> void:
+	if _board_composition_cache.is_empty() or _board_composer == null:
+		return
+	var cached_visible_nodes: Array = _board_composition_cache.get("visible_nodes", [])
+	if cached_visible_nodes.is_empty():
+		return
+	var refreshed_visible_nodes: Array[Dictionary] = []
+	for node_variant in cached_visible_nodes:
+		if typeof(node_variant) != TYPE_DICTIONARY:
+			continue
+		var node_entry: Dictionary = (node_variant as Dictionary).duplicate(true)
+		node_entry["clearing_radius"] = float(_board_composer.call(
+			"_clearing_radius_for",
+			String(node_entry.get("node_family", "")),
+			String(node_entry.get("state_semantic", "open")),
+			board_size
+		))
+		refreshed_visible_nodes.append(node_entry)
+	_board_composition_cache["visible_nodes"] = refreshed_visible_nodes
 
 
 func render(run_state) -> void:
@@ -276,6 +298,14 @@ func begin_selection() -> void:
 
 func finish_selection() -> void:
 	_route_selection_in_flight = false
+
+
+func finish_selection_and_render(run_state) -> void:
+	_route_selection_in_flight = false
+	if run_state == null or _owner == null or not is_instance_valid(_owner):
+		return
+	prepare_for_refresh(run_state)
+	render(run_state)
 
 
 func has_pending_roadside_visual_state() -> bool:

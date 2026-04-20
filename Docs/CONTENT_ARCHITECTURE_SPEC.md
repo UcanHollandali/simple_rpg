@@ -174,7 +174,6 @@ The current prototype uses authored event templates for the dedicated `Event` fl
     - `hunger`
     - `hp_percent`
     - `gold`
-    - `has_empty_backpack_slot`
   - current supported operators stay inside the existing condition grammar
 - `rules.choices`
   - required array with exactly `2` entries

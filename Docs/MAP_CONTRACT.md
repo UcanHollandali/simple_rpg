@@ -208,7 +208,7 @@ Current runtime-backed prototype node families:
   - attempt happens after the move is chosen and its hunger cost is paid, but before destination arrival commits
   - only unresolved `discovered` combat/reward-style travel targets are eligible
   - current roadside tune allows up to `3` movement interruptions per stage through `MapRuntimeState.MAX_ROADSIDE_ENCOUNTERS_PER_STAGE`
-  - roadside-tagged `EventTemplates` may optionally gate themselves behind `rules.trigger_condition` using current route-state stats such as hunger, HP percent, gold, or backpack room
+  - roadside-tagged `EventTemplates` may optionally gate themselves behind `rules.trigger_condition` using current route-state stats such as hunger, HP percent, or gold
   - start, planned `event`, key, boss, hamlet, and direct support-family destinations stay untouched
   - an accepted side-quest marked combat target also stays untouched so that route opens `Combat` directly
   - while the roadside interruption is open, the player has not yet arrived on the destination node

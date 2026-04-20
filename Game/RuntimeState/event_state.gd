@@ -16,7 +16,6 @@ const DEFAULT_SELECTION_SEED: int = 1
 const TRIGGER_STAT_HUNGER: String = "hunger"
 const TRIGGER_STAT_HP_PERCENT: String = "hp_percent"
 const TRIGGER_STAT_GOLD: String = "gold"
-const TRIGGER_STAT_HAS_EMPTY_BACKPACK_SLOT: String = "has_empty_backpack_slot"
 
 var template_definition_id: String = ""
 var source_node_id: int = NO_SOURCE_NODE_ID

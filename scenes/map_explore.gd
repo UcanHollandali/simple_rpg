@@ -179,7 +179,8 @@ func _on_route_button_pressed(button_node_name: String) -> void:
 	_route_binding.begin_selection()
 	SceneAudioPlayersScript.play(self, "NodeSelectSfxPlayer")
 	await _route_binding.animate_route_selection(button_node_name, target_node_id, Callable(self, "_move_to_node"))
-	_route_binding.finish_selection()
+	var run_state: RunState = _get_run_state()
+	_route_binding.finish_selection_and_render(run_state)
 
 
 func _on_save_run_pressed() -> void:
@@ -805,6 +806,10 @@ func _apply_text_density_pass() -> void:
 
 func _on_route_grid_resized() -> void:
 	if _is_refreshing_ui:
+		if _route_binding != null:
+			_route_binding.request_next_refresh_full_recompose()
+		_refresh_ui_pending = true
+		call_deferred("_consume_pending_refresh_ui")
 		return
 	if _route_binding != null and _route_binding.is_selection_in_flight():
 		return
@@ -993,4 +998,3 @@ func _ensure_inventory_hint_label() -> void:
 		inventory_hint_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		inventory_section.add_child(inventory_hint_label)
 		inventory_section.move_child(inventory_hint_label, 1)
-

@@ -1875,7 +1875,6 @@ func _build_test_roadside_trigger_context(run_state: RunState) -> Dictionary:
 		EventStateScript.TRIGGER_STAT_HUNGER: run_state.hunger,
 		EventStateScript.TRIGGER_STAT_HP_PERCENT: (float(run_state.player_hp) / float(max_hp)) * 100.0,
 		EventStateScript.TRIGGER_STAT_GOLD: run_state.gold,
-		EventStateScript.TRIGGER_STAT_HAS_EMPTY_BACKPACK_SLOT: run_state.inventory_state != null and run_state.inventory_state.has_capacity_for_new_slot(),
 	}
 
 

@@ -64,7 +64,7 @@ SUPPORTED_CONSUMABLE_USE_TRIGGER = "on_use"
 SUPPORTED_CONSUMABLE_USE_TARGET = "self"
 SUPPORTED_CONSUMABLE_EFFECTS = {"heal", "modify_hunger", "repair_weapon"}
 SUPPORTED_EVENT_EFFECT_TYPES = {"grant_gold", "grant_xp", "heal", "modify_hunger", "repair_weapon", "damage_player", "grant_item"}
-SUPPORTED_EVENT_TRIGGER_STATS = {"hunger", "hp_percent", "gold", "has_empty_backpack_slot"}
+SUPPORTED_EVENT_TRIGGER_STATS = {"hunger", "hp_percent", "gold"}
 SUPPORTED_REWARD_EFFECT_TYPES = {"heal", "repair_weapon", "grant_xp", "grant_gold", "grant_item"}
 SUPPORTED_REWARD_SELECTION_MODES = {"rotate_by_context", "seeded_reward_rng"}
 SUPPORTED_REWARD_STAGE_RANGE = range(1, 4)
@@ -1721,25 +1721,6 @@ def validate_event_trigger_condition(
         return
 
     value = trigger_condition.get("value", None)
-    if stat_name == "has_empty_backpack_slot":
-        if op not in {"eq", "neq"}:
-            errors.append(
-                ValidationError(
-                    json_path,
-                    "unsupported_event_trigger_op",
-                    "EventTemplates.rules.trigger_condition for has_empty_backpack_slot must use op 'eq' or 'neq'.",
-                )
-            )
-        if not isinstance(value, bool):
-            errors.append(
-                ValidationError(
-                    json_path,
-                    "invalid_event_trigger_value",
-                    "EventTemplates.rules.trigger_condition.value must be a boolean for has_empty_backpack_slot.",
-                )
-            )
-        return
-
     if op not in {"eq", "neq", "gt", "gte", "lt", "lte"}:
         errors.append(
             ValidationError(

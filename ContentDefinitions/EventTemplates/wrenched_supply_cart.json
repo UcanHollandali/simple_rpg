@@ -14,11 +14,6 @@
     "short_description": "A supply cart has jackknifed into the ditch, its last dry goods pinned under a bent iron rail and a wheel that still creaks in the mud."
   },
   "rules": {
-    "trigger_condition": {
-      "op": "eq",
-      "stat": "has_empty_backpack_slot",
-      "value": true
-    },
     "choices": [
       {
         "choice_id": "pocket_the_war_biscuit",

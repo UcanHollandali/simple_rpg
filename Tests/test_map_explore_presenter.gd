@@ -29,10 +29,13 @@ func _run() -> void:
 	test_map_scene_keeps_focus_offset_quiet_inside_deadzone()
 	test_map_scene_blends_focus_toward_visible_cluster_context()
 	test_map_route_binding_recomposes_board_positions_after_route_grid_resize()
+	test_map_route_binding_refreshes_cached_node_radii_after_moderate_resize()
 	test_map_route_buttons_suppress_default_tooltip_copy()
 	test_map_scene_does_not_spawn_legacy_line2d_roads()
 	test_event_overlay_uses_stable_offers_shell()
 	test_map_scene_delays_camera_follow_until_after_departure()
+	test_map_scene_queues_recompose_when_route_grid_resizes_during_refresh()
+	test_map_route_binding_reconciles_route_buttons_after_selection_finishes()
 	print("test_map_explore_presenter: all assertions passed")
 	await TestExitCleanupHelperScript.cleanup_and_quit(self)
 
@@ -623,6 +626,121 @@ func test_map_route_binding_recomposes_board_positions_after_route_grid_resize()
 	_free_control(owner)
 
 
+func test_map_route_binding_refreshes_cached_node_radii_after_moderate_resize() -> void:
+	var owner := Control.new()
+	var margin := MarginContainer.new()
+	margin.name = "Margin"
+	owner.add_child(margin)
+	var vbox := VBoxContainer.new()
+	vbox.name = "VBox"
+	margin.add_child(vbox)
+	var route_grid := Control.new()
+	route_grid.name = "RouteGrid"
+	route_grid.size = Vector2(1052.0, 1008.0)
+	route_grid.custom_minimum_size = route_grid.size
+	vbox.add_child(route_grid)
+	var route_binding: RefCounted = MapRouteBindingScript.new()
+	route_binding.call("configure", owner, Callable(owner, "get_node_or_null"), MapBoardComposerV2Script.new())
+	var run_state: RunState = RunState.new()
+	run_state.reset_for_new_run()
+	run_state.configure_run_seed(1)
+	route_binding.call("prepare_for_refresh", run_state)
+	var opening_visible_nodes: Array = (route_binding.get("_board_composition_cache").get("visible_nodes", []) as Array).duplicate(true)
+	var opening_world_positions: Dictionary = route_binding.get("_board_composition_cache").get("world_positions", {})
+	assert(not opening_visible_nodes.is_empty(), "Expected visible nodes before moderate route-grid resize coverage.")
+	var opening_radius: float = _visible_node_radius_by_id(opening_visible_nodes, int(run_state.map_runtime_state.current_node_id))
+	assert(opening_radius > 0.0, "Expected the current visible node to expose a clearing radius before resize.")
+
+	route_grid.size = Vector2(1052.0, 1188.0)
+	route_binding.call("refresh_layout_for_resize", run_state)
+	var resized_visible_nodes: Array = (route_binding.get("_board_composition_cache").get("visible_nodes", []) as Array).duplicate(true)
+	var resized_world_positions: Dictionary = route_binding.get("_board_composition_cache").get("world_positions", {})
+	var resized_radius: float = _visible_node_radius_by_id(resized_visible_nodes, int(run_state.map_runtime_state.current_node_id))
+	assert(
+		resized_world_positions == opening_world_positions,
+		"Expected moderate route-grid resize to keep stable world positions instead of forcing a full board re-layout."
+	)
+	assert(
+		resized_radius > opening_radius,
+		"Expected moderate route-grid resize to refresh cached clearing radii so node clearings grow with the larger board height."
+	)
+	_free_control(owner)
+
+
+func test_map_scene_queues_recompose_when_route_grid_resizes_during_refresh() -> void:
+	var map_scene: Control = MapExplorePackedScene.instantiate() as Control
+	assert(map_scene != null, "Expected map scene instance for in-refresh route-grid resize coverage.")
+	get_root().add_child(map_scene)
+	await process_frame
+	var route_binding: RefCounted = map_scene.get("_route_binding")
+	assert(route_binding != null, "Expected route binding for in-refresh route-grid resize coverage.")
+	map_scene.set("_is_refreshing_ui", true)
+	map_scene.call("_on_route_grid_resized")
+	assert(bool(map_scene.get("_refresh_ui_pending")), "Expected route-grid resize during refresh to queue a follow-up UI refresh.")
+	assert(bool(route_binding.get("_force_next_layout_recompose")), "Expected route-grid resize during refresh to request a full board recompose on the next UI pass.")
+	_free_control(map_scene)
+
+
+func test_map_route_binding_reconciles_route_buttons_after_selection_finishes() -> void:
+	var owner := Control.new()
+	var margin := MarginContainer.new()
+	margin.name = "Margin"
+	owner.add_child(margin)
+	var vbox := VBoxContainer.new()
+	vbox.name = "VBox"
+	margin.add_child(vbox)
+	var route_grid := Control.new()
+	route_grid.name = "RouteGrid"
+	route_grid.size = Vector2(1052.0, 1008.0)
+	route_grid.custom_minimum_size = route_grid.size
+	vbox.add_child(route_grid)
+	for index in range(MapRouteBindingScript.ROUTE_MARKER_NODE_NAMES.size()):
+		var marker_rect := TextureRect.new()
+		marker_rect.name = String(MapRouteBindingScript.ROUTE_MARKER_NODE_NAMES[index])
+		route_grid.add_child(marker_rect)
+		var route_button := Button.new()
+		route_button.name = String(MapRouteBindingScript.ROUTE_BUTTON_NODE_NAMES[index])
+		route_grid.add_child(route_button)
+	var route_binding: RefCounted = MapRouteBindingScript.new()
+	route_binding.call("configure", owner, Callable(owner, "get_node_or_null"), MapBoardComposerV2Script.new())
+	route_binding.call("ensure_runtime_board_nodes")
+	var presenter: RefCounted = MapExplorePresenterScript.new()
+	var run_state: RunState = RunState.new()
+	run_state.reset_for_new_run()
+	run_state.configure_run_seed(1)
+	route_binding.call(
+		"set_route_models",
+		presenter.call("build_route_view_models", run_state, MapRouteBindingScript.ROUTE_BUTTON_NODE_NAMES.size())
+	)
+	route_binding.call("prepare_for_refresh", run_state)
+	route_binding.call("render", run_state)
+	var target_node_id: int = int(run_state.map_runtime_state.get_adjacent_node_ids()[0])
+	var stale_targets_before_move: Array[int] = _visible_route_button_targets(owner)
+	assert(
+		stale_targets_before_move.has(target_node_id),
+		"Expected one visible route button to target the selected adjacent node before travel."
+	)
+	route_binding.call("begin_selection")
+	run_state.map_runtime_state.move_to_node(target_node_id)
+	run_state.map_runtime_state.mark_node_resolved(target_node_id)
+	route_binding.call(
+		"set_route_models",
+		presenter.call("build_route_view_models", run_state, MapRouteBindingScript.ROUTE_BUTTON_NODE_NAMES.size())
+	)
+	var stale_targets_after_move: Array[int] = _visible_route_button_targets(owner)
+	assert(
+		stale_targets_after_move.has(target_node_id),
+		"Expected skipped in-flight refresh coverage to leave the old target button visible until selection finalization."
+	)
+	route_binding.call("finish_selection_and_render", run_state)
+	var refreshed_targets: Array[int] = _visible_route_button_targets(owner)
+	assert(
+		not refreshed_targets.has(int(run_state.map_runtime_state.current_node_id)),
+		"Expected selection finalization to clear any stale route button that still targets the newly current node."
+	)
+	_free_control(owner)
+
+
 func test_map_route_buttons_suppress_default_tooltip_copy() -> void:
 	var map_scene: Control = MapExplorePackedScene.instantiate() as Control
 	assert(map_scene != null, "Expected map scene instance for route-tooltip suppression coverage.")
@@ -721,3 +839,23 @@ func _free_control(control: Control) -> void:
 	if parent != null:
 		parent.remove_child(control)
 	control.free()
+
+
+func _visible_node_radius_by_id(visible_nodes: Array, node_id: int) -> float:
+	for node_variant in visible_nodes:
+		if typeof(node_variant) != TYPE_DICTIONARY:
+			continue
+		var node_entry: Dictionary = node_variant
+		if int(node_entry.get("node_id", -1)) == node_id:
+			return float(node_entry.get("clearing_radius", 0.0))
+	return 0.0
+
+
+func _visible_route_button_targets(owner: Control) -> Array[int]:
+	var targets: Array[int] = []
+	for button_name in MapRouteBindingScript.ROUTE_BUTTON_NODE_NAMES:
+		var route_button: Button = owner.get_node_or_null("Margin/VBox/RouteGrid/%s" % button_name) as Button
+		if route_button == null or not route_button.visible:
+			continue
+		targets.append(int(route_button.get_meta("target_node_id", -1)))
+	return targets
