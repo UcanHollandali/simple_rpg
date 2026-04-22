@@ -15,6 +15,17 @@ const TempScreenThemeScript = preload("res://Game/UI/temp_screen_theme.gd")
 const ONE_SHOT_UI_TRANSITION_LEAD_IN_SECONDS := 0.06
 const PORTRAIT_SAFE_MAX_WIDTH := 860
 const PORTRAIT_SAFE_MIN_SIDE_MARGIN := 28
+const APP_BOOTSTRAP_PATH := "/root/AppBootstrap"
+const CONTENT_CARD_PATH := "Margin/Center/ContentCard"
+const CHIP_CARD_PATH := "Margin/Center/ContentCard/VBox/ChipCard"
+const CHIP_LABEL_PATH := "Margin/Center/ContentCard/VBox/ChipCard/ChipLabel"
+const TITLE_LABEL_PATH := "Margin/Center/ContentCard/VBox/TitleLabel"
+const SUMMARY_LABEL_PATH := "Margin/Center/ContentCard/VBox/SummaryLabel"
+const HINT_LABEL_PATH := "Margin/Center/ContentCard/VBox/HintLabel"
+const RUN_STATUS_CARD_PATH := "Margin/Center/ContentCard/VBox/RunStatusCard"
+const RUN_STATUS_LABEL_PATH := "Margin/Center/ContentCard/VBox/RunStatusCard/RunStatusLabel"
+const STATUS_LABEL_PATH := "Margin/Center/ContentCard/VBox/StatusLabel"
+const CONTINUE_BUTTON_PATH := "Margin/Center/ContentCard/VBox/ContinueButton"
 const AUDIO_PLAYER_CONFIG := {
 	"UiConfirmSfxPlayer": {"path": "res://Assets/Audio/SFX/sfx_ui_confirm_01.ogg"},
 	"PanelOpenSfxPlayer": {"path": "res://Assets/Audio/SFX/sfx_panel_open_01.ogg"},
@@ -26,14 +37,15 @@ const PORTRAIT_LAYOUT_CONFIG := {
 	"min_side_margin": PORTRAIT_SAFE_MIN_SIDE_MARGIN,
 	"top_margin": 112,
 	"bottom_margin": 112,
+	"shared_surface_tokens": "stage_transition_shell",
 	"margin_steps": [
 		{"max_height": 1760.0, "top_margin": 92, "bottom_margin": 92},
 		{"max_height": 1540.0, "top_margin": 70, "bottom_margin": 70},
 	],
 	"bands": {
-		"large": {"min_width": 720.0, "min_height": 1640.0, "title_font_size": 44, "summary_font_size": 22, "hint_font_size": 16, "run_status_font_size": 16, "status_font_size": 16, "button_font_size": 20, "button_height": 80.0, "run_status_width": 320.0, "button_icon_max_width": 30},
-		"medium": {"min_width": 600.0, "min_height": 1460.0, "title_font_size": 38, "summary_font_size": 20, "hint_font_size": 15, "run_status_font_size": 15, "status_font_size": 15, "button_font_size": 18, "button_height": 72.0, "run_status_width": 280.0, "button_icon_max_width": 26},
-		"compact": {"title_font_size": 32, "summary_font_size": 18, "hint_font_size": 14, "run_status_font_size": 14, "status_font_size": 14, "button_font_size": 17, "button_height": 64.0, "run_status_width": 236.0, "button_icon_max_width": 22},
+		"large": {"min_width": 720.0, "min_height": 1640.0},
+		"medium": {"min_width": 600.0, "min_height": 1460.0},
+		"compact": {},
 	},
 }
 
@@ -41,9 +53,20 @@ var _bootstrap: AppBootstrapScript
 var _presenter: StageTransitionPresenter
 var _safe_menu: SafeMenuOverlay
 
+@onready var _content_card: PanelContainer = get_node_or_null(CONTENT_CARD_PATH) as PanelContainer
+@onready var _chip_card: PanelContainer = get_node_or_null(CHIP_CARD_PATH) as PanelContainer
+@onready var _chip_label: Label = get_node_or_null(CHIP_LABEL_PATH) as Label
+@onready var _title_label: Label = get_node_or_null(TITLE_LABEL_PATH) as Label
+@onready var _summary_label: Label = get_node_or_null(SUMMARY_LABEL_PATH) as Label
+@onready var _hint_label: Label = get_node_or_null(HINT_LABEL_PATH) as Label
+@onready var _run_status_card: PanelContainer = get_node_or_null(RUN_STATUS_CARD_PATH) as PanelContainer
+@onready var _run_status_label: Label = get_node_or_null(RUN_STATUS_LABEL_PATH) as Label
+@onready var _status_label: Label = get_node_or_null(STATUS_LABEL_PATH) as Label
+@onready var _continue_button: Button = get_node_or_null(CONTINUE_BUTTON_PATH) as Button
+
 
 func _ready() -> void:
-	_bootstrap = get_node_or_null("/root/AppBootstrap") as AppBootstrapScript
+	_bootstrap = get_node_or_null(APP_BOOTSTRAP_PATH) as AppBootstrapScript
 	_presenter = StageTransitionPresenterScript.new()
 	SceneAudioPlayersScript.configure_from_config(self, AUDIO_PLAYER_CONFIG)
 	_connect_buttons()
@@ -100,16 +123,11 @@ func _on_return_to_main_menu_pressed() -> void:
 
 
 func _connect_buttons() -> void:
-	var continue_button: Button = get_node_or_null("Margin/Center/ContentCard/VBox/ContinueButton") as Button
-	if continue_button != null and not continue_button.is_connected("pressed", Callable(self, "_on_continue_pressed")):
-		continue_button.connect("pressed", Callable(self, "_on_continue_pressed"))
+	if _continue_button != null and not _continue_button.is_connected("pressed", Callable(self, "_on_continue_pressed")):
+		_continue_button.connect("pressed", Callable(self, "_on_continue_pressed"))
 
 
 func _refresh_ui() -> void:
-	var chip_label: Label = get_node_or_null("Margin/Center/ContentCard/VBox/ChipCard/ChipLabel") as Label
-	var title_label: Label = get_node_or_null("Margin/Center/ContentCard/VBox/TitleLabel") as Label
-	var summary_label: Label = get_node_or_null("Margin/Center/ContentCard/VBox/SummaryLabel") as Label
-	var hint_label: Label = get_node_or_null("Margin/Center/ContentCard/VBox/HintLabel") as Label
 	_set_status_text("")
 
 	var stage_index: int = 0
@@ -120,18 +138,17 @@ func _refresh_ui() -> void:
 			stage_index = int(run_state.stage_index)
 			stage_personality = _resolve_stage_personality(run_state.map_runtime_state as MapRuntimeState)
 
-	if chip_label != null:
-		chip_label.text = _presenter.build_chip_text(stage_index)
-	if title_label != null:
-		title_label.text = _presenter.build_title_text(stage_index, stage_personality)
-	if summary_label != null:
-		summary_label.text = _presenter.build_summary_text(stage_personality)
-	if hint_label != null:
-		hint_label.text = _presenter.build_hint_text()
+	if _chip_label != null:
+		_chip_label.text = _presenter.build_chip_text(stage_index)
+	if _title_label != null:
+		_title_label.text = _presenter.build_title_text(stage_index, stage_personality)
+	if _summary_label != null:
+		_summary_label.text = _presenter.build_summary_text(stage_personality)
+	if _hint_label != null:
+		_hint_label.text = _presenter.build_hint_text()
 	_render_run_status_card()
-	var continue_button: Button = get_node_or_null("Margin/Center/ContentCard/VBox/ContinueButton") as Button
-	if continue_button != null:
-		continue_button.text = "Step Into Next Route"
+	if _continue_button != null:
+		_continue_button.text = "Step Into Next Route"
 
 	_refresh_save_controls()
 
@@ -141,10 +158,9 @@ func _refresh_save_controls() -> void:
 
 
 func _set_status_text(text: String) -> void:
-	var status_label: Label = get_node_or_null("Margin/Center/ContentCard/VBox/StatusLabel") as Label
-	if status_label != null:
-		status_label.text = text
-		status_label.visible = not text.is_empty()
+	if _status_label != null:
+		_status_label.text = text
+		_status_label.visible = not text.is_empty()
 
 
 func _get_flow_manager() -> GameFlowManager:
@@ -168,32 +184,32 @@ func _resolve_stage_personality(map_runtime_state: MapRuntimeState) -> String:
 
 func _apply_temp_theme() -> void:
 	TempScreenThemeScript.apply_wayfinder_backdrop(self, 0.56, 0.24, 0.08, true)
-	TempScreenThemeScript.apply_panel(get_node_or_null("Margin/Center/ContentCard") as PanelContainer, TempScreenThemeScript.PANEL_BORDER_COLOR, 22, 0.95)
-	TempScreenThemeScript.intensify_panel(get_node_or_null("Margin/Center/ContentCard") as PanelContainer, TempScreenThemeScript.PANEL_BORDER_COLOR, 3, 26, 0.04, 0.2, 22, 20)
+	TempScreenThemeScript.apply_panel(_content_card, TempScreenThemeScript.PANEL_BORDER_COLOR, 22, 0.95)
+	TempScreenThemeScript.intensify_panel(_content_card, TempScreenThemeScript.PANEL_BORDER_COLOR, 3, 26, 0.04, 0.2, 22, 20)
 	TempScreenThemeScript.apply_chip(
-		get_node_or_null("Margin/Center/ContentCard/VBox/ChipCard") as PanelContainer,
-		get_node_or_null("Margin/Center/ContentCard/VBox/ChipCard/ChipLabel") as Label,
+		_chip_card,
+		_chip_label,
 		TempScreenThemeScript.REWARD_ACCENT_COLOR
 	)
 	TempScreenThemeScript.apply_compact_status_area(
-		get_node_or_null("Margin/Center/ContentCard/VBox/RunStatusCard") as PanelContainer,
+		_run_status_card,
 		TempScreenThemeScript.PANEL_BORDER_COLOR
 	)
-	TempScreenThemeScript.apply_button(get_node_or_null("Margin/Center/ContentCard/VBox/ContinueButton") as Button, TempScreenThemeScript.REWARD_ACCENT_COLOR)
+	TempScreenThemeScript.apply_button(_continue_button, TempScreenThemeScript.REWARD_ACCENT_COLOR)
 	SceneLayoutHelperScript.apply_label_tones(self, [
-		{"path": "Margin/Center/ContentCard/VBox/TitleLabel", "tone": "title"},
-		{"path": "Margin/Center/ContentCard/VBox/SummaryLabel", "tone": "muted"},
-		{"path": "Margin/Center/ContentCard/VBox/HintLabel", "tone": "reward"},
-		{"path": "Margin/Center/ContentCard/VBox/RunStatusCard/RunStatusLabel", "tone": "muted"},
-		{"path": "Margin/Center/ContentCard/VBox/StatusLabel", "tone": "body"},
+		{"path": TITLE_LABEL_PATH, "tone": "title"},
+		{"path": SUMMARY_LABEL_PATH, "tone": "muted"},
+		{"path": HINT_LABEL_PATH, "tone": "reward"},
+		{"path": RUN_STATUS_LABEL_PATH, "tone": "muted"},
+		{"path": STATUS_LABEL_PATH, "tone": "body"},
 	])
 	SceneLayoutHelperScript.apply_control_overrides(self, {}, [
-		{"path": "Margin/Center/ContentCard/VBox/TitleLabel", "font_size": 34},
-		{"path": "Margin/Center/ContentCard/VBox/SummaryLabel", "font_size": 18},
-		{"path": "Margin/Center/ContentCard/VBox/HintLabel", "font_size": 16},
-		{"path": "Margin/Center/ContentCard/VBox/RunStatusCard/RunStatusLabel", "font_size": 14},
-		{"path": "Margin/Center/ContentCard/VBox/StatusLabel", "font_size": 14},
-		{"path": "Margin/Center/ContentCard/VBox/ContinueButton", "font_size": 18},
+		{"path": TITLE_LABEL_PATH, "font_size": 34},
+		{"path": SUMMARY_LABEL_PATH, "font_size": 18},
+		{"path": HINT_LABEL_PATH, "font_size": 16},
+		{"path": RUN_STATUS_LABEL_PATH, "font_size": 14},
+		{"path": STATUS_LABEL_PATH, "font_size": 14},
+		{"path": CONTINUE_BUTTON_PATH, "font_size": 18},
 	])
 
 
@@ -216,26 +232,35 @@ func _apply_portrait_safe_layout() -> void:
 	if values.is_empty():
 		return
 	var viewport_size: Vector2 = values.get("viewport_size", Vector2.ZERO)
-	values["panel_width"] = min(float(values.get("safe_width", 0.0)), 820.0 if viewport_size.y >= 1640.0 else 740.0 if viewport_size.y >= 1460.0 else 620.0)
-	values["vbox_separation"] = 12 if viewport_size.y < 1560.0 else 16
+	values["panel_width"] = SceneLayoutHelperScript.resolve_surface_panel_width(
+		"stage_transition_shell",
+		float(values.get("safe_width", 0.0)),
+		values.get("panel_width_cap")
+	)
+	values["vbox_separation"] = SceneLayoutHelperScript.resolve_height_tier_spacing(
+		viewport_size.y,
+		1560.0,
+		TempScreenThemeScript.REGULAR_STACK_SPACING_SHORT,
+		TempScreenThemeScript.REGULAR_STACK_SPACING_TALL
+	)
 	SceneLayoutHelperScript.apply_control_overrides(self, values, [
-		{"path": "Margin/Center/ContentCard", "custom_minimum_size": {"x": "panel_width", "y": 0.0}},
+		{"path": CONTENT_CARD_PATH, "custom_minimum_size": {"x": "panel_width", "y": 0.0}},
 		{"path": "Margin/Center/ContentCard/VBox", "theme_constants": {"separation": "vbox_separation"}},
-		{"path": "Margin/Center/ContentCard/VBox/TitleLabel", "font_size": "title_font_size"},
-		{"path": "Margin/Center/ContentCard/VBox/SummaryLabel", "font_size": "summary_font_size"},
-		{"path": "Margin/Center/ContentCard/VBox/HintLabel", "font_size": "hint_font_size"},
-		{"path": "Margin/Center/ContentCard/VBox/RunStatusCard/RunStatusLabel", "font_size": "run_status_font_size"},
-		{"path": "Margin/Center/ContentCard/VBox/RunStatusCard", "custom_minimum_size": {"x": "run_status_width", "y": 0.0}},
-		{"path": "Margin/Center/ContentCard/VBox/StatusLabel", "font_size": "status_font_size"},
-		{"path": "Margin/Center/ContentCard/VBox/ContinueButton", "font_size": "button_font_size", "custom_minimum_size": {"x": 0.0, "y": "button_height"}, "theme_constants": {"icon_max_width": "button_icon_max_width"}},
+		{"path": TITLE_LABEL_PATH, "font_size": "title_font_size"},
+		{"path": SUMMARY_LABEL_PATH, "font_size": "summary_font_size"},
+		{"path": HINT_LABEL_PATH, "font_size": "hint_font_size"},
+		{"path": RUN_STATUS_LABEL_PATH, "font_size": "run_status_font_size"},
+		{"path": RUN_STATUS_CARD_PATH, "custom_minimum_size": {"x": "run_status_width", "y": 0.0}},
+		{"path": STATUS_LABEL_PATH, "font_size": "status_font_size"},
+		{"path": CONTINUE_BUTTON_PATH, "font_size": "button_font_size", "custom_minimum_size": {"x": 0.0, "y": "button_height"}, "theme_constants": {"icon_max_width": "button_icon_max_width"}},
 	])
 
 
 func _render_run_status_card() -> void:
 	var run_state: RunState = _bootstrap.get_run_state() if _bootstrap != null else null
 	RunStatusStripScript.render_into(
-		get_node_or_null("Margin/Center/ContentCard/VBox/RunStatusCard") as PanelContainer,
-		get_node_or_null("Margin/Center/ContentCard/VBox/RunStatusCard/RunStatusLabel") as Label,
+		_run_status_card,
+		_run_status_label,
 		_presenter.build_run_status_model(run_state),
 		TempScreenThemeScript.PANEL_BORDER_COLOR
 	)

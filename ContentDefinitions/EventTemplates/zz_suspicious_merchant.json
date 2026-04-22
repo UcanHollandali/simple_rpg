@@ -3,7 +3,6 @@
   "definition_id": "zz_suspicious_merchant",
   "family": "EventTemplates",
   "tags": [
-    "event",
     "roadside",
     "merchant",
     "stage_2",

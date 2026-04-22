@@ -26,6 +26,34 @@ const ATMOSPHERE_GUIDE_ARC_COOL_RADIUS_MULTIPLIER := 0.38
 const ATMOSPHERE_GUIDE_ARC_COOL_COLOR := Color(0.20, 0.38, 0.30, 0.07)
 const ATMOSPHERE_GUIDE_ARC_COOL_WIDTH := 1.8
 
+const GROUND_BED_ALPHA := 0.70
+const GROUND_PATCH_ALPHA := 0.46
+const GROUND_BREAKUP_ALPHA := 0.34
+const GROUND_BED_RIM_WIDTH := 2.2
+const GROUND_PATCH_RIM_WIDTH := 1.6
+const GROUND_BREAKUP_RIM_WIDTH := 1.2
+const GROUND_BED_INNER_SCALE := Vector2(0.84, 0.80)
+const GROUND_PATCH_INNER_SCALE := Vector2(0.80, 0.74)
+const GROUND_BREAKUP_INNER_SCALE := Vector2(0.76, 0.70)
+const GROUND_BED_INNER_ALPHA_SCALE := 0.52
+const GROUND_PATCH_INNER_ALPHA_SCALE := 0.44
+const GROUND_BREAKUP_INNER_ALPHA_SCALE := 0.36
+const GROUND_RIM_ALPHA_SCALE := 0.54
+
+const FILLER_ROCK_ALPHA := 0.34
+const FILLER_RUIN_ALPHA := 0.30
+const FILLER_WATER_ALPHA := 0.28
+const FILLER_ROCK_RIM_WIDTH := 1.4
+const FILLER_RUIN_RIM_WIDTH := 1.2
+const FILLER_WATER_RIM_WIDTH := 1.1
+const FILLER_ROCK_INNER_SCALE := Vector2(0.78, 0.74)
+const FILLER_RUIN_INNER_SCALE := Vector2(0.80, 0.78)
+const FILLER_WATER_INNER_SCALE := Vector2(0.84, 0.78)
+const FILLER_ROCK_INNER_ALPHA_SCALE := 0.44
+const FILLER_RUIN_INNER_ALPHA_SCALE := 0.34
+const FILLER_WATER_INNER_ALPHA_SCALE := 0.28
+const FILLER_RIM_ALPHA_SCALE := 0.46
+
 const CANOPY_TEXTURE_SCALE := 1.92
 const DECOR_TEXTURE_SCALE := 1.56
 const CANOPY_ALPHA_SCALE := 0.54
@@ -254,6 +282,117 @@ static func board_atmosphere_center(board_size: Vector2, board_offset: Vector2) 
 
 static func board_atmosphere_upper_glow_center(board_size: Vector2, board_offset: Vector2) -> Vector2:
 	return board_size * ATMOSPHERE_UPPER_GLOW_CENTER_RATIO + board_offset * ATMOSPHERE_UPPER_GLOW_OFFSET_SCALE
+
+
+static func ground_patch_color(template_profile: String, family: String, tone_shift: float, alpha_scale: float) -> Color:
+	var ground_color: Color = _ground_profile_base_color(template_profile)
+	match family:
+		"patch":
+			ground_color = ground_color.lightened(0.05).lerp(Color(0.17, 0.14, 0.09, ground_color.a), 0.12)
+		"breakup":
+			ground_color = ground_color.darkened(0.04).lerp(Color(0.09, 0.08, 0.06, ground_color.a), 0.18)
+		_:
+			ground_color = ground_color.lightened(0.02)
+	ground_color = _apply_ground_tone_shift(ground_color, tone_shift)
+	ground_color.a *= _ground_family_alpha(family) * alpha_scale
+	return ground_color
+
+
+static func ground_patch_inner_color(template_profile: String, family: String, tone_shift: float, alpha_scale: float) -> Color:
+	var inner_color: Color = _ground_profile_base_color(template_profile).lightened(0.09)
+	if family == "breakup":
+		inner_color = inner_color.darkened(0.02)
+	inner_color = _apply_ground_tone_shift(inner_color, tone_shift * 0.65)
+	inner_color.a *= _ground_inner_alpha_scale(family) * alpha_scale
+	return inner_color
+
+
+static func ground_patch_rim_color(template_profile: String, family: String, tone_shift: float, alpha_scale: float) -> Color:
+	var rim_color: Color = _ground_profile_base_color(template_profile).lightened(0.18)
+	if family == "breakup":
+		rim_color = rim_color.darkened(0.02)
+	rim_color = _apply_ground_tone_shift(rim_color, tone_shift * 0.42)
+	rim_color.a *= GROUND_RIM_ALPHA_SCALE * alpha_scale
+	return rim_color
+
+
+static func ground_patch_rim_width(family: String) -> float:
+	match family:
+		"patch":
+			return GROUND_PATCH_RIM_WIDTH
+		"breakup":
+			return GROUND_BREAKUP_RIM_WIDTH
+		_:
+			return GROUND_BED_RIM_WIDTH
+
+
+static func ground_patch_inner_scale(family: String) -> Vector2:
+	match family:
+		"patch":
+			return GROUND_PATCH_INNER_SCALE
+		"breakup":
+			return GROUND_BREAKUP_INNER_SCALE
+		_:
+			return GROUND_BED_INNER_SCALE
+
+
+static func filler_shape_color(template_profile: String, family: String, tone_shift: float, alpha_scale: float) -> Color:
+	var filler_color: Color = _ground_profile_base_color(template_profile)
+	match family:
+		"ruin":
+			filler_color = filler_color.lightened(0.08).lerp(Color(0.38, 0.31, 0.21, 1.0), 0.34)
+		"water_patch":
+			filler_color = Color(0.13, 0.18, 0.19, 1.0).lerp(filler_color, 0.26)
+		_:
+			filler_color = filler_color.darkened(0.08).lerp(Color(0.31, 0.29, 0.24, 1.0), 0.22)
+	filler_color = _apply_ground_tone_shift(filler_color, tone_shift)
+	filler_color.a *= _filler_family_alpha(family) * alpha_scale
+	return filler_color
+
+
+static func filler_shape_inner_color(template_profile: String, family: String, tone_shift: float, alpha_scale: float) -> Color:
+	var inner_color: Color = _ground_profile_base_color(template_profile).lightened(0.10)
+	match family:
+		"ruin":
+			inner_color = inner_color.lightened(0.04).lerp(Color(0.54, 0.45, 0.31, 1.0), 0.24)
+		"water_patch":
+			inner_color = Color(0.21, 0.30, 0.31, 1.0)
+		_:
+			inner_color = inner_color.lerp(Color(0.46, 0.42, 0.34, 1.0), 0.18)
+	inner_color = _apply_ground_tone_shift(inner_color, tone_shift * 0.55)
+	inner_color.a *= _filler_inner_alpha_scale(family) * alpha_scale
+	return inner_color
+
+
+static func filler_shape_rim_color(template_profile: String, family: String, tone_shift: float, alpha_scale: float) -> Color:
+	var rim_color: Color = _ground_profile_base_color(template_profile).lightened(0.22)
+	if family == "water_patch":
+		rim_color = Color(0.36, 0.48, 0.48, 1.0)
+	elif family == "ruin":
+		rim_color = rim_color.lerp(Color(0.70, 0.58, 0.40, 1.0), 0.26)
+	rim_color = _apply_ground_tone_shift(rim_color, tone_shift * 0.40)
+	rim_color.a *= FILLER_RIM_ALPHA_SCALE * alpha_scale
+	return rim_color
+
+
+static func filler_shape_rim_width(family: String) -> float:
+	match family:
+		"ruin":
+			return FILLER_RUIN_RIM_WIDTH
+		"water_patch":
+			return FILLER_WATER_RIM_WIDTH
+		_:
+			return FILLER_ROCK_RIM_WIDTH
+
+
+static func filler_shape_inner_scale(family: String) -> Vector2:
+	match family:
+		"ruin":
+			return FILLER_RUIN_INNER_SCALE
+		"water_patch":
+			return FILLER_WATER_INNER_SCALE
+		_:
+			return FILLER_ROCK_INNER_SCALE
 
 
 static func forest_texture_scale(shape_family: String) -> float:
@@ -490,6 +629,62 @@ static func side_quest_highlight_color(highlight_state: String) -> Color:
 			return Color(0.84, 0.72, 1.0, 0.94)
 		_:
 			return Color(0.92, 0.88, 0.72, 0.88)
+
+
+static func _ground_profile_base_color(template_profile: String) -> Color:
+	match template_profile:
+		"openfield":
+			return Color(0.22, 0.19, 0.12, 1.0)
+		"loop":
+			return Color(0.18, 0.18, 0.13, 1.0)
+		_:
+			return Color(0.19, 0.16, 0.11, 1.0)
+
+
+static func _ground_family_alpha(family: String) -> float:
+	match family:
+		"patch":
+			return GROUND_PATCH_ALPHA
+		"breakup":
+			return GROUND_BREAKUP_ALPHA
+		_:
+			return GROUND_BED_ALPHA
+
+
+static func _ground_inner_alpha_scale(family: String) -> float:
+	match family:
+		"patch":
+			return GROUND_PATCH_INNER_ALPHA_SCALE
+		"breakup":
+			return GROUND_BREAKUP_INNER_ALPHA_SCALE
+		_:
+			return GROUND_BED_INNER_ALPHA_SCALE
+
+
+static func _filler_family_alpha(family: String) -> float:
+	match family:
+		"ruin":
+			return FILLER_RUIN_ALPHA
+		"water_patch":
+			return FILLER_WATER_ALPHA
+		_:
+			return FILLER_ROCK_ALPHA
+
+
+static func _filler_inner_alpha_scale(family: String) -> float:
+	match family:
+		"ruin":
+			return FILLER_RUIN_INNER_ALPHA_SCALE
+		"water_patch":
+			return FILLER_WATER_INNER_ALPHA_SCALE
+		_:
+			return FILLER_ROCK_INNER_ALPHA_SCALE
+
+
+static func _apply_ground_tone_shift(color: Color, tone_shift: float) -> Color:
+	if tone_shift >= 0.0:
+		return color.lightened(tone_shift)
+	return color.darkened(absf(tone_shift))
 
 
 static func _apply_color_emphasis(color: Color, light_amount: float, alpha_add: float) -> Color:

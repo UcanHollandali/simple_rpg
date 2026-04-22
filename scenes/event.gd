@@ -21,11 +21,11 @@ const OFFERS_SHELL_PATH := "Margin/VBox/OffersShell"
 const OFFERS_CONTENT_PATH := OFFERS_SHELL_PATH + "/VBox"
 const HEADER_CARD_PATH := OFFERS_CONTENT_PATH + "/HeaderRow/HeaderCard"
 const HEADER_STACK_PATH := HEADER_CARD_PATH + "/HeaderStack"
+const HEADER_META_ROW_PATH := HEADER_STACK_PATH + "/HeaderMetaRow"
 const RUN_STATUS_CARD_PATH := OFFERS_CONTENT_PATH + "/HeaderRow/RunStatusCard"
 const CARDS_ROW_PATH := OFFERS_CONTENT_PATH + "/CardsRow"
-const STATUS_LABEL_PATH := "Margin/VBox/StatusLabel"
-const OVERLAY_SCRIM_ALPHA := 0.38
-const ROADSIDE_OVERLAY_SCRIM_ALPHA := 0.54
+const STATUS_CARD_PATH := "Margin/VBox/StatusCard"
+const STATUS_LABEL_PATH := STATUS_CARD_PATH + "/StatusLabel"
 const AUDIO_PLAYER_CONFIG := {
 	"UiConfirmSfxPlayer": {"path": "res://Assets/Audio/SFX/sfx_ui_confirm_01.ogg"},
 	"PanelOpenSfxPlayer": {"path": "res://Assets/Audio/SFX/sfx_panel_open_01.ogg"},
@@ -36,14 +36,15 @@ const PORTRAIT_LAYOUT_CONFIG := {
 	"min_side_margin": PORTRAIT_SAFE_MIN_SIDE_MARGIN,
 	"top_margin": 124,
 	"bottom_margin": 124,
+	"shared_surface_tokens": "event_modal",
 	"margin_steps": [
 		{"max_height": 1760.0, "top_margin": 96, "bottom_margin": 96},
 		{"max_height": 1540.0, "top_margin": 72, "bottom_margin": 72},
 	],
 	"bands": {
-		"large": {"min_width": 760.0, "min_height": 1640.0, "title_font_size": 44, "summary_font_size": 20, "context_font_size": 20, "hint_font_size": 16, "status_font_size": 16, "card_title_font_size": 24, "card_detail_font_size": 16, "button_font_size": 20, "button_height": 78.0, "card_height": 224.0, "button_icon_max_width": 30},
-		"medium": {"min_width": 620.0, "min_height": 1460.0, "title_font_size": 38, "summary_font_size": 18, "context_font_size": 18, "hint_font_size": 15, "status_font_size": 15, "card_title_font_size": 22, "card_detail_font_size": 15, "button_font_size": 18, "button_height": 70.0, "card_height": 196.0, "button_icon_max_width": 26},
-		"compact": {"title_font_size": 32, "summary_font_size": 16, "context_font_size": 16, "hint_font_size": 14, "status_font_size": 14, "card_title_font_size": 20, "card_detail_font_size": 14, "button_font_size": 17, "button_height": 62.0, "card_height": 172.0, "button_icon_max_width": 22},
+		"large": {"min_width": 760.0, "min_height": 1640.0},
+		"medium": {"min_width": 620.0, "min_height": 1460.0},
+		"compact": {},
 	},
 }
 
@@ -57,12 +58,15 @@ var _safe_menu: SafeMenuOverlay
 var _overflow_prompt: InventoryOverflowPrompt
 var _pending_overflow_choice_id: String = ""
 var _scene_node_cache: Dictionary = {}
+var _first_run_hint_controller: FirstRunHintController
 
 @onready var _header_chip_label: Label = _scene_node("%s/ChipCard/ChipLabel" % HEADER_STACK_PATH) as Label
 @onready var _header_title_label: Label = _scene_node("%s/TitleLabel" % HEADER_STACK_PATH) as Label
-@onready var _header_context_label: Label = _scene_node("%s/ContextLabel" % HEADER_STACK_PATH) as Label
 @onready var _header_summary_label: Label = _scene_node("%s/SummaryLabel" % HEADER_STACK_PATH) as Label
-@onready var _header_hint_label: Label = _scene_node("%s/HintLabel" % HEADER_STACK_PATH) as Label
+@onready var _header_meta_row: HBoxContainer = _scene_node(HEADER_META_ROW_PATH) as HBoxContainer
+@onready var _header_context_label: Label = _scene_node("%s/ContextLabel" % HEADER_META_ROW_PATH) as Label
+@onready var _header_hint_label: Label = _scene_node("%s/HintLabel" % HEADER_META_ROW_PATH) as Label
+@onready var _status_card: PanelContainer = _scene_node(STATUS_CARD_PATH) as PanelContainer
 @onready var _status_label: Label = _scene_node(STATUS_LABEL_PATH) as Label
 @onready var _run_status_card: PanelContainer = _scene_node(RUN_STATUS_CARD_PATH) as PanelContainer
 
@@ -87,11 +91,14 @@ func _ready() -> void:
 	SceneLayoutHelperScript.bind_viewport_size_changed(self, Callable(self, "_apply_portrait_safe_layout"))
 	_apply_portrait_safe_layout()
 	_render_event_state()
+	_setup_first_run_hint_controller()
+	_request_contextual_first_run_hint()
 	SceneAudioPlayersScript.start_looping(self, "EventMusicPlayer")
 	SceneAudioPlayersScript.play(self, "PanelOpenSfxPlayer")
 
 
 func _exit_tree() -> void:
+	_release_first_run_hint_controller_host()
 	if _choice_tooltip_controller != null:
 		_choice_tooltip_controller.release()
 		_choice_tooltip_controller = null
@@ -123,6 +130,7 @@ func _on_offer_pressed(index: int) -> void:
 		return
 	if String(result.get("error", "")) == "inventory_choice_required":
 		_choice_in_flight = false
+		_set_status_text(_presenter.build_choice_pending_feedback_text(choice, result))
 		_present_inventory_overflow_prompt(choice_id, result)
 		return
 
@@ -153,13 +161,20 @@ func _render_event_state() -> void:
 		_header_chip_label.text = _presenter.build_chip_text(_event_state)
 	if _header_title_label != null:
 		_header_title_label.text = _presenter.build_title_text(_event_state)
-	if _header_context_label != null:
-		_header_context_label.text = _presenter.build_context_text(_event_state)
 	if _header_summary_label != null:
 		_header_summary_label.text = _presenter.build_summary_text(_event_state)
+		_header_summary_label.visible = not _header_summary_label.text.is_empty()
+	if _header_context_label != null:
+		_header_context_label.text = _presenter.build_context_text(_event_state)
+		_header_context_label.visible = not _header_context_label.text.is_empty()
 	if _header_hint_label != null:
 		_header_hint_label.text = _presenter.build_hint_text()
 		_header_hint_label.visible = not _header_hint_label.text.is_empty()
+	if _header_meta_row != null:
+		_header_meta_row.visible = (
+			(_header_context_label != null and _header_context_label.visible)
+			or (_header_hint_label != null and _header_hint_label.visible)
+		)
 	_refresh_save_controls()
 
 	var card_models: Array[Dictionary] = _presenter.build_choice_view_models(_event_state, CARD_NODE_NAMES.size())
@@ -167,7 +182,9 @@ func _render_event_state() -> void:
 		var card: Control = _scene_node(_card_path(index)) as Control
 		var badge_label: Label = _scene_node(_card_label_path(index, "BadgeLabel")) as Label
 		var choice_title_label: Label = _scene_node(_card_label_path(index, "ChoiceTitleLabel")) as Label
+		var choice_summary_label: Label = _scene_node(_card_label_path(index, "ChoiceSummaryLabel")) as Label
 		var choice_detail_label: Label = _scene_node(_card_label_path(index, "ChoiceDetailLabel")) as Label
+		var choice_availability_label: Label = _scene_node(_card_label_path(index, "ChoiceAvailabilityLabel")) as Label
 		var button: Button = _scene_node(_button_path(index)) as Button
 		var model: Dictionary = card_models[index]
 		var tooltip_text: String = String(model.get("tooltip_text", ""))
@@ -179,8 +196,15 @@ func _render_event_state() -> void:
 			badge_label.text = String(model.get("badge_text", ""))
 		if choice_title_label != null:
 			choice_title_label.text = String(model.get("title_text", ""))
+		if choice_summary_label != null:
+			choice_summary_label.text = String(model.get("summary_text", ""))
+			choice_summary_label.visible = not choice_summary_label.text.is_empty()
 		if choice_detail_label != null:
 			choice_detail_label.text = String(model.get("detail_text", ""))
+			choice_detail_label.visible = not choice_detail_label.text.is_empty()
+		if choice_availability_label != null:
+			choice_availability_label.text = String(model.get("availability_text", ""))
+			choice_availability_label.visible = not choice_availability_label.text.is_empty()
 		if button != null:
 			button.text = String(model.get("button_text", ""))
 			button.tooltip_text = ""
@@ -198,6 +222,8 @@ func _set_offer_buttons_interactable(is_interactable: bool) -> void:
 
 
 func _set_status_text(text: String) -> void:
+	if _status_card != null:
+		_status_card.visible = not text.is_empty()
 	if _status_label != null:
 		_status_label.text = text
 		_status_label.visible = not text.is_empty()
@@ -264,7 +290,7 @@ func _card_label_path(index: int, label_name: String) -> String:
 
 
 func _button_path(index: int) -> String:
-	return "%s/VBox/%s" % [_card_path(index), BUTTON_NODE_NAMES[index]]
+	return "%s/VBox/ActionShell/%s" % [_card_path(index), BUTTON_NODE_NAMES[index]]
 
 
 func _apply_temp_theme() -> void:
@@ -280,7 +306,11 @@ func _apply_temp_theme() -> void:
 		if scrim != null:
 			scrim.visible = true
 			TempScreenThemeScript.apply_scrim(scrim)
-			var scrim_alpha: float = ROADSIDE_OVERLAY_SCRIM_ALPHA if roadside_overlay else OVERLAY_SCRIM_ALPHA
+			var scrim_alpha: float = (
+				TempScreenThemeScript.resolve_surface_scrim_alpha("event_modal_roadside")
+				if roadside_overlay
+				else TempScreenThemeScript.resolve_surface_scrim_alpha("event_modal")
+			)
 			scrim.color = Color(scrim.color.r, scrim.color.g, scrim.color.b, scrim_alpha)
 		if margin != null:
 			var overlay_margins: Dictionary = TempScreenThemeScript.compute_overlay_margins(get_viewport_rect().size, PORTRAIT_SAFE_MAX_WIDTH, PORTRAIT_SAFE_MIN_SIDE_MARGIN)
@@ -341,11 +371,15 @@ func _apply_temp_theme() -> void:
 		_run_status_card,
 		TempScreenThemeScript.PANEL_BORDER_COLOR
 	)
+	TempScreenThemeScript.apply_compact_status_area(
+		_status_card,
+		TempScreenThemeScript.PANEL_BORDER_COLOR
+	)
 	SceneLayoutHelperScript.apply_label_tones(self, [
 		{"path": "%s/TitleLabel" % HEADER_STACK_PATH, "tone": "title"},
-		{"path": "%s/SummaryLabel" % HEADER_STACK_PATH, "tone": "muted"},
-		{"path": "%s/ContextLabel" % HEADER_STACK_PATH, "tone": "reward"},
-		{"path": "%s/HintLabel" % HEADER_STACK_PATH, "tone": "muted"},
+		{"path": "%s/SummaryLabel" % HEADER_STACK_PATH, "tone": "body"},
+		{"path": "%s/ContextLabel" % HEADER_META_ROW_PATH, "tone": "muted"},
+		{"path": "%s/HintLabel" % HEADER_META_ROW_PATH, "tone": "muted"},
 		{"path": "%s/RunStatusLabel" % RUN_STATUS_CARD_PATH, "tone": "muted"},
 		{"path": STATUS_LABEL_PATH, "tone": "body"},
 	])
@@ -355,31 +389,39 @@ func _apply_temp_theme() -> void:
 			"%s/ChipCard/ChipLabel" % HEADER_STACK_PATH,
 			"%s/TitleLabel" % HEADER_STACK_PATH,
 			"%s/SummaryLabel" % HEADER_STACK_PATH,
-			"%s/ContextLabel" % HEADER_STACK_PATH,
-			"%s/HintLabel" % HEADER_STACK_PATH,
 		], "horizontal_alignment": HORIZONTAL_ALIGNMENT_LEFT, "size_flags_horizontal": Control.SIZE_EXPAND_FILL, "autowrap_mode": TextServer.AUTOWRAP_WORD_SMART},
+		{"path": HEADER_META_ROW_PATH, "size_flags_horizontal": Control.SIZE_EXPAND_FILL},
+		{"path": "%s/ContextLabel" % HEADER_META_ROW_PATH, "horizontal_alignment": HORIZONTAL_ALIGNMENT_LEFT, "size_flags_horizontal": Control.SIZE_EXPAND_FILL, "autowrap_mode": TextServer.AUTOWRAP_WORD_SMART},
+		{"path": "%s/HintLabel" % HEADER_META_ROW_PATH, "horizontal_alignment": HORIZONTAL_ALIGNMENT_RIGHT, "size_flags_horizontal": Control.SIZE_EXPAND_FILL, "autowrap_mode": TextServer.AUTOWRAP_WORD_SMART},
 		{"path": "%s/RunStatusLabel" % RUN_STATUS_CARD_PATH, "size_flags_horizontal": Control.SIZE_EXPAND_FILL, "autowrap_mode": TextServer.AUTOWRAP_OFF},
 	])
 
 	for card_name in CARD_NODE_NAMES:
 		var choice_card: PanelContainer = _scene_node("%s/%s" % [CARDS_ROW_PATH, card_name]) as PanelContainer
+		var action_shell: PanelContainer = _scene_node("%s/%s/VBox/ActionShell" % [CARDS_ROW_PATH, card_name]) as PanelContainer
 		TempScreenThemeScript.apply_choice_card_shell(choice_card, TempScreenThemeScript.TEAL_ACCENT_COLOR)
+		TempScreenThemeScript.apply_compact_status_area(action_shell, TempScreenThemeScript.TEAL_ACCENT_COLOR.darkened(0.08))
 		TempScreenThemeScript.apply_label(_scene_node("%s/%s/VBox/BadgeLabel" % [CARDS_ROW_PATH, card_name]) as Label, "accent")
 		TempScreenThemeScript.apply_label(_scene_node("%s/%s/VBox/ChoiceTitleLabel" % [CARDS_ROW_PATH, card_name]) as Label, "title")
-		TempScreenThemeScript.apply_label(_scene_node("%s/%s/VBox/ChoiceDetailLabel" % [CARDS_ROW_PATH, card_name]) as Label)
+		TempScreenThemeScript.apply_label(_scene_node("%s/%s/VBox/ChoiceSummaryLabel" % [CARDS_ROW_PATH, card_name]) as Label, "body")
+		TempScreenThemeScript.apply_label(_scene_node("%s/%s/VBox/ChoiceDetailLabel" % [CARDS_ROW_PATH, card_name]) as Label, "reward")
+		TempScreenThemeScript.apply_label(_scene_node("%s/%s/VBox/ChoiceAvailabilityLabel" % [CARDS_ROW_PATH, card_name]) as Label, "danger")
 		SceneLayoutHelperScript.apply_control_overrides(self, {}, [
 			{"paths": [
 				"%s/%s/VBox/BadgeLabel" % [CARDS_ROW_PATH, card_name],
 				"%s/%s/VBox/ChoiceTitleLabel" % [CARDS_ROW_PATH, card_name],
+				"%s/%s/VBox/ChoiceSummaryLabel" % [CARDS_ROW_PATH, card_name],
 				"%s/%s/VBox/ChoiceDetailLabel" % [CARDS_ROW_PATH, card_name],
-			], "horizontal_alignment": HORIZONTAL_ALIGNMENT_LEFT},
+				"%s/%s/VBox/ChoiceAvailabilityLabel" % [CARDS_ROW_PATH, card_name],
+			], "horizontal_alignment": HORIZONTAL_ALIGNMENT_LEFT, "size_flags_horizontal": Control.SIZE_EXPAND_FILL, "autowrap_mode": TextServer.AUTOWRAP_WORD_SMART},
+			{"path": "%s/%s/VBox/ActionShell" % [CARDS_ROW_PATH, card_name], "size_flags_horizontal": Control.SIZE_EXPAND_FILL},
 		])
 
 	for button_name in BUTTON_NODE_NAMES:
-		var choice_button: Button = _scene_node("%s/%s/VBox/%s" % [CARDS_ROW_PATH, _event_card_name_for_button(button_name), button_name]) as Button
+		var choice_button: Button = _scene_node("%s/%s/VBox/ActionShell/%s" % [CARDS_ROW_PATH, _event_card_name_for_button(button_name), button_name]) as Button
 		TempScreenThemeScript.apply_button(choice_button, TempScreenThemeScript.TEAL_ACCENT_COLOR)
 		SceneLayoutHelperScript.apply_control_overrides(self, {}, [
-			{"path": "%s/%s/VBox/%s" % [CARDS_ROW_PATH, _event_card_name_for_button(button_name), button_name], "alignment": HORIZONTAL_ALIGNMENT_LEFT},
+			{"path": "%s/%s/VBox/ActionShell/%s" % [CARDS_ROW_PATH, _event_card_name_for_button(button_name), button_name], "alignment": HORIZONTAL_ALIGNMENT_LEFT},
 		])
 
 
@@ -456,7 +498,15 @@ func _apply_portrait_safe_layout() -> void:
 	if values.is_empty():
 		return
 	var viewport_size: Vector2 = values.get("viewport_size", Vector2.ZERO)
-	values["vbox_separation"] = 12 if viewport_size.y < 1560.0 else 16
+	values["vbox_separation"] = SceneLayoutHelperScript.resolve_height_tier_spacing(
+		viewport_size.y,
+		1560.0,
+		TempScreenThemeScript.REGULAR_STACK_SPACING_SHORT,
+		TempScreenThemeScript.REGULAR_STACK_SPACING_TALL
+	)
+	values["header_meta_separation"] = SceneLayoutHelperScript.resolve_width_tier_spacing(viewport_size.x, 760.0, 8, 12)
+	values["card_summary_font_size"] = int(values.get("card_detail_font_size", 14))
+	values["card_effect_font_size"] = int(values.get("card_detail_font_size", 14)) + 1
 	SceneLayoutHelperScript.apply_control_overrides(self, values, [
 		{"path": "Margin/VBox", "theme_constants": {"separation": "vbox_separation"}},
 		{"path": OFFERS_CONTENT_PATH, "theme_constants": {"separation": "vbox_separation"}},
@@ -464,11 +514,13 @@ func _apply_portrait_safe_layout() -> void:
 		{"path": CARDS_ROW_PATH, "theme_constants": {"separation": "vbox_separation"}},
 		{"path": "%s/TitleLabel" % HEADER_STACK_PATH, "font_size": "title_font_size"},
 		{"path": "%s/SummaryLabel" % HEADER_STACK_PATH, "font_size": "summary_font_size"},
-		{"path": "%s/ContextLabel" % HEADER_STACK_PATH, "font_size": "context_font_size"},
-		{"path": "%s/HintLabel" % HEADER_STACK_PATH, "font_size": "hint_font_size"},
+		{"path": HEADER_META_ROW_PATH, "theme_constants": {"separation": "header_meta_separation"}},
+		{"path": "%s/ContextLabel" % HEADER_META_ROW_PATH, "font_size": "context_font_size"},
+		{"path": "%s/HintLabel" % HEADER_META_ROW_PATH, "font_size": "hint_font_size"},
 		{"path": "%s/RunStatusLabel" % RUN_STATUS_CARD_PATH, "font_size": "status_font_size"},
 		{"path": RUN_STATUS_CARD_PATH, "custom_minimum_size": {"x": 0.0, "y": 0.0}},
 		{"path": STATUS_LABEL_PATH, "font_size": "hint_font_size"},
+		{"path": STATUS_CARD_PATH, "custom_minimum_size": {"x": 0.0, "y": 0.0}},
 	])
 	for card_name in CARD_NODE_NAMES:
 		SceneLayoutHelperScript.apply_control_overrides(self, values, [
@@ -476,11 +528,15 @@ func _apply_portrait_safe_layout() -> void:
 			{"path": "%s/%s/VBox" % [CARDS_ROW_PATH, card_name], "size_flags_horizontal": Control.SIZE_EXPAND_FILL, "size_flags_vertical": Control.SIZE_EXPAND_FILL},
 			{"path": "%s/%s/VBox/BadgeLabel" % [CARDS_ROW_PATH, card_name], "font_size": "hint_font_size"},
 			{"path": "%s/%s/VBox/ChoiceTitleLabel" % [CARDS_ROW_PATH, card_name], "font_size": "card_title_font_size"},
-			{"path": "%s/%s/VBox/ChoiceDetailLabel" % [CARDS_ROW_PATH, card_name], "font_size": "card_detail_font_size", "max_lines_visible": 2},
-			{"path": "%s/%s/VBox/%s" % [CARDS_ROW_PATH, card_name, _button_name_for_card(card_name)], "font_size": "button_font_size", "custom_minimum_size": {"x": 0.0, "y": "button_height"}, "theme_constants": {"icon_max_width": "button_icon_max_width"}},
+			{"path": "%s/%s/VBox/ChoiceSummaryLabel" % [CARDS_ROW_PATH, card_name], "font_size": "card_summary_font_size", "max_lines_visible": 2},
+			{"path": "%s/%s/VBox/ChoiceDetailLabel" % [CARDS_ROW_PATH, card_name], "font_size": "card_effect_font_size", "max_lines_visible": 2},
+			{"path": "%s/%s/VBox/ChoiceAvailabilityLabel" % [CARDS_ROW_PATH, card_name], "font_size": "hint_font_size", "max_lines_visible": 2},
+			{"path": "%s/%s/VBox/ActionShell/%s" % [CARDS_ROW_PATH, card_name, _button_name_for_card(card_name)], "font_size": "button_font_size", "custom_minimum_size": {"x": 0.0, "y": "button_height"}, "theme_constants": {"icon_max_width": "button_icon_max_width"}},
 		])
 	if _choice_tooltip_controller != null:
 		_choice_tooltip_controller.refresh_hovered_tooltip()
+	if _first_run_hint_controller != null:
+		_first_run_hint_controller.refresh_position()
 
 
 func _hide_run_status_card() -> void:
@@ -502,6 +558,38 @@ func _scene_node(path: String) -> Node:
 	if node != null:
 		_scene_node_cache[path] = node
 	return node
+
+
+func _setup_first_run_hint_controller() -> void:
+	_first_run_hint_controller = _resolve_first_run_hint_controller()
+	if _first_run_hint_controller == null:
+		return
+	_first_run_hint_controller.setup(self, HEADER_STACK_PATH, 190)
+
+
+func _release_first_run_hint_controller_host() -> void:
+	if _first_run_hint_controller == null:
+		return
+	_first_run_hint_controller.release_host(self)
+	_first_run_hint_controller = null
+
+
+func _request_contextual_first_run_hint() -> void:
+	_setup_first_run_hint_controller()
+	if _first_run_hint_controller == null or _event_state == null:
+		return
+	if String(_event_state.source_context) == EventState.SOURCE_CONTEXT_ROADSIDE_ENCOUNTER:
+		_first_run_hint_controller.request_hint("first_roadside_encounter")
+
+
+func _resolve_first_run_hint_controller() -> FirstRunHintController:
+	if _bootstrap == null:
+		return null
+	_bootstrap.ensure_run_state_initialized()
+	var coordinator: RefCounted = _bootstrap.run_session_coordinator
+	if coordinator == null:
+		return null
+	return coordinator.get("_first_run_hint_controller") as FirstRunHintController
 
 func _event_card_name_for_button(button_name: String) -> String:
 	match button_name:

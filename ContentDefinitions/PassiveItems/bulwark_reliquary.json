@@ -1,7 +1,6 @@
 {
   "schema_version": 1,
   "definition_id": "bulwark_reliquary",
-  "authoring_order": 35,
   "family": "PassiveItems",
   "tags": [
     "passive",

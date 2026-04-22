@@ -196,8 +196,7 @@ static func _build_metric_chip(item: Dictionary, fallback_accent: Color, density
 	value_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	value_label.text = String(item.get("value_text", ""))
-	TempScreenThemeScript.apply_font_role(value_label, "heading")
-	value_label.add_theme_color_override("font_color", TempScreenThemeScript.TEXT_PRIMARY_COLOR)
+	TempScreenThemeScript.apply_value_label(value_label)
 	if density == "minimal":
 		var inline_row: HBoxContainer = HBoxContainer.new()
 		inline_row.name = "MetricInlineRow"
@@ -212,12 +211,12 @@ static func _build_metric_chip(item: Dictionary, fallback_accent: Color, density
 			inline_row.add_child(icon_rect)
 
 		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		label.add_theme_font_size_override("font_size", 10)
+		label.add_theme_font_size_override("font_size", TempScreenThemeScript.clamp_readable_label_font_size(10, true))
 		inline_row.add_child(label)
 
 		value_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		value_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		value_label.add_theme_font_size_override("font_size", 18)
+		value_label.add_theme_font_size_override("font_size", TempScreenThemeScript.clamp_readable_value_font_size(18))
 		inline_row.add_child(value_label)
 	else:
 		var content_row: HBoxContainer = HBoxContainer.new()
@@ -239,10 +238,16 @@ static func _build_metric_chip(item: Dictionary, fallback_accent: Color, density
 		stack.add_theme_constant_override("separation", 2)
 		content_row.add_child(stack)
 
-		label.add_theme_font_size_override("font_size", 11 if density == "standard" else 10)
+		label.add_theme_font_size_override(
+			"font_size",
+			TempScreenThemeScript.clamp_readable_label_font_size(11 if density == "standard" else 10, true)
+		)
 		stack.add_child(label)
 
-		value_label.add_theme_font_size_override("font_size", 22 if density == "standard" else 18)
+		value_label.add_theme_font_size_override(
+			"font_size",
+			TempScreenThemeScript.clamp_readable_value_font_size(22 if density == "standard" else 18)
+		)
 		stack.add_child(value_label)
 	return chip
 
@@ -313,9 +318,10 @@ static func _build_progress_row(item: Dictionary, fallback_accent: Color, densit
 	value_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	value_label.text = String(item.get("value_text", ""))
-	TempScreenThemeScript.apply_font_role(value_label, "heading")
-	value_label.add_theme_color_override("font_color", TempScreenThemeScript.TEXT_PRIMARY_COLOR)
-	value_label.add_theme_font_size_override("font_size", 14 if density == "standard" else 12 if density == "minimal" else 13)
+	TempScreenThemeScript.apply_value_label(
+		value_label,
+		14 if density == "standard" else 12 if density == "minimal" else 13
+	)
 	header_row.add_child(value_label)
 
 	var bar: ProgressBar = ProgressBar.new()
@@ -351,6 +357,7 @@ static func _build_status_icon_rect(texture: Texture2D, density: String) -> Text
 	icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	var icon_size: float = 20.0 if density == "standard" else 16.0 if density == "minimal" else 18.0
+	icon_size = TempScreenThemeScript.clamp_runtime_icon_size(icon_size)
 	icon_rect.custom_minimum_size = Vector2(icon_size, icon_size)
 	icon_rect.self_modulate = TempScreenThemeScript.TEXT_SUBTLE_COLOR
 	return icon_rect

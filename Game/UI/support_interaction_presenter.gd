@@ -101,6 +101,19 @@ func build_hint_text(support_state: RefCounted) -> String:
 			return ""
 
 
+func build_action_failure_text(error_text: String) -> String:
+	var trimmed_error: String = error_text.strip_edges()
+	match trimmed_error:
+		"support_action_unavailable", "unknown_support_action":
+			return "That service is no longer available."
+		"insufficient_gold":
+			return "Not enough gold for that service."
+		"missing_support_state":
+			return "Support unavailable."
+		_:
+			return "Action failed: %s" % (trimmed_error if not trimmed_error.is_empty() else "unknown")
+
+
 func build_run_status_model(run_state: RunState) -> Dictionary:
 	return RunStatusPresenterScript.build_status_model(run_state, {
 		"variant": RunStatusPresenterScript.VARIANT_COMPACT,

@@ -13,8 +13,384 @@ const REWARD_ACCENT_COLOR := Color(0.7803922, 0.6862745, 0.3843137, 0.98)
 const TEXT_PRIMARY_COLOR := Color(0.9568627, 0.945098, 0.8745098, 1.0)
 const TEXT_MUTED_COLOR := Color(0.8156863, 0.7647059, 0.6235294, 0.98)
 const TEXT_SUBTLE_COLOR := Color(0.8745098, 0.8509804, 0.7843137, 0.96)
-const DISABLED_TEXT_COLOR := Color(0.5294118, 0.5137255, 0.4705882, 0.74)
+const DISABLED_TEXT_COLOR := Color(0.6627451, 0.6431373, 0.5960785, 0.88)
 const BACKDROP_SCRIM_COLOR := Color(0.0235294, 0.0352941, 0.0470588, 0.76)
+const REGULAR_STACK_SPACING_SHORT := 12
+const REGULAR_STACK_SPACING_TALL := 16
+const MENU_STACK_SPACING_SHORT := 14
+const MENU_STACK_SPACING_TALL := 18
+const MIN_READABLE_LABEL_FONT_SIZE := 14
+const MIN_DENSE_LABEL_FONT_SIZE := 11
+const MIN_VALUE_LABEL_FONT_SIZE := 14
+const MIN_BUTTON_FONT_SIZE := 16
+const MIN_TOUCH_TARGET_HEIGHT := 48.0
+const MIN_SMALL_BUTTON_WIDTH := 96.0
+const MIN_RUNTIME_ICON_SIZE := 18.0
+const MIN_BUTTON_ICON_SIZE := 20
+const MIN_INVENTORY_ICON_SIZE := 36.0
+const SURFACE_SCRIM_ALPHA_BY_KEY := {
+	"event_modal": 0.38,
+	"event_modal_roadside": 0.54,
+	"level_up_modal": 0.38,
+	"reward_modal": 0.38,
+	"main_menu_backdrop": 0.62,
+}
+const SURFACE_TOKENS_BY_KEY := {
+	"event_modal": {
+		"large": {
+			"title_font_size": 44,
+			"summary_font_size": 20,
+			"context_font_size": 20,
+			"hint_font_size": 16,
+			"status_font_size": 16,
+			"card_title_font_size": 24,
+			"card_detail_font_size": 16,
+			"button_font_size": 20,
+			"button_height": 78.0,
+			"card_height": 224.0,
+			"button_icon_max_width": 30,
+		},
+		"medium": {
+			"title_font_size": 38,
+			"summary_font_size": 18,
+			"context_font_size": 18,
+			"hint_font_size": 15,
+			"status_font_size": 15,
+			"card_title_font_size": 22,
+			"card_detail_font_size": 15,
+			"button_font_size": 18,
+			"button_height": 70.0,
+			"card_height": 196.0,
+			"button_icon_max_width": 26,
+		},
+		"compact": {
+			"title_font_size": 32,
+			"summary_font_size": 16,
+			"context_font_size": 16,
+			"hint_font_size": 14,
+			"status_font_size": 14,
+			"card_title_font_size": 20,
+			"card_detail_font_size": 14,
+			"button_font_size": 17,
+			"button_height": 62.0,
+			"card_height": 172.0,
+			"button_icon_max_width": 22,
+		},
+	},
+	"reward_modal": {
+		"large": {
+			"title_font_size": 44,
+			"context_font_size": 20,
+			"status_font_size": 16,
+			"card_title_font_size": 24,
+			"card_detail_font_size": 16,
+			"button_font_size": 20,
+			"button_height": 78.0,
+			"card_height": 204.0,
+			"run_status_width": 300.0,
+			"button_icon_max_width": 30,
+		},
+		"medium": {
+			"title_font_size": 38,
+			"context_font_size": 18,
+			"status_font_size": 15,
+			"card_title_font_size": 22,
+			"card_detail_font_size": 15,
+			"button_font_size": 18,
+			"button_height": 70.0,
+			"card_height": 176.0,
+			"run_status_width": 256.0,
+			"button_icon_max_width": 26,
+		},
+		"compact": {
+			"title_font_size": 32,
+			"context_font_size": 16,
+			"status_font_size": 14,
+			"card_title_font_size": 20,
+			"card_detail_font_size": 14,
+			"button_font_size": 17,
+			"button_height": 62.0,
+			"card_height": 150.0,
+			"run_status_width": 220.0,
+			"button_icon_max_width": 22,
+		},
+	},
+	"level_up_modal": {
+		"large": {
+			"title_font_size": 44,
+			"context_font_size": 20,
+			"hint_font_size": 16,
+			"note_font_size": 20,
+			"status_font_size": 16,
+			"choice_title_font_size": 24,
+			"choice_detail_font_size": 16,
+			"button_height": 142.0,
+			"status_width": 320.0,
+			"button_icon_max_width": 30,
+		},
+		"medium": {
+			"title_font_size": 38,
+			"context_font_size": 18,
+			"hint_font_size": 15,
+			"note_font_size": 18,
+			"status_font_size": 15,
+			"choice_title_font_size": 22,
+			"choice_detail_font_size": 15,
+			"button_height": 124.0,
+			"status_width": 272.0,
+			"button_icon_max_width": 26,
+		},
+		"compact": {
+			"title_font_size": 32,
+			"context_font_size": 16,
+			"hint_font_size": 14,
+			"note_font_size": 16,
+			"status_font_size": 14,
+			"choice_title_font_size": 20,
+			"choice_detail_font_size": 14,
+			"button_height": 108.0,
+			"status_width": 232.0,
+			"button_icon_max_width": 22,
+		},
+	},
+	"run_end_shell": {
+		"large": {
+			"title_font_size": 44,
+			"result_font_size": 24,
+			"hint_font_size": 16,
+			"run_status_font_size": 16,
+			"status_font_size": 16,
+			"button_font_size": 20,
+			"button_height": 80.0,
+			"run_status_width": 320.0,
+			"button_icon_max_width": 30,
+			"panel_width_cap": 820.0,
+		},
+		"medium": {
+			"title_font_size": 38,
+			"result_font_size": 22,
+			"hint_font_size": 15,
+			"run_status_font_size": 15,
+			"status_font_size": 15,
+			"button_font_size": 18,
+			"button_height": 72.0,
+			"run_status_width": 280.0,
+			"button_icon_max_width": 26,
+			"panel_width_cap": 740.0,
+		},
+		"compact": {
+			"title_font_size": 32,
+			"result_font_size": 20,
+			"hint_font_size": 14,
+			"run_status_font_size": 14,
+			"status_font_size": 14,
+			"button_font_size": 17,
+			"button_height": 64.0,
+			"run_status_width": 236.0,
+			"button_icon_max_width": 22,
+			"panel_width_cap": 620.0,
+		},
+	},
+	"stage_transition_shell": {
+		"large": {
+			"title_font_size": 44,
+			"summary_font_size": 22,
+			"hint_font_size": 16,
+			"run_status_font_size": 16,
+			"status_font_size": 16,
+			"button_font_size": 20,
+			"button_height": 80.0,
+			"run_status_width": 320.0,
+			"button_icon_max_width": 30,
+			"panel_width_cap": 820.0,
+		},
+		"medium": {
+			"title_font_size": 38,
+			"summary_font_size": 20,
+			"hint_font_size": 15,
+			"run_status_font_size": 15,
+			"status_font_size": 15,
+			"button_font_size": 18,
+			"button_height": 72.0,
+			"run_status_width": 280.0,
+			"button_icon_max_width": 26,
+			"panel_width_cap": 740.0,
+		},
+		"compact": {
+			"title_font_size": 32,
+			"summary_font_size": 18,
+			"hint_font_size": 14,
+			"run_status_font_size": 14,
+			"status_font_size": 14,
+			"button_font_size": 17,
+			"button_height": 64.0,
+			"run_status_width": 236.0,
+			"button_icon_max_width": 22,
+			"panel_width_cap": 620.0,
+		},
+	},
+	"main_menu": {
+		"large": {
+			"title_font_size": 74,
+			"subtitle_font_size": 22,
+			"mood_font_size": 20,
+			"body_font_size": 20,
+			"status_font_size": 16,
+			"button_font_size": 20,
+			"button_height": 84.0,
+			"button_icon_max_width": 32,
+		},
+		"medium": {
+			"title_font_size": 64,
+			"subtitle_font_size": 20,
+			"mood_font_size": 18,
+			"body_font_size": 18,
+			"status_font_size": 15,
+			"button_font_size": 18,
+			"button_height": 76.0,
+			"button_icon_max_width": 32,
+		},
+		"compact": {
+			"title_font_size": 54,
+			"subtitle_font_size": 18,
+			"mood_font_size": 16,
+			"body_font_size": 16,
+			"status_font_size": 14,
+			"button_font_size": 17,
+			"button_height": 68.0,
+			"button_icon_max_width": 28,
+		},
+	},
+}
+const DEFAULT_PANEL_STYLE_TOKENS := {
+	"fill_mix": 0.12,
+	"fill_lighten": 0.02,
+	"border_lighten": 0.08,
+	"border_width": 2,
+	"shadow_alpha": 0.18,
+	"shadow_size": 22,
+	"content_margin_x": 18,
+	"content_margin_y": 16,
+}
+const COMPACT_STATUS_PANEL_TOKENS := {
+	"corner_radius": 16,
+	"fill_alpha": 0.88,
+	"border_width": 3,
+	"shadow_size": 18,
+	"fill_boost": 0.03,
+	"shadow_alpha": 0.18,
+	"margin_x": 16,
+	"margin_y": 12,
+}
+const CHOICE_CARD_PANEL_TOKENS := {
+	"corner_radius": 18,
+	"fill_alpha": 0.9,
+	"border_width": 3,
+	"shadow_size": 20,
+	"fill_boost": 0.04,
+	"shadow_alpha": 0.24,
+	"margin_x": 18,
+	"margin_y": 16,
+}
+const INVENTORY_PANEL_TOKENS_BY_DENSITY := {
+	"standard": {
+		"corner_radius": 18,
+		"fill_alpha": 0.9,
+		"border_width": 3,
+		"shadow_size": 20,
+		"fill_boost": 0.04,
+		"shadow_alpha": 0.24,
+		"margin_x": 18,
+		"margin_y": 16,
+	},
+	"compact": {
+		"corner_radius": 16,
+		"fill_alpha": 0.88,
+		"border_width": 3,
+		"shadow_size": 18,
+		"fill_boost": 0.03,
+		"shadow_alpha": 0.22,
+		"margin_x": 16,
+		"margin_y": 13,
+	},
+	"roomy": {
+		"corner_radius": 18,
+		"fill_alpha": 0.9,
+		"border_width": 3,
+		"shadow_size": 22,
+		"fill_boost": 0.04,
+		"shadow_alpha": 0.24,
+		"margin_x": 18,
+		"margin_y": 16,
+	},
+}
+const LARGE_BUTTON_STYLE_TOKENS := {
+	"minimum_height": 68.0,
+	"icon_max_width": 24,
+	"h_separation": 10,
+	"corner_radius": 14,
+	"margin_x": 16,
+	"margin_y": 12,
+	"border_width": 2,
+	"fill_mix": 0.12,
+	"hover_lighten": 0.11,
+	"hover_border_lighten": 0.14,
+	"pressed_darken": 0.1,
+	"disabled_darken": 0.12,
+	"disabled_alpha": 0.72,
+	"focus_border_lighten": 0.2,
+	"normal_shadow_size": 10,
+	"normal_shadow_alpha": 0.24,
+	"hover_shadow_size": 12,
+	"hover_shadow_alpha": 0.28,
+	"pressed_shadow_size": 8,
+	"pressed_shadow_alpha": 0.2,
+	"disabled_shadow_size": 8,
+	"disabled_shadow_alpha": 0.12,
+	"focus_shadow_size": 12,
+	"focus_shadow_alpha": 0.3,
+}
+const SMALL_BUTTON_STYLE_TOKENS := {
+	"minimum_height": MIN_TOUCH_TARGET_HEIGHT,
+	"minimum_width": MIN_SMALL_BUTTON_WIDTH,
+	"icon_max_width": 18,
+	"corner_radius": 12,
+	"margin_x": 12,
+	"margin_y": 8,
+	"border_width": 2,
+	"fill_mix": 0.12,
+	"hover_lighten": 0.08,
+	"hover_border_lighten": 0.12,
+	"pressed_darken": 0.08,
+	"disabled_darken": 0.06,
+	"disabled_alpha": 0.72,
+	"focus_border_lighten": 0.18,
+	"normal_shadow_size": 8,
+	"normal_shadow_alpha": 0.2,
+	"hover_shadow_size": 9,
+	"hover_shadow_alpha": 0.24,
+	"pressed_shadow_size": 7,
+	"pressed_shadow_alpha": 0.16,
+	"disabled_shadow_size": 6,
+	"disabled_shadow_alpha": 0.1,
+	"focus_shadow_size": 10,
+	"focus_shadow_alpha": 0.24,
+}
+
+
+static func resolve_surface_tokens(surface_key: String, band: String) -> Dictionary:
+	var surface_tokens: Dictionary = SURFACE_TOKENS_BY_KEY.get(surface_key, {})
+	if surface_tokens.is_empty():
+		return {}
+	var resolved_band: String = band
+	if not surface_tokens.has(resolved_band):
+		resolved_band = "compact"
+	var resolved_tokens: Dictionary = surface_tokens.get(resolved_band, {})
+	return resolved_tokens.duplicate(true)
+
+
+static func resolve_surface_scrim_alpha(surface_key: String, fallback: float = 0.38) -> float:
+	return float(SURFACE_SCRIM_ALPHA_BY_KEY.get(surface_key, fallback))
 
 
 static func apply_portrait_safe_margins(margin: MarginContainer, max_content_width: int = 960, min_side_margin: int = 28, top_margin: int = 30, bottom_margin: int = 30) -> int:
@@ -62,26 +438,30 @@ static func apply_panel(panel: PanelContainer, accent: Color = PANEL_BORDER_COLO
 	if panel == null:
 		return
 
+	var tokens: Dictionary = DEFAULT_PANEL_STYLE_TOKENS
 	var style: StyleBoxFlat = StyleBoxFlat.new()
 	var accent_tint: Color = accent.darkened(0.78)
-	var fill_color: Color = PANEL_FILL_COLOR.lerp(accent_tint, 0.12).lightened(0.02)
+	var fill_color: Color = PANEL_FILL_COLOR.lerp(accent_tint, float(tokens.get("fill_mix", 0.12))).lightened(float(tokens.get("fill_lighten", 0.02)))
 	fill_color.a = fill_alpha
 	style.bg_color = fill_color
-	style.border_color = accent.lightened(0.08)
-	style.border_width_left = 2
-	style.border_width_top = 2
-	style.border_width_right = 2
-	style.border_width_bottom = 2
+	style.border_color = accent.lightened(float(tokens.get("border_lighten", 0.08)))
+	var border_width: int = int(tokens.get("border_width", 2))
+	style.border_width_left = border_width
+	style.border_width_top = border_width
+	style.border_width_right = border_width
+	style.border_width_bottom = border_width
 	style.corner_radius_top_left = corner_radius
 	style.corner_radius_top_right = corner_radius
 	style.corner_radius_bottom_right = corner_radius
 	style.corner_radius_bottom_left = corner_radius
-	style.shadow_color = Color(accent.r, accent.g, accent.b, 0.18)
-	style.shadow_size = 22
-	style.content_margin_left = 18
-	style.content_margin_top = 16
-	style.content_margin_right = 18
-	style.content_margin_bottom = 16
+	style.shadow_color = Color(accent.r, accent.g, accent.b, float(tokens.get("shadow_alpha", 0.18)))
+	style.shadow_size = int(tokens.get("shadow_size", 22))
+	var margin_x: int = int(tokens.get("content_margin_x", 18))
+	var margin_y: int = int(tokens.get("content_margin_y", 16))
+	style.content_margin_left = margin_x
+	style.content_margin_top = margin_y
+	style.content_margin_right = margin_x
+	style.content_margin_bottom = margin_y
 	panel.add_theme_stylebox_override("panel", style)
 
 
@@ -115,50 +495,67 @@ static func apply_chip(panel: PanelContainer, label: Label, accent: Color = TEAL
 static func apply_compact_status_area(panel: PanelContainer, accent: Color = PANEL_BORDER_COLOR) -> void:
 	if panel == null:
 		return
-	apply_panel(panel, accent, 16, 0.88)
-	intensify_panel(panel, accent, 3, 18, 0.03, 0.18, 16, 12)
+	apply_panel(
+		panel,
+		accent,
+		int(COMPACT_STATUS_PANEL_TOKENS.get("corner_radius", 16)),
+		float(COMPACT_STATUS_PANEL_TOKENS.get("fill_alpha", 0.88))
+	)
+	intensify_panel(
+		panel,
+		accent,
+		int(COMPACT_STATUS_PANEL_TOKENS.get("border_width", 3)),
+		int(COMPACT_STATUS_PANEL_TOKENS.get("shadow_size", 18)),
+		float(COMPACT_STATUS_PANEL_TOKENS.get("fill_boost", 0.03)),
+		float(COMPACT_STATUS_PANEL_TOKENS.get("shadow_alpha", 0.18)),
+		int(COMPACT_STATUS_PANEL_TOKENS.get("margin_x", 16)),
+		int(COMPACT_STATUS_PANEL_TOKENS.get("margin_y", 12))
+	)
 
 
 static func apply_choice_card_shell(panel: PanelContainer, accent: Color = PANEL_BORDER_COLOR) -> void:
 	if panel == null:
 		return
-	apply_panel(panel, accent, 18, 0.9)
-	intensify_panel(panel, accent, 3, 20, 0.04, 0.24, 18, 16)
+	apply_panel(
+		panel,
+		accent,
+		int(CHOICE_CARD_PANEL_TOKENS.get("corner_radius", 18)),
+		float(CHOICE_CARD_PANEL_TOKENS.get("fill_alpha", 0.9))
+	)
+	intensify_panel(
+		panel,
+		accent,
+		int(CHOICE_CARD_PANEL_TOKENS.get("border_width", 3)),
+		int(CHOICE_CARD_PANEL_TOKENS.get("shadow_size", 20)),
+		float(CHOICE_CARD_PANEL_TOKENS.get("fill_boost", 0.04)),
+		float(CHOICE_CARD_PANEL_TOKENS.get("shadow_alpha", 0.24)),
+		int(CHOICE_CARD_PANEL_TOKENS.get("margin_x", 18)),
+		int(CHOICE_CARD_PANEL_TOKENS.get("margin_y", 16))
+	)
 
 
 static func apply_inventory_section_panel(panel: PanelContainer, accent: Color = PANEL_BORDER_COLOR, density: String = "standard") -> void:
 	if panel == null:
 		return
 
-	var corner_radius: int = 18
-	var fill_alpha: float = 0.9
-	var border_width: int = 3
-	var shadow_size: int = 20
-	var fill_boost: float = 0.04
-	var shadow_alpha: float = 0.24
-	var margin_x: int = 18
-	var margin_y: int = 16
-	match density:
-		"compact":
-			corner_radius = 16
-			fill_alpha = 0.88
-			border_width = 3
-			shadow_size = 18
-			fill_boost = 0.03
-			shadow_alpha = 0.22
-			margin_x = 16
-			margin_y = 13
-		"roomy":
-			corner_radius = 18
-			fill_alpha = 0.9
-			border_width = 3
-			shadow_size = 22
-			fill_boost = 0.04
-			shadow_alpha = 0.24
-			margin_x = 18
-			margin_y = 16
-	apply_panel(panel, accent, corner_radius, fill_alpha)
-	intensify_panel(panel, accent, border_width, shadow_size, fill_boost, shadow_alpha, margin_x, margin_y)
+	var resolved_density: String = density if INVENTORY_PANEL_TOKENS_BY_DENSITY.has(density) else "standard"
+	var tokens: Dictionary = INVENTORY_PANEL_TOKENS_BY_DENSITY.get(resolved_density, INVENTORY_PANEL_TOKENS_BY_DENSITY["standard"])
+	apply_panel(
+		panel,
+		accent,
+		int(tokens.get("corner_radius", 18)),
+		float(tokens.get("fill_alpha", 0.9))
+	)
+	intensify_panel(
+		panel,
+		accent,
+		int(tokens.get("border_width", 3)),
+		int(tokens.get("shadow_size", 20)),
+		float(tokens.get("fill_boost", 0.04)),
+		float(tokens.get("shadow_alpha", 0.24)),
+		int(tokens.get("margin_x", 18)),
+		int(tokens.get("margin_y", 16))
+	)
 
 
 static func apply_inventory_section_text(title_label: Label, hint_label: Label, tone: String, density: String = "standard") -> void:
@@ -267,36 +664,102 @@ static func resolve_status_accent(semantic: String, fallback: Color = PANEL_BORD
 			return fallback
 
 
+static func clamp_readable_label_font_size(font_size: int, dense: bool = false) -> int:
+	return max(font_size, MIN_DENSE_LABEL_FONT_SIZE if dense else MIN_READABLE_LABEL_FONT_SIZE)
+
+
+static func clamp_button_font_size(font_size: int) -> int:
+	return max(font_size, MIN_BUTTON_FONT_SIZE)
+
+
+static func clamp_readable_value_font_size(font_size: int) -> int:
+	return max(font_size, MIN_VALUE_LABEL_FONT_SIZE)
+
+
+static func clamp_runtime_icon_size(size: float, minimum: float = MIN_RUNTIME_ICON_SIZE) -> float:
+	if size <= 0.0:
+		return size
+	return max(size, minimum)
+
+
+static func clamp_button_icon_size(size: int) -> int:
+	if size <= 0:
+		return size
+	return max(size, MIN_BUTTON_ICON_SIZE)
+
+
+static func guarded_button_minimum_size(
+	requested_size: Vector2,
+	minimum_height: float = MIN_TOUCH_TARGET_HEIGHT,
+	minimum_width: float = 0.0
+) -> Vector2:
+	var resolved_size: Vector2 = requested_size
+	if minimum_width > 0.0 and resolved_size.x > 0.0:
+		resolved_size.x = max(resolved_size.x, minimum_width)
+	if resolved_size.y > 0.0:
+		resolved_size.y = max(resolved_size.y, minimum_height)
+	return resolved_size
+
+
+static func guarded_icon_minimum_size(
+	requested_size: Vector2,
+	minimum_edge: float = MIN_RUNTIME_ICON_SIZE
+) -> Vector2:
+	var resolved_size: Vector2 = requested_size
+	if resolved_size.x > 0.0:
+		resolved_size.x = max(resolved_size.x, minimum_edge)
+	if resolved_size.y > 0.0:
+		resolved_size.y = max(resolved_size.y, minimum_edge)
+	return resolved_size
+
+
+static func apply_value_label(
+	label: Label,
+	font_size: int = -1,
+	color: Color = TEXT_PRIMARY_COLOR
+) -> void:
+	if label == null:
+		return
+	apply_font_role(label, UiTypographyScript.ROLE_VALUE)
+	label.add_theme_color_override("font_color", color)
+	var resolved_font_size: int = font_size if font_size > 0 else UiTypographyScript.DEFAULT_BODY_SIZE
+	label.add_theme_font_size_override("font_size", clamp_readable_value_font_size(resolved_font_size))
+
+
 static func apply_button(button: Button, accent: Color = PANEL_BORDER_COLOR, is_secondary: bool = false) -> void:
 	if button == null:
 		return
 
+	var tokens: Dictionary = LARGE_BUTTON_STYLE_TOKENS
 	var minimum_size: Vector2 = button.custom_minimum_size
-	if minimum_size.y < 68.0:
-		minimum_size.y = 68.0
-		button.custom_minimum_size = minimum_size
+	minimum_size.y = max(minimum_size.y, float(tokens.get("minimum_height", 68.0)))
+	button.custom_minimum_size = minimum_size
 
 	var normal_fill: Color = PANEL_SOFT_FILL_COLOR if is_secondary else PANEL_FILL_COLOR
-	normal_fill = normal_fill.lerp(accent.darkened(0.8), 0.12)
-	var hover_fill: Color = normal_fill.lightened(0.11)
-	var pressed_fill: Color = normal_fill.darkened(0.1)
-	var disabled_fill: Color = normal_fill.darkened(0.12)
-	disabled_fill.a = 0.72
+	normal_fill = normal_fill.lerp(accent.darkened(0.8), float(tokens.get("fill_mix", 0.12)))
+	var hover_fill: Color = normal_fill.lightened(float(tokens.get("hover_lighten", 0.11)))
+	var pressed_fill: Color = normal_fill.darkened(float(tokens.get("pressed_darken", 0.1)))
+	var disabled_fill: Color = normal_fill.darkened(float(tokens.get("disabled_darken", 0.12)))
+	disabled_fill.a = float(tokens.get("disabled_alpha", 0.72))
+	var corner_radius: int = int(tokens.get("corner_radius", 14))
+	var margin_x: int = int(tokens.get("margin_x", 16))
+	var margin_y: int = int(tokens.get("margin_y", 12))
+	var border_width: int = int(tokens.get("border_width", 2))
 
-	button.add_theme_stylebox_override("normal", _build_button_box(normal_fill, accent, 14, 16, 12, 2, 10, 0.24))
-	button.add_theme_stylebox_override("hover", _build_button_box(hover_fill, accent.lightened(0.14), 14, 16, 12, 2, 12, 0.28))
-	button.add_theme_stylebox_override("pressed", _build_button_box(pressed_fill, accent, 14, 16, 12, 2, 8, 0.2))
-	button.add_theme_stylebox_override("disabled", _build_button_box(disabled_fill, accent.darkened(0.2), 14, 16, 12, 2, 8, 0.12))
-	button.add_theme_stylebox_override("focus", _build_button_box(hover_fill, accent.lightened(0.2), 14, 16, 12, 2, 12, 0.3))
+	button.add_theme_stylebox_override("normal", _build_button_box(normal_fill, accent, corner_radius, margin_x, margin_y, border_width, int(tokens.get("normal_shadow_size", 10)), float(tokens.get("normal_shadow_alpha", 0.24))))
+	button.add_theme_stylebox_override("hover", _build_button_box(hover_fill, accent.lightened(float(tokens.get("hover_border_lighten", 0.14))), corner_radius, margin_x, margin_y, border_width, int(tokens.get("hover_shadow_size", 12)), float(tokens.get("hover_shadow_alpha", 0.28))))
+	button.add_theme_stylebox_override("pressed", _build_button_box(pressed_fill, accent, corner_radius, margin_x, margin_y, border_width, int(tokens.get("pressed_shadow_size", 8)), float(tokens.get("pressed_shadow_alpha", 0.2))))
+	button.add_theme_stylebox_override("disabled", _build_button_box(disabled_fill, accent.darkened(0.2), corner_radius, margin_x, margin_y, border_width, int(tokens.get("disabled_shadow_size", 8)), float(tokens.get("disabled_shadow_alpha", 0.12))))
+	button.add_theme_stylebox_override("focus", _build_button_box(hover_fill, accent.lightened(float(tokens.get("focus_border_lighten", 0.2))), corner_radius, margin_x, margin_y, border_width, int(tokens.get("focus_shadow_size", 12)), float(tokens.get("focus_shadow_alpha", 0.3))))
 	button.add_theme_color_override("font_color", TEXT_PRIMARY_COLOR)
 	button.add_theme_color_override("font_hover_color", TEXT_PRIMARY_COLOR)
 	button.add_theme_color_override("font_pressed_color", TEXT_PRIMARY_COLOR)
 	button.add_theme_color_override("font_disabled_color", DISABLED_TEXT_COLOR)
-	button.add_theme_constant_override("h_separation", 10)
-	button.add_theme_constant_override("icon_max_width", 24)
+	button.add_theme_constant_override("h_separation", int(tokens.get("h_separation", 10)))
+	button.add_theme_constant_override("icon_max_width", clamp_button_icon_size(int(tokens.get("icon_max_width", 24))))
 	button.add_theme_constant_override("outline_size", 0)
 	apply_font_role(button, UiTypographyScript.ROLE_BUTTON)
-	button.add_theme_font_size_override("font_size", UiTypographyScript.DEFAULT_BUTTON_SIZE)
+	button.add_theme_font_size_override("font_size", clamp_button_font_size(UiTypographyScript.DEFAULT_BUTTON_SIZE))
 	button.focus_mode = Control.FOCUS_ALL
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 
@@ -305,32 +768,35 @@ static func apply_small_button(button: Button, accent: Color = PANEL_BORDER_COLO
 	if button == null:
 		return
 
+	var tokens: Dictionary = SMALL_BUTTON_STYLE_TOKENS
 	var minimum_size: Vector2 = button.custom_minimum_size
-	if minimum_size.y < 46.0:
-		minimum_size.y = 46.0
-	if minimum_size.x < 92.0:
-		minimum_size.x = 92.0
+	minimum_size.y = max(minimum_size.y, float(tokens.get("minimum_height", MIN_TOUCH_TARGET_HEIGHT)))
+	minimum_size.x = max(minimum_size.x, float(tokens.get("minimum_width", MIN_SMALL_BUTTON_WIDTH)))
 	button.custom_minimum_size = minimum_size
 
 	var normal_fill: Color = PANEL_SOFT_FILL_COLOR if is_secondary else PANEL_FILL_COLOR
-	normal_fill = normal_fill.lerp(accent.darkened(0.82), 0.12)
-	var hover_fill: Color = normal_fill.lightened(0.08)
-	var pressed_fill: Color = normal_fill.darkened(0.08)
-	var disabled_fill: Color = normal_fill.darkened(0.06)
-	disabled_fill.a = 0.72
+	normal_fill = normal_fill.lerp(accent.darkened(0.82), float(tokens.get("fill_mix", 0.12)))
+	var hover_fill: Color = normal_fill.lightened(float(tokens.get("hover_lighten", 0.08)))
+	var pressed_fill: Color = normal_fill.darkened(float(tokens.get("pressed_darken", 0.08)))
+	var disabled_fill: Color = normal_fill.darkened(float(tokens.get("disabled_darken", 0.06)))
+	disabled_fill.a = float(tokens.get("disabled_alpha", 0.72))
+	var corner_radius: int = int(tokens.get("corner_radius", 12))
+	var margin_x: int = int(tokens.get("margin_x", 12))
+	var margin_y: int = int(tokens.get("margin_y", 8))
+	var border_width: int = int(tokens.get("border_width", 2))
 
-	button.add_theme_stylebox_override("normal", _build_button_box(normal_fill, accent, 12, 12, 8, 2, 8, 0.2))
-	button.add_theme_stylebox_override("hover", _build_button_box(hover_fill, accent.lightened(0.12), 12, 12, 8, 2, 9, 0.24))
-	button.add_theme_stylebox_override("pressed", _build_button_box(pressed_fill, accent, 12, 12, 8, 2, 7, 0.16))
-	button.add_theme_stylebox_override("disabled", _build_button_box(disabled_fill, accent.darkened(0.2), 12, 12, 8, 2, 6, 0.1))
-	button.add_theme_stylebox_override("focus", _build_button_box(hover_fill, accent.lightened(0.18), 12, 12, 8, 2, 10, 0.24))
+	button.add_theme_stylebox_override("normal", _build_button_box(normal_fill, accent, corner_radius, margin_x, margin_y, border_width, int(tokens.get("normal_shadow_size", 8)), float(tokens.get("normal_shadow_alpha", 0.2))))
+	button.add_theme_stylebox_override("hover", _build_button_box(hover_fill, accent.lightened(float(tokens.get("hover_border_lighten", 0.12))), corner_radius, margin_x, margin_y, border_width, int(tokens.get("hover_shadow_size", 9)), float(tokens.get("hover_shadow_alpha", 0.24))))
+	button.add_theme_stylebox_override("pressed", _build_button_box(pressed_fill, accent, corner_radius, margin_x, margin_y, border_width, int(tokens.get("pressed_shadow_size", 7)), float(tokens.get("pressed_shadow_alpha", 0.16))))
+	button.add_theme_stylebox_override("disabled", _build_button_box(disabled_fill, accent.darkened(0.2), corner_radius, margin_x, margin_y, border_width, int(tokens.get("disabled_shadow_size", 6)), float(tokens.get("disabled_shadow_alpha", 0.1))))
+	button.add_theme_stylebox_override("focus", _build_button_box(hover_fill, accent.lightened(float(tokens.get("focus_border_lighten", 0.18))), corner_radius, margin_x, margin_y, border_width, int(tokens.get("focus_shadow_size", 10)), float(tokens.get("focus_shadow_alpha", 0.24))))
 	button.add_theme_color_override("font_color", TEXT_PRIMARY_COLOR)
 	button.add_theme_color_override("font_hover_color", TEXT_PRIMARY_COLOR)
 	button.add_theme_color_override("font_pressed_color", TEXT_PRIMARY_COLOR)
 	button.add_theme_color_override("font_disabled_color", DISABLED_TEXT_COLOR)
-	button.add_theme_constant_override("icon_max_width", 18)
+	button.add_theme_constant_override("icon_max_width", clamp_button_icon_size(int(tokens.get("icon_max_width", 18))))
 	apply_font_role(button, UiTypographyScript.ROLE_BUTTON)
-	button.add_theme_font_size_override("font_size", UiTypographyScript.DEFAULT_SMALL_BUTTON_SIZE)
+	button.add_theme_font_size_override("font_size", clamp_button_font_size(UiTypographyScript.DEFAULT_SMALL_BUTTON_SIZE))
 	button.focus_mode = Control.FOCUS_ALL
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 
@@ -452,7 +918,7 @@ static func apply_label(label: Label, tone: String = "body") -> void:
 			font_size = UiTypographyScript.DEFAULT_BODY_SIZE
 	apply_font_role(label, UiTypographyScript.resolve_label_role(tone))
 	label.add_theme_color_override("font_color", color)
-	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_font_size_override("font_size", clamp_readable_label_font_size(font_size))
 
 
 static func apply_font_role(control: Control, role: String = UiTypographyScript.ROLE_BODY) -> void:

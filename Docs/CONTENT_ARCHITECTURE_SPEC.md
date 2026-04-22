@@ -79,6 +79,7 @@ The current prototype has two runtime surfaces where authored definition order i
 - top-level integer field
 - required for every `Enemies` definition
 - required for every `CharacterPerks` definition
+- must not be added to other families as stray ordering metadata
 - must be a positive integer
 - must be unique within its family
 - purpose:
@@ -168,8 +169,12 @@ The current prototype uses deterministic stage-local authored merchant stock def
 The current prototype uses authored event templates for the dedicated `Event` flow.
 
 `EventTemplates` rules:
+- tags must carry exactly one source-role discriminator:
+  - `event` for planned map-node templates
+  - `roadside` for movement-triggered interruption templates
 - optional `rules.trigger_condition`
   - current runtime-backed use is roadside-only eligibility filtering for roadside-tagged templates
+  - planned map-event templates must not use `trigger_condition` as dead metadata
   - current supported stat names:
     - `hunger`
     - `hp_percent`
@@ -250,11 +255,15 @@ The current prototype uses authored map-template files as stage-profile identifi
   - `late_hamlet`
 - current status:
   - active runtime stage profiles are `procedural_stage_corridor_v1`, `procedural_stage_openfield_v1`, and `procedural_stage_loop_v1`
+    - those checked-in files carry the `active_runtime_profile` tag
+  - checked-in `procedural_stage_cluster_v1` and `procedural_stage_detour_v1` remain reference-only scaffold definitions; they are not active runtime/save profile ids
+    - those checked-in files carry the `reference_only_scaffold` tag
   - `MapRuntimeState` still owns node discovery, resolution, locking, current position, and support-node revisit state
   - new-run graph topology is now generated inside `MapRuntimeState` through controlled scatter plus post-topology family placement, not by reading authored scaffold adjacency directly
   - current content files still carry the narrow scaffold/reference grammar and legacy fixed-template data, but exact realized graph restore now lives in save data
   - exact realized graph restore now lives in save data
   - legacy fixed templates remain in `MapTemplates/` only for backward-compatible schema-1 load reconstruction
+    - those checked-in files carry the `legacy_load_compat` tag
 
 ### SideMissions
 
@@ -674,6 +683,7 @@ Current validator actively checks:
 - duplicate ID
 - family/path mismatch
 - stable ID/file-name mismatch
+- stray `authoring_order` outside the ordered runtime families
 - required top-level fields
 - `display.name`
 - enemy `design_intent_question`
@@ -685,9 +695,11 @@ Current validator actively checks:
 - current passive-item and character-perk rule-block shape for the prototype progression slice
 - current explicit `RunLoadouts.rules.<equipment slot>` plus `backpack_items` shape for starter inventory setup
 - current `MerchantStocks.rules.stock` shape for fixed merchant-node offer generation
-- current `EventTemplates.rules.choices` shape for the dedicated event-node slice
+- current `EventTemplates.rules.choices` shape for the dedicated event-node slice plus roadside-only `trigger_condition`
+- current `EventTemplates` source-role tag split between planned `event` templates and `roadside` interruption templates
 - current `SideMissions.rules.reward_pool` shape for hamlet contract payouts
 - current `MapTemplates.rules.nodes` and slot metadata shape for stage-profile/reference data plus legacy fixed-template compatibility, including the dedicated `late_event` slot
+- current `MapTemplates` role-tag split between `active_runtime_profile`, `reference_only_scaffold`, and `legacy_load_compat`
 - current `Statuses.rules.stats` shape for the combat-local mixed DoT/debuff pool
 - current `Rewards.rules.offer_pool` / `present_count` / `selection_mode` shape for deterministic reward generation, including narrow `stage_min` / `stage_max` gating and `preferred_enemy_tags_any` arrays
 

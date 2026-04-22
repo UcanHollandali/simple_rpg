@@ -1,7 +1,6 @@
 {
   "schema_version": 1,
   "definition_id": "lean_pack_token",
-  "authoring_order": 45,
   "family": "PassiveItems",
   "tags": [
     "passive",

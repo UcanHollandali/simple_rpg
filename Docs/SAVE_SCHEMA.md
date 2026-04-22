@@ -21,7 +21,7 @@ Save stores authoritative runtime truth, not presentation data.
   - `LevelUpState` for pending perk offers and target level
   - `SupportInteractionState` for pending support offers, support type, active support source node id, and active side-mission contract offer state when `SupportInteraction` is open
   - current blacksmith target-selection view mode and page also live here when that visit is active
-  - `RunSessionCoordinator` for a few transitional orchestration fields such as `last_run_result`
+  - `RunSessionCoordinator` for a few transitional orchestration fields such as `last_run_result` plus cross-run application continuity stored under `app_state`
 - `MapRuntimeState` is now an implemented repo class; broader map-graph ownership is still later architecture.
 - Current map save payload now includes stable node identity, exact realized graph payload, and per-node gameplay state for the live procedural slice.
 - Locked continuation decision: pending-node truth belongs to `MapRuntimeState`; the current `app_state.pending_node_id` / `app_state.pending_node_type` lane is a compatibility mirror used by save/restore orchestration, not a second owner.
@@ -52,6 +52,7 @@ Current baseline:
 - snapshots write `content_version`
 - snapshots now write `content_version = prototype_content_v7`
 - snapshots now write `save_schema_version = 8`
+- `app_state.shown_first_run_hints` is additive-optional under schema `8`; missing field defaults to `[]`, so this field does not require a schema-version bump
 - load validation requires `content_version` to be present
 - load validation rejects saves whose `content_version` does not match the current runtime baseline
 - old eventless `prototype_content_v1` saves are therefore rejected instead of being silently reconstructed under the current event-node baseline
@@ -141,6 +142,7 @@ Current baseline note:
   - `LevelUpState` when active
   - `SupportInteractionState` when `SupportInteraction` is active
   - transitional `RunSessionCoordinator.last_run_result` continuity when `RunEnd` is active
+  - cross-run application continuity under `app_state.shown_first_run_hints`
 - `RunEnd` restore currently depends on transitional `RunSessionCoordinator.last_run_result` continuity from `app_state`.
 - `CombatState` is intentionally excluded from the baseline save file
 - `EventState` is intentionally excluded from the baseline save file
@@ -194,6 +196,7 @@ Current baseline note:
 - current pending-node continuity is not written by `MapRuntimeState.to_save_dict()`
 - pending node identity/type currently lives under `RunSessionCoordinator.get_app_state_save_data()` as `app_state.pending_node_id` / `app_state.pending_node_type`
 - those `app_state` fields are a compatibility mirror over `MapRuntimeState` owner truth and must not be widened into a second pending-node payload without an explicit save audit
+- schema-8 snapshots may also carry `app_state.shown_first_run_hints` as a stable-id array for once-per-save contextual-hint continuity; this field is additive-optional and missing older saves default it to `[]`
 - `map_realized_graph` is the exact restore truth for schema-2 procedural saves; load does not rely on re-running scaffold fill from seed alone.
 - Legacy schema-1 map saves still rebuild the old fixed authored adjacency graph from content under the matching `content_version` baseline.
 - Current safe-state support snapshots may also carry blacksmith-local pending UI truth inside `SupportInteractionState`:

@@ -23,14 +23,15 @@ const PORTRAIT_LAYOUT_CONFIG := {
 	"min_side_margin": PORTRAIT_SAFE_MIN_SIDE_MARGIN,
 	"top_margin": 44,
 	"bottom_margin": 40,
+	"shared_surface_tokens": "main_menu",
 	"margin_steps": [
 		{"max_height": 1720.0, "top_margin": 34, "bottom_margin": 32},
 		{"max_height": 1480.0, "top_margin": 26, "bottom_margin": 24},
 	],
 	"bands": {
-		"large": {"min_width": 860.0, "min_height": 1680.0, "title_font_size": 74, "subtitle_font_size": 22, "mood_font_size": 20, "body_font_size": 20, "status_font_size": 16, "button_font_size": 20, "button_height": 84.0, "button_icon_max_width": 32},
-		"medium": {"min_width": 720.0, "min_height": 1480.0, "title_font_size": 64, "subtitle_font_size": 20, "mood_font_size": 18, "body_font_size": 18, "status_font_size": 15, "button_font_size": 18, "button_height": 76.0, "button_icon_max_width": 32},
-		"compact": {"title_font_size": 54, "subtitle_font_size": 18, "mood_font_size": 16, "body_font_size": 16, "status_font_size": 14, "button_font_size": 17, "button_height": 68.0, "button_icon_max_width": 28},
+		"large": {"min_width": 860.0, "min_height": 1680.0},
+		"medium": {"min_width": 720.0, "min_height": 1480.0},
+		"compact": {},
 	},
 }
 
@@ -174,7 +175,12 @@ func _apply_portrait_safe_layout() -> void:
 	if values.is_empty():
 		return
 	var viewport_size: Vector2 = values.get("viewport_size", Vector2.ZERO)
-	values["vbox_separation"] = 14 if viewport_size.y < 1520.0 else 18
+	values["vbox_separation"] = SceneLayoutHelperScript.resolve_height_tier_spacing(
+		viewport_size.y,
+		1520.0,
+		TempScreenThemeScript.MENU_STACK_SPACING_SHORT,
+		TempScreenThemeScript.MENU_STACK_SPACING_TALL
+	)
 	SceneLayoutHelperScript.apply_control_overrides(self, values, [
 		{"path": "Margin/VBox", "theme_constants": {"separation": "vbox_separation"}},
 		{"path": "Margin/VBox/HeroPanel/HeroVBox/TitleLabel", "font_size": "title_font_size"},
@@ -194,7 +200,12 @@ func _soften_backdrop() -> void:
 	var scrim: ColorRect = get_node_or_null("BackdropScrim") as ColorRect
 	TempScreenThemeScript.apply_scrim(scrim)
 	if scrim != null:
-		scrim.color = Color(scrim.color.r, scrim.color.g, scrim.color.b, 0.62)
+		scrim.color = Color(
+			scrim.color.r,
+			scrim.color.g,
+			scrim.color.b,
+			TempScreenThemeScript.resolve_surface_scrim_alpha("main_menu_backdrop")
+		)
 
 
 func _refine_panel_style(
@@ -249,4 +260,3 @@ func _get_flow_manager() -> GameFlowManager:
 	if _bootstrap == null:
 		return null
 	return _bootstrap.get_flow_manager()
-

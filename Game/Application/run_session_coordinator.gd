@@ -15,6 +15,7 @@ const SupportActionApplicationPolicyScript = preload("res://Game/Application/sup
 const EnemySelectionPolicyScript = preload("res://Game/Application/enemy_selection_policy.gd")
 const LevelUpOfferWindowPolicyScript = preload("res://Game/Application/level_up_offer_window_policy.gd")
 const RunSessionStateHelperScript = preload("res://Game/Application/run_session_state_helper.gd")
+const FirstRunHintControllerScript = preload("res://Game/UI/first_run_hint_controller.gd")
 
 const COMBAT_VICTORY_XP: int = 6
 const FINAL_STAGE_INDEX: int = 3
@@ -23,6 +24,7 @@ const ROADSIDE_ENCOUNTER_STREAM_NAME: String = "roadside_encounter_rng"
 const ROADSIDE_ENCOUNTER_TRIGGER_CHANCE: float = 0.28
 const APP_STATE_KEY_PENDING_NODE_ID: String = "pending_node_id"
 const APP_STATE_KEY_PENDING_NODE_TYPE: String = "pending_node_type"
+const APP_STATE_KEY_SHOWN_FIRST_RUN_HINTS: String = "shown_first_run_hints"
 const ROADSIDE_ENCOUNTER_EXCLUDED_FAMILIES: PackedStringArray = [
 	"start",
 	"boss",
@@ -65,6 +67,7 @@ var event_state: EventStateScript
 var reward_state: RewardState
 var level_up_state: LevelUpState
 var support_interaction_state: SupportInteractionState
+var _first_run_hint_controller: FirstRunHintController
 var last_run_result: String = ""
 var _last_combat_reward_context: Dictionary = {}
 func setup(flow_manager: GameFlowManager, active_run_state: RunState) -> void:
@@ -82,6 +85,8 @@ func setup(flow_manager: GameFlowManager, active_run_state: RunState) -> void:
 		enemy_selection_policy = EnemySelectionPolicyScript.new()
 	if level_up_offer_window_policy == null:
 		level_up_offer_window_policy = LevelUpOfferWindowPolicyScript.new()
+	if _first_run_hint_controller == null:
+		_first_run_hint_controller = FirstRunHintControllerScript.new()
 
 
 func ensure_run_state_initialized() -> RunState:
@@ -112,6 +117,7 @@ func get_last_run_result() -> String: return last_run_result
 func get_app_state_save_data() -> Dictionary:
 	return {
 		"last_run_result": last_run_result,
+		APP_STATE_KEY_SHOWN_FIRST_RUN_HINTS: _ensure_first_run_hint_controller().build_save_data(),
 	}.merged(_build_pending_node_compat_mirror(), true)
 
 
@@ -420,6 +426,7 @@ func restore_pending_states_for_snapshot(active_flow_state: int, snapshot: Dicti
 	var app_state_variant: Variant = snapshot.get("app_state", {})
 	var app_state: Dictionary = app_state_variant if typeof(app_state_variant) == TYPE_DICTIONARY else {}
 	last_run_result = String(app_state.get("last_run_result", ""))
+	_restore_first_run_hint_state(app_state)
 	_restore_pending_node_compat_mirror(app_state)
 
 	event_state = null
@@ -745,6 +752,16 @@ func _restore_pending_node_compat_mirror(app_state: Dictionary) -> void:
 	run_state.map_runtime_state.set_pending_node(restored_pending_node_id)
 	if run_state.map_runtime_state.pending_node_type.is_empty():
 		run_state.map_runtime_state.pending_node_type = String(app_state.get(APP_STATE_KEY_PENDING_NODE_TYPE, ""))
+
+
+func _restore_first_run_hint_state(app_state: Dictionary) -> void:
+	_ensure_first_run_hint_controller().load_from_save_data(app_state.get(APP_STATE_KEY_SHOWN_FIRST_RUN_HINTS, []))
+
+
+func _ensure_first_run_hint_controller() -> FirstRunHintController:
+	if _first_run_hint_controller == null:
+		_first_run_hint_controller = FirstRunHintControllerScript.new()
+	return _first_run_hint_controller
 
 
 func _error_result(error_code: String, extra: Dictionary = {}) -> Dictionary:

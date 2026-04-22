@@ -76,6 +76,7 @@ var _safe_menu: SafeMenuOverlay
 var _hunger_warning_panel: PanelContainer
 var _hunger_warning_label: Label
 var _hunger_warning_tween: Tween
+var _first_run_hint_controller: FirstRunHintController
 var _scene_node_cache: Dictionary = {}
 
 @onready var _root_vbox: Control = _scene_node("Margin/VBox") as Control
@@ -149,6 +150,7 @@ func _ready() -> void:
 	if _run_state.inventory_state.weapon_instance.is_empty():
 		bootstrap.ensure_run_state_initialized()
 		_run_state = bootstrap.get_run_state()
+	_setup_first_run_hint_controller()
 
 	_combat_flow = CombatFlowScript.new()
 	_combat_flow.connect("domain_event_emitted", Callable(self, "_on_domain_event_emitted"))
@@ -167,9 +169,10 @@ func _ready() -> void:
 	_sync_selected_consumable_slot_index()
 	_transition_requested = false
 	_guard_before_turn_end_phase = max(0, int(_combat_flow.combat_state.current_guard))
-	_append_status_line("Combat ready.")
+	_append_status_line(_presenter.build_combat_ready_text(_combat_flow.combat_state))
 	SceneAudioPlayersScript.start_looping(self, "CombatMusicPlayer")
 	_refresh_ui()
+	_request_first_run_hint("first_combat_defend")
 
 
 func _scene_node(path: String) -> Node:
@@ -190,6 +193,7 @@ func _exit_tree() -> void:
 	if _hunger_warning_tween != null and is_instance_valid(_hunger_warning_tween):
 		_hunger_warning_tween.kill()
 	SceneLayoutHelperScript.unbind_viewport_size_changed(self, Callable(self, "_on_viewport_size_changed"))
+	_release_first_run_hint_controller_host()
 	if _run_inventory_panel != null:
 		_run_inventory_panel.release()
 	if _action_hint_controller != null:
@@ -465,7 +469,7 @@ func _refresh_ui() -> void:
 	if defense_preview_label != null:
 		defense_preview_label.text = _presenter.build_action_card_preview_text(CombatFlowScript.ACTION_DEFEND, _combat_flow.combat_state if _combat_flow != null else null, {}, preview_snapshot)
 
-	_refresh_inventory_cards()
+	_refresh_inventory_cards(preview_consumable)
 	_refresh_action_button_tooltips(preview_consumable, preview_snapshot)
 	_set_buttons_enabled(_combat_flow != null and _presenter.are_action_buttons_enabled(_combat_flow.combat_state))
 	_refresh_safe_menu_controls()
@@ -606,6 +610,47 @@ func _get_app_bootstrap() -> AppBootstrapScript:
 	return _scene_node("/root/AppBootstrap") as AppBootstrapScript
 
 
+func _setup_first_run_hint_controller() -> void:
+	_first_run_hint_controller = _resolve_first_run_hint_controller()
+	if _first_run_hint_controller == null:
+		return
+	_first_run_hint_controller.setup(self, COMBAT_HEADER_STACK_PATH, HUNGER_WARNING_Z_INDEX + 10)
+
+
+func _release_first_run_hint_controller_host() -> void:
+	if _first_run_hint_controller == null:
+		return
+	_first_run_hint_controller.release_host(self)
+	_first_run_hint_controller = null
+
+
+func _request_first_run_hint(hint_id: String) -> void:
+	if _first_run_hint_controller == null:
+		_setup_first_run_hint_controller()
+	if _first_run_hint_controller == null:
+		return
+	_first_run_hint_controller.request_hint(hint_id)
+
+
+func _scan_first_run_inventory_hints() -> void:
+	if _first_run_hint_controller == null:
+		_setup_first_run_hint_controller()
+	if _first_run_hint_controller == null or _run_state == null:
+		return
+	_first_run_hint_controller.scan_inventory_hints(_run_state.inventory_state)
+
+
+func _resolve_first_run_hint_controller() -> FirstRunHintController:
+	var bootstrap = _get_app_bootstrap()
+	if bootstrap == null:
+		return null
+	bootstrap.ensure_run_state_initialized()
+	var coordinator: RefCounted = bootstrap.run_session_coordinator
+	if coordinator == null:
+		return null
+	return coordinator.get("_first_run_hint_controller") as FirstRunHintController
+
+
 func _on_save_pressed() -> void:
 	var bootstrap = _get_app_bootstrap()
 	if bootstrap == null:
@@ -714,7 +759,7 @@ func _inventory_card_is_selected(card_model: Dictionary) -> bool:
 	return _combat_flow != null and _combat_flow.is_consumable_slot_usable(slot_index) and slot_index == _selected_consumable_slot_index
 
 
-func _refresh_inventory_cards() -> void:
+func _refresh_inventory_cards(preview_consumable: Dictionary = {}) -> void:
 	if _run_inventory_panel == null:
 		return
 
@@ -723,12 +768,20 @@ func _refresh_inventory_cards() -> void:
 	var inventory_presenter: InventoryPresenter = _run_inventory_panel.get_presenter()
 	if inventory_presenter == null:
 		return
+	var inventory_title_text: String = inventory_presenter.build_inventory_title_text(_run_state.inventory_state if _run_state != null else null)
+	var inventory_hint_text: String = inventory_presenter.build_combat_inventory_hint_text()
+	if _presenter != null:
+		inventory_title_text = _presenter.build_combat_quickbar_title_text()
+		inventory_hint_text = _presenter.build_combat_quickbar_hint_text(
+			_combat_flow.combat_state if _combat_flow != null else null,
+			preview_consumable
+		)
 	_run_inventory_panel.render({
 		"equipment_title": inventory_presenter.build_equipment_title_text(),
 		"equipment_hint": inventory_presenter.build_equipment_hint_text(true),
 		"equipment_hint_visible": true,
-		"inventory_title": inventory_presenter.build_inventory_title_text(_run_state.inventory_state if _run_state != null else null),
-		"inventory_hint": inventory_presenter.build_combat_inventory_hint_text(),
+		"inventory_title": inventory_title_text,
+		"inventory_hint": inventory_hint_text,
 		"inventory_hint_visible": true,
 		"equipment_cards": inventory_presenter.build_combat_equipment_cards(
 			_combat_flow.combat_state if _combat_flow != null else null,
@@ -744,6 +797,7 @@ func _refresh_inventory_cards() -> void:
 		"selected_resolver": Callable(self, "_inventory_card_is_selected"),
 		"draggable_resolver": Callable(self, "_inventory_card_is_draggable"),
 	})
+	_scan_first_run_inventory_hints()
 
 
 func _handle_inventory_card_click(slot_index: int, inventory_slot_id: int, card_family: String) -> void:
@@ -1004,6 +1058,7 @@ func _on_hunger_threshold_crossed(_old_threshold: int, new_threshold: int) -> vo
 	if warning_text.is_empty():
 		return
 	_show_hunger_warning(warning_text, new_threshold)
+	_request_first_run_hint("first_low_hunger_warning")
 
 func _show_hunger_warning(warning_text: String, threshold: int) -> void:
 	_ensure_hunger_warning_toast()
@@ -1129,6 +1184,8 @@ func _on_viewport_size_changed() -> void:
 	_apply_portrait_safe_layout()
 	if _action_hint_controller != null:
 		_action_hint_controller.update_visibility()
+	if _first_run_hint_controller != null:
+		_first_run_hint_controller.refresh_position()
 	_position_hunger_warning_toast()
 
 

@@ -39,6 +39,10 @@ func test_state_text_reflects_combat_snapshot() -> void:
 
 	assert(presenter.build_turn_text(combat_state) == "Turn 3", "Expected turn text to mirror current turn.")
 	assert(
+		presenter.call("build_combat_ready_text", combat_state) == "Turn 3. Pick your move.",
+		"Expected combat presenter to expose a clearer combat-open status line without changing combat truth."
+	)
+	assert(
 		presenter.build_intent_text({"intent_id": "heavy_strike", "threat_level": "high"}) == "Enemy intends: heavy_strike (high)",
 		"Expected intent text to use stable combat intent fields."
 	)
@@ -199,12 +203,12 @@ func test_state_text_reflects_combat_snapshot() -> void:
 	var primary_items: Array = player_status_model.get("primary_items", [])
 	var secondary_items: Array = player_status_model.get("secondary_items", [])
 	assert(String(player_status_model.get("variant", "")) == "compact", "Expected combat status strip model to stay compact by default.")
-	assert(primary_items.size() == 4, "Expected combat status strip primary lane to expose HP, hunger, durability, and guard.")
+	assert(primary_items.size() == 4, "Expected combat status strip primary lane to expose HP, guard, hunger, and durability.")
 	assert(String((primary_items[0] as Dictionary).get("value_text", "")) == "18/60", "Expected combat status strip HP metric to expose current and max values.")
-	assert(String((primary_items[1] as Dictionary).get("value_text", "")) == "7/20", "Expected combat status strip hunger metric to expose current and max values.")
-	assert(int((primary_items[1] as Dictionary).get("current_value", -1)) == 7 and int((primary_items[1] as Dictionary).get("max_value", -1)) == 20, "Expected combat hunger metrics to expose numeric values for threshold warning presentation.")
-	assert(String((primary_items[2] as Dictionary).get("value_text", "")) == "11/11", "Expected combat status strip durability metric to expose current and max values.")
-	assert(String((primary_items[3] as Dictionary).get("value_text", "")) == "3", "Expected combat status strip to expose current guard.")
+	assert(String((primary_items[1] as Dictionary).get("value_text", "")) == "3", "Expected combat status strip to surface current guard before the lower-pressure hunger/durability reads.")
+	assert(String((primary_items[2] as Dictionary).get("value_text", "")) == "7/20", "Expected combat status strip hunger metric to expose current and max values.")
+	assert(int((primary_items[2] as Dictionary).get("current_value", -1)) == 7 and int((primary_items[2] as Dictionary).get("max_value", -1)) == 20, "Expected combat hunger metrics to expose numeric values for threshold warning presentation.")
+	assert(String((primary_items[3] as Dictionary).get("value_text", "")) == "11/11", "Expected combat status strip durability metric to expose current and max values.")
 	assert(secondary_items.size() == 4, "Expected combat status strip secondary lane to expose weapon, left-hand, armor, and belt context.")
 	assert(String((secondary_items[0] as Dictionary).get("value_text", "")) == "Iron Sword +2", "Expected combat status strip to surface the active weapon summary.")
 	assert(String((secondary_items[1] as Dictionary).get("value_text", "")) == "Weathered Buckler", "Expected combat status strip to surface equipped left-hand summary.")
@@ -255,6 +259,22 @@ func test_state_text_reflects_combat_snapshot() -> void:
 		"Expected empty consumable slots to keep the no-item fallback."
 	)
 	assert(
+		presenter.call("build_combat_quickbar_title_text") == "Quick Use",
+		"Expected combat presenter to expose a quick-use title for the consumable strip."
+	)
+	assert(
+		presenter.call("build_combat_quickbar_hint_text", combat_state, {"definition_id": "traveler_bread", "current_stack": 2}) == "Only consumables work in combat. Tap Traveler Bread for +8 HP and +2 hunger. Ends turn.",
+		"Expected combat quickbar hint copy to explain the selected consumable with existing authored effect truth."
+	)
+	assert(
+		presenter.call("build_combat_quickbar_hint_text", combat_state, {}) == "Only consumables work in combat. No consumable ready.",
+		"Expected combat quickbar hint copy to expose the no-usable-item state without inventing new prediction logic."
+	)
+	assert(
+		presenter.call("build_combat_quickbar_hint_text", CombatState.new(), {}) == "Only consumables work in combat. No consumable packed.",
+		"Expected combat quickbar hint copy to expose an intentionally empty consumable lane."
+	)
+	assert(
 		presenter.call("build_action_card_preview_text", "attack", combat_state, {}, {
 			"attack_damage_preview": 5,
 			"attack_dodge_chance": 10,
@@ -301,8 +321,8 @@ func test_domain_event_and_turn_end_lines_are_human_readable() -> void:
 		"Expected attack phase line to reuse the player-facing action summary."
 	)
 	assert(
-		presenter.format_player_turn_phase_line("use_item", {"skipped": true}) == "No usable item.",
-		"Expected skipped use-item phase line to stay explicit for the combat shell."
+		presenter.format_player_turn_phase_line("use_item", {"skipped": true}) == "No consumable ready.",
+		"Expected skipped use-item phase line to stay explicit and aligned with the local combat consumable wording family."
 	)
 	assert(
 		presenter.format_enemy_turn_phase_line({"damage_applied": 3}) == "Enemy hit player for 3.",

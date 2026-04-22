@@ -11,6 +11,7 @@ func _init() -> void:
 	test_reward_presenter_hides_unused_small_reward_card()
 	test_reward_presenter_builds_compact_run_status_strip()
 	test_reward_presenter_surfaces_offer_tooltips()
+	test_reward_presenter_surfaces_failure_copy()
 	print("test_reward_presenter: all assertions passed")
 	quit()
 
@@ -111,3 +112,15 @@ func test_reward_presenter_surfaces_offer_tooltips() -> void:
 	assert(bread_tooltip.contains("H +"), "Expected reward consumable tooltip to keep compact effect details.")
 	assert(shield_tooltip.contains("Watchman Shield"), "Expected reward gear tooltip to include the item name.")
 	assert(shield_tooltip.contains("Guard first"), "Expected reward shield tooltip to keep the gameplay-facing shield summary compact.")
+
+
+func test_reward_presenter_surfaces_failure_copy() -> void:
+	var presenter: RefCounted = RewardPresenterScript.new()
+	assert(
+		String(presenter.call("build_failure_text", "unknown_reward_option")) == "That reward is no longer available.",
+		"Expected reward presenter to expose a player-facing missing-offer failure line."
+	)
+	assert(
+		String(presenter.call("build_failure_text", "missing_reward_state")) == "Reward unavailable.",
+		"Expected reward presenter to reuse the unavailable shell wording for missing reward state failures."
+	)

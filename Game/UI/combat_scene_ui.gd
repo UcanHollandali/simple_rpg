@@ -100,19 +100,19 @@ static func apply_temp_theme(scene: Control, secondary_node_getter: Callable) ->
 	TempScreenThemeScript.apply_choice_card_shell(scene.get_node_or_null(ATTACK_ACTION_CARD_PATH) as PanelContainer, TempScreenThemeScript.RUST_ACCENT_COLOR)
 	TempScreenThemeScript.apply_choice_card_shell(scene.get_node_or_null(DEFENSE_ACTION_CARD_PATH) as PanelContainer, TempScreenThemeScript.TEAL_ACCENT_COLOR)
 	TempScreenThemeScript.apply_compact_status_area(scene.get_node_or_null(PLAYER_RUN_SUMMARY_CARD_PATH) as PanelContainer, TempScreenThemeScript.TEAL_ACCENT_COLOR)
-	TempScreenThemeScript.apply_panel(_secondary_node(secondary_node_getter, "CombatLogCard") as PanelContainer, TempScreenThemeScript.TEAL_ACCENT_COLOR, 16, 0.82)
+	TempScreenThemeScript.apply_panel(_secondary_node(secondary_node_getter, "CombatLogCard") as PanelContainer, TempScreenThemeScript.TEAL_ACCENT_COLOR, 16, 0.72)
 	TempScreenThemeScript.apply_panel(scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/HBox/PlayerBustFrame") as PanelContainer, TempScreenThemeScript.TEAL_ACCENT_COLOR, 14, 0.34)
 	TempScreenThemeScript.apply_panel(scene.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/HBox/EnemyBustFrame") as PanelContainer, TempScreenThemeScript.RUST_ACCENT_COLOR, 14, 0.34)
 	TempScreenThemeScript.apply_panel(scene.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/BossTokenFrame") as PanelContainer, TempScreenThemeScript.RUST_ACCENT_COLOR, 12, 0.78)
 	TempScreenThemeScript.apply_panel(scene.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentCard") as PanelContainer, TempScreenThemeScript.RUST_ACCENT_COLOR, 14, 0.8)
 	TempScreenThemeScript.apply_panel(scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/ForecastCard") as PanelContainer, TempScreenThemeScript.REWARD_ACCENT_COLOR, 14, 0.76)
-	TempScreenThemeScript.apply_inventory_section_panel(_secondary_node(secondary_node_getter, "QuickItemSection/EquipmentCard") as PanelContainer, TempScreenThemeScript.TEAL_ACCENT_COLOR, "roomy")
-	TempScreenThemeScript.apply_inventory_section_panel(_secondary_node(secondary_node_getter, "QuickItemSection/InventoryCard") as PanelContainer, TempScreenThemeScript.REWARD_ACCENT_COLOR, "roomy")
+	TempScreenThemeScript.apply_inventory_section_panel(_secondary_node(secondary_node_getter, "QuickItemSection/EquipmentCard") as PanelContainer, TempScreenThemeScript.TEAL_ACCENT_COLOR, "compact")
+	TempScreenThemeScript.apply_inventory_section_panel(_secondary_node(secondary_node_getter, "QuickItemSection/InventoryCard") as PanelContainer, TempScreenThemeScript.REWARD_ACCENT_COLOR, "compact")
 	TempScreenThemeScript.intensify_panel(scene.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard") as PanelContainer, TempScreenThemeScript.RUST_ACCENT_COLOR, 3, 24, 0.03, 0.24, 18, 16)
 	TempScreenThemeScript.intensify_panel(scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard") as PanelContainer, TempScreenThemeScript.TEAL_ACCENT_COLOR, 3, 24, 0.03, 0.22, 18, 16)
 	TempScreenThemeScript.intensify_panel(scene.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentCard") as PanelContainer, TempScreenThemeScript.RUST_ACCENT_COLOR, 3, 18, 0.04, 0.22, 16, 14)
 	TempScreenThemeScript.intensify_panel(scene.get_node_or_null(PLAYER_RUN_SUMMARY_CARD_PATH) as PanelContainer, TempScreenThemeScript.TEAL_ACCENT_COLOR, 3, 18, 0.04, 0.22, 16, 14)
-	TempScreenThemeScript.intensify_panel(_secondary_node(secondary_node_getter, "CombatLogCard") as PanelContainer, TempScreenThemeScript.TEAL_ACCENT_COLOR, 3, 18, 0.03, 0.18, 16, 14)
+	TempScreenThemeScript.intensify_panel(_secondary_node(secondary_node_getter, "CombatLogCard") as PanelContainer, TempScreenThemeScript.TEAL_ACCENT_COLOR, 2, 12, 0.02, 0.12, 14, 12)
 	TempScreenThemeScript.intensify_panel(scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/HBox/PlayerBustFrame") as PanelContainer, TempScreenThemeScript.TEAL_ACCENT_COLOR, 2, 14, 0.03, 0.24)
 	TempScreenThemeScript.intensify_panel(scene.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/HBox/EnemyBustFrame") as PanelContainer, TempScreenThemeScript.RUST_ACCENT_COLOR, 2, 14, 0.03, 0.22)
 	TempScreenThemeScript.intensify_panel(scene.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/BossTokenFrame") as PanelContainer, TempScreenThemeScript.RUST_ACCENT_COLOR, 2, 12, 0.03, 0.24)
@@ -139,13 +139,13 @@ static func apply_temp_theme(scene: Control, secondary_node_getter: Callable) ->
 		_secondary_node(secondary_node_getter, "QuickItemSection/EquipmentTitleLabel") as Label,
 		_secondary_node(secondary_node_getter, "QuickItemSection/EquipmentHintLabel") as Label,
 		"accent",
-		"standard"
+		"compact"
 	)
 	TempScreenThemeScript.apply_inventory_section_text(
 		_secondary_node(secondary_node_getter, "QuickItemSection/InventoryTitleLabel") as Label,
 		_secondary_node(secondary_node_getter, "QuickItemSection/InventoryHintLabel") as Label,
 		"reward",
-		"standard"
+		"compact"
 	)
 	TempScreenThemeScript.apply_button(scene.get_node_or_null(ATTACK_BUTTON_PATH) as Button, TempScreenThemeScript.RUST_ACCENT_COLOR)
 	TempScreenThemeScript.apply_button(scene.get_node_or_null(DEFENSE_BUTTON_PATH) as Button, TempScreenThemeScript.TEAL_ACCENT_COLOR)
@@ -223,7 +223,7 @@ static func apply_portrait_safe_layout(scene: Control, secondary_node_getter: Ca
 		combat_log_card.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	var combat_log_vbox: VBoxContainer = _secondary_node(secondary_node_getter, "CombatLogCard/CombatLogVBox") as VBoxContainer
 	if combat_log_vbox != null:
-		combat_log_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		combat_log_vbox.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	var inventory_card: PanelContainer = _secondary_node(secondary_node_getter, "QuickItemSection/InventoryCard") as PanelContainer
 	if inventory_card != null:
 		inventory_card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
@@ -254,8 +254,8 @@ static func apply_portrait_safe_layout(scene: Control, secondary_node_getter: Ca
 	if quick_item_section != null:
 		quick_item_section.add_theme_constant_override("separation", InventoryPanelLayoutScript.combat_section_separation(inventory_density_band))
 	if action_cards_row != null:
-		action_cards_row.add_theme_constant_override("h_separation", 4 if compact_combat_layout else 6)
-		action_cards_row.add_theme_constant_override("v_separation", 4 if compact_combat_layout else 6)
+		action_cards_row.add_theme_constant_override("h_separation", 8 if compact_combat_layout else 10)
+		action_cards_row.add_theme_constant_override("v_separation", 6 if compact_combat_layout else 8)
 	if equipment_cards_flow != null:
 		equipment_cards_flow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		equipment_cards_flow.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
@@ -269,42 +269,49 @@ static func apply_portrait_safe_layout(scene: Control, secondary_node_getter: Ca
 	var boss_token_size: Vector2 = Vector2(88, 88) if large_layout else Vector2(76, 76) if medium_layout else Vector2(58, 58) if not ultra_compact_layout else Vector2(46, 46)
 	var status_icon_size: Vector2 = Vector2(30, 30) if large_layout else Vector2(26, 26) if medium_layout else Vector2(22, 22) if not ultra_compact_layout else Vector2(18, 18)
 	var forecast_height: float = 104.0 if large_layout else 90.0 if medium_layout else 60.0 if landscape_compact_layout else 56.0 if compact_combat_layout else 66.0 if not ultra_compact_layout else 52.0
-	var button_height: float = 64.0 if large_layout else 56.0 if medium_layout else 40.0 if landscape_compact_layout else 38.0 if compact_combat_layout else 42.0 if not ultra_compact_layout else 36.0
-	var action_card_height: float = 102.0 if large_layout else 92.0 if medium_layout else 78.0 if landscape_compact_layout else 74.0 if compact_combat_layout else 0.0
+	var intent_card_height: float = 102.0 if large_layout else 92.0 if medium_layout else 72.0 if landscape_compact_layout else 70.0 if compact_combat_layout else 80.0 if not ultra_compact_layout else 66.0
+	var button_height: float = 64.0 if large_layout else 56.0 if medium_layout else 42.0 if landscape_compact_layout else 46.0 if compact_combat_layout else 42.0 if not ultra_compact_layout else 40.0
+	var action_card_height: float = 108.0 if large_layout else 98.0 if medium_layout else 84.0 if landscape_compact_layout else 92.0 if compact_combat_layout else 0.0
 	var title_font_size: int = 40 if large_layout else 34 if medium_layout else 22 if compact_combat_layout else 26 if not ultra_compact_layout else 22
 	var turn_font_size: int = 24 if large_layout else 20 if medium_layout else 15 if compact_combat_layout else 17 if not ultra_compact_layout else 15
 	var body_font_size: int = 20 if large_layout else 18 if medium_layout else 14 if compact_combat_layout else 15 if not ultra_compact_layout else 13
-	var button_font_size: int = 20 if large_layout else 18 if medium_layout else 14 if compact_combat_layout else 15 if not ultra_compact_layout else 13
-	var combat_log_height: float = 112.0 if ultra_compact_layout else 136.0 if compact_combat_layout else 176.0 if medium_layout else 196.0
+	var button_font_size: int = 20 if large_layout else 18 if medium_layout else 15 if compact_combat_layout else 15 if not ultra_compact_layout else 14
+	var action_title_font_size: int = 24 if large_layout else 20 if medium_layout else 16 if compact_combat_layout else 18 if not ultra_compact_layout else 15
+	var intent_title_font_size: int = max(body_font_size + 2, 15)
+	var eyebrow_font_size: int = max(11, body_font_size - 1)
+	var preview_font_size: int = max(12, body_font_size - 1)
+	var combat_log_height: float = 80.0 if ultra_compact_layout else 96.0 if compact_combat_layout else 132.0 if medium_layout else 148.0
 	var summary_card_height: float = 84.0 if large_layout else 74.0 if medium_layout else 48.0 if landscape_compact_layout else 46.0 if compact_combat_layout else 54.0 if not ultra_compact_layout else 46.0
 	var enemy_card_height: float = 184.0 if large_layout else 168.0 if medium_layout else 132.0 if landscape_compact_layout else 122.0 if compact_combat_layout else 138.0 if not ultra_compact_layout else 120.0
 	var player_card_height: float = 210.0 if large_layout else 192.0 if medium_layout else 142.0 if landscape_compact_layout else 132.0 if compact_combat_layout else 154.0 if not ultra_compact_layout else 136.0
 	var tall_portrait_layout: bool = is_portrait and viewport_size.y >= 2100.0
-	var equipment_panel_height: float = InventoryPanelLayoutScript.panel_height("equipment", inventory_density_band)
-	var backpack_panel_height: float = InventoryPanelLayoutScript.panel_height("backpack", inventory_density_band)
+	var equipment_panel_height: float = max(96.0, InventoryPanelLayoutScript.panel_height("equipment", inventory_density_band) - 22.0)
+	var backpack_panel_height: float = max(92.0, InventoryPanelLayoutScript.panel_height("backpack", inventory_density_band) - 34.0)
 	var secondary_scroll_height: float = 320.0 if ultra_compact_layout else 380.0 if compact_combat_layout else 470.0 if large_layout else 430.0 if medium_layout else 400.0
 	if tall_portrait_layout:
-		equipment_panel_height = max(equipment_panel_height, 126.0)
-		backpack_panel_height = max(backpack_panel_height, 140.0)
+		equipment_panel_height = max(equipment_panel_height, 118.0)
+		backpack_panel_height = max(backpack_panel_height, 104.0)
 		secondary_scroll_height = max(secondary_scroll_height, 520.0)
-		combat_log_height = max(combat_log_height, 208.0)
+		combat_log_height = max(combat_log_height, 144.0)
 	elif large_layout:
-		equipment_panel_height = max(equipment_panel_height, 136.0)
-		backpack_panel_height = max(backpack_panel_height, 150.0)
+		equipment_panel_height = max(equipment_panel_height, 122.0)
+		backpack_panel_height = max(backpack_panel_height, 108.0)
 		secondary_scroll_height = max(secondary_scroll_height, 500.0)
-		combat_log_height = max(combat_log_height, 220.0)
+		combat_log_height = max(combat_log_height, 152.0)
 	elif medium_layout:
-		equipment_panel_height = max(equipment_panel_height, 132.0)
-		backpack_panel_height = max(backpack_panel_height, 144.0)
+		equipment_panel_height = max(equipment_panel_height, 120.0)
+		backpack_panel_height = max(backpack_panel_height, 106.0)
 		secondary_scroll_height = max(secondary_scroll_height, 460.0)
-		combat_log_height = max(combat_log_height, 196.0)
+		combat_log_height = max(combat_log_height, 140.0)
 	SceneLayoutHelperScript.apply_control_overrides(scene, {
 		"title_font_size": title_font_size,
 		"turn_font_size": turn_font_size,
 		"button_font_size": button_font_size,
+		"action_title_font_size": action_title_font_size,
 	}, [
 		{"path": "Margin/VBox/HeaderStack/ScreenTitleLabel", "font_size": "title_font_size"},
 		{"path": "Margin/VBox/HeaderStack/TurnLabel", "font_size": "turn_font_size"},
+		{"path": "Margin/VBox/Buttons/ActionSectionTitleLabel", "font_size": "action_title_font_size"},
 		{"paths": ACTION_BUTTON_PATHS, "font_size": "button_font_size"},
 	])
 	if screen_title_label != null:
@@ -323,6 +330,15 @@ static func apply_portrait_safe_layout(scene: Control, secondary_node_getter: Ca
 	var intent_icon: TextureRect = scene.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentCard/IntentVBox/IntentRow/IntentIcon") as TextureRect
 	if intent_icon != null:
 		intent_icon.custom_minimum_size = status_icon_size
+	var intent_card: PanelContainer = scene.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentCard") as PanelContainer
+	if intent_card != null:
+		intent_card.custom_minimum_size = Vector2(0.0, intent_card_height)
+	var intent_title_label: Label = scene.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentCard/IntentVBox/IntentTitleLabel") as Label
+	if intent_title_label != null:
+		intent_title_label.add_theme_font_size_override("font_size", intent_title_font_size)
+	var intent_detail_label: Label = scene.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentCard/IntentVBox/IntentDetailLabel") as Label
+	if intent_detail_label != null:
+		intent_detail_label.add_theme_font_size_override("font_size", max(12, body_font_size - 1))
 	var forecast_grid: GridContainer = scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/ForecastCard/ForecastVBox/ForecastGrid") as GridContainer
 	if forecast_grid != null:
 		forecast_grid.columns = 2
@@ -351,7 +367,7 @@ static func apply_portrait_safe_layout(scene: Control, secondary_node_getter: Ca
 	var combat_log_entries: VBoxContainer = _secondary_node(secondary_node_getter, COMBAT_LOG_ENTRIES_PATH) as VBoxContainer
 	if combat_log_entries != null:
 		combat_log_entries.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		combat_log_entries.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		combat_log_entries.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 		combat_log_entries.add_theme_constant_override("separation", 4 if compact_layout else 5)
 	var action_card_width: float = max(180.0, floor((safe_width - (float((action_columns - 1) * 6))) / float(action_columns))) if action_columns > 1 else max(0.0, safe_width - 8.0)
 	for path in [
@@ -391,17 +407,18 @@ static func apply_portrait_safe_layout(scene: Control, secondary_node_getter: Ca
 	]:
 		var label: Label = scene.get_node_or_null(path) as Label
 		if label != null:
-			label.autowrap_mode = TextServer.AUTOWRAP_OFF if compact_combat_layout else TextServer.AUTOWRAP_WORD_SMART
-			label.clip_text = compact_combat_layout
-			label.add_theme_font_size_override("font_size", max(11, body_font_size - 2))
+			label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			label.clip_text = false
+			label.max_lines_visible = 2
+			label.add_theme_font_size_override("font_size", preview_font_size)
 	for eyebrow_path in [
 		"Margin/VBox/Buttons/ActionCardsRow/AttackActionCard/AttackActionVBox/AttackActionEyebrowLabel",
 		"Margin/VBox/Buttons/ActionCardsRow/DefenseActionCard/DefenseActionVBox/DefenseActionEyebrowLabel",
 	]:
 		var eyebrow_label: Label = scene.get_node_or_null(eyebrow_path) as Label
 		if eyebrow_label != null:
-			eyebrow_label.visible = not compact_combat_layout
-			eyebrow_label.add_theme_font_size_override("font_size", max(10, body_font_size - 2))
+			eyebrow_label.visible = true
+			eyebrow_label.add_theme_font_size_override("font_size", eyebrow_font_size)
 	for card_path in [ATTACK_ACTION_CARD_PATH, DEFENSE_ACTION_CARD_PATH]:
 		var action_card: PanelContainer = scene.get_node_or_null(card_path) as PanelContainer
 		if action_card != null:
@@ -422,7 +439,7 @@ static func apply_portrait_safe_layout(scene: Control, secondary_node_getter: Ca
 		)
 	combat_log_card = _secondary_node(secondary_node_getter, "CombatLogCard") as PanelContainer
 	if combat_log_card != null:
-		combat_log_card.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		combat_log_card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 		combat_log_card.custom_minimum_size = Vector2(0.0, combat_log_height)
 		combat_log_card.visible = combat_log_height > 0.0
 	var player_status_row: HFlowContainer = scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/PlayerStatusSection/PlayerStatusRow") as HFlowContainer
@@ -435,7 +452,7 @@ static func apply_portrait_safe_layout(scene: Control, secondary_node_getter: Ca
 		enemy_status_row.add_theme_constant_override("v_separation", 4 if not compact_layout else 3)
 	var action_section_title_label: Label = scene.get_node_or_null("Margin/VBox/Buttons/ActionSectionTitleLabel") as Label
 	if action_section_title_label != null:
-		action_section_title_label.visible = not compact_combat_layout
+		action_section_title_label.visible = true
 	var equipment_title_label: Label = _secondary_node(secondary_node_getter, "QuickItemSection/EquipmentTitleLabel") as Label
 	if equipment_title_label != null:
 		equipment_title_label.visible = true
@@ -449,6 +466,7 @@ static func apply_portrait_safe_layout(scene: Control, secondary_node_getter: Ca
 	if inventory_hint_label != null:
 		inventory_hint_label.visible = true
 		inventory_hint_label.max_lines_visible = InventoryPanelLayoutScript.combat_hint_max_lines(inventory_density_band)
+	_prioritize_combat_inventory_section(quick_item_section, inventory_title_label, inventory_hint_label, inventory_card, equipment_title_label, equipment_hint_label, equipment_card)
 	if secondary_scroll != null:
 		secondary_scroll.custom_minimum_size = Vector2(0.0, secondary_scroll_height)
 	return {"is_compact_layout": compact_layout or landscape_compact_layout, "action_columns": action_columns}
@@ -456,6 +474,33 @@ static func apply_portrait_safe_layout(scene: Control, secondary_node_getter: Ca
 
 static func _secondary_node(secondary_node_getter: Callable, relative_path: String) -> Node:
 	return secondary_node_getter.call(relative_path) if secondary_node_getter.is_valid() else null
+
+
+static func _prioritize_combat_inventory_section(
+	quick_item_section: VBoxContainer,
+	inventory_title_label: Label,
+	inventory_hint_label: Label,
+	inventory_card: PanelContainer,
+	equipment_title_label: Label,
+	equipment_hint_label: Label,
+	equipment_card: PanelContainer
+) -> void:
+	if quick_item_section == null:
+		return
+	var ordered_children: Array[Node] = [
+		inventory_title_label,
+		inventory_hint_label,
+		inventory_card,
+		equipment_title_label,
+		equipment_hint_label,
+		equipment_card,
+	]
+	var next_index: int = 0
+	for child in ordered_children:
+		if child == null or child.get_parent() != quick_item_section:
+			continue
+		quick_item_section.move_child(child, next_index)
+		next_index += 1
 
 
 static func _apply_progress_bar_style(bar: ProgressBar, accent: Color, fill_color: Color) -> void:

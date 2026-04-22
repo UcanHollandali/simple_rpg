@@ -17,6 +17,12 @@ func build_turn_text(combat_state: CombatState) -> String:
 	return "Turn %d" % combat_state.current_turn
 
 
+func build_combat_ready_text(combat_state: CombatState) -> String:
+	if combat_state == null:
+		return "Combat open. Pick your move."
+	return "Turn %d. Pick your move." % max(1, int(combat_state.current_turn))
+
+
 func build_intent_text(intent: Dictionary) -> String:
 	return "Enemy intends: %s (%s)" % [
 		String(intent.get("intent_id", "none")),
@@ -149,6 +155,13 @@ func build_player_status_model(combat_state: CombatState) -> Dictionary:
 		"max_value": RunState.DEFAULT_PLAYER_HP,
 	})
 	primary_items.append({
+		"key": "guard",
+		"label_text": "Guard",
+		"value_text": str(max(0, int(combat_state.current_guard))),
+		"semantic": "guard",
+		"current_value": max(0, int(combat_state.current_guard)),
+	})
+	primary_items.append({
 		"key": "hunger",
 		"label_text": "Hunger",
 		"value_text": UiFormattingScript.build_metric_value_text(combat_state.player_hunger, RunState.DEFAULT_HUNGER),
@@ -166,13 +179,6 @@ func build_player_status_model(combat_state: CombatState) -> Dictionary:
 		"semantic": "durability",
 		"current_value": int(combat_state.weapon_instance.get("current_durability", 0)),
 		"max_value": _extract_weapon_max_durability(combat_state),
-	})
-	primary_items.append({
-		"key": "guard",
-		"label_text": "Guard",
-		"value_text": str(max(0, int(combat_state.current_guard))),
-		"semantic": "guard",
-		"current_value": max(0, int(combat_state.current_guard)),
 	})
 
 	secondary_items.append({
@@ -405,6 +411,40 @@ func build_action_card_preview_text(action_name: String, combat_state: CombatSta
 			return ""
 
 
+func build_combat_quickbar_title_text() -> String:
+	return "Quick Use"
+
+
+func build_combat_quickbar_hint_text(combat_state: CombatState, preview_consumable_slot: Dictionary = {}) -> String:
+	var base_text: String = "Only consumables work in combat."
+	if combat_state == null:
+		return base_text
+	if preview_consumable_slot.is_empty():
+		return "%s %s" % [base_text, "No consumable packed." if not _has_any_combat_consumable(combat_state) else "No consumable ready."]
+
+	var item_name: String = _build_consumable_display_name(preview_consumable_slot)
+	if item_name.is_empty():
+		item_name = "Consumable"
+	if not _is_consumable_slot_usable_in_combat(combat_state, preview_consumable_slot):
+		return "%s %s won't help HP or hunger right now." % [base_text, item_name]
+
+	var effect_profile: Dictionary = _extract_consumable_use_profile(preview_consumable_slot)
+	var effect_fragments: PackedStringArray = []
+	var heal_amount: int = int(effect_profile.get("heal_amount", 0))
+	var hunger_restore: int = max(0, -int(effect_profile.get("hunger_delta", 0)))
+	if heal_amount > 0:
+		effect_fragments.append("+%d HP" % heal_amount)
+	if hunger_restore > 0:
+		effect_fragments.append("+%d hunger" % hunger_restore)
+	if effect_fragments.is_empty():
+		return "%s Tap %s. Ends turn." % [base_text, item_name]
+	return "%s Tap %s for %s. Ends turn." % [
+		base_text,
+		item_name,
+		" and ".join(effect_fragments),
+	]
+
+
 func build_action_tooltip_text(action_name: String, combat_state: CombatState, preview_consumable_slot: Dictionary = {}, preview_snapshot: Dictionary = {}) -> String:
 	match action_name:
 		"attack":
@@ -462,7 +502,7 @@ func format_player_turn_phase_line(action_name: String, result: Dictionary) -> S
 			return "Defend raised %d guard." % int(result.get("guard_generated", result.get("guard_points", 0)))
 		"use_item":
 			if bool(result.get("skipped", false)):
-				return "No usable item."
+				return "No consumable ready."
 			return ""
 		_:
 			return ""
@@ -620,17 +660,17 @@ func _build_defend_tooltip_text(combat_state: CombatState, preview_snapshot: Dic
 
 func _build_use_item_tooltip_text(combat_state: CombatState, preview_consumable_slot: Dictionary) -> String:
 	if combat_state == null:
-		return "Use a consumable card. Only HP or hunger items work."
+		return "Use a consumable card. HP or hunger only."
 
 	if preview_consumable_slot.is_empty():
-		return "Use a consumable card. Only HP or hunger items work."
+		return "Use a consumable card. HP or hunger only."
 
 	var item_name: String = _build_consumable_display_name(preview_consumable_slot)
 	if item_name.is_empty():
 		item_name = "this item"
 
 	if not _is_consumable_slot_usable_in_combat(combat_state, preview_consumable_slot):
-		return "%s won't trigger now. Only HP or hunger items work." % item_name
+		return "%s won't help HP or hunger right now." % item_name
 
 	var effect_profile: Dictionary = _extract_consumable_use_profile(preview_consumable_slot)
 	var effect_fragments: PackedStringArray = []
@@ -663,6 +703,18 @@ func _is_consumable_slot_usable_in_combat(combat_state: CombatState, consumable_
 		return true
 	if hunger_delta < 0 and combat_state.player_hunger < RunState.DEFAULT_HUNGER:
 		return true
+	return false
+
+
+func _has_any_combat_consumable(combat_state: CombatState) -> bool:
+	if combat_state == null:
+		return false
+	for slot_value in combat_state.consumable_slots:
+		var slot: Dictionary = slot_value
+		if String(slot.get("definition_id", "")).strip_edges().is_empty():
+			continue
+		if int(slot.get("current_stack", 0)) > 0:
+			return true
 	return false
 
 

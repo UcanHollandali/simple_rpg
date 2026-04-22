@@ -1,7 +1,6 @@
 {
   "schema_version": 1,
   "definition_id": "razor_relic",
-  "authoring_order": 40,
   "family": "PassiveItems",
   "tags": [
     "passive",

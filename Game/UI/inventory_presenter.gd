@@ -39,7 +39,17 @@ func build_inventory_title_text(inventory_state: InventoryState) -> String:
 	return "Backpack %d/%d" % [inventory_state.get_used_capacity(), total_capacity]
 
 
-func build_run_inventory_hint_text() -> String:
+func build_inventory_drawer_summary_text(inventory_state: InventoryState = null) -> String:
+	if inventory_state == null:
+		return build_inventory_title_text(null)
+	if inventory_state.get_used_capacity() <= 0:
+		return "Pack empty"
+	return "Carry %d/%d" % [inventory_state.get_used_capacity(), inventory_state.get_total_capacity()]
+
+
+func build_run_inventory_hint_text(inventory_state: InventoryState = null) -> String:
+	if inventory_state != null and inventory_state.get_used_capacity() <= 0:
+		return "Pack empty. Pick up what helps."
 	return "Food, gear, passives, cargo, and mods."
 
 
@@ -112,7 +122,7 @@ func _build_backpack_cards(inventory_state: InventoryState, combat_state: Combat
 		return _build_empty_backpack_cards(InventoryStateScript.BASE_BACKPACK_CAPACITY)
 
 	var total_capacity: int = inventory_state.get_total_capacity()
-	var combat_consumable_index_by_slot_id: Dictionary = _build_combat_consumable_index_by_slot_id(combat_state)
+	var combat_consumable_index_by_slot_id: Dictionary = _build_combat_consumable_index_by_slot_id(combat_state, inventory_state)
 	for slot_index in range(total_capacity):
 		if slot_index < inventory_state.inventory_slots.size():
 			var slot: Dictionary = inventory_state.inventory_slots[slot_index]
@@ -149,6 +159,8 @@ func _build_empty_backpack_cards(card_count: int) -> Array[Dictionary]:
 func _build_compat_inventory_state(combat_state: CombatState, passive_slot_list: Array) -> InventoryState:
 	if combat_state == null:
 		return null
+	# Legacy test shim only: hydrate a throwaway InventoryState view from combat-local
+	# compatibility fields, but do not push the hydrated slot ids back into CombatState.
 	var inventory_state: InventoryState = InventoryStateScript.new()
 	inventory_state.set_weapon_instance(combat_state.weapon_instance)
 	inventory_state.set_left_hand_instance(combat_state.left_hand_instance)
@@ -156,13 +168,6 @@ func _build_compat_inventory_state(combat_state: CombatState, passive_slot_list:
 	inventory_state.set_belt_instance(combat_state.belt_instance)
 	inventory_state.set_consumable_slots(combat_state.consumable_slots)
 	inventory_state.set_passive_slots(passive_slot_list)
-	combat_state.active_weapon_slot_id = int(inventory_state.active_weapon_slot_id)
-	combat_state.active_left_hand_slot_id = int(inventory_state.active_left_hand_slot_id)
-	combat_state.active_armor_slot_id = int(inventory_state.active_armor_slot_id)
-	combat_state.active_belt_slot_id = int(inventory_state.active_belt_slot_id)
-	var hydrated_consumable_slots: Array[Dictionary] = inventory_state.consumable_slots
-	for index in range(min(combat_state.consumable_slots.size(), hydrated_consumable_slots.size())):
-		combat_state.consumable_slots[index]["slot_id"] = int(hydrated_consumable_slots[index].get("slot_id", -1))
 	return inventory_state
 
 
@@ -465,12 +470,13 @@ func _build_shield_attachment_card(slot: Dictionary, slot_label: String, backpac
 	)
 
 
-func _build_combat_consumable_index_by_slot_id(combat_state: CombatState) -> Dictionary:
+func _build_combat_consumable_index_by_slot_id(combat_state: CombatState, inventory_state: InventoryState = null) -> Dictionary:
 	var result: Dictionary = {}
 	if combat_state == null:
 		return result
-	for index in range(combat_state.consumable_slots.size()):
-		var slot: Dictionary = combat_state.consumable_slots[index]
+	var consumable_slots: Array[Dictionary] = inventory_state.consumable_slots if inventory_state != null else combat_state.consumable_slots
+	for index in range(consumable_slots.size()):
+		var slot: Dictionary = consumable_slots[index]
 		result[int(slot.get("slot_id", -1))] = index
 	return result
 

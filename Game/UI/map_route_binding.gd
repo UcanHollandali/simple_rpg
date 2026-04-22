@@ -168,8 +168,6 @@ func ensure_runtime_board_nodes() -> void:
 
 func set_route_models(route_models: Array[Dictionary]) -> void:
 	_route_models_cache = route_models
-
-
 func prepare_for_refresh(run_state) -> void:
 	_current_run_state = run_state
 	var route_grid: Control = get_route_grid()
@@ -178,6 +176,8 @@ func prepare_for_refresh(run_state) -> void:
 	if not _force_next_layout_recompose and graph_signature == _board_graph_signature and not _board_composition_cache.is_empty():
 		stable_layout = {
 			"world_positions": (_board_composition_cache.get("world_positions", {}) as Dictionary).duplicate(true),
+			"ground_shapes": (_board_composition_cache.get("ground_shapes", []) as Array).duplicate(true),
+			"filler_shapes": (_board_composition_cache.get("filler_shapes", []) as Array).duplicate(true),
 			"forest_shapes": (_board_composition_cache.get("forest_shapes", []) as Array).duplicate(true),
 			"layout_edges": (_board_composition_cache.get("layout_edges", []) as Array).duplicate(true),
 		}
@@ -238,7 +238,7 @@ func _refresh_cached_visible_node_radii(board_size: Vector2) -> void:
 		if typeof(node_variant) != TYPE_DICTIONARY:
 			continue
 		var node_entry: Dictionary = (node_variant as Dictionary).duplicate(true)
-		node_entry["clearing_radius"] = _board_composer._clearing_radius_for(
+		node_entry["clearing_radius"] = _board_composer.build_clearing_radius(
 			String(node_entry.get("node_family", "")),
 			String(node_entry.get("state_semantic", "open")),
 			board_size

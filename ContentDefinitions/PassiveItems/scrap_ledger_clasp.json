@@ -1,7 +1,6 @@
 {
   "schema_version": 1,
   "definition_id": "scrap_ledger_clasp",
-  "authoring_order": 50,
   "family": "PassiveItems",
   "tags": [
     "passive",

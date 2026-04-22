@@ -1,7 +1,6 @@
 {
   "schema_version": 1,
   "definition_id": "whetstone_loop",
-  "authoring_order": 15,
   "family": "PassiveItems",
   "tags": [
     "passive",

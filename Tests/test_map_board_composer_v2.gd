@@ -4,6 +4,7 @@ class_name TestMapBoardComposerV2
 
 const MapBoardComposerV2Script = preload("res://Game/UI/map_board_composer_v2.gd")
 const MapBoardEdgeRoutingScript = preload("res://Game/UI/map_board_edge_routing.gd")
+const MapBoardFillerBuilderScript = preload("res://Game/UI/map_board_filler_builder.gd")
 const ALLOWED_PATH_FAMILIES := [
 	"short_straight",
 	"gentle_curve",
@@ -24,6 +25,8 @@ func _init() -> void:
 	test_map_board_composer_surfaces_known_icons_for_current_and_adjacent_nodes()
 	test_map_board_composer_surfaces_side_quest_highlights()
 	test_map_board_composer_keeps_visible_nodes_portrait_safe_without_overlap()
+	test_map_board_composer_emits_deterministic_ground_shapes()
+	test_map_board_composer_emits_deterministic_filler_shapes()
 	test_map_board_composer_emits_deterministic_forest_shapes()
 	test_map_board_composer_keeps_layout_backdrop_stable_across_progression()
 	test_map_board_composer_keeps_full_edge_layout_stable_across_progression()
@@ -31,6 +34,7 @@ func _init() -> void:
 	test_map_board_composer_keeps_visible_edges_readable_without_crossings()
 	test_map_board_composer_keeps_visible_edges_clear_of_other_node_clearings()
 	test_map_board_composer_keeps_visible_edges_inside_board_frame()
+	test_map_board_composer_exposes_public_clearing_radius_helper()
 	test_map_board_composer_penalizes_edge_hugging_outer_reconnect_fallbacks()
 	test_map_board_composer_keeps_outer_reconnect_fallbacks_inside_the_inner_frame()
 	test_map_board_composer_keeps_discovered_history_edges_visible()
@@ -280,13 +284,13 @@ func test_map_board_composer_penalizes_edge_hugging_outer_reconnect_fallbacks() 
 		Vector2(264.0, p3.y),
 		p3,
 	])
-	var edge_hugging_score: float = MapBoardEdgeRoutingScript._outer_reconnect_candidate_score(
+	var edge_hugging_score: float = MapBoardEdgeRoutingScript.score_outer_reconnect_candidate(
 		edge_hugging_candidate,
 		p0,
 		p3,
 		board_size
 	)
-	var safer_score: float = MapBoardEdgeRoutingScript._outer_reconnect_candidate_score(
+	var safer_score: float = MapBoardEdgeRoutingScript.score_outer_reconnect_candidate(
 		safer_candidate,
 		p0,
 		p3,
@@ -483,6 +487,78 @@ func test_map_board_composer_emits_deterministic_forest_shapes() -> void:
 	)
 
 
+func test_map_board_composer_emits_deterministic_ground_shapes() -> void:
+	var composer: RefCounted = MapBoardComposerV2Script.new()
+	var run_state: RunState = RunState.new()
+	run_state.reset_for_new_run()
+	run_state.configure_run_seed(41)
+	_advance_visible_branch(run_state, 3)
+	var composition_a: Dictionary = composer.call("compose", run_state, Vector2(920, 1180), Vector2(0.5, 0.58), Vector2(148, 212))
+	var composition_b: Dictionary = composer.call("compose", run_state, Vector2(920, 1180), Vector2(0.5, 0.58), Vector2(148, 212))
+	var ground_shapes_a: Array = composition_a.get("ground_shapes", [])
+	var ground_shapes_b: Array = composition_b.get("ground_shapes", [])
+	assert(ground_shapes_a.size() == ground_shapes_b.size(), "Expected repeated compose calls to emit the same number of ground shapes.")
+	assert(not ground_shapes_a.is_empty(), "Expected composed boards to emit a deterministic ground/surface payload.")
+	for index in range(ground_shapes_a.size()):
+		var shape_a: Dictionary = ground_shapes_a[index]
+		var shape_b: Dictionary = ground_shapes_b[index]
+		assert(shape_a.get("family", "") == shape_b.get("family", ""), "Expected ground shape family ordering to stay deterministic.")
+		assert(shape_a.get("center", Vector2.ZERO) == shape_b.get("center", Vector2.ZERO), "Expected ground shape centers to stay deterministic.")
+		assert(shape_a.get("half_size", Vector2.ZERO) == shape_b.get("half_size", Vector2.ZERO), "Expected ground shape sizes to stay deterministic.")
+		assert(shape_a.get("rotation_degrees", 0.0) == shape_b.get("rotation_degrees", -999.0), "Expected ground shape rotation metadata to stay deterministic.")
+		assert(shape_a.get("tone_shift", 0.0) == shape_b.get("tone_shift", 1.0), "Expected ground tone variation to stay deterministic.")
+		assert(shape_a.get("alpha_scale", 0.0) == shape_b.get("alpha_scale", -1.0), "Expected ground alpha variation to stay deterministic.")
+		assert(not shape_a.has("node_family"), "Expected ground payload to stay free of node-family semantics.")
+		assert(not shape_a.has("adjacent_node_ids"), "Expected ground payload to stay free of route-logic semantics.")
+	var bed_shape: Dictionary = ground_shapes_a[0]
+	assert(String(bed_shape.get("family", "")) == "bed", "Expected the ground payload to begin with the main board-surface bed shape.")
+	assert(
+		Vector2(bed_shape.get("half_size", Vector2.ZERO)).x > 120.0 and Vector2(bed_shape.get("half_size", Vector2.ZERO)).y > 80.0,
+		"Expected the primary ground bed to define a meaningful board-interior surface area instead of a tiny decal."
+	)
+
+
+func test_map_board_composer_emits_deterministic_filler_shapes() -> void:
+	var composer: RefCounted = MapBoardComposerV2Script.new()
+	var run_state: RunState = RunState.new()
+	run_state.reset_for_new_run()
+	run_state.configure_run_seed(41)
+	_advance_visible_branch(run_state, 3)
+	var composition_a: Dictionary = composer.call("compose", run_state, Vector2(920, 1180), Vector2(0.5, 0.58), Vector2(148, 212))
+	var composition_b: Dictionary = composer.call("compose", run_state, Vector2(920, 1180), Vector2(0.5, 0.58), Vector2(148, 212))
+	var filler_shapes_a: Array = composition_a.get("filler_shapes", [])
+	var filler_shapes_b: Array = composition_b.get("filler_shapes", [])
+	assert(filler_shapes_a.size() == filler_shapes_b.size(), "Expected repeated compose calls to emit the same number of filler shapes.")
+	assert(not filler_shapes_a.is_empty(), "Expected composed boards to emit a sparse deterministic filler/landmark payload.")
+	assert(
+		filler_shapes_a.size() <= MapBoardFillerBuilderScript.max_fillers_for_profile(String(composition_a.get("template_profile", "corridor"))),
+		"Expected filler payload to stay within the auditable sparse-density cap for the active board profile."
+	)
+	for index in range(filler_shapes_a.size()):
+		var shape_a: Dictionary = filler_shapes_a[index]
+		var shape_b: Dictionary = filler_shapes_b[index]
+		assert(shape_a.get("family", "") == shape_b.get("family", ""), "Expected filler shape family ordering to stay deterministic.")
+		assert(shape_a.get("center", Vector2.ZERO) == shape_b.get("center", Vector2.ZERO), "Expected filler shape centers to stay deterministic.")
+		assert(shape_a.get("half_size", Vector2.ZERO) == shape_b.get("half_size", Vector2.ZERO), "Expected filler shape sizes to stay deterministic.")
+		assert(shape_a.get("rotation_degrees", 0.0) == shape_b.get("rotation_degrees", -999.0), "Expected filler shape rotation metadata to stay deterministic.")
+		assert(shape_a.get("tone_shift", 0.0) == shape_b.get("tone_shift", 1.0), "Expected filler tone variation to stay deterministic.")
+		assert(shape_a.get("alpha_scale", 0.0) == shape_b.get("alpha_scale", -1.0), "Expected filler alpha variation to stay deterministic.")
+		assert(not shape_a.has("node_family"), "Expected filler payload to stay free of node-family semantics.")
+		assert(not shape_a.has("adjacent_node_ids"), "Expected filler payload to stay free of route-logic semantics.")
+		var half_size: Vector2 = Vector2(shape_a.get("half_size", Vector2.ZERO))
+		var filler_center: Vector2 = Vector2(shape_a.get("center", Vector2.ZERO))
+		var nearest_node_clearance: float = _nearest_filler_node_clearance(filler_center, half_size, composition_a)
+		assert(
+			nearest_node_clearance >= 0.0,
+			"Expected filler shapes to respect the explicit node-exclusion contract."
+		)
+		var nearest_route_clearance: float = _nearest_filler_route_clearance(filler_center, half_size, composition_a)
+		assert(
+			nearest_route_clearance >= 0.0,
+			"Expected filler shapes to stay outside the explicit route-exclusion contract."
+		)
+
+
 func test_map_board_composer_keeps_layout_backdrop_stable_across_progression() -> void:
 	var composer: RefCounted = MapBoardComposerV2Script.new()
 	var run_state: RunState = RunState.new()
@@ -503,6 +579,14 @@ func test_map_board_composer_keeps_layout_backdrop_stable_across_progression() -
 	assert(
 		opening_composition.get("forest_shapes", []) == progressed_composition.get("forest_shapes", []),
 		"Expected background canopy/decor composition to stay fixed while the player moves through the same stage."
+	)
+	assert(
+		opening_composition.get("ground_shapes", []) == progressed_composition.get("ground_shapes", []),
+		"Expected board ground composition to stay fixed while progression only changes visibility inside the same realized stage."
+	)
+	assert(
+		opening_composition.get("filler_shapes", []) == progressed_composition.get("filler_shapes", []),
+		"Expected sparse filler composition to stay fixed while progression only changes visibility inside the same realized stage."
 	)
 
 
@@ -538,14 +622,14 @@ func test_map_board_composer_keeps_full_edge_layout_stable_across_progression() 
 func test_map_board_composer_does_not_scale_current_nodes() -> void:
 	var composer: RefCounted = MapBoardComposerV2Script.new()
 	var board_size := Vector2(920, 1180)
-	var combat_open_radius: float = float(composer.call("_clearing_radius_for", "combat", "open", board_size))
-	var combat_current_radius: float = float(composer.call("_clearing_radius_for", "combat", "current", board_size))
+	var combat_open_radius: float = float(composer.call("build_clearing_radius", "combat", "open", board_size))
+	var combat_current_radius: float = float(composer.call("build_clearing_radius", "combat", "current", board_size))
 	assert(
 		is_equal_approx(combat_open_radius, combat_current_radius),
 		"Expected current-node highlight to stay color-only instead of enlarging the active node clearing."
 	)
-	var reward_open_radius: float = float(composer.call("_clearing_radius_for", "reward", "open", board_size))
-	var reward_current_radius: float = float(composer.call("_clearing_radius_for", "reward", "current", board_size))
+	var reward_open_radius: float = float(composer.call("build_clearing_radius", "reward", "open", board_size))
+	var reward_current_radius: float = float(composer.call("build_clearing_radius", "reward", "current", board_size))
 	assert(
 		is_equal_approx(reward_open_radius, reward_current_radius),
 		"Expected presentation-only current-node emphasis to keep reward clearings at the same size."
@@ -624,6 +708,23 @@ func test_map_board_composer_keeps_visible_edges_inside_board_frame() -> void:
 						str(point),
 					]
 				)
+
+
+func test_map_board_composer_exposes_public_clearing_radius_helper() -> void:
+	var composer: RefCounted = MapBoardComposerV2Script.new()
+	var board_size := Vector2(920.0, 1180.0)
+	var boss_open_radius: float = composer.call("build_clearing_radius", "boss", "open", board_size)
+	var combat_open_radius: float = composer.call("build_clearing_radius", "combat", "open", board_size)
+	var reward_open_radius: float = composer.call("build_clearing_radius", "reward", "open", board_size)
+	var reward_resolved_radius: float = composer.call("build_clearing_radius", "reward", "resolved", board_size)
+	assert(
+		boss_open_radius > combat_open_radius,
+		"Expected the public clearing-radius helper to preserve the larger boss shell footprint."
+	)
+	assert(
+		reward_resolved_radius < reward_open_radius,
+		"Expected the public clearing-radius helper to preserve resolved-node compaction."
+	)
 
 
 func test_map_board_composer_keeps_discovered_history_edges_visible() -> void:
@@ -796,6 +897,35 @@ func _min_visible_node_spacing(composition: Dictionary) -> float:
 			var right_position: Vector2 = world_positions.get(visible_node_ids[right_index], Vector2.ZERO)
 			minimum_spacing = min(minimum_spacing, left_position.distance_to(right_position))
 	return minimum_spacing
+
+
+func _nearest_filler_node_clearance(center: Vector2, half_size: Vector2, composition: Dictionary) -> float:
+	var nearest_clearance: float = INF
+	for node_variant in composition.get("visible_nodes", []):
+		if typeof(node_variant) != TYPE_DICTIONARY:
+			continue
+		var node_entry: Dictionary = node_variant
+		var node_center: Vector2 = Vector2(node_entry.get("world_position", Vector2.ZERO))
+		var required_clearance: float = MapBoardFillerBuilderScript.node_exclusion_radius(
+			float(node_entry.get("clearing_radius", 0.0)),
+			half_size
+		)
+		nearest_clearance = min(nearest_clearance, center.distance_to(node_center) - required_clearance)
+	return nearest_clearance
+
+
+func _nearest_filler_route_clearance(center: Vector2, half_size: Vector2, composition: Dictionary) -> float:
+	var nearest_clearance: float = INF
+	for edge_variant in composition.get("layout_edges", []):
+		if typeof(edge_variant) != TYPE_DICTIONARY:
+			continue
+		var edge_entry: Dictionary = edge_variant
+		var points: PackedVector2Array = edge_entry.get("points", PackedVector2Array())
+		if points.size() < 2:
+			continue
+		var required_clearance: float = MapBoardFillerBuilderScript.route_exclusion_radius(half_size)
+		nearest_clearance = min(nearest_clearance, _polyline_distance_to_point(points, center) - required_clearance)
+	return nearest_clearance
 
 
 func _visible_node_bounds(composition: Dictionary) -> Rect2:

@@ -1,7 +1,6 @@
 {
   "schema_version": 1,
   "definition_id": "scavenger_straps",
-  "authoring_order": 25,
   "family": "PassiveItems",
   "tags": [
     "passive",

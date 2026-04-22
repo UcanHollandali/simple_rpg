@@ -86,14 +86,14 @@ func test_global_release_mode_tracks_drag_state_and_card_targets() -> void:
 	])
 	assert(cards.size() == 2, "Expected the shared handler to rebuild multiple inventory cards.")
 
-	handler.call("_on_card_gui_input", _mouse_button_event(Vector2(4, 4), true), cards[0])
+	cards[0].emit_signal("gui_input", _mouse_button_event(Vector2(4, 4), true))
 	handler.handle_root_input(_mouse_motion_event(Vector2(32, 32)))
 
 	assert(drag_started_tokens.size() == 1, "Expected root-level motion to trigger one shared drag-start callback after crossing the threshold.")
 	assert(bool(cards[0].get_meta("is_dragging", false)), "Expected the shared handler to toggle shared dragging visuals through InventoryCardFactory.")
 
 	var title_label: Control = cards[1].get_node("VBox/TitleLabel") as Control
-	assert(handler.call("_find_inventory_card_from_control", title_label) == cards[1], "Expected shared drag targeting to resolve inventory cards from child controls.")
+	assert(handler.find_inventory_card_from_control(title_label) == cards[1], "Expected shared drag targeting to resolve inventory cards from child controls.")
 
 	handler.stop_interaction()
 	assert(not bool(cards[0].get_meta("is_dragging", false)), "Expected stop_interaction() to clear the shared dragging visual state.")

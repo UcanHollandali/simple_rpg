@@ -19,7 +19,7 @@ static func objective_key_boss() -> String:
 
 
 static func auto_bridge() -> String:
-	return "Auto bridge."
+	return "Moving on automatically."
 
 
 static func back_to_menu_when_ready() -> String:

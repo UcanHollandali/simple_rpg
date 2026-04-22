@@ -20,6 +20,7 @@ const LEVEL_UP_CHOICE_A_BUTTON_PATH := "Margin/VBox/ChoicesRow/ChoiceAButton"
 const LEVEL_UP_CHOICE_B_BUTTON_PATH := "Margin/VBox/ChoicesRow/ChoiceBButton"
 const LEVEL_UP_CHOICE_C_BUTTON_PATH := "Margin/VBox/ChoicesRow/ChoiceCButton"
 const MAP_SAFE_MENU_LAUNCHER_BUTTON_PATH := "Margin/VBox/TopRow/SettingsMenuAnchor/SettingsButton"
+const MAP_INVENTORY_DRAWER_TOGGLE_BUTTON_PATH := "Margin/VBox/InventorySection/InventoryDrawerCard/DrawerVBox/DrawerHeaderRow/InventoryDrawerToggleButton"
 const SCENE_SAFE_MENU_LAUNCHER_BUTTON_PATH := "SafeMenuOverlay/MenuLauncherButton"
 const SAFE_MENU_SAVE_BUTTON_PATH := "SafeMenuOverlay/MenuLayer/PanelHolder/PanelRow/MenuPanel/VBox/ActionsVBox/SaveRunButton"
 const SAFE_MENU_LOAD_BUTTON_PATH := "SafeMenuOverlay/MenuLayer/PanelHolder/PanelRow/MenuPanel/VBox/ActionsVBox/LoadRunButton"
@@ -41,6 +42,7 @@ var _durability_before_second_combat: int = 0
 var _defeat_attack_sent: bool = false
 var _flow_signal_connected: bool = false
 var _map_snapshot: Dictionary = {}
+var _map_inventory_drawer_opened: bool = false
 var _reward_snapshot: Dictionary = {}
 var _level_up_snapshot: Dictionary = {}
 var _is_finishing: bool = false
@@ -125,6 +127,12 @@ func _on_process_frame() -> void:
 				_require(run_status_label.text.contains("Gold "), "Expected map run-status fallback text to include gold.")
 				_require(run_status_root != null, "Expected map run HUD to render the shared structured status shell.")
 				_require(run_status_secondary_flow == null, "Expected map run HUD to keep the compact strip free of the duplicated weapon lane.")
+				if not _map_inventory_drawer_opened:
+					_require_map_inventory_drawer_state(false)
+					_press(MAP_INVENTORY_DRAWER_TOGGLE_BUTTON_PATH)
+					_map_inventory_drawer_opened = true
+					return
+				_require_map_inventory_drawer_state(true)
 				_require_inventory_card("Margin/VBox/InventorySection/EquipmentCard/EquipmentCardsFlow/InventorySlotRIGHTHANDCard")
 				_require_inventory_card_action_copy("Margin/VBox/InventorySection/EquipmentCard/EquipmentCardsFlow/InventorySlotRIGHTHANDCard", "Tap to unequip")
 				_require_map_inventory_tooltip("Margin/VBox/InventorySection/EquipmentCard/EquipmentCardsFlow/InventorySlotRIGHTHANDCard")
@@ -154,7 +162,7 @@ func _on_process_frame() -> void:
 				_require_inventory_card("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryCard/InventoryCardsFlow/InventorySlot1Card")
 				_require_label_text_contains("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryHintLabel", "Only consumables")
 				_require_inventory_card_action_copy("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryCard/InventoryCardsFlow/InventorySlot1Card", "Ends turn")
-				_require_empty_inventory_slot_copy("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryCard/InventoryCardsFlow/InventorySlot2Card")
+				_require_hidden_inventory_card("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryCard/InventoryCardsFlow/InventorySlot2Card")
 				_require_selected_inventory_card("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryCard/InventoryCardsFlow/InventorySlot1Card")
 				_require_combat_inventory_tooltip("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryCard/InventoryCardsFlow/InventorySlot1Card")
 				_require_combat_log_shell()
@@ -738,6 +746,19 @@ func _require_map_vertical_stack_layout() -> void:
 	)
 
 
+func _require_map_inventory_drawer_state(expected_expanded: bool) -> void:
+	var drawer_card: Control = current_scene.get_node_or_null("Margin/VBox/InventorySection/InventoryDrawerCard") as Control
+	var toggle_button: Button = current_scene.get_node_or_null(MAP_INVENTORY_DRAWER_TOGGLE_BUTTON_PATH) as Button
+	var inventory_card: Control = current_scene.get_node_or_null("Margin/VBox/InventorySection/InventoryCard") as Control
+	var equipment_card: Control = current_scene.get_node_or_null("Margin/VBox/InventorySection/EquipmentCard") as Control
+	_require(drawer_card != null and drawer_card.visible, "Expected MapExplore inventory drawer shell to exist.")
+	_require(toggle_button != null and toggle_button.visible, "Expected MapExplore inventory drawer toggle button to exist.")
+	_require(inventory_card != null, "Expected MapExplore backpack panel to exist.")
+	_require(equipment_card != null, "Expected MapExplore equipment panel to exist.")
+	_require(inventory_card.visible == expected_expanded, "Expected map backpack panel visibility %s, got %s." % [expected_expanded, inventory_card.visible])
+	_require(equipment_card.visible == expected_expanded, "Expected map equipment panel visibility %s, got %s." % [expected_expanded, equipment_card.visible])
+
+
 func _require_map_inventory_card_density() -> void:
 	var inventory_card: Control = current_scene.get_node_or_null("Margin/VBox/InventorySection/InventoryCard") as Control
 	var inventory_cards_flow: Control = current_scene.get_node_or_null("Margin/VBox/InventorySection/InventoryCard/InventoryCardsFlow") as Control
@@ -760,6 +781,10 @@ func _require_combat_inventory_card_density() -> void:
 	var inventory_gap: float = inventory_card.get_global_rect().end.y - inventory_cards_flow.get_global_rect().end.y
 	_require(equipment_gap <= 24.0, "Expected combat equipment panel to hug its card row like the map inventory shell, got bottom gap %.2f." % equipment_gap)
 	_require(inventory_gap <= 24.0, "Expected combat backpack panel to hug its card row like the map inventory shell, got bottom gap %.2f." % inventory_gap)
+	var equipment_rect: Rect2 = equipment_card.get_global_rect()
+	var inventory_rect: Rect2 = inventory_card.get_global_rect()
+	_require(inventory_rect.position.y <= equipment_rect.position.y + 2.0, "Expected combat consumables to render before the locked equipment summary.")
+	_require(equipment_rect.size.y <= inventory_rect.size.y + 8.0, "Expected combat equipment summary to stay as compact as the consumable pack.")
 
 
 func _require_empty_inventory_slot_copy(node_path: String) -> void:
@@ -779,6 +804,11 @@ func _require_empty_inventory_slot_copy(node_path: String) -> void:
 	_require(detail_label != null and detail_label.text.is_empty(), "Expected empty inventory card %s to avoid duplicate detail copy." % node_path)
 	_require(not detail_label.visible, "Expected empty inventory card %s to hide the duplicate detail label shell." % node_path)
 	_require(placeholder_label != null and placeholder_label.visible, "Expected empty inventory card %s to expose the placeholder slot glyph." % node_path)
+
+
+func _require_hidden_inventory_card(node_path: String) -> void:
+	var card: PanelContainer = current_scene.get_node_or_null(node_path) as PanelContainer
+	_require(card == null, "Expected combat inventory card %s to stay hidden in the consumable-first combat pack." % node_path)
 
 
 func _require_inventory_card_action_copy(node_path: String, expected_fragment: String) -> void:
@@ -805,6 +835,7 @@ func _require_map_panel_polish() -> void:
 	var top_row_shell: PanelContainer = current_scene.get_node_or_null("Margin/VBox/TopRowShell") as PanelContainer
 	var header_card: PanelContainer = current_scene.get_node_or_null("Margin/VBox/TopRow/HeaderCard") as PanelContainer
 	var run_summary_card: PanelContainer = current_scene.get_node_or_null("Margin/VBox/TopRow/RunSummaryCard") as PanelContainer
+	var inventory_drawer_card: PanelContainer = current_scene.get_node_or_null("Margin/VBox/InventorySection/InventoryDrawerCard") as PanelContainer
 	var inventory_card: PanelContainer = current_scene.get_node_or_null("Margin/VBox/InventorySection/InventoryCard") as PanelContainer
 	_require(top_row_shell != null, "Expected unified top-row shell to exist.")
 	var top_row_style: StyleBoxFlat = top_row_shell.get_theme_stylebox("panel") as StyleBoxFlat
@@ -815,6 +846,10 @@ func _require_map_panel_polish() -> void:
 		var style: StyleBoxFlat = panel.get_theme_stylebox("panel") as StyleBoxFlat
 		_require(style != null and style.border_width_left >= 1, "Expected embedded top-row panels to keep a visible border. Got %s." % [style.border_width_left if style != null else -1])
 		_require(style != null and style.shadow_size >= 6, "Expected embedded top-row panels to keep a visible shadow. Got %s." % [style.shadow_size if style != null else -1])
+	_require(inventory_drawer_card != null, "Expected polished map inventory drawer shell to exist.")
+	var drawer_style: StyleBoxFlat = inventory_drawer_card.get_theme_stylebox("panel") as StyleBoxFlat
+	_require(drawer_style != null and drawer_style.border_width_left >= 1, "Expected inventory drawer shell border to stay visible. Got %s." % [drawer_style.border_width_left if drawer_style != null else -1])
+	_require(drawer_style != null and drawer_style.shadow_size >= 6, "Expected inventory drawer shell shadow to stay visible. Got %s." % [drawer_style.shadow_size if drawer_style != null else -1])
 	_require(inventory_card != null, "Expected polished map inventory panel shell to exist.")
 	var inventory_style: StyleBoxFlat = inventory_card.get_theme_stylebox("panel") as StyleBoxFlat
 	_require(inventory_style != null and inventory_style.border_width_left >= 2, "Expected inventory panel border to stay thicker. Got %s." % [inventory_style.border_width_left if inventory_style != null else -1])
@@ -972,12 +1007,13 @@ func _require_combat_log_shell() -> void:
 	_require(combat_log_card != null, "Expected Combat to expose a dedicated Combat Log card shell.")
 	_require(combat_log_title != null and combat_log_title.text == "Combat Log", "Expected Combat to expose a dedicated Combat Log title.")
 	_require(combat_log_entries != null, "Expected Combat to expose the stacked combat log entries container.")
-	_require(combat_log_card.size_flags_vertical == Control.SIZE_EXPAND_FILL, "Expected Combat Log card to consume the remaining secondary column height.")
-	_require(combat_log_vbox != null and combat_log_vbox.size_flags_vertical == Control.SIZE_EXPAND_FILL, "Expected Combat Log layout stack to expand with the card shell.")
-	_require(combat_log_entries.size_flags_vertical == Control.SIZE_EXPAND_FILL, "Expected Combat Log entries stack to keep the expanded log shell height.")
+	_require(combat_log_card.size_flags_vertical != Control.SIZE_EXPAND_FILL, "Expected Combat Log card to stay visually secondary instead of consuming the full secondary column height.")
+	_require(combat_log_vbox != null and combat_log_vbox.size_flags_vertical != Control.SIZE_EXPAND_FILL, "Expected Combat Log layout stack to keep a compact shell budget by default.")
+	_require(combat_log_entries.size_flags_vertical != Control.SIZE_EXPAND_FILL, "Expected Combat Log entries stack to avoid forcing a full-height log shell by default.")
 	if secondary_scroll != null and combat_log_card.visible:
-		var bottom_gap: float = secondary_scroll.get_global_rect().end.y - combat_log_card.get_global_rect().end.y
-		_require(bottom_gap <= 32.0, "Expected Combat Log card to stretch near the bottom of the secondary scroll area, got gap %.2f." % bottom_gap)
+		var card_height: float = combat_log_card.get_global_rect().size.y
+		var scroll_height: float = secondary_scroll.get_global_rect().size.y
+		_require(card_height <= scroll_height * 0.55, "Expected Combat Log card to stay visually secondary inside the secondary scroll area, got %.2f of %.2f." % [card_height, scroll_height])
 
 
 func _require_combat_readability_shell() -> void:
@@ -1001,8 +1037,13 @@ func _require_combat_readability_shell() -> void:
 	var player_feedback_flash: ColorRect = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/CombatFeedbackLayer/ImpactFlash") as ColorRect
 	var player_feedback_text_layer: Control = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/CombatFeedbackLayer/FeedbackTextLayer") as Control
 	var forecast_card: PanelContainer = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/ForecastCard") as PanelContainer
+	var action_section_title_label: Label = current_scene.get_node_or_null("Margin/VBox/Buttons/ActionSectionTitleLabel") as Label
+	var attack_eyebrow_label: Label = current_scene.get_node_or_null("Margin/VBox/Buttons/ActionCardsRow/AttackActionCard/AttackActionVBox/AttackActionEyebrowLabel") as Label
+	var defense_eyebrow_label: Label = current_scene.get_node_or_null("Margin/VBox/Buttons/ActionCardsRow/DefenseActionCard/DefenseActionVBox/DefenseActionEyebrowLabel") as Label
 	var attack_preview_label: Label = current_scene.get_node_or_null("Margin/VBox/Buttons/ActionCardsRow/AttackActionCard/AttackActionVBox/AttackActionPreviewLabel") as Label
 	var defense_preview_label: Label = current_scene.get_node_or_null("Margin/VBox/Buttons/ActionCardsRow/DefenseActionCard/DefenseActionVBox/DefenseActionPreviewLabel") as Label
+	var inventory_title_label: Label = current_scene.get_node_or_null("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryTitleLabel") as Label
+	var inventory_hint_label: Label = current_scene.get_node_or_null("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryHintLabel") as Label
 	_require(hero_badge_label != null and hero_badge_label.text == "YOU", "Expected player bust to expose a distinct YOU badge.")
 	_require(player_name_label != null and player_name_label.text == "Wayfinder", "Expected player card to expose the wayfinder identity label.")
 	_require(player_loadout_label != null and player_loadout_label.visible, "Expected player card to expose the compact loadout summary row.")
@@ -1018,8 +1059,15 @@ func _require_combat_readability_shell() -> void:
 	_require(intent_label != null and intent_label.text.contains("Hits for"), "Expected enemy intent copy to focus on the next incoming damage.")
 	_require(intent_detail_label != null and (not intent_detail_label.visible or intent_detail_label.text.begins_with("Extra:")), "Expected the extra-effect helper to stay hidden unless the current hit has an explicit rider.")
 	_require(forecast_card != null and not forecast_card.visible, "Expected combat readability pass to remove the redundant forecast card.")
+	_require(action_section_title_label != null and action_section_title_label.visible and action_section_title_label.text == "Pick Your Move", "Expected combat actions to keep a visible section title even on compact portrait layouts.")
+	_require(attack_eyebrow_label != null and attack_eyebrow_label.visible and attack_eyebrow_label.text == "DEAL DAMAGE", "Expected attack card to keep its explicit action eyebrow.")
+	_require(defense_eyebrow_label != null and defense_eyebrow_label.visible and defense_eyebrow_label.text == "BLOCK THE HIT", "Expected defend card to keep its explicit action eyebrow.")
 	_require(attack_preview_label != null and attack_preview_label.visible and attack_preview_label.text.contains("Deal"), "Expected attack action card to explain the action result directly.")
 	_require(defense_preview_label != null and defense_preview_label.visible and defense_preview_label.text.contains("Gain"), "Expected defend action card to explain the guard result directly.")
+	_require(attack_preview_label.autowrap_mode == TextServer.AUTOWRAP_WORD_SMART, "Expected attack preview copy to stay readable on portrait targets instead of clipping away.")
+	_require(defense_preview_label.autowrap_mode == TextServer.AUTOWRAP_WORD_SMART, "Expected defend preview copy to stay readable on portrait targets instead of clipping away.")
+	_require(inventory_title_label != null and inventory_title_label.visible and inventory_title_label.text == "Quick Use", "Expected combat consumables to read as a quick-use strip instead of a generic backpack block.")
+	_require(inventory_hint_label != null and inventory_hint_label.visible and inventory_hint_label.text.contains("Ends turn"), "Expected combat consumable hint copy to explain the tap-to-use turn cost.")
 
 
 func _require_selected_inventory_card(node_path: String) -> void:

@@ -43,10 +43,11 @@ func build_node_resolve_summary_text(node_type: String) -> String:
 
 
 func build_node_resolve_detail_text(node_type: String, pending_node_id: int) -> String:
-	var node_read: String = "Node %d." % pending_node_id if pending_node_id >= 0 else "Node read unavailable."
-	if node_type.is_empty():
-		return "%s %s" % [node_read, UiCompactCopyScript.auto_bridge()]
-	return "%s %s" % [node_read, UiCompactCopyScript.auto_bridge()]
+	var detail_parts: PackedStringArray = []
+	if pending_node_id >= 0:
+		detail_parts.append("Node %d." % pending_node_id)
+	detail_parts.append(UiCompactCopyScript.auto_bridge())
+	return " ".join(detail_parts)
 
 
 func build_node_resolve_hint_text(node_type: String) -> String:

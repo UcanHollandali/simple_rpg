@@ -1,7 +1,6 @@
 {
   "schema_version": 1,
   "definition_id": "hearth_knot_charm",
-  "authoring_order": 85,
   "family": "PassiveItems",
   "tags": [
     "passive",

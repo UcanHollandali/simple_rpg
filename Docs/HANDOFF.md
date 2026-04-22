@@ -1,6 +1,6 @@
 # SIMPLE RPG - Handoff
 
-Last updated: 2026-04-22 (queue hygiene refresh)
+Last updated: 2026-04-22 (post-wave architecture hardening audit refreshed hotspot measurements and validator locks; `Docs/MAP_VISUAL_OWNERSHIP_AUDIT.md` still reflects landed `MapBoardGroundBuilder` / `MapBoardFillerBuilder` ownership, the UI overhaul wave remains closed through Prompt 13, and the next broader phase remains `Phase D - Playtest and Telemetry`)
 
 This file is a current-state snapshot only.
 It is not a rule contract. If it conflicts with an authority doc, the authority doc wins.
@@ -66,6 +66,8 @@ It is not a rule contract. If it conflicts with an authority doc, the authority 
   - stage start now freezes the full derived board layout for a stable graph signature:
     - `world_positions`
     - frozen `layout_edges`
+    - `ground_shapes`
+    - `filler_shapes`
     - `forest_shapes`
   - discovery now widens `visible_nodes` / `visible_edges` by filtering that frozen layout instead of regenerating route geometry from the visible subset
   - the current board footprint tuning now uses more of the available portrait route-grid surface while keeping the same runtime owner boundary and save shape
@@ -127,10 +129,12 @@ It is not a rule contract. If it conflicts with an authority doc, the authority 
   - shared inventory tooltip behavior now routes through `Game/UI/inventory_tooltip_controller.gd`
   - combat presentation extraction now routes through:
     - `Game/UI/combat_scene_shell.gd`
-    - `Game/UI/combat_feedback_lane.gd`
-    - `Game/UI/action_hint_controller.gd`
+  - `Game/UI/combat_feedback_lane.gd`
+  - `Game/UI/action_hint_controller.gd`
   - `MapExplore` and `Combat` now share the same inventory/equipment panel family through `Game/UI/run_inventory_panel.gd`
-  - current combat inventory rendering uses `combat_compact` density so it stays visually aligned with the map inventory family while preserving combat interaction rules
+  - `MapExplore` now keeps inventory/equipment collapsed by default behind a contextual drawer; the chosen collapsed-state interaction model is `expand first`, and the expanded state preserves the full shared equipment/backpack rows
+  - `Combat` now keeps a compact locked-equipment summary plus a consumable-first backpack surface; empty/non-combat backpack clutter is hidden while item/equip legality stays unchanged
+  - the save-aware `FirstRunHintController` lane is now live across map / combat / support / event surfaces for the frozen 8-hint set; hints show once per save, persist across new runs on the same save, and never block input
   - `StageTransition` now surfaces the incoming stage number, stage personality (`pilgrim` / `frontier` / `trade`), and the explicit objective line (`Find the key, then defeat the boss.`)
   - hunger threshold warning toast is now live on both `MapExplore` and `Combat`
   - resolution/fullscreen controls are no longer exposed in the live main menu or safe-menu overlay; current AppBootstrap window-preview lane has also dropped the old unused display getter residue and remains internal startup-only placeholder glue
@@ -167,35 +171,43 @@ It is not a rule contract. If it conflicts with an authority doc, the authority 
     - `scenes/support_interaction.gd`
     - `Game/Infrastructure/scene_router.gd`
     - `Game/Core/combat_resolver.gd`
+  - architecture-guard hotspot locks now also cover the current shared UI owner hotspots:
+    - `Game/UI/temp_screen_theme.gd`
+    - `Game/UI/map_explore_scene_ui.gd`
+    - `Game/UI/combat_scene_ui.gd`
+    - `Game/UI/map_board_style.gd`
+    - `Game/UI/map_board_canvas.gd`
   - recent extraction passes significantly reduced the two largest scene hotspots:
-    - `scenes/combat.gd` is now `1142` lines
-    - `scenes/map_explore.gd` is now `930` lines
+    - `scenes/combat.gd` is now `1199` lines
+    - `scenes/map_explore.gd` is now `1156` lines
   - the frozen-layout map pass is now live and test-backed:
-    - `MapRouteBinding` preserves graph-stable `world_positions`, `layout_edges`, and `forest_shapes`
+    - `MapRouteBinding` preserves graph-stable `world_positions`, `layout_edges`, `ground_shapes`, `filler_shapes`, and `forest_shapes`
     - `MapBoardComposerV2` now filters visible edges from the frozen full edge layout instead of regenerating them from the visible subset
   - `save_service.gd` is now split:
-    - `Game/Infrastructure/save_service.gd` keeps schema-8 write, dispatch, and validation (`660` lines)
+    - `Game/Infrastructure/save_service.gd` keeps schema-8 write, dispatch, and validation (`676` lines)
     - `Game/Infrastructure/save_service_legacy_loader.gd` carries schema `1/2/5/6/7` compat checks
   - `map_runtime_state.gd` still remains a large high-risk owner file (`2279` lines / `146` functions), but its first owner-preserving extraction pass now routes pure scatter adjacency/depth/path/connectivity helpers through `Game/RuntimeState/map_scatter_graph_tools.gd` while pending-node, key/boss-gate, reset lifecycle, and save-codec logic stay local to the owner
-- `map_board_composer_v2.gd` now measures `928` lines after the Prompt 05 scatter / continuity follow-up; `Game/UI/map_board_layout_solver.gd` carries layout placement/collision/crossing helpers while `MapBoardComposerV2` stays the caller-facing derived-layout owner and the frozen full-layout baseline stays unchanged
-  - `inventory_actions.gd` now measures `230` lines after its first application-local extraction pass; `Game/Application/inventory_item_mutation_helper.gd` carries item-mutation helpers while `InventoryActions` stays the caller-facing mutation surface and save/runtime ownership stays unchanged
-  - `run_session_coordinator.gd` now measures `751` lines after its first application-local extraction pass; `Game/Application/run_session_state_helper.gd` carries state/setup utility helpers while pending-node compat mirror handling, direct-entry routing, and save/restore assumptions stay with `RunSessionCoordinator`
-- `map_route_binding.gd` now measures `855` lines after the Prompt 05 closeout follow-up; `Game/UI/map_route_layout_helper.gd` and `Game/UI/map_route_motion_helper.gd` carry emergency-layout and route-motion math while `MapRouteBinding` stays the caller-facing board/route binding owner and the frozen-layout plus widened-footprint behavior stays unchanged
+- `map_board_composer_v2.gd` now measures `984` lines after the Prompt 13 ownership landing; `Game/UI/map_board_layout_solver.gd` carries layout placement/collision/crossing helpers while `MapBoardGroundBuilder` and `MapBoardFillerBuilder` now carry the new board-interior world-fill owners and the frozen full-layout baseline stays unchanged
+  - `inventory_actions.gd` now measures `280` lines after its first application-local extraction pass; `Game/Application/inventory_item_mutation_helper.gd` carries item-mutation helpers while `InventoryActions` stays the caller-facing mutation surface and save/runtime ownership stays unchanged
+  - `run_session_coordinator.gd` now measures `768` lines after its first application-local extraction pass; `Game/Application/run_session_state_helper.gd` carries state/setup utility helpers while pending-node compat mirror handling, direct-entry routing, and save/restore assumptions stay with `RunSessionCoordinator`
+- `map_route_binding.gd` now measures `979` lines after the Prompt 13 ownership landing plus later route-binding follow-ups; `Game/UI/map_route_layout_helper.gd` and `Game/UI/map_route_motion_helper.gd` carry emergency-layout and route-motion math while `MapRouteBinding` stays the caller-facing board/route binding owner and the frozen-layout plus widened-footprint behavior stays unchanged
 - Current save baseline:
   - `save_schema_version = 8`
   - `content_version = prototype_content_v7`
+  - `app_state.shown_first_run_hints` is now live as an additive-optional stable-id array for once-per-save hint continuity across runs on the same save
   - save truth remains centered on `RunState`, `MapRuntimeState`, `InventoryState`, and the pending choice owners through `SaveRuntimeBridge`
 
 ## Last Verified Validation Checkpoint
 
-These commands were re-run through the latest Prompt 04 no-stamp verification follow-up and Prompt 05 closeout follow-up; this is the freshest headless proof for the checked-out workspace:
+These commands were re-run in the latest post-wave architecture hardening pass; this is the freshest headless proof for the checked-out workspace:
 
 - Passed: `py -3 Tools/validate_architecture_guards.py`
-- Passed: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_full_suite.ps1` (`51` test)
-- Passed earlier in the latest map-pass closeout lane: targeted map tests, including `test_map_board_composer_v2.gd`, `test_map_explore_presenter.gd`, `test_map_board_canvas.gd`, and `test_button_tour.gd`
-- Passed earlier in the latest map-pass closeout lane: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_scene_isolation.ps1 -ScenePath scenes/map_explore.tscn`
-- Passed earlier in the latest renderer lane: `py -3 Tools/validate_assets.py`
-- Not re-run in the latest map-pass closeout because scope stayed outside content truth: `py -3 Tools/validate_content.py`
+- Passed: `py -3 Tools/validate_content.py`
+- Passed: `py -3 Tools/validate_assets.py`
+- Passed: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_full_suite.ps1` (`56` tests)
+- Passed: `git diff --check`
+- Not re-run in this tooling/docs-focused pass because scene wiring and runtime ownership were unchanged: `Tools/run_godot_smoke.ps1`
+- Not re-run in this tooling/docs-focused pass because scene wiring and runtime ownership were unchanged: `Tools/run_godot_scene_isolation.ps1`
 - Current repo truth: there is still no dedicated image-diff regression harness; portrait screenshot capture exists, but final visual judgment remains human review.
 
 ## Open Risks
@@ -204,9 +216,9 @@ These commands were re-run through the latest Prompt 04 no-stamp verification fo
 - Manual Godot listening/playtest is still needed for the new prototype music floor. Objective QC now covers loop-boundary continuity and high-frequency load, but fatigue, mix balance, and transition feel still need human ears.
 - Motion/camera/combat polish is validated headlessly, but final feel signoff still depends on live Godot playtests for short-route vs long-route travel, roadside interruption continuation, defend/guard readability, low-HP recovery, and portrait viewport behavior.
 - The shared `RunInventoryPanel` family is now live across map and combat, but human playtests are still needed for:
-  - compact combat density feel
-  - map/combat visual family consistency
-  - hover/click readability on portrait targets
+  - collapsed drawer discoverability and expand-first clarity on map
+  - compact combat inventory feel and locked-summary readability
+  - map/combat hover-click readability on portrait targets
 - `NodeResolve` is still present as legacy code. Do not remove it without an explicit flow audit.
 - The live generic `NodeResolve` fallback and legacy-compatible pending-node restore still exist. Behavior-changing cleanup there is not fast-lane work.
 - Pending-node continuity still crosses `RunSessionCoordinator` save orchestration and `MapRuntimeState` runtime ownership. Do not move that boundary without an explicit save audit.
@@ -235,87 +247,33 @@ These commands were re-run through the latest Prompt 04 no-stamp verification fo
 
 ## Next Step
 
-1. The active future-queue is the UI overhaul wave: Prompts 06, 06.5, 07, 08, 09, 10, 10.5, 11, 11.5, 12, 12.5 tracked in `Docs/ROADMAP.md` and checked in under `Docs/Promts/`. Run them sequentially per `Docs/ROADMAP.md` Continuation Launch Order, one part per Codex message, and do not start the next pack until the current one is closed.
-   - checked-in prompt files currently exist under `Docs/Promts/` as `06_ui_information_architecture_audit.md`, `06_5_microcopy_audit.md`, `07_inventory_equipment_drawer.md`, `08_event_modal_choice_cards.md`, `09_combat_hierarchy.md`, `10_font_icon_readability_guardrails.md`, `10_5_first_run_hints.md`, `11_ui_theme_token_cleanup.md`, `11_5_empty_error_states.md`, `12_semantic_icon_readiness.md`, and `12_5_accessibility_mobile_audit.md`
-   - Prompt 06 is the next active step; it produces `Docs/UI_INFORMATION_ARCHITECTURE_AUDIT.md` as a reference-only audit and grounds the Prompt 07-12 scope in repo truth (no gameplay logic, save schema, or asset hookup change).
-   - Prompt 06.5 produces `Docs/UI_MICROCOPY_AUDIT.md` and assigns text-quality rewrite hand-offs to Prompts 07-11 (docs-only).
-   - Prompts 07-09 carry the per-screen UI hierarchy work (inventory drawer, event choice cards, combat hierarchy) using existing truth only.
-   - Prompt 10 lands cross-screen readability guardrails (font / icon / touch-target / contrast).
-   - Prompt 10.5 adds the only save-aware piece in the wave: a frozen 8-hint `FirstRunHintController` that fires once per save (no tutorial mode, no rotating tips).
-   - Prompt 11 centralizes shared UI tokens after the hierarchy and readability wins land (cleanup-only, no rename).
-   - Prompt 11.5 implements the empty-state, loading/transition-state, and error/failure-state rewrites from the microcopy audit (presentation-only).
-   - Prompt 12 produces `Docs/SEMANTIC_ICON_READINESS_CHECKLIST.md` as a runtime-readiness / asset-contract checkpoint; it does not unblock asset hookup by itself.
-   - Prompt 12.5 closes the wave with `Docs/UI_ACCESSIBILITY_AND_MOBILE_AUDIT.md` and a prioritized narrow follow-up queue (docs-only).
-2. The map lane (Prompt 04 / Prompt 05) does not block the UI overhaul wave. Prompt 04 and Prompt 05 are closed green on this workspace; reopen them only if a future portrait capture or manual playtest shows fresh drift inside the same owner lanes.
-3. Keep the asset-hook step deferred. The terrain-asset hookup framing from the archived Prompt 03 Part G is superseded by Prompt 04 direction; future asset wave work is scoped to the semantic icon / prop / item / portrait surfaces planned in Prompt 04 Part D and tracked toward runtime-contract readiness in Prompt 12.
-4. Manual portrait map playtest stays the final visual signoff lane before any future runtime asset hookup.
-5. After the full UI overhaul wave (Prompt 06 through 12.5) closes, the next broader roadmap phase is Phase D (`Playtest and Telemetry`).
+1. The UI overhaul / map-visual ownership wave (`Prompt 06` through `Prompt 13`) is closed green on this workspace.
+2. Candidate accessibility/mobile follow-ups still live in `Docs/UI_ACCESSIBILITY_AND_MOBILE_AUDIT.md`, but they are candidate-only and inactive by default.
+3. The next broader roadmap phase is `Phase D - Playtest and Telemetry`.
+4. Keep asset hookup deferred:
+   - semantic icon hookup still needs `Docs/ASSET_PIPELINE.md` + `Docs/ASSET_LICENSE_POLICY.md` + manifest-gated approval
+   - terrain-transition / terrain-blending art is still not the active lane
+5. Manual portrait playtest remains the final visual signoff lane before any future runtime asset hookup.
+6. Use `Docs/ROADMAP.md` for the detailed closed-pack history and launch order. `HANDOFF.md` stays a snapshot, not a second queue ledger.
 
 ## Continuation Status
 
-- Archived closed green: `Docs/Archive/Prompts/2026-04-21-phase-a-closed/01_foundation_fastlane.md`
-  - scope completed: doc/guard sanity pass and authority wording closeout
-- Archived closed green: `Docs/Archive/Prompts/2026-04-21-phase-a-closed/02_guarded_cleanup.md`
-  - scope completed: `NodeResolve` contract hardening, pending-node boundary isolation, bootstrap/scene shell cleanup, shared inventory-panel layout owner, and overlay contract hardening
-- Archived: `Docs/Archive/Prompts/2026-04-21-phase-a-closed/03_extraction_and_next_wave.md`
-  - scope completed: `Part A-F` landed the extraction wave across `MapRuntimeState`, `map_board_composer_v2`, `inventory_actions`, `run_session_coordinator`, and `map_route_binding` without changing save shape or owner meaning
-  - `Part G` (asset-hook wiring) is superseded by Prompt 04 code-first direction; the terrain-asset hookup framing is no longer the next active step and is not part of the active queue
-- Archived measured closeout: `Docs/Archive/Prompts/2026-04-22-map-lane-closed/04_map_renderer_code_first.md`
-  - direction: code-first procedural map renderer; AI asset wave scoped to semantic single-object surfaces only
-  - `Part A-E` are complete on this workspace
-  - measured result: direction docs landed, procedural renderer polish landed, the renderer review lane passed checkpoints `1-6`, semantic icon-wave planning now lives in `Docs/ASSET_WAVE_SEMANTIC_SCOPE.md`, and the fresh no-stamp verification lane passed checkpoint `7` with [stage_start](../export/portrait_review/prompt04_no_stamp_after_20260422_074912/stage_start_1080x1920.png), [mid_progression](../export/portrait_review/prompt04_no_stamp_after_20260422_074912/mid_progression_1080x1920.png), [late_progression](../export/portrait_review/prompt04_no_stamp_after_20260422_074912/late_progression_1080x1920.png), and [report](../export/portrait_review/prompt04_no_stamp_after_20260422_074912/prompt04_no_stamp_report.json)
-  - status: closed green on the current workspace
-- Archived measured closeout: `Docs/Archive/Prompts/2026-04-22-map-lane-closed/05_map_layout_regression_fix.md`
-  - direction: fix or explicitly disprove lower-board underuse, over-lateral clustering, clipped/disappearing route segments, and fragmented visible cluster inside the composer / route binding lane
-  - `Part A-F` are complete on this workspace
-  - measured result: the final green lane [stage_start](../export/portrait_review/prompt05_followup_after_20260422_074840/stage_start_1080x1920.png), [mid_progression](../export/portrait_review/prompt05_followup_after_20260422_074840/mid_progression_1080x1920.png), [late_progression](../export/portrait_review/prompt05_followup_after_20260422_074840/late_progression_1080x1920.png), and [report](../export/portrait_review/prompt05_followup_after_20260422_074840/prompt05_part_e_report.json) clear lower-board underuse, over-lateral clustering, clipped/disappearing route segments, and fragmented visible cluster while preserving the frozen-layout signature across progression states
-  - status: closed green on the current workspace
-- Active future-queue (sequential, one part per Codex message; no pack starts before the previous one closes):
-  - `Docs/Promts/06_ui_information_architecture_audit.md`
-    - active, ready
-    - goal: produce reference-only `Docs/UI_INFORMATION_ARCHITECTURE_AUDIT.md` covering current UI hierarchy across `MapExplore`, `Combat`, the overlay family, and the run-status shells using repo truth
-    - hard guardrails: docs-only; no gameplay logic, save/schema, asset hookup, flow, or ownership change
-  - `Docs/Promts/06_5_microcopy_audit.md` (Prompt `06.5`)
-    - queued after 06
-    - goal: produce reference-only `Docs/UI_MICROCOPY_AUDIT.md` of every player-facing text surface (tooltips, disabled reasons, button labels, empty / error / one-shot strings); assigns rewrite hand-offs to Prompts 07-11
-    - hard guardrails: docs-only; no code change in this pack
-  - `Docs/Promts/07_inventory_equipment_drawer.md`
-    - queued after 06.5
-    - goal: improve inventory drawer hierarchy and equip/use clarity using existing truth only
-    - preferred owners: `Game/UI/run_inventory_panel.gd`, `Game/UI/inventory_panel_layout.gd`, `Game/UI/inventory_tooltip_controller.gd`
-  - `Docs/Promts/08_event_modal_choice_cards.md`
-    - queued after 07
-    - goal: improve event modal choice card readability and decision clarity using existing truth only
-    - preferred owners: `Game/UI/event_presenter.gd`, `scenes/event.gd` (composition-only)
-    - overlay note: keep the modal a pure consumer of `OverlayFlowContract` / `MapOverlayContract`; no new overlay state
-  - `Docs/Promts/09_combat_hierarchy.md`
-    - queued after 08
-    - goal: improve combat action clarity and screen hierarchy using existing truth only; no combat math, intent logic, or item-effect change
-    - preferred owners: `Game/UI/combat_scene_ui.gd`, `Game/UI/combat_presenter.gd`, `Game/UI/run_status_presenter.gd`, `Game/UI/combat_scene_shell.gd`, `Game/UI/combat_feedback_lane.gd`, `Game/UI/action_hint_controller.gd`
-  - `Docs/Promts/10_font_icon_readability_guardrails.md`
-    - queued after 09
-    - goal: cross-screen readability guardrails for font sizing, icon legibility, and contrast at portrait targets; no gameplay/UI flow change
-    - preferred owners: `Game/UI/temp_screen_theme.gd` (no rename), `Game/UI/scene_layout_helper.gd`, `Game/UI/inventory_panel_layout.gd`
-  - `Docs/Promts/10_5_first_run_hints.md`
-    - queued after 10
-    - goal: add a small save-aware `FirstRunHintController` that shows a frozen 8-hint set once per save (defend, dual-purpose left-hand, hamlet personality, roadside encounter, key-required route, belt capacity, low hunger)
-    - hard guardrails: this is the only pack in the 06-12 wave that may add an additive-optional save field; no tutorial mode, no rotating tips system; combat / map / event input is never blocked by a hint
-  - `Docs/Promts/11_ui_theme_token_cleanup.md`
-    - queued after 10.5
-    - goal: centralize shared UI color/spacing/typography/component-state tokens after hierarchy and readability wins land; cleanup-only, no behavior change
-    - hard guardrails: no file rename (including `temp_screen_theme.gd`)
-  - `Docs/Promts/11_5_empty_error_states.md` (Prompt `11.5`)
-    - queued after 11
-    - goal: implement empty-state, loading/transition-state, and error/failure-state rewrites from `Docs/UI_MICROCOPY_AUDIT.md` so blank surfaces and failure paths feel intentional and consistent
-    - hard guardrails: presentation-only; no failure semantics or save change
-  - `Docs/Promts/12_semantic_icon_readiness.md` (Prompt `12`)
-    - queued after 11.5; also gated on Prompt 04 Part D (already landed)
-    - goal: produce reference-only `Docs/SEMANTIC_ICON_READINESS_CHECKLIST.md` as a runtime-readiness / asset-contract checkpoint
-    - hard guardrails: no asset generation, no asset approval, no `UiAssetPaths` change, no runtime hook implementation; this pack does not unblock asset hookup by itself
-  - `Docs/Promts/12_5_accessibility_mobile_audit.md`
-    - queued after 12 (final pack in the UI overhaul wave)
-    - goal: produce reference-only `Docs/UI_ACCESSIBILITY_AND_MOBILE_AUDIT.md` covering color contrast, color-only signaling, text scaling, motion/flash safety, focus visibility, portrait safe-area, plus mobile interaction conflicts (tap vs swipe vs drag, accidental-tap zones, touch target overlap), and emit a prioritized narrow follow-up queue
-    - hard guardrails: docs-only; no code change in this pack
+- Archived Phase A packs (`Prompt 01-03`) are closed green and stay under `Docs/Archive/Prompts/2026-04-21-phase-a-closed/`.
+- Archived map lane (`Prompt 04-05`) is closed green and stays under `Docs/Archive/Prompts/2026-04-22-map-lane-closed/`.
+- UI overhaul wave (`Prompt 06-12.5`) is closed green on this workspace.
+  - reference-only outputs still live in:
+    - `Docs/UI_INFORMATION_ARCHITECTURE_AUDIT.md`
+    - `Docs/UI_MICROCOPY_AUDIT.md`
+    - `Docs/SEMANTIC_ICON_READINESS_CHECKLIST.md`
+    - `Docs/UI_ACCESSIBILITY_AND_MOBILE_AUDIT.md`
+  - candidate-only `NEEDS_FUTURE_LOGIC_SUPPORT` gaps after Prompt `11.5` remain:
+    - no dedicated player-facing loading surface is currently modeled
+    - authored event choices still need modeled disabled reasons before the UI can explain them precisely
+    - richer combat blocker explanations beyond current HP / hunger truth still need stable runtime reason codes
+- Prompt `13` is closed green on this workspace.
+  - `MapBoardGroundBuilder` and `MapBoardFillerBuilder` now live inside the existing `MapBoardComposerV2` chain with procedural fallbacks only.
+  - semantic icon identity still belongs to Prompt `04 Part D` + Prompt `12`, not Prompt `13`.
+- Use `Docs/ROADMAP.md` for the detailed per-pack history and continuation launch order.
 - Locked continuation decisions:
   - canonical pending-node owner: `MapRuntimeState`
   - `app_state.pending_node_id` / `app_state.pending_node_type` remain compatibility mirrors for save/restore orchestration; they are not a second owner
@@ -336,8 +294,9 @@ Use this exact continuation order in a fresh chat:
 2. `Docs/DOC_PRECEDENCE.md`
 3. `Docs/HANDOFF.md`
 4. `Docs/ROADMAP.md`
-5. `Docs/Promts/06_ui_information_architecture_audit.md` (active next pack)
-6. queued behind 06, in order: `Docs/Promts/06_5_microcopy_audit.md` (Prompt `06.5`), `Docs/Promts/07_inventory_equipment_drawer.md`, `Docs/Promts/08_event_modal_choice_cards.md`, `Docs/Promts/09_combat_hierarchy.md`, `Docs/Promts/10_font_icon_readability_guardrails.md`, `Docs/Promts/10_5_first_run_hints.md`, `Docs/Promts/11_ui_theme_token_cleanup.md`, `Docs/Promts/11_5_empty_error_states.md` (Prompt `11.5`), `Docs/Promts/12_semantic_icon_readiness.md` (Prompt `12`), `Docs/Promts/12_5_accessibility_mobile_audit.md`
+5. Then read the closest authority docs for the chosen `Phase D - Playtest and Telemetry` task.
+6. If the chosen task touches map-visual continuity, also read `Docs/MAP_VISUAL_OWNERSHIP_AUDIT.md`.
+7. If the chosen task explicitly reactivates a candidate accessibility/mobile follow-up, also read `Docs/UI_ACCESSIBILITY_AND_MOBILE_AUDIT.md`.
 
 Git continuity note:
 - stay on `main` for this queue
@@ -345,48 +304,39 @@ Git continuity note:
 
 Prompt progression rule:
 
-- Prompt 01, Prompt 02, and Prompt 03 are already archived under `Docs/Archive/Prompts/2026-04-21-phase-a-closed/`. Do not reopen them.
-- Prompt 03 Part G (asset-hook wiring) is superseded by Prompt 04 direction. The asset-hook step stays deferred behind the `ASSET_PIPELINE.md` approval + manifest row contract.
-- Prompt 04 Part A-E and Prompt 05 Part A-F are already complete and closed green on this workspace. Reopen either pack only if a future portrait capture or manual playtest shows fresh drift inside the same owner lanes.
-- The current active queue is the UI overhaul wave: Prompts 06, 06.5, 07, 08, 09, 10, 10.5, 11, 11.5, 12, 12.5. Run them sequentially, one Part per Codex message, and do not start the next pack until the current one is closed. Do not run any of these packs in parallel.
-- Prompt 06, 06.5, 12, and 12.5 are docs-only audit packs; they must not introduce code, gameplay, save, asset, or flow changes.
-- Prompts 07-09 and 11.5 are per-screen / per-state presentation work using existing runtime truth only; no combat math, intent logic, item effect, save shape, or flow change.
-- Prompts 10 and 11 are cross-screen readability guardrails and shared-token cleanup; no behavior change disguised as cleanup; no file rename.
-- Prompt 10.5 is the only pack in the wave that may add an additive-optional save field (the persisted shown-hint set). It must not introduce a tutorial mode or a rotating tips system, and no hint may block input.
-- Prompt 12 is a runtime-readiness / asset-contract checkpoint and produces `Docs/SEMANTIC_ICON_READINESS_CHECKLIST.md`; it does not generate, approve, or hook any asset and does not unblock asset hookup by itself.
-- After the full UI overhaul wave (Prompt 06 through 12.5) closes, the next broader roadmap phase is Phase D (`Playtest and Telemetry`).
+- Prompt `01-03` stay archived; do not reopen them without new measured drift.
+- Prompt `04-05` stay closed green; reopen them only for new measured map-lane drift inside the same owner scopes.
+- Prompt `06-12.5` stay closed green; the UI overhaul wave is complete and candidate accessibility/mobile follow-ups remain inactive by default.
+- Prompt `13` stays closed green; ground/filler owners landed, and semantic icon hookup is still a separate gated lane.
+- Use `Docs/ROADMAP.md` for detailed pack-by-pack history, reopen rules, and launch order.
 
 Copy/paste start message for a new chat:
 
 ```text
 AGENTS.md, Docs/DOC_PRECEDENCE.md, Docs/HANDOFF.md ve Docs/ROADMAP.md oku.
-Sonra Docs/Promts/06_ui_information_architecture_audit.md prompt paketini oku ama uygulamaya baslama.
-Bu devam dalgasinda `main` branch uzerinde kal; yeni workflow branch acma veya branch degistirme.
-
-UI overhaul dalgasi suanda kuyrukta (siraya sadik kal):
-06 -> 06.5 -> 07 -> 08 -> 09 -> 10 -> 10.5 -> 11 -> 11.5 -> 12 -> 12.5
-
-Calisma kurallari:
-- her Codex mesajinda yalnizca tek bir Part calistir
-- bu paketleri paralel calistirma; siralama ROADMAP'teki Continuation Launch Order'a sadik kalmali
-- bir paket "closed green" olmadan bir sonraki pakete gecme
+Sonra secilen `Phase D - Playtest and Telemetry` gorevi icin en yakin authority docs'u oku.
+Map visual continuity ise Docs/MAP_VISUAL_OWNERSHIP_AUDIT.md de oku.
+Accessibility/mobile follow-up acilacaksa Docs/UI_ACCESSIBILITY_AND_MOBILE_AUDIT.md de oku.
+main uzerinde kal; yeni workflow branch acma veya branch degistirme.
 
 Pack-bazli kisitlar:
-- 06 reference-only audit (UI_INFORMATION_ARCHITECTURE_AUDIT.md uretir); gameplay, save/schema, asset hookup, flow degisikligi yok
-- 06.5 reference-only audit (UI_MICROCOPY_AUDIT.md uretir); kod degisikligi yok
-- 07-09 var olan runtime truth'u kullanarak per-screen UI hierarchy duzeltir; combat math, enemy intent logic, item effect veya save shape degistirme
-- 10 cross-screen readability guardrail; temp_screen_theme.gd rename yok
-- 10.5 dalganin tek save-aware paketi: additive-optional shown-hint alani. Tutorial mode ekleme; rotating tips ekleme; hint asla input bloklamaz; donmus 8-hint set disinda hint ekleme
-- 11 shared UI token cleanup; cleanup wording'i altinda davranis degisikligi gizleme; dosya rename yok
-- 11.5 empty / loading / error state pass; presentation-only; failure semantics degistirme
-- 12 runtime-readiness / asset-contract checkpoint (SEMANTIC_ICON_READINESS_CHECKLIST.md uretir); asset uretmez, onaylamaz, hook etmez; UiAssetPaths repoint etmez
-- 12.5 erisilebilirlik + mobil interaction audit (UI_ACCESSIBILITY_AND_MOBILE_AUDIT.md uretir); kod degisikligi yok; sadece prioritized narrow follow-up queue
+- 06 closed green; output = UI_INFORMATION_ARCHITECTURE_AUDIT.md; bu audit docs-only ve repo-truth referansi olarak korunacak
+- 06.5 closed green; output = UI_MICROCOPY_AUDIT.md; docs-only ve rewrite lane sahipligini netlestirir
+- 07-09 var olan runtime truth'u kullanarak screen-specific hierarchy duzeltir; copy touchpoint sadece gerektigi yerde degisir; combat math, enemy intent logic, item effect veya save shape degistirme
+- 09 kapandi: enemy intent, player state, attack/defend action area, quick-use consumable lane ve combat log agirligi mevcut truth ile yeniden onceliklendirildi; yeni combat prediction logic eklenmedi
+- 10 kapandi: readability guardrails shared-presentation helper katmanina indi; minimum font/icon/touch-target/disabled-contrast/gameplay-value emphasis kurallari geldi; gameplay rule degisikligi yok; temp_screen_theme.gd rename yok
+- 10.5 kapandi: frozen 8-hint `FirstRunHintController` save-aware olarak live; additive-optional `app_state.shown_first_run_hints` alani yeni run'lar arasinda ayni save uzerinde kalicilik sagliyor; tutorial mode veya rotating tips yok; hint input bloklamiyor
+- 11 kapandi: shared UI token cleanup hierarchy/readability kazanclari indikten sonra merkezi shared owner'lara toplandi; behavior-preserving cleanup only; rename yok
+- 11.5 kapandi: empty / loading / error / failure-state rewrite lane presentation-only olarak yesile kapandi; failure semantics degismedi
+- 12 kapandi: runtime-readiness / asset-contract checkpoint olan SEMANTIC_ICON_READINESS_CHECKLIST.md uretildi; asset uretilmedi, onaylanmadi, hook edilmedi; UiAssetPaths repoint edilmedi; bu tek basina asset hookup'i acmaz
+- 12.5 kapandi: UI_ACCESSIBILITY_AND_MOBILE_AUDIT.md uretildi; docs-only kaldı; accessibility/mobile gap'i ve candidate-only dar follow-up queue'sunu kaydetti; hicbir follow-up otomatik aktive edilmedi
+- 13 kapandi: MapBoardGroundBuilder ve MapBoardFillerBuilder mevcut MapBoardComposerV2 zinciri icine prosedurel fallback ile indi; MAP_VISUAL_OWNERSHIP_AUDIT.md owner truth'a hizalandi; hicbir asset generate/approve/hook edilmedi
 - her pakette Existing-Truth Rule gecerli: yeni gameplay prediction logic ekleme; gerekiyorsa NEEDS_FUTURE_LOGIC_SUPPORT olarak isaretle
 
 Map layout notu:
 - 04 Part A-E ve 05 Part A-F uygulanmis durumda ve bu workspace'te closed green
 - yeniden acilacaksa yalnizca yeni measured drift uzerinden dar composer / route-binding / renderer follow-up scope'unda ac
-- UI overhaul sirasi bu follow-up'a baglanmaz; map ve UI lane'leri ayri ilerler
+- Bundan sonraki daha genis hareket alani Prompt degil, ROADMAP'teki `Phase D - Playtest and Telemetry` lane'idir
 
 Asset kurali:
 - Prompt 03 Part G implement edilmeyecek; superseded by Prompt 04 direction

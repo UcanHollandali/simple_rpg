@@ -14,6 +14,7 @@ const CONFIRM_ICON_PATH := "res://Assets/Icons/icon_confirm.svg"
 const REWARD_TITLE_LABEL_PATH := "Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard/HeaderStack/TitleLabel"
 const REWARD_OFFERS_SHELL_PATH := "Margin/VBox/OffersShell"
 const REWARD_HEADER_CARD_PATH := "Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard"
+const MAP_INVENTORY_DRAWER_TOGGLE_BUTTON_PATH := "Margin/VBox/InventorySection/InventoryDrawerCard/DrawerVBox/DrawerHeaderRow/InventoryDrawerToggleButton"
 const REWARD_SAFE_MENU_SAVE_BUTTON_PATH := "SafeMenuOverlay/MenuLayer/PanelHolder/PanelRow/MenuPanel/VBox/ActionsVBox/SaveRunButton"
 const REWARD_SAFE_MENU_LOAD_BUTTON_PATH := "SafeMenuOverlay/MenuLayer/PanelHolder/PanelRow/MenuPanel/VBox/ActionsVBox/LoadRunButton"
 
@@ -270,6 +271,7 @@ func _inventory_contains_family_definition(inventory_state: InventoryState, inve
 func _map_backpack_contains_title(expected_title: String) -> bool:
 	if current_scene == null:
 		return false
+	_ensure_map_inventory_drawer_expanded()
 	var inventory_cards_flow: Node = current_scene.get_node_or_null("Margin/VBox/InventorySection/InventoryCard/InventoryCardsFlow")
 	if inventory_cards_flow == null:
 		return false
@@ -278,6 +280,15 @@ func _map_backpack_contains_title(expected_title: String) -> bool:
 		if title_label != null and title_label.text == expected_title:
 			return true
 	return false
+
+
+func _ensure_map_inventory_drawer_expanded() -> void:
+	var equipment_card: Control = current_scene.get_node_or_null("Margin/VBox/InventorySection/EquipmentCard") as Control
+	if equipment_card != null and equipment_card.visible:
+		return
+	var toggle_button: Button = current_scene.get_node_or_null(MAP_INVENTORY_DRAWER_TOGGLE_BUTTON_PATH) as Button
+	if toggle_button != null:
+		toggle_button.emit_signal("pressed")
 
 
 func _expected_item_display_name(inventory_family: String, definition_id: String) -> String:

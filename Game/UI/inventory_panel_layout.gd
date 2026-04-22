@@ -2,6 +2,8 @@
 extends RefCounted
 class_name InventoryPanelLayout
 
+const TempScreenThemeScript = preload("res://Game/UI/temp_screen_theme.gd")
+
 const BAND_STANDARD := "standard"
 const BAND_COMPACT := "compact"
 const BAND_VERY_COMPACT := "very_compact"
@@ -143,14 +145,17 @@ static func apply_card_density_overrides(container: Container, density_band: Str
 		_set_label_font_size(card.get_node_or_null(COUNT_LABEL_PATH) as Label, int(metrics.get("count_font_size", 13)))
 		var icon_rect: TextureRect = card.get_node_or_null(ICON_RECT_PATH) as TextureRect
 		if icon_rect != null:
-			icon_rect.custom_minimum_size = metrics.get("icon_size", CARD_METRICS_BY_BAND[BAND_STANDARD]["icon_size"])
+			icon_rect.custom_minimum_size = TempScreenThemeScript.guarded_icon_minimum_size(
+				metrics.get("icon_size", CARD_METRICS_BY_BAND[BAND_STANDARD]["icon_size"]),
+				TempScreenThemeScript.MIN_INVENTORY_ICON_SIZE
+			)
 		_set_label_font_size(card.get_node_or_null(PLACEHOLDER_LABEL_PATH) as Label, int(metrics.get("placeholder_font_size", 24)))
 		_set_label_font_size(card.get_node_or_null(TITLE_LABEL_PATH) as Label, int(metrics.get("title_font_size", 16)))
-		_set_label_font_size(card.get_node_or_null(DETAIL_LABEL_PATH) as Label, int(metrics.get("detail_font_size", 13)))
-		_set_label_font_size(card.get_node_or_null(ACTION_HINT_LABEL_PATH) as Label, int(metrics.get("action_hint_font_size", 12)))
+		_set_label_font_size(card.get_node_or_null(DETAIL_LABEL_PATH) as Label, int(metrics.get("detail_font_size", 13)), true)
+		_set_label_font_size(card.get_node_or_null(ACTION_HINT_LABEL_PATH) as Label, int(metrics.get("action_hint_font_size", 12)), true)
 
 
-static func _set_label_font_size(label: Label, font_size: int) -> void:
+static func _set_label_font_size(label: Label, font_size: int, dense: bool = true) -> void:
 	if label == null:
 		return
-	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_font_size_override("font_size", TempScreenThemeScript.clamp_readable_label_font_size(font_size, dense))

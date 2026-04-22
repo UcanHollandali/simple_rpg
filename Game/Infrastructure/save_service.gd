@@ -11,6 +11,7 @@ const CONTENT_VERSION: String = "prototype_content_v7"
 const SAVE_TYPE_SAFE_STATE: String = "safe_state_manual"
 const SAVE_KEY_ACTIVE_TEMPLATE_ID: String = "active_map_template_id"
 const SAVE_KEY_REALIZED_GRAPH: String = "map_realized_graph"
+const APP_STATE_KEY_SHOWN_FIRST_RUN_HINTS: String = "shown_first_run_hints"
 const SUPPORTED_NODE_FAMILIES := [
 	"start",
 	"combat",
@@ -284,6 +285,11 @@ func validate_snapshot(snapshot: Dictionary) -> Dictionary:
 	var support_interaction_variant: Variant = snapshot.get("support_interaction_state", null)
 	var app_state_variant: Variant = snapshot.get("app_state", {})
 	var app_state: Dictionary = app_state_variant if typeof(app_state_variant) == TYPE_DICTIONARY else {}
+	if not _shown_first_run_hints_are_valid(app_state):
+		return {
+			"ok": false,
+			"error": "invalid_shown_first_run_hints",
+		}
 	var support_interaction_source_node_is_valid: bool = true
 	if typeof(support_interaction_variant) == TYPE_DICTIONARY:
 		support_interaction_source_node_is_valid = _map_contains_node(
@@ -653,3 +659,18 @@ func _side_quest_reward_inventory_family_is_supported(inventory_family: String) 
 		"shield_attachment",
 		"consumable",
 	]
+
+
+func _shown_first_run_hints_are_valid(app_state: Dictionary) -> bool:
+	if not app_state.has(APP_STATE_KEY_SHOWN_FIRST_RUN_HINTS):
+		return true
+	var shown_hints_variant: Variant = app_state.get(APP_STATE_KEY_SHOWN_FIRST_RUN_HINTS, [])
+	if typeof(shown_hints_variant) != TYPE_ARRAY:
+		return false
+	var seen_hint_ids: Dictionary = {}
+	for hint_id_variant in shown_hints_variant:
+		var hint_id: String = String(hint_id_variant).strip_edges()
+		if hint_id.is_empty() or seen_hint_ids.has(hint_id):
+			return false
+		seen_hint_ids[hint_id] = true
+	return true

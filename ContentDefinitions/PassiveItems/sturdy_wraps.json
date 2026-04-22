@@ -1,7 +1,6 @@
 {
   "schema_version": 1,
   "definition_id": "sturdy_wraps",
-  "authoring_order": 20,
   "family": "PassiveItems",
   "tags": [
     "passive",

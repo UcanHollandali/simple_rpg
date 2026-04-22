@@ -64,6 +64,14 @@ func get_choice_by_id(choice_id: String) -> Dictionary:
 	return {}
 
 
+func build_filtered_template_ids(loader: ContentLoader, trigger_context: Dictionary = {}) -> Array[String]:
+	return _filter_template_ids_for_source_context(
+		loader.list_definition_ids(EVENT_TEMPLATE_FAMILY),
+		loader,
+		trigger_context
+	)
+
+
 func to_save_dict() -> Dictionary:
 	return {
 		"template_definition_id": template_definition_id,

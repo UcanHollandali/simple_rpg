@@ -26,14 +26,15 @@ const PORTRAIT_LAYOUT_CONFIG := {
 	"min_side_margin": PORTRAIT_SAFE_MIN_SIDE_MARGIN,
 	"top_margin": 120,
 	"bottom_margin": 120,
+	"shared_surface_tokens": "level_up_modal",
 	"margin_steps": [
 		{"max_height": 1760.0, "top_margin": 92, "bottom_margin": 92},
 		{"max_height": 1540.0, "top_margin": 68, "bottom_margin": 68},
 	],
 	"bands": {
-		"large": {"min_width": 760.0, "min_height": 1640.0, "title_font_size": 44, "context_font_size": 20, "hint_font_size": 16, "note_font_size": 20, "status_font_size": 16, "choice_title_font_size": 24, "choice_detail_font_size": 16, "button_height": 142.0, "status_width": 320.0, "button_icon_max_width": 30},
-		"medium": {"min_width": 620.0, "min_height": 1460.0, "title_font_size": 38, "context_font_size": 18, "hint_font_size": 15, "note_font_size": 18, "status_font_size": 15, "choice_title_font_size": 22, "choice_detail_font_size": 15, "button_height": 124.0, "status_width": 272.0, "button_icon_max_width": 26},
-		"compact": {"title_font_size": 32, "context_font_size": 16, "hint_font_size": 14, "note_font_size": 16, "status_font_size": 14, "choice_title_font_size": 20, "choice_detail_font_size": 14, "button_height": 108.0, "status_width": 232.0, "button_icon_max_width": 22},
+		"large": {"min_width": 760.0, "min_height": 1640.0},
+		"medium": {"min_width": 620.0, "min_height": 1460.0},
+		"compact": {},
 	},
 }
 
@@ -203,7 +204,12 @@ func _apply_temp_theme() -> void:
 		if scrim != null:
 			scrim.visible = true
 			TempScreenThemeScript.apply_scrim(scrim)
-			scrim.color = Color(scrim.color.r, scrim.color.g, scrim.color.b, 0.38)
+			scrim.color = Color(
+				scrim.color.r,
+				scrim.color.g,
+				scrim.color.b,
+				TempScreenThemeScript.resolve_surface_scrim_alpha("level_up_modal")
+			)
 		var margin: MarginContainer = _scene_node("Margin") as MarginContainer
 		if margin != null:
 			var overlay_margins: Dictionary = TempScreenThemeScript.compute_overlay_margins(get_viewport_rect().size, PORTRAIT_SAFE_MAX_WIDTH, PORTRAIT_SAFE_MIN_SIDE_MARGIN)
@@ -311,7 +317,12 @@ func _apply_portrait_safe_layout() -> void:
 	if values.is_empty():
 		return
 	var viewport_size: Vector2 = values.get("viewport_size", Vector2.ZERO)
-	values["vbox_separation"] = 12 if viewport_size.y < 1560.0 else 16
+	values["vbox_separation"] = SceneLayoutHelperScript.resolve_height_tier_spacing(
+		viewport_size.y,
+		1560.0,
+		TempScreenThemeScript.REGULAR_STACK_SPACING_SHORT,
+		TempScreenThemeScript.REGULAR_STACK_SPACING_TALL
+	)
 	SceneLayoutHelperScript.apply_control_overrides(self, values, [
 		{"path": "Margin/VBox", "theme_constants": {"separation": "vbox_separation"}},
 		{"path": "Margin/VBox/HeaderRow", "theme_constants": {"separation": "vbox_separation"}},

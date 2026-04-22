@@ -1,7 +1,6 @@
 {
   "schema_version": 1,
   "definition_id": "gate_oak_idol",
-  "authoring_order": 60,
   "family": "PassiveItems",
   "tags": [
     "passive",

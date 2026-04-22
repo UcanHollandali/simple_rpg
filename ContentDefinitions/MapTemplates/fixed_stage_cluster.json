@@ -5,6 +5,7 @@
   "tags": [
     "map_template",
     "prototype",
+    "legacy_load_compat",
     "fixed_cluster"
   ],
   "display": {

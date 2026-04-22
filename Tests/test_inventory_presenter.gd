@@ -5,6 +5,7 @@ class_name TestInventoryPresenter
 const InventoryPresenterScript = preload("res://Game/UI/inventory_presenter.gd")
 const ItemDefinitionTooltipBuilderScript = preload("res://Game/UI/item_definition_tooltip_builder.gd")
 const InventoryActionsScript = preload("res://Game/Application/inventory_actions.gd")
+const RunInventoryPanelScript = preload("res://Game/UI/run_inventory_panel.gd")
 
 
 func _init() -> void:
@@ -12,8 +13,10 @@ func _init() -> void:
 	test_run_inventory_cards_surface_quest_cargo_and_shield_mods()
 	test_inventory_cards_use_family_specific_icon_paths()
 	test_inventory_interaction_hints_explain_backpack_and_equipment_actions()
+	test_inventory_empty_state_copy_stays_intentional()
 	test_combat_inventory_cards_follow_combat_local_stacks()
 	test_combat_inventory_cards_follow_combat_local_equipment_projection()
+	test_combat_inventory_compat_builder_stays_read_only()
 	test_definition_tooltips_surface_offer_item_details()
 	print("test_inventory_presenter: all assertions passed")
 	quit()
@@ -50,6 +53,10 @@ func test_run_inventory_cards_split_equipment_and_backpack() -> void:
 	assert(
 		String(presenter.call("build_inventory_title_text", run_state.inventory_state)) == "Backpack 3/7",
 		"Expected backpack title text to keep the original used/total format when a belt adds capacity."
+	)
+	assert(
+		String(presenter.call("build_inventory_drawer_summary_text", run_state.inventory_state)) == "Carry 3/7",
+		"Expected non-empty drawer summaries to keep the compact carry-count read."
 	)
 
 	assert(backpack_cards.size() == 7, "Expected backpack cards to expand to 7 slots while a belt adds 2 capacity.")
@@ -191,6 +198,39 @@ func test_inventory_interaction_hints_explain_backpack_and_equipment_actions() -
 	)
 
 
+func test_inventory_empty_state_copy_stays_intentional() -> void:
+	var presenter: RefCounted = InventoryPresenterScript.new()
+	var inventory_state := InventoryState.new()
+	assert(
+		String(presenter.call("build_inventory_drawer_summary_text", inventory_state)) == "Pack empty",
+		"Expected empty drawer summaries to read intentionally instead of as a raw 0/X count."
+	)
+	assert(
+		String(presenter.call("build_run_inventory_hint_text", inventory_state)) == "Pack empty. Pick up what helps.",
+		"Expected empty backpack hints to read as an intentional empty state."
+	)
+
+	var run_inventory_panel: RefCounted = RunInventoryPanelScript.new()
+	var empty_visible_cards: Array[Dictionary] = []
+	assert(
+		String(run_inventory_panel.call("build_combat_inventory_hint_text", "Only consumables work in combat.", empty_visible_cards, 0)) == "Pack empty.",
+		"Expected the combat pack hint to acknowledge a fully empty pack."
+	)
+	assert(
+		String(run_inventory_panel.call("build_combat_inventory_hint_text", "Only consumables work in combat.", empty_visible_cards, 2)) == "No consumable packed.",
+		"Expected the combat pack hint to distinguish packed non-combat cards from an actually empty pack."
+	)
+	var summary_card: Dictionary = run_inventory_panel.call("build_combat_pack_summary_card", 2, 0)
+	assert(
+		String(summary_card.get("title_text", "")) == "No consumable ready",
+		"Expected the combat pack summary card to expose the empty-state title in the local quick-use lane."
+	)
+	assert(
+		String(summary_card.get("detail_text", "")) == "2 other pack cards packed away",
+		"Expected the combat pack summary card to explain why no combat consumable is currently present."
+	)
+
+
 func test_combat_inventory_cards_follow_combat_local_stacks() -> void:
 	var presenter: RefCounted = InventoryPresenterScript.new()
 	var combat_state: CombatState = CombatState.new()
@@ -247,6 +287,37 @@ func test_combat_inventory_cards_follow_combat_local_equipment_projection() -> v
 	assert(String(splitter_axe_card.get("count_text", "")) == "4/14", "Expected projected combat equipment to surface combat-local weapon durability.")
 	assert(not iron_sword_card.is_empty(), "Expected projected combat backpack to keep the displaced starter weapon visible.")
 	assert(String(iron_sword_card.get("tooltip_text", "")).contains("Equipment is locked during combat."), "Expected carried weapons to explain the combat lock instead of an equip interaction.")
+
+
+func test_combat_inventory_compat_builder_stays_read_only() -> void:
+	var presenter: RefCounted = InventoryPresenterScript.new()
+	var combat_state: CombatState = CombatState.new()
+	combat_state.weapon_instance = {"definition_id": "iron_sword", "current_durability": 7}
+	combat_state.armor_instance = {"definition_id": "watcher_mail"}
+	combat_state.belt_instance = {"definition_id": "trailhook_bandolier"}
+	combat_state.consumable_slots = [
+		{"definition_id": "traveler_bread", "current_stack": 1},
+	]
+	var original_consumable_slots: Array = combat_state.consumable_slots.duplicate(true)
+
+	var passive_slots: Array[Dictionary] = [
+		{"definition_id": "iron_grip_charm"},
+	]
+	var _equipment_cards: Array[Dictionary] = presenter.call("build_combat_equipment_cards", combat_state, passive_slots)
+	var _backpack_cards: Array[Dictionary] = presenter.call("build_combat_inventory_cards", combat_state, passive_slots)
+
+	assert(combat_state.active_weapon_slot_id == -1, "Expected legacy compat card building not to mutate combat active weapon slot truth.")
+	assert(combat_state.active_left_hand_slot_id == -1, "Expected legacy compat card building not to mutate combat active left-hand slot truth.")
+	assert(combat_state.active_armor_slot_id == -1, "Expected legacy compat card building not to mutate combat active armor slot truth.")
+	assert(combat_state.active_belt_slot_id == -1, "Expected legacy compat card building not to mutate combat active belt slot truth.")
+	assert(
+		not combat_state.consumable_slots[0].has("slot_id"),
+		"Expected legacy compat card building not to inject hydrated slot ids back into combat consumable truth."
+	)
+	assert(
+		combat_state.consumable_slots.hash() == original_consumable_slots.hash(),
+		"Expected legacy compat card building to leave combat consumable snapshots unchanged."
+	)
 
 
 func test_definition_tooltips_surface_offer_item_details() -> void:

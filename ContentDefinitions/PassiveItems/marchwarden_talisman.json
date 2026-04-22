@@ -1,7 +1,6 @@
 {
   "schema_version": 1,
   "definition_id": "marchwarden_talisman",
-  "authoring_order": 55,
   "family": "PassiveItems",
   "tags": [
     "passive",

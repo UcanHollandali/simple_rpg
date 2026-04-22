@@ -47,6 +47,17 @@ func build_hint_text(reward_state: RefCounted) -> String:
 	return ""
 
 
+func build_failure_text(error_text: String) -> String:
+	var trimmed_error: String = error_text.strip_edges()
+	match trimmed_error:
+		"unknown_reward_option":
+			return "That reward is no longer available."
+		"missing_reward_state":
+			return "Reward unavailable."
+		_:
+			return "Reward failed: %s" % (trimmed_error if not trimmed_error.is_empty() else "unknown")
+
+
 func build_offer_view_models(reward_state: RefCounted, card_count: int = DEFAULT_CARD_COUNT) -> Array[Dictionary]:
 	var models: Array[Dictionary] = []
 	var offers: Array[Dictionary] = []

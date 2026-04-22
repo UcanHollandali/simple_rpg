@@ -91,9 +91,9 @@ func test_inventory_panel_layout_applies_shared_card_density_overrides() -> void
 	var title_label: Label = card.get_node_or_null(InventoryPanelLayoutScript.TITLE_LABEL_PATH) as Label
 	var action_hint_label: Label = card.get_node_or_null(InventoryPanelLayoutScript.ACTION_HINT_LABEL_PATH) as Label
 	assert(slot_label != null and slot_label.get_theme_font_size("font_size") == 11, "Expected the shared override to keep the very-compact slot-label font size.")
-	assert(icon_rect != null and icon_rect.custom_minimum_size == Vector2(34.0, 34.0), "Expected the shared override to keep the very-compact inventory icon size.")
+	assert(icon_rect != null and icon_rect.custom_minimum_size == Vector2(36.0, 36.0), "Expected the shared override to keep the very-compact inventory icon above the shared readability floor.")
 	assert(title_label != null and title_label.get_theme_font_size("font_size") == 14, "Expected the shared override to keep the very-compact card title font size.")
-	assert(action_hint_label != null and action_hint_label.get_theme_font_size("font_size") == 10, "Expected the shared override to keep the very-compact action-hint font size.")
+	assert(action_hint_label != null and action_hint_label.get_theme_font_size("font_size") == 11, "Expected the shared override to keep the very-compact action hint above the dense readability floor.")
 	container.queue_free()
 
 

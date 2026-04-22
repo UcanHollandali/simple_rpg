@@ -66,6 +66,11 @@ static func apply_portrait_layout(scene: Control, config: Dictionary) -> Diction
 		"viewport_size": viewport_size,
 		"is_portrait": is_portrait,
 	}
+	var shared_surface_tokens_key: String = String(config.get("shared_surface_tokens", ""))
+	if not shared_surface_tokens_key.is_empty():
+		var shared_tokens: Dictionary = TempScreenThemeScript.resolve_surface_tokens(shared_surface_tokens_key, layout_band)
+		for key_variant in shared_tokens.keys():
+			result[String(key_variant)] = shared_tokens.get(key_variant)
 	var band_values: Dictionary = bands.get(layout_band, {})
 	for key_variant in band_values.keys():
 		var key: String = String(key_variant)
@@ -73,6 +78,24 @@ static func apply_portrait_layout(scene: Control, config: Dictionary) -> Diction
 			continue
 		result[key] = band_values[key_variant]
 	return result
+
+
+static func resolve_height_tier_spacing(viewport_height: float, compact_threshold: float, compact_value: int, roomy_value: int) -> int:
+	return compact_value if viewport_height < compact_threshold else roomy_value
+
+
+static func resolve_width_tier_spacing(viewport_width: float, compact_threshold: float, compact_value: int, roomy_value: int) -> int:
+	return compact_value if viewport_width < compact_threshold else roomy_value
+
+
+static func resolve_surface_panel_width(surface_key: String, safe_width: float, panel_width_cap: Variant = null) -> float:
+	var resolved_cap: float = 0.0
+	if panel_width_cap != null:
+		resolved_cap = float(panel_width_cap)
+	if resolved_cap <= 0.0:
+		var compact_surface_tokens: Dictionary = TempScreenThemeScript.resolve_surface_tokens(surface_key, "compact")
+		resolved_cap = float(compact_surface_tokens.get("panel_width_cap", safe_width))
+	return min(safe_width, resolved_cap)
 
 
 static func load_texture_or_null(asset_path: String) -> Texture2D:
@@ -101,23 +124,38 @@ static func apply_control_overrides(scene: Control, values: Dictionary, specs: A
 	for spec in specs:
 		for node in _resolve_nodes(scene, spec):
 			var control: Control = node as Control
+			var label: Label = node as Label
+			var button: Button = node as Button
+			var texture_rect: TextureRect = node as TextureRect
 			if control != null:
 				if spec.has("font_size"):
-					control.add_theme_font_size_override("font_size", int(_resolve_value(values, spec.get("font_size"))))
+					var font_size: int = int(_resolve_value(values, spec.get("font_size")))
+					if button != null:
+						font_size = TempScreenThemeScript.clamp_button_font_size(font_size)
+					elif label != null:
+						font_size = TempScreenThemeScript.clamp_readable_label_font_size(font_size)
+					control.add_theme_font_size_override("font_size", font_size)
 				for key_variant in spec.get("theme_constants", {}).keys():
 					var key: StringName = StringName(String(key_variant))
-					control.add_theme_constant_override(key, int(_resolve_value(values, spec.get("theme_constants", {}).get(key_variant))))
+					var constant_value: int = int(_resolve_value(values, spec.get("theme_constants", {}).get(key_variant)))
+					if String(key) == "icon_max_width":
+						constant_value = TempScreenThemeScript.clamp_button_icon_size(constant_value)
+					control.add_theme_constant_override(key, constant_value)
 				if spec.has("custom_minimum_size"):
 					var size: Dictionary = spec.get("custom_minimum_size", {})
-					control.custom_minimum_size = Vector2(
+					var minimum_size := Vector2(
 						float(_resolve_value(values, size.get("x", control.custom_minimum_size.x))),
 						float(_resolve_value(values, size.get("y", control.custom_minimum_size.y)))
 					)
+					if button != null:
+						minimum_size = TempScreenThemeScript.guarded_button_minimum_size(minimum_size)
+					elif texture_rect != null:
+						minimum_size = TempScreenThemeScript.guarded_icon_minimum_size(minimum_size)
+					control.custom_minimum_size = minimum_size
 				if spec.has("size_flags_horizontal"):
 					control.size_flags_horizontal = int(_resolve_value(values, spec.get("size_flags_horizontal")))
 				if spec.has("size_flags_vertical"):
 					control.size_flags_vertical = int(_resolve_value(values, spec.get("size_flags_vertical")))
-			var label: Label = node as Label
 			if label != null:
 				if spec.has("horizontal_alignment"):
 					label.horizontal_alignment = int(_resolve_value(values, spec.get("horizontal_alignment")))
@@ -125,7 +163,6 @@ static func apply_control_overrides(scene: Control, values: Dictionary, specs: A
 					label.max_lines_visible = int(_resolve_value(values, spec.get("max_lines_visible")))
 				if spec.has("autowrap_mode"):
 					label.autowrap_mode = int(_resolve_value(values, spec.get("autowrap_mode")))
-			var button: Button = node as Button
 			if button != null and spec.has("alignment"):
 				button.alignment = int(_resolve_value(values, spec.get("alignment")))
 			var canvas_item: CanvasItem = node as CanvasItem

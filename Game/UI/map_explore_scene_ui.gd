@@ -16,6 +16,10 @@ const RUN_SUMMARY_CARD_PATH := "Margin/VBox/TopRow/RunSummaryCard"
 const ROUTE_GRID_PATH := "Margin/VBox/RouteGrid"
 const BOARD_FRAME_PATH := "Margin/VBox/RouteGrid/BoardFrame"
 const SAFE_MENU_ANCHOR_PATH := "Margin/VBox/TopRow/SettingsMenuAnchor"
+const INVENTORY_SECTION_PATH := "Margin/VBox/InventorySection"
+const EQUIPMENT_CARD_PATH := "Margin/VBox/InventorySection/EquipmentCard"
+const INVENTORY_CARD_PATH := "Margin/VBox/InventorySection/InventoryCard"
+const INVENTORY_DRAWER_CARD_PATH := "Margin/VBox/InventorySection/InventoryDrawerCard"
 const SHOW_BOTTOM_CONTEXT := false
 
 
@@ -117,6 +121,7 @@ static func apply_temp_theme(root: Control) -> void:
 	if root == null:
 		return
 
+	var drawer_nodes: Dictionary = ensure_inventory_drawer_controls(root)
 	TempScreenThemeScript.apply_wayfinder_backdrop(root, 0.30, 0.14, 0.03, true)
 	var top_row: HBoxContainer = root.get_node_or_null(TOP_ROW_PATH) as HBoxContainer
 	var top_row_shell: PanelContainer = root.get_node_or_null("Margin/VBox/TopRowShell") as PanelContainer
@@ -136,8 +141,12 @@ static func apply_temp_theme(root: Control) -> void:
 	var stage_badge_label: Label = root.get_node_or_null(STAGE_BADGE_LABEL_PATH) as Label
 	var settings_button: Button = root.get_node_or_null("%s/SettingsButton" % SAFE_MENU_ANCHOR_PATH) as Button
 	var board_frame: PanelContainer = root.get_node_or_null(BOARD_FRAME_PATH) as PanelContainer
-	var equipment_card: PanelContainer = root.get_node_or_null("Margin/VBox/InventorySection/EquipmentCard") as PanelContainer
-	var inventory_card: PanelContainer = root.get_node_or_null("Margin/VBox/InventorySection/InventoryCard") as PanelContainer
+	var drawer_card: PanelContainer = drawer_nodes.get("drawer_card", null) as PanelContainer
+	var drawer_title_label: Label = drawer_nodes.get("title_label", null) as Label
+	var drawer_summary_label: Label = drawer_nodes.get("summary_label", null) as Label
+	var drawer_toggle_button: Button = drawer_nodes.get("toggle_button", null) as Button
+	var equipment_card: PanelContainer = root.get_node_or_null(EQUIPMENT_CARD_PATH) as PanelContainer
+	var inventory_card: PanelContainer = root.get_node_or_null(INVENTORY_CARD_PATH) as PanelContainer
 	var current_anchor_card: PanelContainer = root.get_node_or_null("Margin/VBox/BottomRow/CurrentAnchorCard") as PanelContainer
 	var status_card: PanelContainer = root.get_node_or_null("Margin/VBox/BottomRow/StatusCard") as PanelContainer
 	_apply_compact_map_panel(header_card, TempScreenThemeScript.PANEL_BORDER_COLOR, 16, 0.42, 12, 10)
@@ -153,6 +162,8 @@ static func apply_temp_theme(root: Control) -> void:
 	_apply_stage_badge_style(stage_badge, stage_badge_label)
 	_apply_settings_button_style(settings_button)
 	_apply_board_frame_style(board_frame)
+	TempScreenThemeScript.apply_inventory_section_panel(drawer_card, TempScreenThemeScript.PANEL_BORDER_COLOR, "compact")
+	_soften_embedded_panel(drawer_card, TempScreenThemeScript.PANEL_BORDER_COLOR)
 
 	var title_label: Label = root.get_node_or_null("%s/TitleLabel" % HEADER_STACK_PATH) as Label
 	TempScreenThemeScript.apply_label(title_label, "title")
@@ -195,6 +206,22 @@ static func apply_temp_theme(root: Control) -> void:
 	var inventory_title_label: Label = root.get_node_or_null("Margin/VBox/InventorySection/InventoryTitleLabel") as Label
 	var inventory_hint_label: Label = root.get_node_or_null("Margin/VBox/InventorySection/InventoryHintLabel") as Label
 	TempScreenThemeScript.apply_inventory_section_text(inventory_title_label, inventory_hint_label, "reward", "standard")
+	TempScreenThemeScript.apply_label(drawer_title_label, "accent")
+	if drawer_title_label != null:
+		drawer_title_label.add_theme_font_size_override("font_size", 18)
+		drawer_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		drawer_title_label.clip_text = true
+		drawer_title_label.max_lines_visible = 1
+	TempScreenThemeScript.apply_label(drawer_summary_label, "muted")
+	if drawer_summary_label != null:
+		drawer_summary_label.add_theme_font_size_override("font_size", 13)
+		drawer_summary_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		drawer_summary_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		drawer_summary_label.max_lines_visible = 2
+	TempScreenThemeScript.apply_small_button(drawer_toggle_button, TempScreenThemeScript.TEAL_ACCENT_COLOR, true)
+	if drawer_toggle_button != null:
+		drawer_toggle_button.custom_minimum_size = Vector2(108.0, drawer_toggle_button.custom_minimum_size.y)
+		drawer_toggle_button.size_flags_horizontal = Control.SIZE_SHRINK_END
 
 	var current_anchor_label: Label = root.get_node_or_null("Margin/VBox/BottomRow/CurrentAnchorCard/VBox/CurrentAnchorLabel") as Label
 	TempScreenThemeScript.apply_label(current_anchor_label, "accent")
@@ -296,15 +323,19 @@ static func apply_portrait_safe_layout(root: Control, max_width: int, min_side_m
 	var route_grid: Control = root.get_node_or_null(ROUTE_GRID_PATH) as Control
 	var header_card: PanelContainer = root.get_node_or_null(HEADER_CARD_PATH) as PanelContainer
 	var route_read_label: Label = root.get_node_or_null("%s/RouteReadLabel" % HEADER_STACK_PATH) as Label
-	var inventory_section: VBoxContainer = root.get_node_or_null("Margin/VBox/InventorySection") as VBoxContainer
-	var equipment_card: PanelContainer = root.get_node_or_null("Margin/VBox/InventorySection/EquipmentCard") as PanelContainer
-	var equipment_cards_flow: HBoxContainer = root.get_node_or_null("Margin/VBox/InventorySection/EquipmentCard/EquipmentCardsFlow") as HBoxContainer
-	var equipment_title_label: Label = root.get_node_or_null("Margin/VBox/InventorySection/EquipmentTitleLabel") as Label
-	var equipment_hint_label: Label = root.get_node_or_null("Margin/VBox/InventorySection/EquipmentHintLabel") as Label
-	var inventory_card: PanelContainer = root.get_node_or_null("Margin/VBox/InventorySection/InventoryCard") as PanelContainer
-	var inventory_cards_flow: HBoxContainer = root.get_node_or_null("Margin/VBox/InventorySection/InventoryCard/InventoryCardsFlow") as HBoxContainer
-	var inventory_title_label: Label = root.get_node_or_null("Margin/VBox/InventorySection/InventoryTitleLabel") as Label
-	var inventory_hint_label: Label = root.get_node_or_null("Margin/VBox/InventorySection/InventoryHintLabel") as Label
+	var inventory_section: VBoxContainer = root.get_node_or_null(INVENTORY_SECTION_PATH) as VBoxContainer
+	var drawer_card: PanelContainer = root.get_node_or_null(INVENTORY_DRAWER_CARD_PATH) as PanelContainer
+	var drawer_title_label: Label = root.get_node_or_null("%s/DrawerVBox/DrawerHeaderRow/InventoryDrawerTitleLabel" % INVENTORY_DRAWER_CARD_PATH) as Label
+	var drawer_summary_label: Label = root.get_node_or_null("%s/DrawerVBox/InventoryDrawerSummaryLabel" % INVENTORY_DRAWER_CARD_PATH) as Label
+	var drawer_toggle_button: Button = root.get_node_or_null("%s/DrawerVBox/DrawerHeaderRow/InventoryDrawerToggleButton" % INVENTORY_DRAWER_CARD_PATH) as Button
+	var equipment_card: PanelContainer = root.get_node_or_null(EQUIPMENT_CARD_PATH) as PanelContainer
+	var equipment_cards_flow: HBoxContainer = root.get_node_or_null("%s/EquipmentCardsFlow" % EQUIPMENT_CARD_PATH) as HBoxContainer
+	var equipment_title_label: Label = root.get_node_or_null("%s/EquipmentTitleLabel" % INVENTORY_SECTION_PATH) as Label
+	var equipment_hint_label: Label = root.get_node_or_null("%s/EquipmentHintLabel" % INVENTORY_SECTION_PATH) as Label
+	var inventory_card: PanelContainer = root.get_node_or_null(INVENTORY_CARD_PATH) as PanelContainer
+	var inventory_cards_flow: HBoxContainer = root.get_node_or_null("%s/InventoryCardsFlow" % INVENTORY_CARD_PATH) as HBoxContainer
+	var inventory_title_label: Label = root.get_node_or_null("%s/InventoryTitleLabel" % INVENTORY_SECTION_PATH) as Label
+	var inventory_hint_label: Label = root.get_node_or_null("%s/InventoryHintLabel" % INVENTORY_SECTION_PATH) as Label
 	var top_row: HBoxContainer = root.get_node_or_null(TOP_ROW_PATH) as HBoxContainer
 	var bottom_row: VBoxContainer = root.get_node_or_null("Margin/VBox/BottomRow") as VBoxContainer
 	var current_anchor_card: PanelContainer = root.get_node_or_null("Margin/VBox/BottomRow/CurrentAnchorCard") as PanelContainer
@@ -321,6 +352,7 @@ static func apply_portrait_safe_layout(root: Control, max_width: int, min_side_m
 	var compact_layout: bool = viewport_size.y < InventoryPanelLayoutScript.MAP_SECTION_COMPACT_HEIGHT_THRESHOLD
 	var very_compact_layout: bool = viewport_size.y < InventoryPanelLayoutScript.VERY_COMPACT_HEIGHT_THRESHOLD
 	var inventory_density_band: String = InventoryPanelLayoutScript.density_band_from_flags(compact_layout, very_compact_layout)
+	var drawer_collapsed: bool = drawer_card != null and (equipment_card == null or not equipment_card.visible) and (inventory_card == null or not inventory_card.visible)
 	var launcher_metrics: Dictionary = SafeMenuLauncherStyleScript.resolve_launcher_metrics_for_viewport(viewport_size)
 	var launcher_dimensions: Vector2 = Vector2(launcher_metrics.get("dimensions", Vector2(62.0, 70.0)))
 	SceneLayoutHelperScript.apply_portrait_layout(root, {
@@ -375,14 +407,31 @@ static func apply_portrait_safe_layout(root: Control, max_width: int, min_side_m
 	# Middle map (main content)
 	route_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	route_grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	route_grid.custom_minimum_size = Vector2(0.0, 560.0 if very_compact_layout else 620.0 if compact_layout else 680.0)
+	var base_route_min_height: float = 560.0 if very_compact_layout else 620.0 if compact_layout else 680.0
+	if drawer_collapsed:
+		base_route_min_height += 84.0 if very_compact_layout else 108.0 if compact_layout else 124.0
+	route_grid.custom_minimum_size = Vector2(0.0, base_route_min_height)
 
 	# Bottom action/info block (inventory + state summary)
 	if inventory_section != null:
 		inventory_section.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		inventory_section.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-		inventory_section.add_theme_constant_override("separation", InventoryPanelLayoutScript.map_section_separation(inventory_density_band))
+		inventory_section.add_theme_constant_override(
+			"separation",
+			2 if drawer_collapsed else InventoryPanelLayoutScript.map_section_separation(inventory_density_band)
+		)
 		inventory_section.custom_minimum_size = Vector2.ZERO
+		if drawer_card != null:
+			drawer_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			drawer_card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+			drawer_card.custom_minimum_size = Vector2.ZERO
+		if drawer_title_label != null:
+			drawer_title_label.max_lines_visible = 1
+		if drawer_summary_label != null:
+			drawer_summary_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			drawer_summary_label.max_lines_visible = 1 if compact_layout else 2
+		if drawer_toggle_button != null:
+			drawer_toggle_button.size_flags_horizontal = Control.SIZE_SHRINK_END
 		if equipment_title_label != null:
 			equipment_title_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 		if equipment_hint_label != null:
@@ -434,6 +483,66 @@ static func apply_portrait_safe_layout(root: Control, max_width: int, min_side_m
 	_flush_container_layout(route_grid)
 	_flush_container_layout(inventory_section)
 	_flush_container_layout(bottom_row)
+
+
+static func ensure_inventory_drawer_controls(root: Control) -> Dictionary:
+	if root == null:
+		return {}
+	var inventory_section: VBoxContainer = root.get_node_or_null(INVENTORY_SECTION_PATH) as VBoxContainer
+	if inventory_section == null:
+		return {}
+
+	var drawer_card: PanelContainer = inventory_section.get_node_or_null("InventoryDrawerCard") as PanelContainer
+	if drawer_card == null:
+		drawer_card = PanelContainer.new()
+		drawer_card.name = "InventoryDrawerCard"
+		inventory_section.add_child(drawer_card)
+		inventory_section.move_child(drawer_card, 0)
+
+	var drawer_vbox: VBoxContainer = drawer_card.get_node_or_null("DrawerVBox") as VBoxContainer
+	if drawer_vbox == null:
+		drawer_vbox = VBoxContainer.new()
+		drawer_vbox.name = "DrawerVBox"
+		drawer_vbox.add_theme_constant_override("separation", 2)
+		drawer_card.add_child(drawer_vbox)
+
+	var drawer_header_row: HBoxContainer = drawer_vbox.get_node_or_null("DrawerHeaderRow") as HBoxContainer
+	if drawer_header_row == null:
+		drawer_header_row = HBoxContainer.new()
+		drawer_header_row.name = "DrawerHeaderRow"
+		drawer_header_row.add_theme_constant_override("separation", 10)
+		drawer_vbox.add_child(drawer_header_row)
+
+	var title_label: Label = drawer_header_row.get_node_or_null("InventoryDrawerTitleLabel") as Label
+	if title_label == null:
+		title_label = Label.new()
+		title_label.name = "InventoryDrawerTitleLabel"
+		title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		drawer_header_row.add_child(title_label)
+
+	var toggle_button: Button = drawer_header_row.get_node_or_null("InventoryDrawerToggleButton") as Button
+	if toggle_button == null:
+		toggle_button = Button.new()
+		toggle_button.name = "InventoryDrawerToggleButton"
+		toggle_button.focus_mode = Control.FOCUS_ALL
+		toggle_button.mouse_filter = Control.MOUSE_FILTER_STOP
+		drawer_header_row.add_child(toggle_button)
+
+	var summary_label: Label = drawer_vbox.get_node_or_null("InventoryDrawerSummaryLabel") as Label
+	if summary_label == null:
+		summary_label = Label.new()
+		summary_label.name = "InventoryDrawerSummaryLabel"
+		summary_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		summary_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		drawer_vbox.add_child(summary_label)
+
+	return {
+		"drawer_card": drawer_card,
+		"title_label": title_label,
+		"summary_label": summary_label,
+		"toggle_button": toggle_button,
+	}
 
 
 static func _apply_top_row_shell(shell: PanelContainer) -> void:

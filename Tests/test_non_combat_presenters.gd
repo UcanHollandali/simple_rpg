@@ -93,12 +93,12 @@ func test_event_presenter_builds_two_choice_event_models() -> void:
 		"Expected event presenter to keep the hover read compact."
 	)
 	assert(
-		String(presenter.call("build_choice_failure_text", event_state, "missing_choice")) == "Event failed: missing_choice",
-		"Expected planned event failures to avoid reusing the roadside-only label."
+		String(presenter.call("build_choice_failure_text", event_state, "missing_choice")) == "That choice is no longer available.",
+		"Expected planned event failures to prefer a player-facing invalid-choice read when the choice is gone."
 	)
 	assert(
-		String(presenter.call("build_choice_failure_text", roadside_event_state, "missing_choice")) == "Roadside encounter failed: missing_choice",
-		"Expected movement-triggered interruptions to keep the roadside-specific failure prefix."
+		String(presenter.call("build_choice_failure_text", roadside_event_state, "missing_choice")) == "That roadside choice is no longer available.",
+		"Expected movement-triggered interruptions to keep the roadside-specific invalid-choice read."
 	)
 	assert(
 		String(presenter.call("build_choice_icon_texture_path", event_state)) == "res://Assets/Icons/icon_map_trail_event.svg",
@@ -129,7 +129,9 @@ func test_event_presenter_builds_two_choice_event_models() -> void:
 	assert(models.size() == 2, "Expected event presenter to return one model per event choice.")
 	assert(String((models[0] as Dictionary).get("badge_text", "")) == "Recovery", "Expected heal event choices to surface the recovery badge.")
 	assert(String((models[0] as Dictionary).get("title_text", "")) == "Wash the road dust away", "Expected the first event choice title to come from content.")
+	assert(String((models[0] as Dictionary).get("summary_text", "")).contains("breathing steadies"), "Expected event presenter to preserve a short authored summary line ahead of the mechanical effect read.")
 	assert(String((models[0] as Dictionary).get("detail_text", "")).contains("Recover 10 HP."), "Expected event presenter to surface explicit numeric outcome text for healing choices.")
+	assert(String((models[0] as Dictionary).get("availability_text", "")).is_empty(), "Expected current authored event choices to stay enabled when no runtime availability truth is present.")
 	assert(String((models[0] as Dictionary).get("button_text", "")) == "Choose Recovery", "Expected recovery choices to expose a clearer CTA.")
 	assert(String((models[0] as Dictionary).get("icon_texture_path", "")) == "res://Assets/Icons/icon_hp.svg", "Expected heal event choices to expose the HP icon path.")
 	assert(String((models[1] as Dictionary).get("badge_text", "")) == "Risk", "Expected harmful encounter choices to surface the risk badge.")
@@ -391,6 +393,18 @@ func test_support_interaction_presenter_builds_non_combat_view_models() -> void:
 		String((button_models[0] as Dictionary).get("text", "")).contains("Sold out"),
 		"Expected unavailable merchant offers to read as sold out."
 	)
+	assert(
+		String(presenter.call("build_action_failure_text", "support_action_unavailable")) == "That service is no longer available.",
+		"Expected support presenter to expose a player-facing unavailable-action failure line."
+	)
+	assert(
+		String(presenter.call("build_action_failure_text", "insufficient_gold")) == "Not enough gold for that service.",
+		"Expected support presenter to expose a player-facing insufficient-gold failure line."
+	)
+	assert(
+		String(presenter.call("build_action_failure_text", "missing_support_state")) == "Support unavailable.",
+		"Expected support presenter to reuse the unavailable shell wording for missing support state failures."
+	)
 	assert(bool((button_models[1] as Dictionary).get("visible", false)), "Expected second merchant offer to remain visible.")
 	assert(not bool((button_models[1] as Dictionary).get("disabled", true)), "Expected available merchant offer to stay enabled.")
 	assert(
@@ -618,11 +632,15 @@ func test_transition_shell_presenter_builds_node_resolve_text() -> void:
 		"Expected node resolve detail text to retain the pending node read."
 	)
 	assert(
-		String(presenter.call("build_node_resolve_hint_text", "event")) == "Auto bridge.",
+		String(presenter.call("build_node_resolve_detail_text", "", -1)) == "Moving on automatically.",
+		"Expected generic node resolve detail text to avoid surfacing internal pending-read fallback text."
+	)
+	assert(
+		String(presenter.call("build_node_resolve_hint_text", "event")) == "Moving on automatically.",
 		"Expected node resolve hint text to reflect the planned-event handoff rather than the roadside interruption label."
 	)
 	assert(
-		String(presenter.call("build_node_resolve_hint_text", "reward")) == "Auto bridge.",
+		String(presenter.call("build_node_resolve_hint_text", "reward")) == "Moving on automatically.",
 		"Expected reward resolve hint text to keep the runtime handoff explicit."
 	)
 	assert(

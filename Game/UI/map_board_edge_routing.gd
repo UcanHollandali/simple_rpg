@@ -128,6 +128,15 @@ static func _append_outer_reconnect_candidate(
 	})
 
 
+static func score_outer_reconnect_candidate(
+	points: PackedVector2Array,
+	p0: Vector2,
+	p3: Vector2,
+	board_size: Vector2
+) -> float:
+	return _outer_reconnect_candidate_score(points, p0, p3, board_size)
+
+
 static func _outer_reconnect_candidate_score(
 	points: PackedVector2Array,
 	p0: Vector2,

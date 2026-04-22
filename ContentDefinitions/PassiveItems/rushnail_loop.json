@@ -1,7 +1,6 @@
 {
   "schema_version": 1,
   "definition_id": "rushnail_loop",
-  "authoring_order": 80,
   "family": "PassiveItems",
   "tags": [
     "passive",

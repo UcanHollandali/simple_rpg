@@ -39,6 +39,7 @@ const RUN_SUMMARY_CARD_PATH := "Margin/VBox/TopRow/RunSummaryCard"
 const SETTINGS_MENU_ANCHOR_PATH := "Margin/VBox/TopRow/SettingsMenuAnchor"
 const WALKER_ARRIVAL_PAUSE := 0.08
 const ROADSIDE_CONTINUATION_CLOSE_LEAD_IN := 0.06
+const MAP_INVENTORY_DRAWER_TITLE := "Inventory + Equipment"
 
 var _status_lines: PackedStringArray = []
 var _presenter: RefCounted
@@ -56,10 +57,16 @@ var _overflow_prompt: InventoryOverflowPrompt
 var _pending_overflow_slot_id: int = -1
 var _is_refreshing_ui: bool = false
 var _refresh_ui_pending: bool = false
+var _map_inventory_drawer_expanded: bool = false
 var _run_status_model_signature: String = ""
 var _run_status_strip: RunStatusStrip
 var _hunger_warning_toast: HungerWarningToast
 var _scene_node_cache: Dictionary = {}
+var _inventory_drawer_card: PanelContainer
+var _inventory_drawer_title_label: Label
+var _inventory_drawer_summary_label: Label
+var _inventory_drawer_toggle_button: Button
+var _first_run_hint_controller: FirstRunHintController
 
 @onready var _header_title_label: Label = _scene_node("%s/TitleLabel" % HEADER_STACK_PATH) as Label
 @onready var _stage_badge_label: Label = _scene_node(STAGE_BADGE_LABEL_PATH) as Label
@@ -72,7 +79,9 @@ var _scene_node_cache: Dictionary = {}
 @onready var _current_anchor_hint_label: Label = _scene_node("Margin/VBox/BottomRow/CurrentAnchorCard/VBox/CurrentAnchorHintLabel") as Label
 @onready var _status_label: Label = _scene_node("Margin/VBox/BottomRow/StatusCard/StatusLabel") as Label
 @onready var _status_card: Control = _scene_node("Margin/VBox/BottomRow/StatusCard") as Control
+@onready var _equipment_panel: PanelContainer = _scene_node("Margin/VBox/InventorySection/EquipmentCard") as PanelContainer
 @onready var _equipment_container: Container = _scene_node("Margin/VBox/InventorySection/EquipmentCard/EquipmentCardsFlow") as Container
+@onready var _backpack_panel: PanelContainer = _scene_node("Margin/VBox/InventorySection/InventoryCard") as PanelContainer
 @onready var _backpack_container: Container = _scene_node("Margin/VBox/InventorySection/InventoryCard/InventoryCardsFlow") as Container
 @onready var _equipment_title_label: Label = _scene_node("Margin/VBox/InventorySection/EquipmentTitleLabel") as Label
 @onready var _equipment_hint_label: Label = _scene_node("Margin/VBox/InventorySection/EquipmentHintLabel") as Label
@@ -86,6 +95,15 @@ func _ready() -> void:
 	_board_composer = MapBoardComposerV2Script.new()
 	_route_binding = MapRouteBindingScript.new()
 	_route_binding.configure(self, Callable(self, "_scene_node"), _board_composer)
+	var drawer_nodes: Dictionary = MapExploreSceneUiScript.ensure_inventory_drawer_controls(self)
+	_inventory_drawer_card = drawer_nodes.get("drawer_card", null) as PanelContainer
+	_inventory_drawer_title_label = drawer_nodes.get("title_label", null) as Label
+	_inventory_drawer_summary_label = drawer_nodes.get("summary_label", null) as Label
+	_inventory_drawer_toggle_button = drawer_nodes.get("toggle_button", null) as Button
+	if _inventory_drawer_toggle_button != null:
+		var toggle_handler := Callable(self, "_on_inventory_drawer_toggle_pressed")
+		if not _inventory_drawer_toggle_button.is_connected("pressed", toggle_handler):
+			_inventory_drawer_toggle_button.pressed.connect(toggle_handler)
 	_run_status_strip = RunStatusStripScript.new()
 	if _run_status_strip != null and not _run_status_strip.is_connected("hunger_threshold_crossed", Callable(self, "_on_hunger_threshold_crossed")):
 		_run_status_strip.connect("hunger_threshold_crossed", Callable(self, "_on_hunger_threshold_crossed"))
@@ -93,10 +111,16 @@ func _ready() -> void:
 	_run_inventory_panel.configure(self, {
 		"equipment_container": _equipment_container,
 		"backpack_container": _backpack_container,
+		"equipment_panel": _equipment_panel,
+		"backpack_panel": _backpack_panel,
 		"equipment_title_label": _equipment_title_label,
 		"equipment_hint_label": _equipment_hint_label,
 		"inventory_title_label": _inventory_title_label,
 		"inventory_hint_label": _inventory_hint_label,
+		"drawer_card": _inventory_drawer_card,
+		"drawer_title_label": _inventory_drawer_title_label,
+		"drawer_summary_label": _inventory_drawer_summary_label,
+		"drawer_toggle_button": _inventory_drawer_toggle_button,
 		"click_handler": Callable(self, "_handle_inventory_card_click"),
 		"drag_complete_handler": Callable(self, "_handle_inventory_card_drag_completed"),
 		"drag_threshold": INVENTORY_DRAG_THRESHOLD,
@@ -117,6 +141,7 @@ func _ready() -> void:
 	_ensure_inventory_hint_label()
 	_setup_overflow_prompt()
 	_apply_temp_theme()
+	_prime_inventory_drawer_preview()
 	_ensure_hunger_warning_toast()
 	_route_binding.style_route_buttons_for_overlay_mode()
 	_apply_text_density_pass()
@@ -134,6 +159,7 @@ func _ready() -> void:
 	var bootstrap = _get_app_bootstrap()
 	if bootstrap != null:
 		bootstrap.ensure_run_state_initialized()
+	_setup_first_run_hint_controller()
 
 	call_deferred("_sync_overlays_with_flow_state")
 	call_deferred("_refresh_ui")
@@ -159,6 +185,7 @@ func _exit_tree() -> void:
 	if _hunger_warning_toast != null:
 		_hunger_warning_toast.release()
 	SceneLayoutHelperScript.unbind_viewport_size_changed(self, Callable(self, "_on_viewport_size_changed"))
+	_release_first_run_hint_controller_host()
 	if _run_inventory_panel != null:
 		_run_inventory_panel.release()
 	if _overlay_director != null:
@@ -424,6 +451,7 @@ func _refresh_ui() -> void:
 		_apply_portrait_safe_layout()
 	if _route_binding != null:
 		_route_binding.render(run_state)
+	_request_first_contextual_map_hints(run_state)
 
 	_is_refreshing_ui = false
 	if _refresh_ui_pending:
@@ -444,17 +472,31 @@ func _refresh_inventory_cards(run_state: RunState) -> void:
 		return
 	var pressure_text: String = _presenter.build_inventory_pressure_text(run_state)
 	_run_inventory_panel.render({
+		"drawer_enabled": true,
+		"drawer_expanded": _map_inventory_drawer_expanded,
+		"drawer_title": MAP_INVENTORY_DRAWER_TITLE,
+		"drawer_summary": _build_map_inventory_drawer_summary(run_state, pressure_text),
+		"drawer_toggle_text": "Hide Cards" if _map_inventory_drawer_expanded else "Show Cards",
 		"equipment_title": inventory_presenter.build_equipment_title_text(),
 		"equipment_hint": inventory_presenter.build_equipment_hint_text(false),
 		"equipment_hint_visible": true,
 		"inventory_title": inventory_presenter.build_inventory_title_text(run_state.inventory_state if run_state != null else null),
-		"inventory_hint": pressure_text if not pressure_text.is_empty() else inventory_presenter.build_run_inventory_hint_text(),
-		"inventory_hint_visible": (not pressure_text.is_empty() or not inventory_presenter.build_run_inventory_hint_text().is_empty()) and get_viewport_rect().size.y >= 2000.0,
+		"inventory_hint": pressure_text if not pressure_text.is_empty() else inventory_presenter.build_run_inventory_hint_text(run_state.inventory_state if run_state != null else null),
+		"inventory_hint_visible": (not pressure_text.is_empty() or not inventory_presenter.build_run_inventory_hint_text(run_state.inventory_state if run_state != null else null).is_empty()) and get_viewport_rect().size.y >= 2000.0,
 		"equipment_cards": inventory_presenter.build_run_equipment_cards(run_state),
 		"backpack_cards": inventory_presenter.build_run_inventory_cards(run_state),
 		"clickable_resolver": Callable(self, "_inventory_card_is_clickable"),
 		"draggable_resolver": Callable(self, "_inventory_card_is_draggable"),
 	})
+	_scan_first_run_inventory_hints(run_state)
+
+
+func _build_map_inventory_drawer_summary(run_state: RunState, pressure_text: String) -> String:
+	var _unused_pressure_text := pressure_text
+	var inventory_presenter: InventoryPresenter = _run_inventory_panel.get_presenter() if _run_inventory_panel != null else null
+	if inventory_presenter == null:
+		return ""
+	return inventory_presenter.build_inventory_drawer_summary_text(run_state.inventory_state if run_state != null else null)
 
 
 func _inventory_card_is_clickable(card_model: Dictionary) -> bool:
@@ -501,6 +543,11 @@ func _handle_inventory_card_drag_completed(slot_id: int, target_index: int) -> v
 	if not bool(move_result.get("ok", false)):
 		_append_status_line(_build_inventory_failure_text(move_result))
 		return
+	_refresh_ui()
+
+
+func _on_inventory_drawer_toggle_pressed() -> void:
+	_map_inventory_drawer_expanded = not _map_inventory_drawer_expanded
 	_refresh_ui()
 
 
@@ -551,6 +598,45 @@ func _build_inventory_failure_text(result: Dictionary) -> String:
 
 func _get_app_bootstrap() -> AppBootstrapScript:
 	return (_scene_node("/root/AppBootstrap") as AppBootstrapScript) if is_inside_tree() else null
+
+
+func _setup_first_run_hint_controller() -> void:
+	_first_run_hint_controller = _resolve_first_run_hint_controller()
+	if _first_run_hint_controller == null:
+		return
+	_first_run_hint_controller.setup(self, TOP_ROW_PATH, 140)
+
+
+func _release_first_run_hint_controller_host() -> void:
+	if _first_run_hint_controller == null:
+		return
+	_first_run_hint_controller.release_host(self)
+	_first_run_hint_controller = null
+
+
+func _request_first_run_hint(hint_id: String) -> void:
+	_setup_first_run_hint_controller()
+	if _first_run_hint_controller == null:
+		return
+	_first_run_hint_controller.request_hint(hint_id)
+
+
+func _scan_first_run_inventory_hints(run_state: RunState) -> void:
+	_setup_first_run_hint_controller()
+	if _first_run_hint_controller == null or run_state == null:
+		return
+	_first_run_hint_controller.scan_inventory_hints(run_state.inventory_state)
+
+
+func _resolve_first_run_hint_controller() -> FirstRunHintController:
+	var bootstrap = _get_app_bootstrap()
+	if bootstrap == null:
+		return null
+	bootstrap.ensure_run_state_initialized()
+	var coordinator: RefCounted = bootstrap.run_session_coordinator
+	if coordinator == null:
+		return null
+	return coordinator.get("_first_run_hint_controller") as FirstRunHintController
 
 
 func _setup_overflow_prompt() -> void:
@@ -887,6 +973,8 @@ func _on_viewport_size_changed() -> void:
 	_apply_portrait_safe_layout()
 	if _run_inventory_panel != null:
 		_run_inventory_panel.refresh_hovered_tooltip()
+	if _first_run_hint_controller != null:
+		_first_run_hint_controller.refresh_position()
 	_position_hunger_warning_toast()
 	_position_active_overlays()
 	if _route_binding != null:
@@ -938,6 +1026,32 @@ func close_all_overlays(immediate: bool = false) -> void:
 func _apply_portrait_safe_layout() -> void:
 	MapExploreSceneUiScript.apply_portrait_safe_layout(self, PORTRAIT_SAFE_MAX_WIDTH, PORTRAIT_SAFE_MIN_SIDE_MARGIN)
 
+
+func _prime_inventory_drawer_preview() -> void:
+	if _inventory_drawer_card != null:
+		_inventory_drawer_card.visible = true
+	if _inventory_drawer_title_label != null:
+		_inventory_drawer_title_label.text = MAP_INVENTORY_DRAWER_TITLE
+		_inventory_drawer_title_label.visible = true
+	if _inventory_drawer_summary_label != null:
+		_inventory_drawer_summary_label.text = ""
+		_inventory_drawer_summary_label.visible = false
+	if _inventory_drawer_toggle_button != null:
+		_inventory_drawer_toggle_button.text = "Show Cards"
+		_inventory_drawer_toggle_button.visible = true
+	if _equipment_panel != null:
+		_equipment_panel.visible = false
+	if _backpack_panel != null:
+		_backpack_panel.visible = false
+	if _equipment_title_label != null:
+		_equipment_title_label.visible = false
+	if _equipment_hint_label != null:
+		_equipment_hint_label.visible = false
+	if _inventory_title_label != null:
+		_inventory_title_label.visible = false
+	if _inventory_hint_label != null:
+		_inventory_hint_label.visible = false
+
 func _setup_safe_menu() -> void:
 	var menu_config: Dictionary = RunMenuSceneHelperScript.shared_menu_config()
 	_safe_menu = RunMenuSceneHelperScript.ensure_safe_menu(
@@ -983,6 +1097,30 @@ func _on_hunger_threshold_crossed(_old_threshold: int, new_threshold: int) -> vo
 	if warning_text.is_empty():
 		return
 	_show_hunger_warning(warning_text, new_threshold)
+	_request_first_run_hint("first_low_hunger_warning")
+
+
+func _request_first_contextual_map_hints(run_state: RunState) -> void:
+	if run_state == null:
+		return
+	if _overlay_director != null and _overlay_director.has_active_overlay():
+		return
+	if _has_key_required_route_hint_context(run_state):
+		_request_first_run_hint("first_key_required_route")
+
+
+func _has_key_required_route_hint_context(run_state: RunState) -> bool:
+	if run_state == null or run_state.map_runtime_state == null:
+		return false
+	for node_snapshot_variant in run_state.map_runtime_state.build_adjacent_node_snapshots():
+		if typeof(node_snapshot_variant) != TYPE_DICTIONARY:
+			continue
+		var node_snapshot: Dictionary = node_snapshot_variant
+		if String(node_snapshot.get("node_family", "")) != "boss":
+			continue
+		if String(node_snapshot.get("node_state", "")) == MapRuntimeStateScript.NODE_STATE_LOCKED:
+			return true
+	return false
 
 
 func _show_hunger_warning(warning_text: String, threshold: int) -> void:

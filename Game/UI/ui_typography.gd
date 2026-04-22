@@ -7,6 +7,7 @@ const CINZEL_FONT := preload("res://Assets/UI/Fonts/cinzel_variable.ttf")
 const ROLE_BODY := "body"
 const ROLE_HEADING := "heading"
 const ROLE_BUTTON := "button"
+const ROLE_VALUE := "value"
 
 const DEFAULT_BODY_SIZE := 18
 const DEFAULT_MUTED_SIZE := 16
@@ -70,7 +71,7 @@ static func resolve_font(role: String = ROLE_BODY) -> Font:
 	match role:
 		ROLE_HEADING:
 			return CINZEL_FONT
-		ROLE_BUTTON:
+		ROLE_BUTTON, ROLE_VALUE:
 			return INTER_FONT
 		_:
 			return INTER_FONT
@@ -78,7 +79,7 @@ static func resolve_font(role: String = ROLE_BODY) -> Font:
 
 static func resolve_label_role(tone: String = "body") -> String:
 	match tone:
-		"title", "accent", "reward", "danger":
+		"title":
 			return ROLE_HEADING
 		_:
 			return ROLE_BODY

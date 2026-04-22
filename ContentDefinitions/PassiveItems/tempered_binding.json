@@ -1,7 +1,6 @@
 {
   "schema_version": 1,
   "definition_id": "tempered_binding",
-  "authoring_order": 30,
   "family": "PassiveItems",
   "tags": [
     "passive",

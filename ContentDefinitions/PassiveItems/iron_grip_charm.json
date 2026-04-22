@@ -1,7 +1,6 @@
 {
   "schema_version": 1,
   "definition_id": "iron_grip_charm",
-  "authoring_order": 10,
   "family": "PassiveItems",
   "tags": [
     "passive",

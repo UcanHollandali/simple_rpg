@@ -14,6 +14,8 @@ SCENES_ROOT = PROJECT_ROOT / "scenes"
 TESTS_ROOT = PROJECT_ROOT / "Tests"
 DOCS_ROOT = PROJECT_ROOT / "Docs"
 DOCS_ARCHIVE_ROOT = DOCS_ROOT / "Archive"
+HANDOFF_FILE = DOCS_ROOT / "HANDOFF.md"
+ROADMAP_FILE = DOCS_ROOT / "ROADMAP.md"
 APP_BOOTSTRAP_FILE = APPLICATION_ROOT / "app_bootstrap.gd"
 APP_BOOTSTRAP_PUBLIC_METHOD_LIMIT = 35
 APP_BOOTSTRAP_ALLOWED_PUBLIC_METHODS = {
@@ -71,7 +73,6 @@ GAME_FLOW_STATE_MACHINE_FILE = DOCS_ROOT / "GAME_FLOW_STATE_MACHINE.md"
 MAP_CONTRACT_FILE = DOCS_ROOT / "MAP_CONTRACT.md"
 COMBAT_INVENTORY_SLOT_BRIDGE_ALLOWED_FILES = {
     PROJECT_ROOT / "Game" / "RuntimeState" / "combat_state.gd",
-    PROJECT_ROOT / "Game" / "UI" / "inventory_presenter.gd",
 }
 RUN_SUMMARY_CLEANUP_ALLOWED_FILES = {
     PROJECT_ROOT / "Game" / "UI" / "run_summary_cleanup_helper.gd",
@@ -79,8 +80,13 @@ RUN_SUMMARY_CLEANUP_ALLOWED_FILES = {
 HOTSPOT_FILE_LINE_LIMITS = {
     PROJECT_ROOT / "Game" / "RuntimeState" / "map_runtime_state.gd": 2350,
     PROJECT_ROOT / "scenes" / "combat.gd": 1200,
-    PROJECT_ROOT / "scenes" / "map_explore.gd": 1967,
+    PROJECT_ROOT / "scenes" / "map_explore.gd": 1200,
     PROJECT_ROOT / "Game" / "UI" / "map_board_composer_v2.gd": 1000,
+    PROJECT_ROOT / "Game" / "UI" / "temp_screen_theme.gd": 1000,
+    PROJECT_ROOT / "Game" / "UI" / "map_explore_scene_ui.gd": 850,
+    PROJECT_ROOT / "Game" / "UI" / "combat_scene_ui.gd": 575,
+    PROJECT_ROOT / "Game" / "UI" / "map_board_style.gd": 725,
+    PROJECT_ROOT / "Game" / "UI" / "map_board_canvas.gd": 620,
     PROJECT_ROOT / "Game" / "Infrastructure" / "save_service.gd": 700,
     PROJECT_ROOT / "Game" / "Infrastructure" / "save_service_legacy_loader.gd": 500,
     PROJECT_ROOT / "Game" / "Application" / "inventory_actions.gd": 320,
@@ -92,6 +98,17 @@ HOTSPOT_FILE_LINE_LIMITS = {
     PROJECT_ROOT / "Game" / "UI" / "safe_menu_overlay.gd": 645,
     PROJECT_ROOT / "Game" / "Application" / "combat_flow.gd": 764,
     PROJECT_ROOT / "Game" / "UI" / "inventory_presenter.gd": 753,
+    PROJECT_ROOT / "Tests" / "test_map_runtime_state.gd": 2450,
+    PROJECT_ROOT / "Tests" / "test_phase2_loop.gd": 1200,
+    PROJECT_ROOT / "Tests" / "test_map_board_composer_v2.gd": 1175,
+    PROJECT_ROOT / "Tests" / "test_map_explore_presenter.gd": 975,
+    PROJECT_ROOT / "Tools" / "validate_content.py": 3000,
+    PROJECT_ROOT / "Tools" / "validate_architecture_guards.py": 800,
+    PROJECT_ROOT / "Tools" / "godot_windows_common.ps1": 380,
+}
+ACTIVE_DOC_LINE_LIMITS = {
+    HANDOFF_FILE: 360,
+    ROADMAP_FILE: 240,
 }
 
 CURRENT_NODE_INDEX_ALLOWED_FILES = {
@@ -233,6 +250,48 @@ LEGACY_OVERLAY_CONTRACT_FRAGMENTS = {
         "OVERLAY_OPEN_METHODS",
         "OVERLAY_CLOSE_METHODS",
     ),
+}
+PRIVATE_OWNER_CALL_REGRESSION_FRAGMENTS = {
+    PROJECT_ROOT / "Game" / "UI" / "map_route_binding.gd": (
+        "_board_composer._clearing_radius_for(",
+    ),
+    PROJECT_ROOT / "Tests" / "test_map_board_composer_v2.gd": (
+        "MapBoardEdgeRoutingScript._outer_reconnect_candidate_score(",
+        'composer.call("_clearing_radius_for"',
+    ),
+}
+PRIVATE_OWNER_CALL_SPREAD_ALLOWED_FILES = {
+    "._build_stream_seed(": {
+        PROJECT_ROOT / "scenes" / "map_explore.gd",
+    },
+    'call("_move_to_node"': {
+        PROJECT_ROOT / "Tests" / "test_button_tour.gd",
+        PROJECT_ROOT / "Tests" / "test_combat_safe_menu.gd",
+        PROJECT_ROOT / "Tests" / "test_phase2_loop.gd",
+        PROJECT_ROOT / "Tests" / "test_reward_node.gd",
+        PROJECT_ROOT / "Tests" / "test_save_file_roundtrip.gd",
+        PROJECT_ROOT / "Tests" / "test_save_support_interaction.gd",
+        PROJECT_ROOT / "Tests" / "test_support_interaction.gd",
+    },
+    'call("_refresh_ui"': {
+        PROJECT_ROOT / "Tests" / "test_button_tour.gd",
+        PROJECT_ROOT / "Tests" / "test_combat_safe_menu.gd",
+        PROJECT_ROOT / "Tests" / "test_event_node.gd",
+        PROJECT_ROOT / "Tests" / "test_first_run_hint_scene_hooks.gd",
+        PROJECT_ROOT / "Tests" / "test_phase2_loop.gd",
+        PROJECT_ROOT / "Tests" / "test_reward_node.gd",
+        PROJECT_ROOT / "Tests" / "test_save_file_roundtrip.gd",
+        PROJECT_ROOT / "Tests" / "test_save_support_interaction.gd",
+        PROJECT_ROOT / "Tests" / "test_support_interaction.gd",
+    },
+    'call("_sync_overlays_with_flow_state"': {
+        PROJECT_ROOT / "Tests" / "test_scene_router.gd",
+    },
+    'call("_filter_template_ids_for_source_context"': set(),
+    'call("_build_combat_inventory_hint_text"': set(),
+    'call("_build_combat_pack_summary_card"': set(),
+    'call("_on_card_gui_input"': set(),
+    'call("_find_inventory_card_from_control"': set(),
 }
 
 
@@ -624,12 +683,68 @@ def validate_overlay_contract_regressions() -> list[str]:
     return errors
 
 
+def validate_private_owner_call_regressions() -> list[str]:
+    errors: list[str] = []
+    for path, forbidden_fragments in PRIVATE_OWNER_CALL_REGRESSION_FRAGMENTS.items():
+        if not path.is_file():
+            continue
+
+        lines = path.read_text(encoding="utf-8").splitlines()
+        for line_number, line in enumerate(lines, start=1):
+            for fragment in forbidden_fragments:
+                if fragment not in line:
+                    continue
+
+                rel_path = path.relative_to(PROJECT_ROOT).as_posix()
+                errors.append(
+                    f"{rel_path}:{line_number}: private owner call fragment {fragment!r} should stay removed; use an explicit owner-backed helper instead of reaching into another class's private method"
+                )
+    return errors
+
+
+def validate_private_owner_call_spread() -> list[str]:
+    errors: list[str] = []
+    for fragment, allowed_files in PRIVATE_OWNER_CALL_SPREAD_ALLOWED_FILES.items():
+        for path in iter_gd_files(GAME_ROOT, SCENES_ROOT, TESTS_ROOT):
+            if path in allowed_files:
+                continue
+
+            lines = path.read_text(encoding="utf-8").splitlines()
+            for line_number, line in enumerate(lines, start=1):
+                if fragment not in line:
+                    continue
+
+                rel_path = path.relative_to(PROJECT_ROOT).as_posix()
+                errors.append(
+                    f"{rel_path}:{line_number}: private owner call fragment {fragment!r} should not spread beyond its explicit grandfathered lane; extract a public owner-backed helper instead"
+                )
+    return errors
+
+
 def validate_run_session_coordinator_public_surface() -> list[str]:
     return validate_public_method_budget(
         RUN_SESSION_COORDINATOR_FILE,
         RUN_SESSION_COORDINATOR_PUBLIC_METHOD_LIMIT,
         "RunSessionCoordinator",
     )
+
+
+def validate_active_doc_ballast() -> list[str]:
+    errors: list[str] = []
+    for path, line_limit in ACTIVE_DOC_LINE_LIMITS.items():
+        if not path.is_file():
+            continue
+
+        line_count = len(path.read_text(encoding="utf-8").splitlines())
+        if line_count <= line_limit:
+            continue
+
+        rel_path = path.relative_to(PROJECT_ROOT).as_posix()
+        errors.append(
+            f"{rel_path}: active doc grew to {line_count} lines (limit {line_limit}). "
+            "Rewrite the snapshot/queue doc instead of letting continuation ballast accumulate."
+        )
+    return errors
 
 
 def main() -> int:
@@ -647,8 +762,11 @@ def main() -> int:
     errors.extend(validate_retired_gate_warden_surface())
     errors.extend(validate_typed_reflection_regressions())
     errors.extend(validate_overlay_contract_regressions())
+    errors.extend(validate_private_owner_call_regressions())
+    errors.extend(validate_private_owner_call_spread())
     errors.extend(validate_run_session_coordinator_public_surface())
     errors.extend(validate_hotspot_file_growth())
+    errors.extend(validate_active_doc_ballast())
     errors.extend(validate_stale_wrapper_regressions())
     errors.extend(validate_command_event_catalog_alignment())
     errors.extend(validate_node_resolve_contract_alignment())

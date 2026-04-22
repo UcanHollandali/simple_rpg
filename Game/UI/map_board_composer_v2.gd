@@ -5,6 +5,8 @@ class_name MapBoardComposerV2
 const MapRuntimeStateScript = preload("res://Game/RuntimeState/map_runtime_state.gd")
 const UiAssetPathsScript = preload("res://Game/UI/ui_asset_paths.gd")
 const MapBoardBackdropBuilderScript = preload("res://Game/UI/map_board_backdrop_builder.gd")
+const MapBoardGroundBuilderScript = preload("res://Game/UI/map_board_ground_builder.gd")
+const MapBoardFillerBuilderScript = preload("res://Game/UI/map_board_filler_builder.gd")
 const MapBoardGeometryScript = preload("res://Game/UI/map_board_geometry.gd")
 const MapBoardEdgeRoutingScript = preload("res://Game/UI/map_board_edge_routing.gd")
 const MapBoardLayoutSolverScript = preload("res://Game/UI/map_board_layout_solver.gd")
@@ -73,20 +75,21 @@ func compose(
 	var stable_world_positions: Dictionary = (stable_layout.get("world_positions", {}) as Dictionary).duplicate(true)
 	var can_reuse_stable_layout: bool = _stable_layout_matches_board_size(stable_world_positions, start_node_id, board_size)
 	var world_positions: Dictionary = stable_world_positions if can_reuse_stable_layout else {}
-	if world_positions.is_empty():
-		world_positions = _build_world_positions(graph_snapshot, board_size, layout_context, template_profile, board_seed)
+	if world_positions.is_empty(): world_positions = _build_world_positions(graph_snapshot, board_size, layout_context, template_profile, board_seed)
 	var graph_nodes: Array[Dictionary] = _build_graph_node_entries(graph_snapshot, world_positions, board_size)
 	var layout_edges: Array = (stable_layout.get("layout_edges", []) as Array).duplicate(true) if can_reuse_stable_layout else []
-	if layout_edges.is_empty():
-		layout_edges = _build_full_edge_layouts(graph_by_id, graph_nodes, world_positions, layout_context, template_profile, board_seed, board_size)
+	if layout_edges.is_empty(): layout_edges = _build_full_edge_layouts(graph_by_id, graph_nodes, world_positions, layout_context, template_profile, board_seed, board_size)
 	var visible_nodes: Array = _build_visible_node_entries(graph_snapshot, graph_by_id, world_positions, current_node_id, board_size)
 	var visible_edges: Array = _build_visible_edges(layout_edges, visible_nodes, current_node_id, board_size)
 	var focus_anchor: Vector2 = board_size * focus_anchor_factor
 	var current_world_position: Vector2 = world_positions.get(current_node_id, board_size * BASE_CENTER_FACTOR)
 	var focus_offset: Vector2 = _clamp_focus_offset(focus_anchor - current_world_position, max_focus_offset)
+	var ground_shapes: Array = (stable_layout.get("ground_shapes", []) as Array).duplicate(true) if can_reuse_stable_layout else []
+	if ground_shapes.is_empty(): ground_shapes = MapBoardGroundBuilderScript.build_ground_shapes(board_size, graph_nodes, template_profile, board_seed, BASE_CENTER_FACTOR, MIN_BOARD_MARGIN)
+	var filler_shapes: Array = (stable_layout.get("filler_shapes", []) as Array).duplicate(true) if can_reuse_stable_layout else []
+	if filler_shapes.is_empty(): filler_shapes = MapBoardFillerBuilderScript.build_filler_shapes(board_size, graph_nodes, layout_edges, template_profile, board_seed, BASE_CENTER_FACTOR, MIN_BOARD_MARGIN)
 	var forest_shapes: Array = (stable_layout.get("forest_shapes", []) as Array).duplicate(true) if can_reuse_stable_layout else []
-	if forest_shapes.is_empty():
-		forest_shapes = MapBoardBackdropBuilderScript.build_forest_shapes(board_size, graph_nodes, graph_by_id, world_positions, template_profile, board_seed, BASE_CENTER_FACTOR, MIN_BOARD_MARGIN)
+	if forest_shapes.is_empty(): forest_shapes = MapBoardBackdropBuilderScript.build_forest_shapes(board_size, graph_nodes, graph_by_id, world_positions, template_profile, board_seed, BASE_CENTER_FACTOR, MIN_BOARD_MARGIN)
 	return {
 		"seed": board_seed,
 		"template_profile": template_profile,
@@ -97,9 +100,17 @@ func compose(
 		"layout_edges": layout_edges,
 		"visible_nodes": visible_nodes,
 		"visible_edges": visible_edges,
+		"ground_shapes": ground_shapes,
+		"filler_shapes": filler_shapes,
 		"forest_shapes": forest_shapes,
 		"focus_offset": focus_offset,
 	}
+
+
+func build_clearing_radius(node_family: String, state_semantic: String, board_size: Vector2) -> float:
+	return _clearing_radius_for(node_family, state_semantic, board_size)
+
+
 func _empty_composition() -> Dictionary:
 	return {
 		"seed": 0,
@@ -111,6 +122,8 @@ func _empty_composition() -> Dictionary:
 		"layout_edges": [],
 		"visible_nodes": [],
 		"visible_edges": [],
+		"ground_shapes": [],
+		"filler_shapes": [],
 		"forest_shapes": [],
 		"focus_offset": Vector2.ZERO,
 	}

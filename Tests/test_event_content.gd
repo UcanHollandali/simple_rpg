@@ -72,8 +72,6 @@ func test_roadside_trigger_conditions_filter_template_pool() -> void:
 	var loader: ContentLoader = ContentLoaderScript.new()
 	var roadside_state: EventState = EventStateScript.new()
 	roadside_state.source_context = EventStateScript.SOURCE_CONTEXT_ROADSIDE_ENCOUNTER
-	var template_ids: Array[String] = loader.list_definition_ids("EventTemplates")
-
 	var wealthy_context: Dictionary = {
 		EventStateScript.TRIGGER_STAT_HUNGER: 20,
 		EventStateScript.TRIGGER_STAT_HP_PERCENT: 100.0,
@@ -90,12 +88,12 @@ func test_roadside_trigger_conditions_filter_template_pool() -> void:
 	var healthy_context: Dictionary = wealthy_context.duplicate(true)
 	healthy_context[EventStateScript.TRIGGER_STAT_HP_PERCENT] = 100.0
 
-	var wealthy_ids: Array[String] = roadside_state.call("_filter_template_ids_for_source_context", template_ids, loader, wealthy_context)
-	var poor_ids: Array[String] = roadside_state.call("_filter_template_ids_for_source_context", template_ids, loader, poor_context)
-	var hungry_ids: Array[String] = roadside_state.call("_filter_template_ids_for_source_context", template_ids, loader, hungry_context)
-	var fed_ids: Array[String] = roadside_state.call("_filter_template_ids_for_source_context", template_ids, loader, fed_context)
-	var wounded_ids: Array[String] = roadside_state.call("_filter_template_ids_for_source_context", template_ids, loader, wounded_context)
-	var healthy_ids: Array[String] = roadside_state.call("_filter_template_ids_for_source_context", template_ids, loader, healthy_context)
+	var wealthy_ids: Array[String] = roadside_state.build_filtered_template_ids(loader, wealthy_context)
+	var poor_ids: Array[String] = roadside_state.build_filtered_template_ids(loader, poor_context)
+	var hungry_ids: Array[String] = roadside_state.build_filtered_template_ids(loader, hungry_context)
+	var fed_ids: Array[String] = roadside_state.build_filtered_template_ids(loader, fed_context)
+	var wounded_ids: Array[String] = roadside_state.build_filtered_template_ids(loader, wounded_context)
+	var healthy_ids: Array[String] = roadside_state.build_filtered_template_ids(loader, healthy_context)
 
 	assert(wealthy_ids.has("yellow_road_cutpurses"), "Expected gold-triggered roadside cutpurses to join the eligible roadside pool when the player is carrying gold.")
 	assert(not poor_ids.has("yellow_road_cutpurses"), "Expected gold-triggered roadside cutpurses to stay out of the eligible pool when the player is broke.")

@@ -52,6 +52,7 @@ var _overflow_prompt: InventoryOverflowPrompt
 var _pending_overflow_action_id: String = ""
 var _action_in_flight: bool = false
 var _scene_node_cache: Dictionary = {}
+var _first_run_hint_controller: FirstRunHintController
 
 @onready var _header_chip_label: Label = _scene_node("%s/ChipCard/ChipLabel" % HEADER_STACK_PATH) as Label
 @onready var _header_title_label: Label = _scene_node("%s/TitleLabel" % HEADER_STACK_PATH) as Label
@@ -81,11 +82,14 @@ func _ready() -> void:
 	SceneLayoutHelperScript.bind_viewport_size_changed(self, Callable(self, "_apply_portrait_safe_layout"))
 	_apply_portrait_safe_layout()
 	_render_support_state()
+	_setup_first_run_hint_controller()
+	_request_contextual_first_run_hint()
 	SceneAudioPlayersScript.start_looping(self, "SupportMusicPlayer")
 	SceneAudioPlayersScript.play(self, "PanelOpenSfxPlayer")
 
 
 func _exit_tree() -> void:
+	_release_first_run_hint_controller_host()
 	if _action_tooltip_controller != null:
 		_action_tooltip_controller.release()
 		_action_tooltip_controller = null
@@ -116,7 +120,7 @@ func _on_action_pressed(index: int) -> void:
 		if String(result.get("error", "")) == "inventory_choice_required":
 			_present_inventory_overflow_prompt(offer_id, result)
 			return
-		_set_support_status_text("Action failed: %s" % String(result.get("error", "unknown")))
+		_set_support_status_text(_presenter.build_action_failure_text(String(result.get("error", "unknown"))))
 		_render_support_state()
 		return
 	_support_state = _bootstrap.get_support_interaction_state()
@@ -418,7 +422,7 @@ func _on_overflow_discard_requested(slot_id: int) -> void:
 		return
 	_action_in_flight = false
 	_clear_overflow_prompt()
-	_set_support_status_text("Action failed: %s" % String(result.get("error", "unknown")))
+	_set_support_status_text(_presenter.build_action_failure_text(String(result.get("error", "unknown"))))
 	_support_state = _bootstrap.get_support_interaction_state()
 	_render_support_state()
 
@@ -461,6 +465,8 @@ func _apply_portrait_safe_layout() -> void:
 		])
 	if _action_tooltip_controller != null:
 		_action_tooltip_controller.refresh_hovered_tooltip()
+	if _first_run_hint_controller != null:
+		_first_run_hint_controller.refresh_position()
 
 
 func _hide_run_status_card() -> void:
@@ -486,3 +492,35 @@ func _scene_node(path: String) -> Node:
 	if node != null:
 		_scene_node_cache[path] = node
 	return node
+
+
+func _setup_first_run_hint_controller() -> void:
+	_first_run_hint_controller = _resolve_first_run_hint_controller()
+	if _first_run_hint_controller == null:
+		return
+	_first_run_hint_controller.setup(self, HEADER_STACK_PATH, 190)
+
+
+func _release_first_run_hint_controller_host() -> void:
+	if _first_run_hint_controller == null:
+		return
+	_first_run_hint_controller.release_host(self)
+	_first_run_hint_controller = null
+
+
+func _request_contextual_first_run_hint() -> void:
+	_setup_first_run_hint_controller()
+	if _first_run_hint_controller == null or _support_state == null:
+		return
+	if String(_support_state.support_type) == "hamlet":
+		_first_run_hint_controller.request_hint("first_hamlet")
+
+
+func _resolve_first_run_hint_controller() -> FirstRunHintController:
+	if _bootstrap == null:
+		return null
+	_bootstrap.ensure_run_state_initialized()
+	var coordinator: RefCounted = _bootstrap.run_session_coordinator
+	if coordinator == null:
+		return null
+	return coordinator.get("_first_run_hint_controller") as FirstRunHintController

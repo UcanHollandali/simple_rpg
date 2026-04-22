@@ -68,17 +68,21 @@ func _on_process_frame() -> void:
 				var event_root: Node = _get_scene_root("Event")
 
 				var title_label: Label = event_root.get_node("Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard/HeaderStack/TitleLabel") as Label
-				var context_label: Label = event_root.get_node("Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard/HeaderStack/ContextLabel") as Label
-				var hint_label: Label = event_root.get_node("Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard/HeaderStack/HintLabel") as Label
+				var context_label: Label = event_root.get_node("Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard/HeaderStack/HeaderMetaRow/ContextLabel") as Label
+				var hint_label: Label = event_root.get_node("Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard/HeaderStack/HeaderMetaRow/HintLabel") as Label
 				var choice_a_card: Control = event_root.get_node("Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard") as Control
 				var choice_b_card: Control = event_root.get_node("Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard") as Control
-				var choice_a_button: Button = event_root.get_node("Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard/VBox/ChoiceAButton") as Button
-				var choice_b_button: Button = event_root.get_node("Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard/VBox/ChoiceBButton") as Button
+				var choice_a_button: Button = event_root.get_node("Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard/VBox/ActionShell/ChoiceAButton") as Button
+				var choice_b_button: Button = event_root.get_node("Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard/VBox/ActionShell/ChoiceBButton") as Button
 				var choice_a_title: Label = event_root.get_node("Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard/VBox/ChoiceTitleLabel") as Label
 				var choice_b_title: Label = event_root.get_node("Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard/VBox/ChoiceTitleLabel") as Label
+				var choice_a_summary: Label = event_root.get_node("Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard/VBox/ChoiceSummaryLabel") as Label
 				var choice_a_detail: Label = event_root.get_node("Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard/VBox/ChoiceDetailLabel") as Label
+				var choice_a_availability: Label = event_root.get_node("Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard/VBox/ChoiceAvailabilityLabel") as Label
+				var choice_a_action_shell: PanelContainer = event_root.get_node("Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard/VBox/ActionShell") as PanelContainer
 				var launcher_button: Button = event_root.get_node_or_null(SAFE_MENU_LAUNCHER_BUTTON_PATH) as Button
 				var run_status_card: PanelContainer = event_root.get_node_or_null("Margin/VBox/OffersShell/VBox/HeaderRow/RunStatusCard") as PanelContainer
+				var status_card: PanelContainer = event_root.get_node_or_null("Margin/VBox/StatusCard") as PanelContainer
 				var tooltip_panel: PanelContainer = event_root.get_node_or_null("InventoryTooltipPanel") as PanelContainer
 				var tooltip_label: Label = tooltip_panel.get_node_or_null("InventoryTooltipLabel") as Label if tooltip_panel != null else null
 
@@ -95,7 +99,11 @@ func _on_process_frame() -> void:
 				_require(launcher_button.get_theme_constant("icon_max_width") == int(launcher_metrics.get("icon_size", -1)), "Expected Event safe menu launcher to keep the shared icon scale.")
 				_require(choice_a_title.text == "Wash the road dust away", "Expected first roadside-encounter choice title from content.")
 				_require(choice_b_title.text == "Turn over the offering bowl", "Expected second roadside-encounter choice title from content.")
+				_require(choice_a_summary.text == "Kneel, rinse the blood from your hands, and drink until your breathing steadies.", "Expected event cards to preserve the authored summary line ahead of the effect read.")
 				_require(choice_a_detail.text == "Recover 10 HP.", "Expected event card detail to stay short and outcome-first.")
+				_require(choice_a_availability != null and not choice_a_availability.visible, "Expected current authored event choices to keep the disabled-reason line hidden when no availability truth is present.")
+				_require(choice_a_action_shell.visible, "Expected the event choice CTA to stay inside a dedicated footer shell.")
+				_require(status_card != null and not status_card.visible, "Expected event status feedback shell to stay hidden until a real result needs it.")
 				var choice_a_tooltip_text: String = String(choice_a_button.get_meta("custom_tooltip_text", ""))
 				var choice_b_tooltip_text: String = String(choice_b_button.get_meta("custom_tooltip_text", ""))
 				_require(not choice_a_tooltip_text.is_empty(), "Expected first event choice button to expose custom hover tooltip copy.")

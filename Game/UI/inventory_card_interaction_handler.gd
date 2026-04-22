@@ -94,6 +94,10 @@ func stop_interaction() -> void:
 	_drag_active = false
 
 
+func find_inventory_card_from_control(control: Control) -> PanelContainer:
+	return _find_inventory_card_from_control(control)
+
+
 func _on_card_mouse_entered(card: Control, accent: Color) -> void:
 	if _mouse_entered_handler.is_valid():
 		_mouse_entered_handler.call(card, accent)

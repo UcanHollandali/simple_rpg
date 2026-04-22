@@ -1,7 +1,6 @@
 {
   "schema_version": 1,
   "definition_id": "salvager_rivet",
-  "authoring_order": 75,
   "family": "PassiveItems",
   "tags": [
     "passive",

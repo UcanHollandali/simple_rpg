@@ -34,6 +34,7 @@ Derived data, cached data, facade reads, and UI view state do not replace that o
 | owned character perks | `CharacterPerkState` serialized through `RunState` | run-local progression bonuses loaded from `CharacterPerks`; not inventory items |
 | pending level-up offer list | `LevelUpState` | perk offer window currently follows explicit top-level `authoring_order` on `CharacterPerks` |
 | pending support visit offer list | `SupportInteractionState` | merchant stock reads deterministic run-seeded stage-local authored stock pools (`basic_merchant_stock.json`, `stage_1_merchant_stock_roadpack.json`, `stage_1_merchant_stock_scout.json`, `stage_2_merchant_stock.json`, `stage_2_merchant_stock_kit.json`, `stage_2_merchant_stock_forgegear.json`, `stage_3_merchant_stock.json`, `stage_3_merchant_stock_bulwark.json`, `stage_3_merchant_stock_convoy.json`); rest offers remain narrow runtime-owned slices; blacksmith offers are runtime-owned service and target-selection slices over carried weapon / armor items plus active-weapon repair; hamlet offer state carries the current stage-local authored request definition, side-quest status, marked target, optional quest-item hook, and claim offers while `SupportInteraction` is open |
+| shown first-run hint ids already dismissed on this save | `FirstRunHintController`, persisted through `RunSessionCoordinator.get_app_state_save_data()` | application continuity for one-shot hint gating; not `RunState`, not gameplay truth |
 | content metadata and rule blocks | `ContentDefinitions/*` | definitions are logic input, never runtime owner replacement |
 | save snapshot assembly and restore orchestration | `SaveRuntimeBridge` | delegates file IO and schema validation to `SaveService` |
 | file IO and save-path policy | `SaveService` | infrastructure owner only |
@@ -145,6 +146,7 @@ Current implemented baseline:
 - pending support truth from `SupportInteractionState` when `SupportInteraction` is active
 - application continuity from `RunSessionCoordinator.get_app_state_save_data()`
   - `last_run_result` is real application continuity there
+  - `shown_first_run_hints` is real application continuity there for once-per-save hint gating
   - current pending-node fields there are compatibility mirrors over `MapRuntimeState` owner truth, not a second owner
 - snapshot assembly and restore via `SaveRuntimeBridge`
 - file IO and baseline snapshot validation via `SaveService`

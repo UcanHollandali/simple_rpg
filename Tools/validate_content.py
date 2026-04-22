@@ -93,6 +93,27 @@ SUPPORTED_MAP_TEMPLATE_SLOT_TYPES = {
     "late_event",
     "late_hamlet",
 }
+MAP_TEMPLATE_TAG_ACTIVE_RUNTIME_PROFILE = "active_runtime_profile"
+MAP_TEMPLATE_TAG_REFERENCE_ONLY_SCAFFOLD = "reference_only_scaffold"
+MAP_TEMPLATE_TAG_LEGACY_LOAD_COMPAT = "legacy_load_compat"
+MAP_TEMPLATE_ROLE_TAGS = {
+    MAP_TEMPLATE_TAG_ACTIVE_RUNTIME_PROFILE,
+    MAP_TEMPLATE_TAG_REFERENCE_ONLY_SCAFFOLD,
+    MAP_TEMPLATE_TAG_LEGACY_LOAD_COMPAT,
+}
+ACTIVE_RUNTIME_MAP_TEMPLATE_IDS = {
+    "procedural_stage_corridor_v1",
+    "procedural_stage_openfield_v1",
+    "procedural_stage_loop_v1",
+}
+REFERENCE_ONLY_MAP_TEMPLATE_IDS = {
+    "procedural_stage_cluster_v1",
+    "procedural_stage_detour_v1",
+}
+LEGACY_LOAD_COMPAT_MAP_TEMPLATE_IDS = {
+    "fixed_stage_cluster",
+    "fixed_stage_detour",
+}
 SUPPORTED_SIDE_MISSION_TYPES = {
     "hunt_marked_enemy",
     "deliver_supplies",
@@ -100,11 +121,13 @@ SUPPORTED_SIDE_MISSION_TYPES = {
     "bring_proof",
 }
 SUPPORTED_WEAPON_DURABILITY_PROFILES = {"sturdy", "standard", "fragile", "heavy"}
-ORDERED_AUTHORING_FAMILIES = {"Enemies", "PassiveItems", "CharacterPerks"}
+ORDERED_AUTHORING_FAMILIES = {"Enemies", "CharacterPerks"}
 ORDERING_FIELD_NAME = "authoring_order"
 SUPPORTED_EVENT_ITEM_FAMILIES = {"consumable", "weapon", "shield", "armor", "belt", "passive", "shield_attachment"}
 SUPPORTED_REWARD_ITEM_FAMILIES = {"consumable", "weapon", "shield", "armor", "belt", "passive", "shield_attachment"}
 SUPPORTED_SIDE_MISSION_REWARD_ITEM_FAMILIES = {"weapon", "shield", "armor", "belt", "consumable", "passive", "shield_attachment"}
+EVENT_TEMPLATE_TAG_EVENT = "event"
+EVENT_TEMPLATE_TAG_ROADSIDE = "roadside"
 
 
 def main(argv: list[str]) -> int:
@@ -317,6 +340,14 @@ def validate_authoring_order(
     errors: list["ValidationIssue"],
 ) -> None:
     if family not in ORDERED_AUTHORING_FAMILIES:
+        if ORDERING_FIELD_NAME in data:
+            errors.append(
+                ValidationError(
+                    json_path,
+                    "unsupported_authoring_order",
+                    f"{family} definitions must not use top-level field '{ORDERING_FIELD_NAME}' in the current runtime-backed slice.",
+                )
+            )
         return
 
     authoring_order = data.get(ORDERING_FIELD_NAME)
@@ -462,7 +493,7 @@ def validate_runtime_support(
         return
 
     if family == "EventTemplates":
-        validate_event_template_runtime_support(json_path, rules, errors, content_root)
+        validate_event_template_runtime_support(json_path, data, rules, errors, content_root)
         return
 
     if family == "Statuses":
@@ -478,7 +509,7 @@ def validate_runtime_support(
         return
 
     if family == "MapTemplates":
-        validate_map_template_runtime_support(json_path, rules, errors)
+        validate_map_template_runtime_support(json_path, data, rules, errors)
         return
 
     if family == "SideMissions":
@@ -1320,9 +1351,14 @@ def validate_merchant_stock_runtime_support(
 
 def validate_map_template_runtime_support(
     json_path: Path,
+    data: dict,
     rules: dict,
     errors: list["ValidationIssue"],
 ) -> None:
+    definition_id = data.get("definition_id", "")
+    tags = data.get("tags", [])
+    validate_map_template_role_tags(json_path, definition_id, tags, errors)
+
     nodes = rules.get("nodes", [])
     if not isinstance(nodes, list) or not nodes:
         errors.append(
@@ -1514,6 +1550,59 @@ def validate_map_template_runtime_support(
         )
 
 
+def validate_map_template_role_tags(
+    json_path: Path,
+    definition_id: object,
+    tags: object,
+    errors: list["ValidationIssue"],
+) -> None:
+    if not isinstance(definition_id, str):
+        return
+    if not isinstance(tags, list):
+        return
+
+    present_role_tags = sorted(tag for tag in tags if isinstance(tag, str) and tag in MAP_TEMPLATE_ROLE_TAGS)
+    if len(present_role_tags) != 1:
+        errors.append(
+            ValidationError(
+                json_path,
+                "invalid_map_template_role_tags",
+                "MapTemplates.tags must include exactly one role tag: %s."
+                % ", ".join(sorted(MAP_TEMPLATE_ROLE_TAGS)),
+            )
+        )
+        return
+
+    expected_role_tag = None
+    if definition_id in ACTIVE_RUNTIME_MAP_TEMPLATE_IDS:
+        expected_role_tag = MAP_TEMPLATE_TAG_ACTIVE_RUNTIME_PROFILE
+    elif definition_id in REFERENCE_ONLY_MAP_TEMPLATE_IDS:
+        expected_role_tag = MAP_TEMPLATE_TAG_REFERENCE_ONLY_SCAFFOLD
+    elif definition_id in LEGACY_LOAD_COMPAT_MAP_TEMPLATE_IDS:
+        expected_role_tag = MAP_TEMPLATE_TAG_LEGACY_LOAD_COMPAT
+
+    if expected_role_tag is None:
+        errors.append(
+            ValidationError(
+                json_path,
+                "unknown_map_template_runtime_role",
+                "MapTemplates.definition_id is not classified in the current runtime/reference/legacy role lock.",
+            )
+        )
+        return
+
+    actual_role_tag = present_role_tags[0]
+    if actual_role_tag != expected_role_tag:
+        errors.append(
+            ValidationError(
+                json_path,
+                "mismatched_map_template_role_tag",
+                "MapTemplates '%s' must carry role tag '%s', not '%s'."
+                % (definition_id, expected_role_tag, actual_role_tag),
+            )
+        )
+
+
 def validate_fixed_map_template_runtime_support(
     json_path: Path,
     family_counts: dict[str, int],
@@ -1574,12 +1663,24 @@ def validate_fixed_map_template_runtime_support(
 
 def validate_event_template_runtime_support(
     json_path: Path,
+    data: dict,
     rules: dict,
     errors: list["ValidationIssue"],
     content_root: Path,
 ) -> None:
+    tags = data.get("tags", [])
+    validate_event_template_source_tags(json_path, tags, errors)
+    has_roadside_tag = isinstance(tags, list) and EVENT_TEMPLATE_TAG_ROADSIDE in tags
     trigger_condition = rules.get("trigger_condition", None)
     if trigger_condition is not None:
+        if not has_roadside_tag:
+            errors.append(
+                ValidationError(
+                    json_path,
+                    "event_trigger_condition_requires_roadside_tag",
+                    "EventTemplates.rules.trigger_condition is only supported on roadside-tagged templates in the current runtime-backed slice.",
+                )
+            )
         validate_rule_condition(json_path, trigger_condition, "EventTemplates.rules.trigger_condition", errors)
         validate_event_trigger_condition(json_path, trigger_condition, errors)
 
@@ -1694,6 +1795,26 @@ def validate_event_template_runtime_support(
                     f"EventTemplates.rules.choices[{index}] must not define amount for effect_type '{effect_type}'.",
                 )
                 )
+
+
+def validate_event_template_source_tags(
+    json_path: Path,
+    tags: object,
+    errors: list["ValidationIssue"],
+) -> None:
+    if not isinstance(tags, list):
+        return
+
+    has_event_tag = EVENT_TEMPLATE_TAG_EVENT in tags
+    has_roadside_tag = EVENT_TEMPLATE_TAG_ROADSIDE in tags
+    if has_event_tag == has_roadside_tag:
+        errors.append(
+            ValidationError(
+                json_path,
+                "invalid_event_template_source_tags",
+                "EventTemplates.tags must include exactly one source-role tag: 'event' or 'roadside'.",
+            )
+        )
 
 
 def validate_event_trigger_condition(

@@ -35,6 +35,8 @@ func _draw() -> void:
 	if _composition.is_empty():
 		return
 	_draw_board_atmosphere()
+	_draw_ground_surface()
+	_draw_filler_shapes()
 	_draw_forest_shapes("canopy")
 	_draw_edges(false)
 	_draw_trail_decals()
@@ -84,6 +86,75 @@ func _draw_board_atmosphere() -> void:
 		MapBoardStyleScript.ATMOSPHERE_GUIDE_ARC_COOL_WIDTH,
 		true
 	)
+
+
+func _draw_ground_surface() -> void:
+	var ground_shapes: Array = _composition.get("ground_shapes", [])
+	var template_profile: String = String(_composition.get("template_profile", "corridor"))
+	for shape_variant in ground_shapes:
+		if typeof(shape_variant) != TYPE_DICTIONARY:
+			continue
+		var shape: Dictionary = shape_variant
+		var center: Vector2 = shape.get("center", Vector2.ZERO) + _board_offset
+		var half_size: Vector2 = shape.get("half_size", Vector2.ZERO)
+		if half_size.x <= 0.0 or half_size.y <= 0.0:
+			continue
+		var family: String = String(shape.get("family", "bed"))
+		var tone_shift: float = float(shape.get("tone_shift", 0.0))
+		var alpha_scale: float = float(shape.get("alpha_scale", 1.0))
+		var rotation_radians: float = deg_to_rad(float(shape.get("rotation_degrees", 0.0)))
+		var outer_polygon: PackedVector2Array = _ellipse_polygon(center, half_size, rotation_radians, 28)
+		draw_colored_polygon(
+			outer_polygon,
+			MapBoardStyleScript.ground_patch_color(template_profile, family, tone_shift, alpha_scale)
+		)
+		var inner_scale: Vector2 = MapBoardStyleScript.ground_patch_inner_scale(family)
+		draw_colored_polygon(
+			_ellipse_polygon(center, Vector2(half_size.x * inner_scale.x, half_size.y * inner_scale.y), rotation_radians, 24),
+			MapBoardStyleScript.ground_patch_inner_color(template_profile, family, tone_shift, alpha_scale)
+		)
+		_draw_closed_polyline(
+			outer_polygon,
+			MapBoardStyleScript.ground_patch_rim_color(template_profile, family, tone_shift, alpha_scale),
+			MapBoardStyleScript.ground_patch_rim_width(family)
+		)
+
+
+func _draw_filler_shapes() -> void:
+	var filler_shapes: Array = _composition.get("filler_shapes", [])
+	var template_profile: String = String(_composition.get("template_profile", "corridor"))
+	for shape_variant in filler_shapes:
+		if typeof(shape_variant) != TYPE_DICTIONARY:
+			continue
+		var shape: Dictionary = shape_variant
+		var center: Vector2 = shape.get("center", Vector2.ZERO) + _board_offset
+		var half_size: Vector2 = shape.get("half_size", Vector2.ZERO)
+		if half_size.x <= 0.0 or half_size.y <= 0.0:
+			continue
+		var family: String = String(shape.get("family", "rock"))
+		var tone_shift: float = float(shape.get("tone_shift", 0.0))
+		var alpha_scale: float = float(shape.get("alpha_scale", 1.0))
+		var rotation_radians: float = deg_to_rad(float(shape.get("rotation_degrees", 0.0)))
+		var outer_polygon: PackedVector2Array = _filler_polygon(family, center, half_size, rotation_radians)
+		draw_colored_polygon(
+			outer_polygon,
+			MapBoardStyleScript.filler_shape_color(template_profile, family, tone_shift, alpha_scale)
+		)
+		var inner_scale: Vector2 = MapBoardStyleScript.filler_shape_inner_scale(family)
+		draw_colored_polygon(
+			_filler_polygon(
+				family,
+				center,
+				Vector2(half_size.x * inner_scale.x, half_size.y * inner_scale.y),
+				rotation_radians
+			),
+			MapBoardStyleScript.filler_shape_inner_color(template_profile, family, tone_shift, alpha_scale)
+		)
+		_draw_closed_polyline(
+			outer_polygon,
+			MapBoardStyleScript.filler_shape_rim_color(template_profile, family, tone_shift, alpha_scale),
+			MapBoardStyleScript.filler_shape_rim_width(family)
+		)
 
 
 func _draw_forest_shapes(shape_family: String) -> void:
@@ -388,6 +459,49 @@ func _sample_quadratic_display_curve(
 func _append_display_point(points: PackedVector2Array, point: Vector2) -> void:
 	if points.is_empty() or points[points.size() - 1].distance_to(point) > 0.5:
 		points.append(point)
+
+
+func _ellipse_polygon(center: Vector2, half_size: Vector2, rotation_radians: float, point_count: int) -> PackedVector2Array:
+	var ellipse_points := PackedVector2Array()
+	var basis_x: Vector2 = Vector2.RIGHT.rotated(rotation_radians)
+	var basis_y: Vector2 = Vector2.DOWN.rotated(rotation_radians)
+	for index in range(point_count):
+		var angle: float = TAU * float(index) / float(point_count)
+		ellipse_points.append(
+			center
+			+ basis_x * cos(angle) * half_size.x
+			+ basis_y * sin(angle) * half_size.y
+		)
+	return ellipse_points
+
+
+func _filler_polygon(family: String, center: Vector2, half_size: Vector2, rotation_radians: float) -> PackedVector2Array:
+	match family:
+		"ruin":
+			return _rotated_rect_polygon(center, half_size, rotation_radians)
+		"water_patch":
+			return _ellipse_polygon(center, Vector2(half_size.x, half_size.y * 0.92), rotation_radians, 24)
+		_:
+			return _ellipse_polygon(center, half_size, rotation_radians, 20)
+
+
+func _rotated_rect_polygon(center: Vector2, half_size: Vector2, rotation_radians: float) -> PackedVector2Array:
+	var rect_points := PackedVector2Array()
+	var basis_x: Vector2 = Vector2.RIGHT.rotated(rotation_radians)
+	var basis_y: Vector2 = Vector2.DOWN.rotated(rotation_radians)
+	rect_points.append(center + basis_x * -half_size.x + basis_y * -half_size.y)
+	rect_points.append(center + basis_x * half_size.x + basis_y * -half_size.y)
+	rect_points.append(center + basis_x * half_size.x + basis_y * half_size.y)
+	rect_points.append(center + basis_x * -half_size.x + basis_y * half_size.y)
+	return rect_points
+
+
+func _draw_closed_polyline(points: PackedVector2Array, color: Color, width: float) -> void:
+	if points.size() < 2 or color.a <= 0.0 or width <= 0.0:
+		return
+	var closed_points := PackedVector2Array(points)
+	closed_points.append(points[0])
+	draw_polyline(closed_points, color, width, true)
 
 
 func _midpoint_for_polyline(points: PackedVector2Array) -> Vector2:

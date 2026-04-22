@@ -14,6 +14,14 @@ const PLAYTEST_LAUNCH_SMOKE_ARG := "--playtest-launch-smoke"
 const PLAYTEST_LAUNCH_SMOKE_QUIT_DELAY_SECONDS := 0.35
 const PORTRAIT_SAFE_MAX_WIDTH := 760
 const PORTRAIT_SAFE_MIN_SIDE_MARGIN := 24
+const APP_BOOTSTRAP_PATH := "/root/AppBootstrap"
+const PANEL_PATH := "Margin/Center/Panel"
+const CHIP_CARD_PATH := "Margin/Center/Panel/VBox/ChipCard"
+const CHIP_LABEL_PATH := "Margin/Center/Panel/VBox/ChipCard/ChipLabel"
+const TITLE_LABEL_PATH := "Margin/Center/Panel/VBox/TitleLabel"
+const MOOD_LABEL_PATH := "Margin/Center/Panel/VBox/MoodLabel"
+const DETAIL_LABEL_PATH := "Margin/Center/Panel/VBox/DetailLabel"
+const HINT_LABEL_PATH := "Margin/Center/Panel/VBox/HintLabel"
 const AUDIO_PLAYER_CONFIG := {
 	"UiConfirmSfxPlayer": {"path": "res://Assets/Audio/SFX/sfx_ui_confirm_01.ogg"},
 	"PanelOpenSfxPlayer": {"path": "res://Assets/Audio/SFX/sfx_panel_open_01.ogg"},
@@ -40,9 +48,17 @@ var _presenter: LaunchIntroPresenter
 var _skip_unlocked: bool = false
 var _transition_started: bool = false
 
+@onready var _panel: PanelContainer = get_node_or_null(PANEL_PATH) as PanelContainer
+@onready var _chip_card: PanelContainer = get_node_or_null(CHIP_CARD_PATH) as PanelContainer
+@onready var _chip_label: Label = get_node_or_null(CHIP_LABEL_PATH) as Label
+@onready var _title_label: Label = get_node_or_null(TITLE_LABEL_PATH) as Label
+@onready var _mood_label: Label = get_node_or_null(MOOD_LABEL_PATH) as Label
+@onready var _detail_label: Label = get_node_or_null(DETAIL_LABEL_PATH) as Label
+@onready var _hint_label: Label = get_node_or_null(HINT_LABEL_PATH) as Label
+
 
 func _ready() -> void:
-	_bootstrap = get_node_or_null("/root/AppBootstrap") as AppBootstrapScript
+	_bootstrap = get_node_or_null(APP_BOOTSTRAP_PATH) as AppBootstrapScript
 	_presenter = LaunchIntroPresenterScript.new()
 	SceneAudioPlayersScript.configure_from_config(self, AUDIO_PLAYER_CONFIG)
 	_apply_temp_theme()
@@ -81,49 +97,40 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _refresh_ui() -> void:
-	var chip_label: Label = get_node_or_null("Margin/Center/Panel/VBox/ChipCard/ChipLabel") as Label
-	if chip_label != null:
-		chip_label.text = _presenter.build_chip_text()
-
-	var title_label: Label = get_node_or_null("Margin/Center/Panel/VBox/TitleLabel") as Label
-	if title_label != null:
-		title_label.text = _presenter.build_title_text()
-
-	var mood_label: Label = get_node_or_null("Margin/Center/Panel/VBox/MoodLabel") as Label
-	if mood_label != null:
-		mood_label.text = _presenter.build_mood_text()
-
-	var detail_label: Label = get_node_or_null("Margin/Center/Panel/VBox/DetailLabel") as Label
-	if detail_label != null:
-		detail_label.text = _presenter.build_detail_text()
-
-	var hint_label: Label = get_node_or_null("Margin/Center/Panel/VBox/HintLabel") as Label
-	if hint_label != null:
-		hint_label.text = _presenter.build_continue_hint_text()
+	if _chip_label != null:
+		_chip_label.text = _presenter.build_chip_text()
+	if _title_label != null:
+		_title_label.text = _presenter.build_title_text()
+	if _mood_label != null:
+		_mood_label.text = _presenter.build_mood_text()
+	if _detail_label != null:
+		_detail_label.text = _presenter.build_detail_text()
+	if _hint_label != null:
+		_hint_label.text = _presenter.build_continue_hint_text()
 
 
 func _apply_temp_theme() -> void:
 	TempScreenThemeScript.apply_panel(
-		get_node_or_null("Margin/Center/Panel") as PanelContainer,
+		_panel,
 		TempScreenThemeScript.PANEL_BORDER_COLOR,
 		22,
 		0.9
 	)
 	TempScreenThemeScript.apply_chip(
-		get_node_or_null("Margin/Center/Panel/VBox/ChipCard") as PanelContainer,
-		get_node_or_null("Margin/Center/Panel/VBox/ChipCard/ChipLabel") as Label,
+		_chip_card,
+		_chip_label,
 		TempScreenThemeScript.TEAL_ACCENT_COLOR
 	)
 	SceneLayoutHelperScript.apply_label_tones(self, [
-		{"path": "Margin/Center/Panel/VBox/TitleLabel", "tone": "title"},
-		{"path": "Margin/Center/Panel/VBox/MoodLabel", "tone": "accent"},
-		{"path": "Margin/Center/Panel/VBox/DetailLabel", "tone": "body"},
-		{"path": "Margin/Center/Panel/VBox/HintLabel", "tone": "muted"},
+		{"path": TITLE_LABEL_PATH, "tone": "title"},
+		{"path": MOOD_LABEL_PATH, "tone": "accent"},
+		{"path": DETAIL_LABEL_PATH, "tone": "body"},
+		{"path": HINT_LABEL_PATH, "tone": "muted"},
 	])
 	SceneLayoutHelperScript.apply_control_overrides(self, {}, [
-		{"path": "Margin/Center/Panel/VBox/TitleLabel", "font_size": 46},
-		{"path": "Margin/Center/Panel/VBox/MoodLabel", "font_size": 22},
-		{"path": "Margin/Center/Panel/VBox/DetailLabel", "font_size": 18},
+		{"path": TITLE_LABEL_PATH, "font_size": 46},
+		{"path": MOOD_LABEL_PATH, "font_size": 22},
+		{"path": DETAIL_LABEL_PATH, "font_size": 18},
 	])
 
 
@@ -133,23 +140,22 @@ func _apply_portrait_safe_layout() -> void:
 		return
 	values["panel_width"] = min(float(values.get("safe_width", 0.0)), float(values.get("panel_width", 0.0)))
 	SceneLayoutHelperScript.apply_control_overrides(self, values, [
-		{"path": "Margin/Center/Panel", "custom_minimum_size": {"x": "panel_width", "y": 0.0}},
+		{"path": PANEL_PATH, "custom_minimum_size": {"x": "panel_width", "y": 0.0}},
 		{"path": "Margin/Center/Panel/VBox", "theme_constants": {"separation": "vbox_separation"}},
-		{"path": "Margin/Center/Panel/VBox/TitleLabel", "font_size": "title_font_size"},
-		{"path": "Margin/Center/Panel/VBox/MoodLabel", "font_size": "mood_font_size"},
-		{"path": "Margin/Center/Panel/VBox/DetailLabel", "font_size": "body_font_size"},
-		{"path": "Margin/Center/Panel/VBox/HintLabel", "font_size": "hint_font_size"},
+		{"path": TITLE_LABEL_PATH, "font_size": "title_font_size"},
+		{"path": MOOD_LABEL_PATH, "font_size": "mood_font_size"},
+		{"path": DETAIL_LABEL_PATH, "font_size": "body_font_size"},
+		{"path": HINT_LABEL_PATH, "font_size": "hint_font_size"},
 	])
 
 
 func _play_open_tween() -> void:
-	var panel: Control = get_node_or_null("Margin/Center/Panel") as Control
-	if panel == null:
+	if _panel == null:
 		return
 
-	panel.modulate = Color(1, 1, 1, 0)
+	_panel.modulate = Color(1, 1, 1, 0)
 	var tween: Tween = create_tween()
-	tween.tween_property(panel, "modulate", Color(1, 1, 1, 1), 0.22)
+	tween.tween_property(_panel, "modulate", Color(1, 1, 1, 1), 0.22)
 
 
 func _unlock_skip() -> void:
@@ -157,14 +163,13 @@ func _unlock_skip() -> void:
 		return
 
 	_skip_unlocked = true
-	var hint_label: Label = get_node_or_null("Margin/Center/Panel/VBox/HintLabel") as Label
-	if hint_label == null:
+	if _hint_label == null:
 		return
 
-	hint_label.visible = true
-	hint_label.modulate = Color(1, 1, 1, 0)
+	_hint_label.visible = true
+	_hint_label.modulate = Color(1, 1, 1, 0)
 	var tween: Tween = create_tween()
-	tween.tween_property(hint_label, "modulate", Color(1, 1, 1, 1), 0.14)
+	tween.tween_property(_hint_label, "modulate", Color(1, 1, 1, 1), 0.14)
 
 
 func _on_auto_continue_timeout() -> void:

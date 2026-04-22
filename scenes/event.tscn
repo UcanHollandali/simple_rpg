@@ -110,21 +110,24 @@ text = "Event"
 horizontal_alignment = 0
 size_flags_horizontal = 3
 
-[node name="ContextLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard/HeaderStack"]
-text = "Choose one authored outcome and continue."
-horizontal_alignment = 0
-autowrap_mode = 3
-size_flags_horizontal = 3
-
 [node name="SummaryLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard/HeaderStack"]
 text = "Summary"
 horizontal_alignment = 0
 autowrap_mode = 3
 size_flags_horizontal = 3
 
-[node name="HintLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard/HeaderStack"]
-text = "Choose one of two outcomes."
+[node name="HeaderMetaRow" type="HBoxContainer" parent="Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard/HeaderStack"]
+theme_override_constants/separation = 12
+
+[node name="ContextLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard/HeaderStack/HeaderMetaRow"]
+text = "Choose one authored outcome and continue."
 horizontal_alignment = 0
+autowrap_mode = 3
+size_flags_horizontal = 3
+
+[node name="HintLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard/HeaderStack/HeaderMetaRow"]
+text = "Choose one of two outcomes."
+horizontal_alignment = 2
 autowrap_mode = 3
 size_flags_horizontal = 3
 
@@ -158,8 +161,18 @@ horizontal_alignment = 0
 text = "Choice A"
 horizontal_alignment = 0
 
+[node name="ChoiceSummaryLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard/VBox"]
+text = "Summary"
+autowrap_mode = 3
+horizontal_alignment = 0
+
 [node name="ChoiceDetailLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard/VBox"]
 text = "Detail"
+autowrap_mode = 3
+horizontal_alignment = 0
+
+[node name="ChoiceAvailabilityLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard/VBox"]
+text = "Unavailable."
 autowrap_mode = 3
 horizontal_alignment = 0
 
@@ -167,7 +180,10 @@ horizontal_alignment = 0
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="ChoiceAButton" type="Button" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard/VBox"]
+[node name="ActionShell" type="PanelContainer" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard/VBox"]
+size_flags_horizontal = 3
+
+[node name="ChoiceAButton" type="Button" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceACard/VBox/ActionShell"]
 text = "Choose This"
 size_flags_horizontal = 3
 icon = ExtResource("5")
@@ -190,8 +206,18 @@ horizontal_alignment = 0
 text = "Choice B"
 horizontal_alignment = 0
 
+[node name="ChoiceSummaryLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard/VBox"]
+text = "Summary"
+autowrap_mode = 3
+horizontal_alignment = 0
+
 [node name="ChoiceDetailLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard/VBox"]
 text = "Detail"
+autowrap_mode = 3
+horizontal_alignment = 0
+
+[node name="ChoiceAvailabilityLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard/VBox"]
+text = "Unavailable."
 autowrap_mode = 3
 horizontal_alignment = 0
 
@@ -199,10 +225,16 @@ horizontal_alignment = 0
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="ChoiceBButton" type="Button" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard/VBox"]
+[node name="ActionShell" type="PanelContainer" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard/VBox"]
+size_flags_horizontal = 3
+
+[node name="ChoiceBButton" type="Button" parent="Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard/VBox/ActionShell"]
 text = "Choose This"
 size_flags_horizontal = 3
 icon = ExtResource("5")
 
-[node name="StatusLabel" type="Label" parent="Margin/VBox"]
+[node name="StatusCard" type="PanelContainer" parent="Margin/VBox"]
+size_flags_horizontal = 3
+
+[node name="StatusLabel" type="Label" parent="Margin/VBox/StatusCard"]
 autowrap_mode = 3

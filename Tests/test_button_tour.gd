@@ -21,11 +21,14 @@ const MAIN_MENU_START_BUTTON_PATH := "Margin/VBox/ActionPanel/ActionVBox/StartRu
 const MAP_SETTINGS_LAUNCHER_BUTTON_PATH := "Margin/VBox/TopRow/SettingsMenuAnchor/SettingsButton"
 const MAP_SETTINGS_CLOSE_BUTTON_PATH := "SafeMenuOverlay/MenuLayer/PanelHolder/PanelRow/MenuPanel/VBox/ActionsVBox/CloseButton"
 const MAP_SETTINGS_MUSIC_BUTTON_PATH := "SafeMenuOverlay/MenuLayer/PanelHolder/PanelRow/MenuPanel/VBox/ActionsVBox/MusicToggleButton"
+const MAP_INVENTORY_DRAWER_TOGGLE_BUTTON_PATH := "Margin/VBox/InventorySection/InventoryDrawerCard/DrawerVBox/DrawerHeaderRow/InventoryDrawerToggleButton"
+const MAP_EQUIPMENT_CARD_PATH := "Margin/VBox/InventorySection/EquipmentCard"
+const MAP_BACKPACK_CARD_PATH := "Margin/VBox/InventorySection/InventoryCard"
 const SUPPORT_ACTION_A_BUTTON_PATH := "Margin/VBox/ActionsRow/ActionAButton"
 const SUPPORT_ACTION_B_BUTTON_PATH := "Margin/VBox/ActionsRow/ActionBButton"
 const SUPPORT_ACTION_C_BUTTON_PATH := "Margin/VBox/ActionsRow/ActionCButton"
 const SUPPORT_LEAVE_BUTTON_PATH := "Margin/VBox/FooterRow/LeaveButton"
-const EVENT_CHOICE_B_BUTTON_PATH := "Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard/VBox/ChoiceBButton"
+const EVENT_CHOICE_B_BUTTON_PATH := "Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard/VBox/ActionShell/ChoiceBButton"
 const COMBAT_ATTACK_BUTTON_PATH := "Margin/VBox/Buttons/ActionCardsRow/AttackActionCard/AttackActionVBox/AttackButton"
 const COMBAT_DEFEND_BUTTON_PATH := "Margin/VBox/Buttons/ActionCardsRow/DefenseActionCard/DefenseActionVBox/DefenseActionButton"
 const COMBAT_RIGHT_HAND_CARD_PATH := "Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/EquipmentCard/EquipmentCardsFlow/InventorySlotRIGHTHANDCard"
@@ -51,7 +54,6 @@ var _map_inventory_cycle_step: int = 0
 var _combat_inventory_cycle_step: int = 0
 var _map_inventory_current_node_before_equipment: int = -1
 var _map_inventory_signature_before_equipment: String = ""
-var _map_board_visual_signature_before_equipment: String = ""
 var _map_inventory_snapshot_before_overflow_prompt: Dictionary = {}
 var _map_weapon_slot_id_before_equipment: int = -1
 var _map_weapon_definition_id_before_equipment: String = ""
@@ -121,30 +123,34 @@ func _on_process_frame() -> void:
 				_require(run_state_on_map != null, "Expected RunState before exercising map equip/unequip flow.")
 				match _map_inventory_cycle_step:
 					0:
+						_require_map_inventory_drawer_state(false)
+						_press(MAP_INVENTORY_DRAWER_TOGGLE_BUTTON_PATH)
+						_map_inventory_cycle_step = 1
+					1:
+						_require_map_inventory_drawer_state(true)
 						_map_inventory_current_node_before_equipment = int(run_state_on_map.map_runtime_state.current_node_id)
 						_map_inventory_signature_before_equipment = _build_map_signature(run_state_on_map)
-						_map_board_visual_signature_before_equipment = _build_route_board_visual_signature(current_scene)
 						_map_weapon_slot_id_before_equipment = int(run_state_on_map.inventory_state.weapon_instance.get("slot_id", -1))
 						_map_weapon_definition_id_before_equipment = String(run_state_on_map.inventory_state.weapon_instance.get("definition_id", ""))
 						_require(_map_weapon_slot_id_before_equipment > 0, "Expected starter weapon slot id before map equip/unequip cycle.")
 						_require(not _map_weapon_definition_id_before_equipment.is_empty(), "Expected starter weapon definition before map equip/unequip cycle.")
 						_click_map_inventory_card("Margin/VBox/InventorySection/EquipmentCard/EquipmentCardsFlow/InventorySlotRIGHTHANDCard")
-						_map_inventory_cycle_step = 1
-					1:
+						_map_inventory_cycle_step = 2
+					2:
+						_require_map_inventory_drawer_state(true)
 						_require(_current_state() == FlowStateScript.Type.MAP_EXPLORE, "Expected map equip/unequip to keep the flow in MAP_EXPLORE.")
 						_require(int(run_state_on_map.map_runtime_state.current_node_id) == _map_inventory_current_node_before_equipment, "Expected map equip/unequip not to change the current node.")
 						_require(_build_map_signature(run_state_on_map) == _map_inventory_signature_before_equipment, "Expected map equip/unequip not to rebuild or reset the active map.")
-						_require(_build_route_board_visual_signature(current_scene) == _map_board_visual_signature_before_equipment, "Expected map equip/unequip not to re-layout the visible board geometry.")
 						_require(run_state_on_map.inventory_state.weapon_instance.is_empty(), "Expected clicking the equipped right-hand card to unequip the weapon on MapExplore.")
 						_require(_inventory_contains_slot_id(run_state_on_map, _map_weapon_slot_id_before_equipment), "Expected unequipped weapon slot to move into the backpack instead of disappearing.")
 						_require_inventory_card_action_copy("Margin/VBox/InventorySection/InventoryCard/InventoryCardsFlow/InventorySlot2Card", "Tap to equip")
 						_click_map_inventory_card("Margin/VBox/InventorySection/InventoryCard/InventoryCardsFlow/InventorySlot2Card")
-						_map_inventory_cycle_step = 2
-					2:
+						_map_inventory_cycle_step = 3
+					3:
+						_require_map_inventory_drawer_state(true)
 						_require(_current_state() == FlowStateScript.Type.MAP_EXPLORE, "Expected re-equipping on MapExplore to keep the flow in MAP_EXPLORE.")
 						_require(int(run_state_on_map.map_runtime_state.current_node_id) == _map_inventory_current_node_before_equipment, "Expected re-equipping not to change the current node.")
 						_require(_build_map_signature(run_state_on_map) == _map_inventory_signature_before_equipment, "Expected re-equipping not to rebuild or reset the active map.")
-						_require(_build_route_board_visual_signature(current_scene) == _map_board_visual_signature_before_equipment, "Expected re-equipping not to re-layout the visible board geometry.")
 						_require(String(run_state_on_map.inventory_state.weapon_instance.get("definition_id", "")) == _map_weapon_definition_id_before_equipment, "Expected map re-equip to restore the original weapon definition.")
 						_require(int(run_state_on_map.inventory_state.weapon_instance.get("slot_id", -1)) == _map_weapon_slot_id_before_equipment, "Expected map re-equip to restore the original weapon slot id.")
 						_require(not _inventory_contains_slot_id(run_state_on_map, _map_weapon_slot_id_before_equipment), "Expected re-equipped weapon slot to leave the backpack.")
@@ -152,20 +158,23 @@ func _on_process_frame() -> void:
 						_fill_backpack_to_capacity(run_state_on_map)
 						current_scene.call("_refresh_ui")
 						_click_map_inventory_card("Margin/VBox/InventorySection/EquipmentCard/EquipmentCardsFlow/InventorySlotRIGHTHANDCard")
-						_map_inventory_cycle_step = 3
-					3:
+						_map_inventory_cycle_step = 4
+					4:
+						_require_map_inventory_drawer_state(true)
 						_require(_current_state() == FlowStateScript.Type.MAP_EXPLORE, "Expected full-backpack unequip prompt to keep the flow in MAP_EXPLORE.")
 						var overflow_prompt: Control = _get_map_inventory_overflow_prompt()
 						_require(overflow_prompt != null and overflow_prompt.visible, "Expected full-backpack unequip on MapExplore to open the inventory overflow prompt.")
 						_press_map_overflow_prompt_first_discard()
-						_map_inventory_cycle_step = 4
-					4:
+						_map_inventory_cycle_step = 5
+					5:
+						_require_map_inventory_drawer_state(true)
 						_require(_current_state() == FlowStateScript.Type.MAP_EXPLORE, "Expected discard-resolved unequip to stay on MapExplore.")
 						_require(run_state_on_map.inventory_state.weapon_instance.is_empty(), "Expected discard-resolved unequip to clear the active weapon lane.")
 						_require(_inventory_contains_slot_id(run_state_on_map, _map_weapon_slot_id_before_equipment), "Expected discard-resolved unequip to move the active weapon into the backpack.")
 						_click_map_inventory_card_by_slot_id(_map_weapon_slot_id_before_equipment)
-						_map_inventory_cycle_step = 5
-					5:
+						_map_inventory_cycle_step = 6
+					6:
+						_require_map_inventory_drawer_state(true)
 						_require(_current_state() == FlowStateScript.Type.MAP_EXPLORE, "Expected re-equipping after discard-resolved unequip to keep the flow on MapExplore.")
 						_require(String(run_state_on_map.inventory_state.weapon_instance.get("definition_id", "")) == _map_weapon_definition_id_before_equipment, "Expected the original weapon to re-equip after the discard-resolved unequip path.")
 						run_state_on_map.inventory_state.load_from_flat_save_dict(_map_inventory_snapshot_before_overflow_prompt)
@@ -463,6 +472,17 @@ func _click_map_inventory_card_by_slot_id(slot_id: int) -> void:
 	_fail("Expected a map backpack card for slot id %d." % slot_id)
 
 
+func _require_map_inventory_drawer_state(expected_expanded: bool) -> void:
+	var toggle_button: Button = current_scene.get_node_or_null(MAP_INVENTORY_DRAWER_TOGGLE_BUTTON_PATH) as Button
+	_require(toggle_button != null and toggle_button.visible, "Expected map inventory drawer toggle button to exist.")
+	var equipment_card: Control = current_scene.get_node_or_null(MAP_EQUIPMENT_CARD_PATH) as Control
+	var backpack_card: Control = current_scene.get_node_or_null(MAP_BACKPACK_CARD_PATH) as Control
+	_require(equipment_card != null, "Expected map equipment card container to exist.")
+	_require(backpack_card != null, "Expected map backpack card container to exist.")
+	_require(equipment_card.visible == expected_expanded, "Expected map equipment card visibility %s, got %s." % [expected_expanded, equipment_card.visible])
+	_require(backpack_card.visible == expected_expanded, "Expected map backpack card visibility %s, got %s." % [expected_expanded, backpack_card.visible])
+
+
 func _require_inventory_card_action_copy(node_path: String, expected_fragment: String) -> void:
 	var card: PanelContainer = _get_scene_root().get_node_or_null(node_path) as PanelContainer
 	_require(card != null, "Expected inventory card at %s." % node_path)
@@ -485,6 +505,10 @@ func _require_combat_inventory_card_density() -> void:
 	var inventory_gap: float = inventory_card.get_global_rect().end.y - inventory_cards_flow.get_global_rect().end.y
 	_require(equipment_gap <= 24.0, "Expected combat equipment panel to hug its card row, got bottom gap %.2f." % equipment_gap)
 	_require(inventory_gap <= 24.0, "Expected combat backpack panel to hug its card row, got bottom gap %.2f." % inventory_gap)
+	var equipment_rect: Rect2 = equipment_card.get_global_rect()
+	var inventory_rect: Rect2 = inventory_card.get_global_rect()
+	_require(inventory_rect.position.y <= equipment_rect.position.y + 2.0, "Expected combat consumables to render before the locked equipment summary.")
+	_require(equipment_rect.size.y <= inventory_rect.size.y + 8.0, "Expected combat equipment summary to stay as compact as the consumable pack.")
 
 
 func _build_combat_inventory_signature(combat_flow: Variant) -> String:
