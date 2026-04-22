@@ -11,9 +11,15 @@ Do not treat it as implementation authorization.
 Measured against the current repo snapshot, not the stale prompt numbers:
 
 - file: `Game/RuntimeState/map_runtime_state.gd`
-- current line count: `2395`
-- current function count: `147`
-- reference SHA256 at planning time: `D6089EB1ECC73CD9C9516C830819986C817B7BB5D7CA73265F469B15C47C2FE1`
+- current line count: `2279`
+- current function count: `146`
+- reference SHA256 at planning time: `84FE62FD362035728A6880B3A1D38DF40DF8F22F0C8EF58346A7596D15F1B92A`
+
+## Landed First Pass
+
+- `Game/RuntimeState/map_scatter_graph_tools.gd` now holds pure scatter adjacency/depth/path/connectivity helpers.
+- `MapRuntimeState` remains the single caller-facing owner.
+- This pass did not move pending-node truth, key/boss-gate logic, reset lifecycle, or save-codec logic.
 
 ## Reading Rule
 

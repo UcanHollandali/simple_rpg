@@ -80,6 +80,7 @@ Derived data, cached data, facade reads, and UI view state do not replace that o
 - Passive items are backpack-carried truth, not equipped-slot truth.
 - Character perks are not inventory truth and do not consume backpack capacity.
 - `weapon_instance`, `right_hand_instance`, `left_hand_instance`, `armor_instance`, `belt_instance`, `consumable_slots`, `passive_slots`, `active_weapon_slot_id`, `active_left_hand_slot_id`, `active_armor_slot_id`, and `active_belt_slot_id` remain compatibility views over the canonical backpack/equipment owner.
+- The current owner-side cached getter plus write-through setter pattern on `consumable_slots` / `passive_slots` is an intentional compatibility exception for narrow legacy restore and bridge callers; it does not make those views a second owner.
 - Current schema-compatible instance fields stay narrow:
   - `definition_id`
   - `current_durability` on weapon slots

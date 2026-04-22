@@ -210,11 +210,13 @@ The current prototype uses authored event templates for the dedicated `Event` fl
     - requires positive integer `amount`
   - current status:
   - runtime-backed only for the dedicated `Event` flow slice
-  - current runtime uses that same flow for both planned map `event` nodes and movement-triggered roadside interruptions, distinguished by `EventState.source_context`
-  - current roadside selection may filter the roadside-tagged pool by optional `rules.trigger_condition` before deterministic seeded template selection
-  - template selection is currently deterministic run-seeded context selection over the filtered stable-id pool, while `selection_seed = 1` keeps the old stage-offset lane for compatibility-style tests/tools
-  - item-grant event choices do not silently evict older backpack loot; when the chosen item would need a new slot, runtime opens a discard-or-leave prompt against the current backpack
-  - no generic multi-effect event matrix, weighted event table, or authored event-graph routing exists in the current truthful slice
+- current runtime uses that same flow for both planned map `event` nodes and movement-triggered roadside interruptions, distinguished by `EventState.source_context`
+- current roadside selection may filter the roadside-tagged pool by optional `rules.trigger_condition` before deterministic seeded template selection
+- template selection is currently deterministic run-seeded context selection over the filtered stable-id pool, while `selection_seed = 1` keeps the old stage-offset lane for compatibility-style tests/tools
+- current repo still keeps `10` live `zz_*` `EventTemplates` stable IDs; treat them as intentional stable identifiers until an explicit approved stable-ID cleanup lands
+- do not rename those `zz_*` IDs as routine filename cleanup
+- item-grant event choices do not silently evict older backpack loot; when the chosen item would need a new slot, runtime opens a discard-or-leave prompt against the current backpack
+- no generic multi-effect event matrix, weighted event table, or authored event-graph routing exists in the current truthful slice
 
 ### MapTemplates
 

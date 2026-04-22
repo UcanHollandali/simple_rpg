@@ -3,30 +3,9 @@ extends Node
 
 const AppBootstrapScript = preload("res://Game/Application/app_bootstrap.gd")
 const FlowStateScript = preload("res://Game/Application/flow_state.gd")
+const OverlayFlowContractScript = preload("res://Game/Application/overlay_flow_contract.gd")
 
 const MAP_EXPLORE_SCENE_PATH := "res://scenes/map_explore.tscn"
-
-# Overlay states: these render as popups on top of MapExplore instead of full scene transitions.
-const OVERLAY_STATES: Array[int] = [
-	FlowStateScript.Type.EVENT,
-	FlowStateScript.Type.SUPPORT_INTERACTION,
-	FlowStateScript.Type.REWARD,
-	FlowStateScript.Type.LEVEL_UP,
-]
-
-const OVERLAY_OPEN_METHODS: Dictionary = {
-	FlowStateScript.Type.EVENT: "open_event_overlay",
-	FlowStateScript.Type.SUPPORT_INTERACTION: "open_support_overlay",
-	FlowStateScript.Type.REWARD: "open_reward_overlay",
-	FlowStateScript.Type.LEVEL_UP: "open_level_up_overlay",
-}
-
-const OVERLAY_CLOSE_METHODS: Dictionary = {
-	FlowStateScript.Type.EVENT: "close_event_overlay",
-	FlowStateScript.Type.SUPPORT_INTERACTION: "close_support_overlay",
-	FlowStateScript.Type.REWARD: "close_reward_overlay",
-	FlowStateScript.Type.LEVEL_UP: "close_level_up_overlay",
-}
 
 var scene_map: Dictionary = {
 	FlowStateScript.Type.MAIN_MENU: "res://scenes/main_menu.tscn",
@@ -115,7 +94,7 @@ func _route_to_state(new_state: int, old_state: int = -1, force_reload: bool = f
 
 
 func _is_overlay_state(state: int) -> bool:
-	return OVERLAY_OPEN_METHODS.has(state)
+	return OverlayFlowContractScript.is_overlay_state(state)
 
 
 func _can_present_overlay_state(state: int) -> bool:
@@ -159,22 +138,21 @@ func _handle_overlay_state_transition(current_scene: Node, new_state: int, _old_
 	if current_scene == null:
 		return false
 
-	var open_method: String = String(OVERLAY_OPEN_METHODS.get(new_state, ""))
-	if open_method.is_empty():
+	if not OverlayFlowContractScript.is_overlay_state(new_state):
 		return false
 
 	# If already on MapExplore, open overlay directly
 	if String(current_scene.scene_file_path) == MAP_EXPLORE_SCENE_PATH:
 		_close_all_map_overlays(current_scene, true)
-		if current_scene.has_method(open_method):
-			current_scene.call_deferred(open_method)
+		if current_scene.has_method(OverlayFlowContractScript.OPEN_OVERLAY_FOR_STATE_METHOD):
+			current_scene.call_deferred(OverlayFlowContractScript.OPEN_OVERLAY_FOR_STATE_METHOD, new_state)
 			return true
 		return false
 
 	# From any other scene (NodeResolve, Combat, etc.), switch to MapExplore first, then open overlay
 	var error_code: Error = get_tree().change_scene_to_file(MAP_EXPLORE_SCENE_PATH)
 	if error_code != OK:
-		push_error("Failed to route to MapExplore for %s overlay (error %d)." % [open_method, error_code])
+		push_error("Failed to route to MapExplore for %s overlay (error %d)." % [FlowStateScript.name_of(new_state), error_code])
 		return false
 	return true
 
@@ -183,10 +161,8 @@ func _close_all_map_overlays(current_scene: Node, immediate: bool = false) -> vo
 		return
 	if String(current_scene.scene_file_path) != MAP_EXPLORE_SCENE_PATH:
 		return
-	for close_method in OVERLAY_CLOSE_METHODS.values():
-		var method_name: String = String(close_method)
-		if current_scene.has_method(method_name):
-			current_scene.call_deferred(method_name, immediate)
+	if current_scene.has_method(OverlayFlowContractScript.CLOSE_ALL_OVERLAYS_METHOD):
+		current_scene.call_deferred(OverlayFlowContractScript.CLOSE_ALL_OVERLAYS_METHOD, immediate)
 
 
 func _apply_overlay_scene_scale_if_needed() -> void:

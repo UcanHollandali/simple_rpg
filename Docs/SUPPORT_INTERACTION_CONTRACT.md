@@ -187,6 +187,7 @@ Deferred from the prototype baseline:
 - `hamlet` is the current exception:
   - accepted and completed side quests may reopen their contract state on revisit
   - claimed side quests must fall back to pure traversal
+- that hamlet reopen-vs-traversal phase split is intentional in the current prototype and should stay documented as such
 - A resolved support-node revisit must not reopen `SupportInteraction`, reroll stock, or mint fresh value.
 - Merchant stock and one-shot action consumption still persist inside the already-open support visit and inside save/load of that active visit.
 

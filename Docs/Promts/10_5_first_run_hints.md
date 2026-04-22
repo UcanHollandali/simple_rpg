@@ -5,6 +5,7 @@ This is a future-queue pack. Do not start it while Prompt 04, Prompt 05, Prompt 
 
 This pack is the only pack in the 06-12.5 wave that touches the save schema. Read the guardrails twice.
 Do not start Prompt 10.5 casually. Treat it as optional until the Prompt 06-10 gains are already stable in screenshot review and manual playtests.
+Per `AGENTS.md`, any real save-shape change is high-risk `escalate first` work. If Part A confirms that a persisted shown-hint field is required, surface that explicitly before implementation instead of treating this as ordinary UI polish.
 
 Read first:
 - `AGENTS.md`
@@ -64,6 +65,16 @@ This pack is the only pack in the 06-12.5 wave that may add to the save schema.
 - The shown-hint set MUST be persisted, not session-scoped. Treat it like other run-independent state, not like `RunState`.
 
 If the save audit reveals that adding the field cleanly would require a migration, an owner-boundary move, or a broader schema interpretation change, stop and say `escalate first`; do not silently fall back to in-memory-only behavior.
+
+## Escalation Gate
+
+- Part A must explicitly restate:
+  - touched owner layer
+  - authority doc
+  - impact: runtime truth / save shape / asset-provenance
+  - minimum validation set
+- If the honest answer is `save shape changes`, treat the work as high-risk `escalate first` per `AGENTS.md`.
+- Do not hide a save-shape change behind "UI polish" wording.
 
 ## Preferred Owner Surfaces
 
@@ -137,6 +148,7 @@ Report:
 - exact save field name
 - whether save_schema_version was bumped (and why or why not)
 - whether the field remained additive-optional under `Docs/SAVE_SCHEMA.md`
+- whether Part A required an explicit `escalate first` acknowledgement before implementation
 - save round-trip evidence
 ```
 

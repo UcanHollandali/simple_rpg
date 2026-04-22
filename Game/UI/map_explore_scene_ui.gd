@@ -6,6 +6,7 @@ const TempScreenThemeScript = preload("res://Game/UI/temp_screen_theme.gd")
 const MapBoardCanvasScript = preload("res://Game/UI/map_board_canvas.gd")
 const SafeMenuLauncherStyleScript = preload("res://Game/UI/safe_menu_launcher_style.gd")
 const SceneLayoutHelperScript = preload("res://Game/UI/scene_layout_helper.gd")
+const InventoryPanelLayoutScript = preload("res://Game/UI/inventory_panel_layout.gd")
 const TOP_ROW_PATH := "Margin/VBox/TopRow"
 const HEADER_CARD_PATH := "Margin/VBox/TopRow/HeaderCard"
 const HEADER_STACK_PATH := "Margin/VBox/TopRow/HeaderCard/HeaderRow/HeaderStack"
@@ -317,8 +318,9 @@ static func apply_portrait_safe_layout(root: Control, max_width: int, min_side_m
 		return
 
 	var viewport_size: Vector2 = root.get_viewport_rect().size
-	var compact_layout: bool = viewport_size.y < 1540.0
-	var very_compact_layout: bool = viewport_size.y < 1360.0
+	var compact_layout: bool = viewport_size.y < InventoryPanelLayoutScript.MAP_SECTION_COMPACT_HEIGHT_THRESHOLD
+	var very_compact_layout: bool = viewport_size.y < InventoryPanelLayoutScript.VERY_COMPACT_HEIGHT_THRESHOLD
+	var inventory_density_band: String = InventoryPanelLayoutScript.density_band_from_flags(compact_layout, very_compact_layout)
 	var launcher_metrics: Dictionary = SafeMenuLauncherStyleScript.resolve_launcher_metrics_for_viewport(viewport_size)
 	var launcher_dimensions: Vector2 = Vector2(launcher_metrics.get("dimensions", Vector2(62.0, 70.0)))
 	SceneLayoutHelperScript.apply_portrait_layout(root, {
@@ -379,36 +381,36 @@ static func apply_portrait_safe_layout(root: Control, max_width: int, min_side_m
 	if inventory_section != null:
 		inventory_section.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		inventory_section.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-		inventory_section.add_theme_constant_override("separation", 1 if very_compact_layout else 3)
+		inventory_section.add_theme_constant_override("separation", InventoryPanelLayoutScript.map_section_separation(inventory_density_band))
 		inventory_section.custom_minimum_size = Vector2.ZERO
 		if equipment_title_label != null:
 			equipment_title_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 		if equipment_hint_label != null:
 			equipment_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			equipment_hint_label.max_lines_visible = 1 if very_compact_layout else 2
+			equipment_hint_label.max_lines_visible = InventoryPanelLayoutScript.map_hint_max_lines(inventory_density_band)
 		if equipment_cards_flow != null:
 			equipment_cards_flow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			equipment_cards_flow.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 			equipment_cards_flow.custom_minimum_size = Vector2.ZERO
-			equipment_cards_flow.add_theme_constant_override("separation", 4 if very_compact_layout else 6 if compact_layout else 8)
+			equipment_cards_flow.add_theme_constant_override("separation", InventoryPanelLayoutScript.card_flow_separation(inventory_density_band))
 		if equipment_card != null:
 			equipment_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			equipment_card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-			equipment_card.custom_minimum_size = Vector2(0.0, 104.0 if very_compact_layout else 116.0 if compact_layout else 136.0)
+			equipment_card.custom_minimum_size = Vector2(0.0, InventoryPanelLayoutScript.panel_height("equipment", inventory_density_band))
 		if inventory_title_label != null:
 			inventory_title_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 		if inventory_hint_label != null:
 			inventory_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			inventory_hint_label.max_lines_visible = 1 if very_compact_layout else 2
+			inventory_hint_label.max_lines_visible = InventoryPanelLayoutScript.map_hint_max_lines(inventory_density_band)
 		if inventory_cards_flow != null:
 			inventory_cards_flow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			inventory_cards_flow.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 			inventory_cards_flow.custom_minimum_size = Vector2.ZERO
-			inventory_cards_flow.add_theme_constant_override("separation", 4 if very_compact_layout else 6 if compact_layout else 8)
+			inventory_cards_flow.add_theme_constant_override("separation", InventoryPanelLayoutScript.card_flow_separation(inventory_density_band))
 		if inventory_card != null:
 			inventory_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			inventory_card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-			inventory_card.custom_minimum_size = Vector2(0.0, 102.0 if very_compact_layout else 114.0 if compact_layout else 138.0)
+			inventory_card.custom_minimum_size = Vector2(0.0, InventoryPanelLayoutScript.panel_height("backpack", inventory_density_band))
 
 	if bottom_row != null:
 		bottom_row.visible = SHOW_BOTTOM_CONTEXT
@@ -421,7 +423,7 @@ static func apply_portrait_safe_layout(root: Control, max_width: int, min_side_m
 			current_anchor_card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 			current_anchor_card.custom_minimum_size = Vector2.ZERO
 		if current_anchor_hint_label != null:
-			current_anchor_hint_label.max_lines_visible = 1 if very_compact_layout else 2
+			current_anchor_hint_label.max_lines_visible = InventoryPanelLayoutScript.map_hint_max_lines(inventory_density_band)
 		if status_card != null:
 			status_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			status_card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN

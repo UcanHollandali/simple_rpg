@@ -1,6 +1,7 @@
 # Layer: Scenes - presentation only
 extends Control
 
+const AppBootstrapScript = preload("res://Game/Application/app_bootstrap.gd")
 const MapExplorePresenterScript = preload("res://Game/UI/map_explore_presenter.gd")
 const RunInventoryPanelScript = preload("res://Game/UI/run_inventory_panel.gd")
 const MapOverlayDirectorScript = preload("res://Game/UI/map_overlay_director.gd")
@@ -98,7 +99,6 @@ func _ready() -> void:
 		"drag_complete_handler": Callable(self, "_handle_inventory_card_drag_completed"),
 		"drag_threshold": INVENTORY_DRAG_THRESHOLD,
 		"enable_tooltip": true,
-		"after_render_handler": Callable(self, "_after_inventory_panel_render"),
 	})
 	_run_inventory_panel.set_interaction_mode("map")
 	_overlay_director = MapOverlayDirectorScript.new()
@@ -377,42 +377,6 @@ func _inventory_card_is_clickable(card_model: Dictionary) -> bool:
 func _inventory_card_is_draggable(card_model: Dictionary) -> bool:
 	return String(card_model.get("card_family", "")) != "empty" and int(card_model.get("inventory_slot_index", -1)) >= 0
 
-func _apply_map_inventory_card_density(container: Container) -> void:
-	if container == null:
-		return
-	var viewport_height: float = get_viewport_rect().size.y
-	var compact_viewport: bool = viewport_height < 1560.0
-	var very_compact_viewport: bool = viewport_height < 1360.0
-	for child in container.get_children():
-		var card: PanelContainer = child as PanelContainer
-		if card == null:
-			continue
-		card.custom_minimum_size = Vector2(
-			102.0 if very_compact_viewport else 112.0 if compact_viewport else 126.0,
-			116.0 if very_compact_viewport else 126.0 if compact_viewport else 142.0
-		)
-		var slot_label: Label = card.get_node_or_null("VBox/HeaderRow/SlotLabel") as Label
-		if slot_label != null:
-			slot_label.add_theme_font_size_override("font_size", 11 if very_compact_viewport else 12)
-		var count_label: Label = card.get_node_or_null("VBox/HeaderRow/CountLabel") as Label
-		if count_label != null:
-			count_label.add_theme_font_size_override("font_size", 12 if very_compact_viewport else 13)
-		var icon_rect: TextureRect = card.get_node_or_null("VBox/IconRect") as TextureRect
-		if icon_rect != null:
-			icon_rect.custom_minimum_size = Vector2(34.0, 34.0) if very_compact_viewport else Vector2(38.0, 38.0) if compact_viewport else Vector2(42.0, 42.0)
-		var placeholder_label: Label = card.get_node_or_null("VBox/PlaceholderLabel") as Label
-		if placeholder_label != null:
-			placeholder_label.add_theme_font_size_override("font_size", 20 if very_compact_viewport else 22 if compact_viewport else 24)
-		var title_label: Label = card.get_node_or_null("VBox/TitleLabel") as Label
-		if title_label != null:
-			title_label.add_theme_font_size_override("font_size", 14 if very_compact_viewport else 15 if compact_viewport else 16)
-		var detail_label: Label = card.get_node_or_null("VBox/DetailLabel") as Label
-		if detail_label != null:
-			detail_label.add_theme_font_size_override("font_size", 11 if very_compact_viewport else 12 if compact_viewport else 13)
-		var action_hint_label: Label = card.get_node_or_null("VBox/ActionHintLabel") as Label
-		if action_hint_label != null:
-			action_hint_label.add_theme_font_size_override("font_size", 10 if very_compact_viewport else 11 if compact_viewport else 12)
-
 
 func _handle_inventory_card_click(_slot_index: int, slot_id: int, card_family: String) -> void:
 	var bootstrap = _get_app_bootstrap()
@@ -497,8 +461,8 @@ func _build_inventory_failure_text(result: Dictionary) -> String:
 			return "Inventory action failed."
 
 
-func _get_app_bootstrap():
-	return _scene_node("/root/AppBootstrap") if is_inside_tree() else null
+func _get_app_bootstrap() -> AppBootstrapScript:
+	return (_scene_node("/root/AppBootstrap") as AppBootstrapScript) if is_inside_tree() else null
 
 
 func _setup_overflow_prompt() -> void:
@@ -682,7 +646,8 @@ func _desired_focus_offset_for_world_position(world_position: Vector2) -> Vector
 		return Vector2.ZERO
 	var context_world_position: Vector2 = MapFocusHelperScript.focus_context_world_position(_board_composition_cache, world_position)
 	var context_blend: float = MapFocusHelperScript.context_blend_for_positions(route_grid, world_position, context_world_position, MapRouteBindingScript.BOARD_FOCUS_CONTEXT_BLEND_MIN, MapRouteBindingScript.BOARD_FOCUS_CONTEXT_BLEND_MAX)
-	return MapFocusHelperScript.desired_focus_offset(route_grid, _route_layout_offset, world_position, MapRouteBindingScript.BOARD_FOCUS_ANCHOR_FACTOR, MapRouteBindingScript.BOARD_MAX_OFFSET_FACTOR, MapRouteBindingScript.BOARD_FOCUS_DEADZONE_FACTOR, MapRouteBindingScript.BOARD_FOCUS_DAMPING, context_world_position, context_blend)
+	var desired_offset: Vector2 = MapFocusHelperScript.desired_focus_offset(route_grid, _route_layout_offset, world_position, MapRouteBindingScript.BOARD_FOCUS_ANCHOR_FACTOR, MapRouteBindingScript.BOARD_MAX_OFFSET_FACTOR, MapRouteBindingScript.BOARD_FOCUS_DEADZONE_FACTOR, MapRouteBindingScript.BOARD_FOCUS_DAMPING, context_world_position, context_blend)
+	return MapFocusHelperScript.clamp_focus_offset_to_visible_bounds(route_grid, _board_composition_cache, desired_offset, MapRouteBindingScript.BOARD_VISIBLE_CONTENT_PADDING)
 
 
 func _route_camera_follow_progress(progress: float) -> float:
@@ -782,9 +747,9 @@ func _run_roadside_continuation_transition(target_state: int, old_state: int) ->
 func _play_roadside_continuation_transition(target_state: int, old_state: int) -> void:
 	match old_state:
 		FlowStateScript.Type.EVENT:
-			close_event_overlay(false)
+			close_overlay_for_state(FlowStateScript.Type.EVENT, false)
 		FlowStateScript.Type.LEVEL_UP:
-			close_level_up_overlay(false)
+			close_overlay_for_state(FlowStateScript.Type.LEVEL_UP, false)
 	if is_inside_tree():
 		await get_tree().create_timer(ROADSIDE_CONTINUATION_CLOSE_LEAD_IN).timeout
 	if _route_binding != null:
@@ -842,11 +807,6 @@ func _on_viewport_size_changed() -> void:
 	call_deferred("_consume_pending_refresh_ui")
 
 
-func _after_inventory_panel_render(equipment_container: Container, backpack_container: Container) -> void:
-	_apply_map_inventory_card_density(equipment_container)
-	_apply_map_inventory_card_density(backpack_container)
-
-
 func _sync_overlays_with_flow_state() -> void:
 	var bootstrap = _get_app_bootstrap()
 	if bootstrap == null:
@@ -869,51 +829,21 @@ func _request_overlay_ui_refresh() -> void:
 	call_deferred("_consume_pending_refresh_ui")
 
 
-func open_event_overlay() -> void:
+func open_overlay_for_state(flow_state: int) -> void:
 	if _overlay_director != null:
-		_overlay_director.open_event_overlay()
+		_overlay_director.open_overlay_for_state(flow_state)
 	_sync_safe_menu_launcher_visibility()
 
 
-func close_event_overlay(immediate: bool = false) -> void:
+func close_overlay_for_state(flow_state: int, immediate: bool = false) -> void:
 	if _overlay_director != null:
-		_overlay_director.close_event_overlay(immediate)
+		_overlay_director.close_overlay_for_state(flow_state, immediate)
 	_sync_safe_menu_launcher_visibility()
 
 
-func open_support_overlay() -> void:
+func close_all_overlays(immediate: bool = false) -> void:
 	if _overlay_director != null:
-		_overlay_director.open_support_overlay()
-	_sync_safe_menu_launcher_visibility()
-
-
-func close_support_overlay(immediate: bool = false) -> void:
-	if _overlay_director != null:
-		_overlay_director.close_support_overlay(immediate)
-	_sync_safe_menu_launcher_visibility()
-
-
-func open_reward_overlay() -> void:
-	if _overlay_director != null:
-		_overlay_director.open_reward_overlay()
-	_sync_safe_menu_launcher_visibility()
-
-
-func close_reward_overlay(immediate: bool = false) -> void:
-	if _overlay_director != null:
-		_overlay_director.close_reward_overlay(immediate)
-	_sync_safe_menu_launcher_visibility()
-
-
-func open_level_up_overlay() -> void:
-	if _overlay_director != null:
-		_overlay_director.open_level_up_overlay()
-	_sync_safe_menu_launcher_visibility()
-
-
-func close_level_up_overlay(immediate: bool = false) -> void:
-	if _overlay_director != null:
-		_overlay_director.close_level_up_overlay(immediate)
+		_overlay_director.close_all(immediate)
 	_sync_safe_menu_launcher_visibility()
 
 

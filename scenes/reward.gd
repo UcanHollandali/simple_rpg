@@ -1,6 +1,7 @@
 # Layer: Scenes - presentation only
 extends Control
 
+const AppBootstrapScript = preload("res://Game/Application/app_bootstrap.gd")
 const FlowStateScript = preload("res://Game/Application/flow_state.gd")
 const RewardStateScript = preload("res://Game/RuntimeState/reward_state.gd")
 const RewardPresenterScript = preload("res://Game/UI/reward_presenter.gd")
@@ -48,7 +49,7 @@ const PORTRAIT_LAYOUT_CONFIG := {
 	},
 }
 
-var _bootstrap
+var _bootstrap: AppBootstrapScript
 var _reward_state: RewardState
 var _run_state: RunState
 var _presenter: RefCounted
@@ -69,7 +70,7 @@ var _scene_node_cache: Dictionary = {}
 
 func _ready() -> void:
 	_scene_node_cache.clear()
-	_bootstrap = _scene_node("/root/AppBootstrap")
+	_bootstrap = _scene_node("/root/AppBootstrap") as AppBootstrapScript
 	_reward_state = null
 	_run_state = null
 	_presenter = RewardPresenterScript.new()

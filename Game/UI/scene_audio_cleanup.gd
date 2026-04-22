@@ -25,6 +25,15 @@ static func release_all_audio_players(root: Node) -> void:
 	SceneAudioPlayersScript.release_shared_music_session(root)
 
 
+static func release_scene_tree_audio(owner: Node) -> void:
+	if owner == null or not owner.is_inside_tree():
+		return
+	var tree: SceneTree = owner.get_tree()
+	if tree == null:
+		return
+	release_all_audio_players(tree.root)
+
+
 static func _release_audio_players_recursive(node: Node) -> void:
 	if node is AudioStreamPlayer:
 		var player: AudioStreamPlayer = node as AudioStreamPlayer

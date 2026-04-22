@@ -4,6 +4,87 @@ class_name MapBoardStyle
 
 const TempScreenThemeScript = preload("res://Game/UI/temp_screen_theme.gd")
 
+const ATMOSPHERE_BACKGROUND_COLOR := Color(0.02, 0.05, 0.04, 0.24)
+const ATMOSPHERE_CENTER_RATIO := Vector2(0.50, 0.60)
+const ATMOSPHERE_CENTER_OFFSET_SCALE := 0.18
+const ATMOSPHERE_LAYER_RADIUS_MULTIPLIERS := [0.48, 0.34]
+const ATMOSPHERE_LAYER_COLORS := [
+	Color(0.14, 0.17, 0.11, 0.11),
+	Color(0.26, 0.23, 0.12, 0.08),
+]
+const ATMOSPHERE_UPPER_GLOW_CENTER_RATIO := Vector2(0.50, 0.18)
+const ATMOSPHERE_UPPER_GLOW_OFFSET_SCALE := 0.08
+const ATMOSPHERE_UPPER_GLOW_RADIUS_MULTIPLIER := 0.13
+const ATMOSPHERE_UPPER_GLOW_COLOR := Color(0.66, 0.55, 0.24, 0.05)
+const ATMOSPHERE_LOWER_SHADE_CENTER_RATIO := Vector2(0.50, 0.92)
+const ATMOSPHERE_LOWER_SHADE_RADIUS_MULTIPLIER := 0.18
+const ATMOSPHERE_LOWER_SHADE_COLOR := Color(0.02, 0.04, 0.03, 0.16)
+const ATMOSPHERE_GUIDE_ARC_WARM_RADIUS_MULTIPLIER := 0.28
+const ATMOSPHERE_GUIDE_ARC_WARM_COLOR := Color(0.84, 0.74, 0.40, 0.05)
+const ATMOSPHERE_GUIDE_ARC_WARM_WIDTH := 1.4
+const ATMOSPHERE_GUIDE_ARC_COOL_RADIUS_MULTIPLIER := 0.38
+const ATMOSPHERE_GUIDE_ARC_COOL_COLOR := Color(0.20, 0.38, 0.30, 0.07)
+const ATMOSPHERE_GUIDE_ARC_COOL_WIDTH := 1.8
+
+const CANOPY_TEXTURE_SCALE := 1.92
+const DECOR_TEXTURE_SCALE := 1.56
+const CANOPY_ALPHA_SCALE := 0.54
+const DECOR_ALPHA_SCALE := 0.72
+const CANOPY_FALLBACK_LOBE_SCALES := [0.94, 0.72, 0.56]
+const CANOPY_FALLBACK_LOBE_OFFSETS := [Vector2(-0.18, -0.10), Vector2(0.18, 0.02), Vector2(0.04, 0.20)]
+const CANOPY_FALLBACK_ALPHA_SCALES := [0.84, 0.68, 0.54]
+
+const TRAIL_STAMP_ALPHA_CAP := 0.34
+const TRAIL_STAMP_ALPHA_MULTIPLIER := 0.42
+const ROAD_HIGHLIGHT_WIDTH_DEFAULT := 3.2
+const ROAD_HIGHLIGHT_WIDTH_HISTORY := 3.4
+const ROAD_HIGHLIGHT_WIDTH_CURRENT := 4.6
+const ROAD_HIGHLIGHT_WIDTH_TARGET := 5.8
+const ROAD_BASE_WIDTH_DEFAULT := 12.0
+const ROAD_BASE_WIDTH_HISTORY := 10.0
+const ROAD_BASE_WIDTH_CURRENT := 13.5
+const ROAD_BASE_WIDTH_TARGET := 16.0
+const ROAD_SHADOW_WIDTH_DEFAULT := 4.5
+const ROAD_SHADOW_WIDTH_HISTORY := 3.8
+const ROAD_SHADOW_ALPHA_DEFAULT := 0.22
+const ROAD_SHADOW_ALPHA_HISTORY := 0.16
+const ROAD_ENDPOINT_TRIM_DEFAULT := 4.0
+const ROAD_ENDPOINT_TRIM_CURRENT := 6.0
+const ROAD_ENDPOINT_TRIM_TARGET := 8.0
+
+const CLEARING_PLATE_SCALE := 2.32
+const CLEARING_PLATE_ALPHA_CURRENT := 0.78
+const CLEARING_PLATE_ALPHA_RESOLVED := 0.72
+const CLEARING_PLATE_ALPHA_DEFAULT := 0.66
+const CLEARING_DECAL_SIZE_MULTIPLIER := Vector2(2.38, 1.70)
+const CLEARING_DECAL_Y_OFFSET_MULTIPLIER := 0.01
+const CLEARING_DECAL_ALPHA_CURRENT := 0.46
+const CLEARING_DECAL_ALPHA_RESOLVED := 0.40
+const CLEARING_DECAL_ALPHA_DEFAULT := 0.32
+const CLEARING_SHADOW_Y_OFFSET_MULTIPLIER := 0.09
+const CLEARING_SHADOW_RADIUS_MULTIPLIER := 0.92
+const CLEARING_SHADOW_ALPHA := 0.18
+const CLEARING_RIM_RADIUS_MULTIPLIER := 1.02
+const CLEARING_FILL_RADIUS_MULTIPLIER := 0.90
+const CLEARING_CURRENT_FILL_LIGHTEN := 0.12
+const CLEARING_RESOLVED_FILL_MIX := 0.48
+const CLEARING_RESOLVED_FILL_ALPHA := 0.60
+const CLEARING_LOCKED_FILL_COLOR := Color(0.28, 0.18, 0.12, 0.74)
+const CLEARING_RIM_LIGHTEN := 0.18
+const CLEARING_RESOLVED_RIM_MIX := 0.40
+const CLEARING_RESOLVED_RIM_ALPHA := 0.20
+const CLEARING_LOCKED_RIM_COLOR := Color(0.78, 0.52, 0.30, 0.30)
+const CLEARING_CURRENT_RIM_COLOR := Color(0.94, 0.84, 0.58, 0.28)
+const CLEARING_DEFAULT_RIM_ALPHA := 0.24
+const KNOWN_ICON_OPEN_ALPHA_CAP := 0.82
+const KNOWN_ICON_SIZE_MULTIPLIER_DEFAULT := 0.98
+const KNOWN_ICON_SIZE_MULTIPLIER_CURRENT := 0.74
+const KNOWN_ICON_MIN_SIZE_DEFAULT := 28.0
+const KNOWN_ICON_MIN_SIZE_CURRENT := 26.0
+const KNOWN_ICON_MAX_SIZE_DEFAULT := 42.0
+const KNOWN_ICON_MAX_SIZE_CURRENT := 38.0
+const KNOWN_ICON_CURRENT_Y_OFFSET_MULTIPLIER := 0.20
+
 
 static func marker_modulate_for_semantic(state_semantic: String, is_disabled: bool) -> Color:
 	if is_disabled:
@@ -139,15 +220,15 @@ static func road_base_color(state_semantic: String, emphasis_level: int = 0) -> 
 	var base_color: Color
 	match state_semantic:
 		"resolved":
-			base_color = Color(0.34, 0.32, 0.28, 0.78)
+			base_color = Color(0.30, 0.30, 0.28, 0.56)
 		"locked":
-			base_color = Color(0.54, 0.28, 0.18, 0.84)
+			base_color = Color(0.50, 0.28, 0.18, 0.76)
 		_:
-			base_color = Color(0.66, 0.56, 0.30, 0.92)
+			base_color = Color(0.60, 0.52, 0.30, 0.82)
 	if emphasis_level >= 2:
-		return _apply_color_emphasis(base_color, 0.12, 0.08)
+		return _apply_color_emphasis(base_color, 0.08, 0.05)
 	if emphasis_level == 1:
-		return _apply_color_emphasis(base_color, 0.05, 0.04)
+		return _apply_color_emphasis(base_color, 0.03, 0.02)
 	return base_color
 
 
@@ -155,16 +236,166 @@ static func road_highlight_color(state_semantic: String, emphasis_level: int = 0
 	var highlight_color: Color
 	match state_semantic:
 		"resolved":
-			highlight_color = Color(0.74, 0.72, 0.66, 0.82)
+			highlight_color = Color(0.70, 0.69, 0.64, 0.38)
 		"locked":
-			highlight_color = Color(0.94, 0.72, 0.48, 0.88)
+			highlight_color = Color(0.90, 0.70, 0.46, 0.56)
 		_:
-			highlight_color = Color(0.96, 0.92, 0.80, 0.92)
+			highlight_color = Color(0.92, 0.88, 0.76, 0.60)
 	if emphasis_level >= 2:
-		return _apply_color_emphasis(highlight_color, 0.08, 0.06)
+		return _apply_color_emphasis(highlight_color, 0.05, 0.04)
 	if emphasis_level == 1:
-		return _apply_color_emphasis(highlight_color, 0.03, 0.03)
+		return _apply_color_emphasis(highlight_color, 0.02, 0.015)
 	return highlight_color
+
+
+static func board_atmosphere_center(board_size: Vector2, board_offset: Vector2) -> Vector2:
+	return board_size * ATMOSPHERE_CENTER_RATIO + board_offset * ATMOSPHERE_CENTER_OFFSET_SCALE
+
+
+static func board_atmosphere_upper_glow_center(board_size: Vector2, board_offset: Vector2) -> Vector2:
+	return board_size * ATMOSPHERE_UPPER_GLOW_CENTER_RATIO + board_offset * ATMOSPHERE_UPPER_GLOW_OFFSET_SCALE
+
+
+static func forest_texture_scale(shape_family: String) -> float:
+	return CANOPY_TEXTURE_SCALE if shape_family == "canopy" else DECOR_TEXTURE_SCALE
+
+
+static func forest_shape_tint(shape_family: String, tone: Color) -> Color:
+	var scaled_tone: Color = tone
+	scaled_tone.a *= CANOPY_ALPHA_SCALE if shape_family == "canopy" else DECOR_ALPHA_SCALE
+	return scaled_tone
+
+
+static func forest_shape_fallback_circles(shape_family: String, center: Vector2, radius: float, rotation_radians: float) -> Array:
+	if shape_family != "canopy" or radius <= 0.0:
+		return [{"center": center, "radius": radius, "alpha_scale": 1.0}]
+	var fallback_circles: Array = []
+	var mirror_x: float = -1.0 if int(floor(absf(center.x * 0.013 + center.y * 0.009 + radius * 0.17))) % 2 == 1 else 1.0
+	var rotation_basis: Vector2 = Vector2.RIGHT.rotated(rotation_radians)
+	var cross_basis: Vector2 = rotation_basis.orthogonal()
+	for index in range(CANOPY_FALLBACK_LOBE_SCALES.size()):
+		var offset_hint: Vector2 = CANOPY_FALLBACK_LOBE_OFFSETS[index]
+		var blob_center: Vector2 = center + (
+			rotation_basis * (offset_hint.x * mirror_x * radius)
+			+ cross_basis * (offset_hint.y * radius)
+		)
+		fallback_circles.append({
+			"center": blob_center,
+			"radius": radius * float(CANOPY_FALLBACK_LOBE_SCALES[index]),
+			"alpha_scale": float(CANOPY_FALLBACK_ALPHA_SCALES[index]),
+		})
+	return fallback_circles
+
+
+static func road_highlight_width(is_history: bool, emphasis_level: int) -> float:
+	if emphasis_level >= 2:
+		return ROAD_HIGHLIGHT_WIDTH_TARGET
+	if emphasis_level == 1:
+		return ROAD_HIGHLIGHT_WIDTH_CURRENT
+	return ROAD_HIGHLIGHT_WIDTH_HISTORY if is_history else ROAD_HIGHLIGHT_WIDTH_DEFAULT
+
+
+static func road_base_width(is_history: bool, emphasis_level: int) -> float:
+	if emphasis_level >= 2:
+		return ROAD_BASE_WIDTH_TARGET
+	if emphasis_level == 1:
+		return ROAD_BASE_WIDTH_CURRENT
+	return ROAD_BASE_WIDTH_HISTORY if is_history else ROAD_BASE_WIDTH_DEFAULT
+
+
+static func road_shadow_width(is_history: bool) -> float:
+	return ROAD_SHADOW_WIDTH_HISTORY if is_history else ROAD_SHADOW_WIDTH_DEFAULT
+
+
+static func road_shadow_alpha(is_history: bool) -> float:
+	return ROAD_SHADOW_ALPHA_HISTORY if is_history else ROAD_SHADOW_ALPHA_DEFAULT
+
+
+static func road_endpoint_trim(emphasis_level: int) -> float:
+	if emphasis_level >= 2:
+		return ROAD_ENDPOINT_TRIM_TARGET
+	if emphasis_level == 1:
+		return ROAD_ENDPOINT_TRIM_CURRENT
+	return ROAD_ENDPOINT_TRIM_DEFAULT
+
+
+static func clearing_plate_alpha(is_current: bool, is_resolved: bool) -> float:
+	if is_current:
+		return CLEARING_PLATE_ALPHA_CURRENT
+	if is_resolved:
+		return CLEARING_PLATE_ALPHA_RESOLVED
+	return CLEARING_PLATE_ALPHA_DEFAULT
+
+
+static func clearing_decal_alpha(is_current: bool, is_resolved: bool) -> float:
+	if is_current:
+		return CLEARING_DECAL_ALPHA_CURRENT
+	if is_resolved:
+		return CLEARING_DECAL_ALPHA_RESOLVED
+	return CLEARING_DECAL_ALPHA_DEFAULT
+
+
+static func clearing_fill_color(node_family: String, state_semantic: String, is_current: bool) -> Color:
+	var base_color: Color = family_ground_tint(node_family)
+	if state_semantic == "resolved":
+		var muted_fill: Color = base_color.lerp(Color(0.18, 0.20, 0.17, base_color.a), CLEARING_RESOLVED_FILL_MIX)
+		muted_fill.a = CLEARING_RESOLVED_FILL_ALPHA
+		return muted_fill
+	if state_semantic == "locked":
+		return CLEARING_LOCKED_FILL_COLOR
+	if is_current:
+		return base_color.lightened(CLEARING_CURRENT_FILL_LIGHTEN)
+	return base_color
+
+
+static func clearing_rim_color(node_family: String, state_semantic: String, is_current: bool) -> Color:
+	var base_color: Color = family_ground_tint(node_family).lightened(CLEARING_RIM_LIGHTEN)
+	if state_semantic == "resolved":
+		var muted_rim: Color = base_color.lerp(Color(0.54, 0.58, 0.50, 1.0), CLEARING_RESOLVED_RIM_MIX)
+		muted_rim.a = CLEARING_RESOLVED_RIM_ALPHA
+		return muted_rim
+	if state_semantic == "locked":
+		return CLEARING_LOCKED_RIM_COLOR
+	if is_current:
+		return CLEARING_CURRENT_RIM_COLOR
+	return Color(base_color.r, base_color.g, base_color.b, CLEARING_DEFAULT_RIM_ALPHA)
+
+
+static func family_ground_tint(node_family: String) -> Color:
+	match node_family:
+		"combat":
+			return Color(0.48, 0.26, 0.18, 0.80)
+		"reward":
+			return Color(0.52, 0.44, 0.16, 0.82)
+		"hamlet":
+			return Color(0.30, 0.22, 0.46, 0.82)
+		"rest":
+			return Color(0.18, 0.38, 0.28, 0.82)
+		"merchant":
+			return Color(0.24, 0.24, 0.46, 0.82)
+		"blacksmith":
+			return Color(0.48, 0.30, 0.16, 0.82)
+		"key":
+			return Color(0.62, 0.50, 0.14, 0.84)
+		"boss":
+			return Color(0.52, 0.20, 0.18, 0.86)
+		"event":
+			return Color(0.18, 0.34, 0.48, 0.82)
+		_:
+			return Color(0.28, 0.34, 0.18, 0.72)
+
+
+static func known_icon_size(radius: float, is_current: bool) -> float:
+	var multiplier: float = KNOWN_ICON_SIZE_MULTIPLIER_CURRENT if is_current else KNOWN_ICON_SIZE_MULTIPLIER_DEFAULT
+	var min_size: float = KNOWN_ICON_MIN_SIZE_CURRENT if is_current else KNOWN_ICON_MIN_SIZE_DEFAULT
+	var max_size: float = KNOWN_ICON_MAX_SIZE_CURRENT if is_current else KNOWN_ICON_MAX_SIZE_DEFAULT
+	return clampf(radius * multiplier, min_size, max_size)
+
+
+static func known_icon_center(center: Vector2, radius: float, is_current: bool) -> Vector2:
+	if not is_current:
+		return center
+	return center + Vector2(0.0, radius * KNOWN_ICON_CURRENT_Y_OFFSET_MULTIPLIER)
 
 
 static func _accent_color_for_semantic(state_semantic: String) -> Color:

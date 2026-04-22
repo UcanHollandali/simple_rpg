@@ -44,20 +44,46 @@ func _draw() -> void:
 
 
 func _draw_board_atmosphere() -> void:
-	draw_rect(Rect2(Vector2.ZERO, size), Color(0.02, 0.05, 0.04, 0.30), true)
-	var center: Vector2 = size * Vector2(0.5, 0.60) + _board_offset * 0.18
-	var atmosphere_radii: Array[float] = [min(size.x, size.y) * 0.52, min(size.x, size.y) * 0.38]
-	var atmosphere_colors: Array[Color] = [
-		Color(0.16, 0.18, 0.11, 0.16),
-		Color(0.28, 0.25, 0.12, 0.12),
-	]
-	for index in range(atmosphere_radii.size()):
-		draw_circle(center, atmosphere_radii[index], atmosphere_colors[index])
-	var upper_glow_center: Vector2 = size * Vector2(0.50, 0.18) + _board_offset * 0.08
-	draw_circle(upper_glow_center, min(size.x, size.y) * 0.16, Color(0.66, 0.55, 0.24, 0.08))
-	draw_circle(size * Vector2(0.50, 0.92), min(size.x, size.y) * 0.22, Color(0.02, 0.04, 0.03, 0.22))
-	draw_arc(center, min(size.x, size.y) * 0.30, -0.16, PI + 0.16, 48, Color(0.84, 0.74, 0.40, 0.08), 2.0, true)
-	draw_arc(center, min(size.x, size.y) * 0.42, PI + 0.18, TAU - 0.18, 52, Color(0.20, 0.38, 0.30, 0.10), 2.4, true)
+	draw_rect(Rect2(Vector2.ZERO, size), MapBoardStyleScript.ATMOSPHERE_BACKGROUND_COLOR, true)
+	var board_span: float = minf(size.x, size.y)
+	var center: Vector2 = MapBoardStyleScript.board_atmosphere_center(size, _board_offset)
+	for index in range(MapBoardStyleScript.ATMOSPHERE_LAYER_RADIUS_MULTIPLIERS.size()):
+		draw_circle(
+			center,
+			board_span * float(MapBoardStyleScript.ATMOSPHERE_LAYER_RADIUS_MULTIPLIERS[index]),
+			MapBoardStyleScript.ATMOSPHERE_LAYER_COLORS[index]
+		)
+	var upper_glow_center: Vector2 = MapBoardStyleScript.board_atmosphere_upper_glow_center(size, _board_offset)
+	draw_circle(
+		upper_glow_center,
+		board_span * MapBoardStyleScript.ATMOSPHERE_UPPER_GLOW_RADIUS_MULTIPLIER,
+		MapBoardStyleScript.ATMOSPHERE_UPPER_GLOW_COLOR
+	)
+	draw_circle(
+		size * MapBoardStyleScript.ATMOSPHERE_LOWER_SHADE_CENTER_RATIO,
+		board_span * MapBoardStyleScript.ATMOSPHERE_LOWER_SHADE_RADIUS_MULTIPLIER,
+		MapBoardStyleScript.ATMOSPHERE_LOWER_SHADE_COLOR
+	)
+	draw_arc(
+		center,
+		board_span * MapBoardStyleScript.ATMOSPHERE_GUIDE_ARC_WARM_RADIUS_MULTIPLIER,
+		-0.16,
+		PI + 0.16,
+		48,
+		MapBoardStyleScript.ATMOSPHERE_GUIDE_ARC_WARM_COLOR,
+		MapBoardStyleScript.ATMOSPHERE_GUIDE_ARC_WARM_WIDTH,
+		true
+	)
+	draw_arc(
+		center,
+		board_span * MapBoardStyleScript.ATMOSPHERE_GUIDE_ARC_COOL_RADIUS_MULTIPLIER,
+		PI + 0.18,
+		TAU - 0.18,
+		52,
+		MapBoardStyleScript.ATMOSPHERE_GUIDE_ARC_COOL_COLOR,
+		MapBoardStyleScript.ATMOSPHERE_GUIDE_ARC_COOL_WIDTH,
+		true
+	)
 
 
 func _draw_forest_shapes(shape_family: String) -> void:
@@ -71,19 +97,29 @@ func _draw_forest_shapes(shape_family: String) -> void:
 		var center: Vector2 = shape.get("center", Vector2.ZERO) + _board_offset
 		var radius: float = float(shape.get("radius", 0.0))
 		var tone: Color = shape.get("tone", Color(0.0, 0.0, 0.0, 0.0))
+		var tinted_tone: Color = MapBoardStyleScript.forest_shape_tint(shape_family, tone)
 		var texture_path: String = String(shape.get("texture_path", ""))
 		var texture: Texture2D = SceneLayoutHelperScript.load_texture_or_null(texture_path)
+		var rotation_radians: float = deg_to_rad(float(shape.get("rotation_degrees", 0.0)))
 		if texture != null:
-			var texture_scale: float = 2.12 if shape_family == "canopy" else 1.72
+			var texture_scale: float = MapBoardStyleScript.forest_texture_scale(shape_family)
 			_draw_texture_stamp(
 				texture,
 				center,
 				Vector2.ONE * radius * texture_scale,
-				tone,
-				deg_to_rad(float(shape.get("rotation_degrees", 0.0)))
+				tinted_tone,
+				rotation_radians
 			)
 			continue
-		draw_circle(center, radius, tone)
+		for circle_variant in MapBoardStyleScript.forest_shape_fallback_circles(shape_family, center, radius, rotation_radians):
+			var circle_center: Vector2 = circle_variant.get("center", center)
+			var circle_radius: float = float(circle_variant.get("radius", radius))
+			var alpha_scale: float = float(circle_variant.get("alpha_scale", 1.0))
+			draw_circle(
+				circle_center,
+				circle_radius,
+				Color(tinted_tone.r, tinted_tone.g, tinted_tone.b, tinted_tone.a * alpha_scale)
+			)
 
 
 func _draw_trail_decals() -> void:
@@ -109,7 +145,7 @@ func _draw_trail_decals() -> void:
 		var state_semantic: String = String(edge.get("state_semantic", "open"))
 		var emphasis_level: int = _edge_emphasis_level(edge)
 		var stamp_tint: Color = MapBoardStyleScript.road_base_color(state_semantic, emphasis_level)
-		stamp_tint.a = min(0.46, stamp_tint.a * 0.54)
+		stamp_tint.a = min(MapBoardStyleScript.TRAIL_STAMP_ALPHA_CAP, stamp_tint.a * MapBoardStyleScript.TRAIL_STAMP_ALPHA_MULTIPLIER)
 		_draw_texture_stamp(
 			trail_texture,
 			center,
@@ -135,31 +171,21 @@ func _draw_edges(draw_highlight_pass: bool) -> void:
 		if draw_highlight_pass:
 			if is_history and emphasis_level == 0:
 				continue
-			var highlight_width: float = 4.0
-			if is_history:
-				highlight_width = 4.4
-			if emphasis_level >= 2:
-				highlight_width = 7.0
-			elif emphasis_level == 1:
-				highlight_width = 5.2
-			draw_polyline(
+			var highlight_points: PackedVector2Array = _trim_polyline_endpoints(
 				translated_points,
+				MapBoardStyleScript.road_endpoint_trim(emphasis_level),
+				MapBoardStyleScript.road_endpoint_trim(emphasis_level)
+			)
+			draw_polyline(
+				highlight_points,
 				MapBoardStyleScript.road_highlight_color(state_semantic, emphasis_level),
-				highlight_width,
+				MapBoardStyleScript.road_highlight_width(is_history, emphasis_level),
 				true
 			)
 		else:
-			var base_width: float = 14.0
-			var shadow_width: float = 7.0
-			var shadow_alpha: float = 0.34
-			if is_history:
-				base_width = 12.0
-				shadow_width = 6.0
-				shadow_alpha = 0.26
-			if emphasis_level >= 2:
-				base_width = 19.0
-			elif emphasis_level == 1:
-				base_width = 16.0
+			var base_width: float = MapBoardStyleScript.road_base_width(is_history, emphasis_level)
+			var shadow_width: float = MapBoardStyleScript.road_shadow_width(is_history)
+			var shadow_alpha: float = MapBoardStyleScript.road_shadow_alpha(is_history)
 			draw_polyline(
 				translated_points,
 				Color(0.02, 0.03, 0.02, shadow_alpha),
@@ -191,25 +217,37 @@ func _draw_clearings() -> void:
 		var node_id: int = int(node_entry.get("node_id", -1))
 		var plate_texture: Texture2D = SceneLayoutHelperScript.load_texture_or_null(String(node_entry.get("node_plate_texture_path", "")))
 		if plate_texture != null:
-			var plate_size: float = radius * 2.46
+			var plate_size: float = radius * MapBoardStyleScript.CLEARING_PLATE_SCALE
 			_draw_texture_stamp(
 				plate_texture,
 				center,
 				Vector2.ONE * plate_size,
-				Color(1, 1, 1, 0.84 if is_current else 0.82 if is_resolved else 0.76)
+				Color(1, 1, 1, MapBoardStyleScript.clearing_plate_alpha(is_current, is_resolved))
 			)
 		var clearing_texture: Texture2D = SceneLayoutHelperScript.load_texture_or_null(String(node_entry.get("clearing_decal_texture_path", "")))
 		if clearing_texture != null:
-			var clearing_size := Vector2(radius * 2.54, radius * 1.82)
+			var clearing_size: Vector2 = radius * MapBoardStyleScript.CLEARING_DECAL_SIZE_MULTIPLIER
 			_draw_texture_stamp(
 				clearing_texture,
-				center + Vector2(0.0, radius * 0.02),
+				center + Vector2(0.0, radius * MapBoardStyleScript.CLEARING_DECAL_Y_OFFSET_MULTIPLIER),
 				clearing_size,
-				Color(1, 1, 1, 0.58 if is_current else 0.50 if is_resolved else 0.42)
+				Color(1, 1, 1, MapBoardStyleScript.clearing_decal_alpha(is_current, is_resolved))
 			)
-		draw_circle(center + Vector2(0.0, radius * 0.12), radius * 0.98, Color(0.01, 0.02, 0.02, 0.26))
-		draw_circle(center, radius * 1.04, _clearing_rim_color(node_family, state_semantic, is_current))
-		draw_circle(center, radius * 0.88, _clearing_fill_color(node_family, state_semantic, is_current))
+		draw_circle(
+			center + Vector2(0.0, radius * MapBoardStyleScript.CLEARING_SHADOW_Y_OFFSET_MULTIPLIER),
+			radius * MapBoardStyleScript.CLEARING_SHADOW_RADIUS_MULTIPLIER,
+			Color(0.01, 0.02, 0.02, MapBoardStyleScript.CLEARING_SHADOW_ALPHA)
+		)
+		draw_circle(
+			center,
+			radius * MapBoardStyleScript.CLEARING_RIM_RADIUS_MULTIPLIER,
+			MapBoardStyleScript.clearing_rim_color(node_family, state_semantic, is_current)
+		)
+		draw_circle(
+			center,
+			radius * MapBoardStyleScript.CLEARING_FILL_RADIUS_MULTIPLIER,
+			MapBoardStyleScript.clearing_fill_color(node_family, state_semantic, is_current)
+		)
 		match node_family:
 			"key":
 				draw_arc(center, radius * 1.10, -0.70, 4.90, 30, Color(1.0, 0.92, 0.56, 0.46), 3.2, true)
@@ -267,56 +305,6 @@ func _visible_node_entry_by_id(node_id: int) -> Dictionary:
 	return {}
 
 
-func _clearing_fill_color(node_family: String, state_semantic: String, is_current: bool) -> Color:
-	var base_color: Color = _family_ground_tint(node_family)
-	if state_semantic == "resolved":
-		var muted_fill: Color = base_color.lerp(Color(0.18, 0.20, 0.17, base_color.a), 0.40)
-		muted_fill.a = 0.70
-		return muted_fill
-	if state_semantic == "locked":
-		return Color(0.30, 0.18, 0.12, 0.80)
-	if is_current:
-		return base_color.lightened(0.20)
-	return base_color
-
-
-func _clearing_rim_color(node_family: String, state_semantic: String, is_current: bool) -> Color:
-	var base_color: Color = _family_ground_tint(node_family).lightened(0.22)
-	if state_semantic == "resolved":
-		var muted_rim: Color = base_color.lerp(Color(0.54, 0.58, 0.50, 1.0), 0.36)
-		muted_rim.a = 0.30
-		return muted_rim
-	if state_semantic == "locked":
-		return Color(0.82, 0.52, 0.28, 0.38)
-	if is_current:
-		return Color(0.96, 0.88, 0.60, 0.40)
-	return Color(base_color.r, base_color.g, base_color.b, 0.32)
-
-
-func _family_ground_tint(node_family: String) -> Color:
-	match node_family:
-		"combat":
-			return Color(0.48, 0.26, 0.18, 0.80)
-		"reward":
-			return Color(0.52, 0.44, 0.16, 0.82)
-		"hamlet":
-			return Color(0.30, 0.22, 0.46, 0.82)
-		"rest":
-			return Color(0.18, 0.38, 0.28, 0.82)
-		"merchant":
-			return Color(0.24, 0.24, 0.46, 0.82)
-		"blacksmith":
-			return Color(0.48, 0.30, 0.16, 0.82)
-		"key":
-			return Color(0.62, 0.50, 0.14, 0.84)
-		"boss":
-			return Color(0.52, 0.20, 0.18, 0.86)
-		"event":
-			return Color(0.18, 0.34, 0.48, 0.82)
-		_:
-			return Color(0.28, 0.34, 0.18, 0.72)
-
-
 func _draw_known_node_icon(node_entry: Dictionary, center: Vector2, radius: float) -> void:
 	if not bool(node_entry.get("show_known_icon", false)):
 		return
@@ -331,9 +319,9 @@ func _draw_known_node_icon(node_entry: Dictionary, center: Vector2, radius: floa
 	var is_current: bool = bool(node_entry.get("is_current", false))
 	var icon_tint: Color = MapBoardStyleScript.icon_modulate_for_semantic(node_family, state_semantic, false, false)
 	if state_semantic == "open":
-		icon_tint.a = min(icon_tint.a, 0.88)
-	var icon_size: float = clampf(radius * (0.82 if is_current else 1.06), 28.0 if is_current else 30.0, 40.0 if is_current else 44.0)
-	var icon_center: Vector2 = center + (Vector2(0.0, radius * 0.28) if is_current else Vector2.ZERO)
+		icon_tint.a = min(icon_tint.a, MapBoardStyleScript.KNOWN_ICON_OPEN_ALPHA_CAP)
+	var icon_size: float = MapBoardStyleScript.known_icon_size(radius, is_current)
+	var icon_center: Vector2 = MapBoardStyleScript.known_icon_center(center, radius, is_current)
 	var icon_rect := Rect2(icon_center - Vector2.ONE * (icon_size * 0.5), Vector2.ONE * icon_size)
 	draw_texture_rect(icon_texture, icon_rect, false, icon_tint)
 
@@ -418,6 +406,48 @@ func _direction_for_polyline(points: PackedVector2Array) -> Vector2:
 	if direction.length_squared() <= 0.001:
 		direction = points[points.size() - 1] - points[0]
 	return direction.normalized() if direction.length_squared() > 0.001 else Vector2.RIGHT
+
+
+func _trim_polyline_endpoints(points: PackedVector2Array, start_trim: float, end_trim: float) -> PackedVector2Array:
+	if points.size() < 2:
+		return points
+	var trimmed_points: Array = []
+	for point in points:
+		trimmed_points.append(point)
+	trimmed_points = _trim_polyline_side(trimmed_points, start_trim, true)
+	trimmed_points = _trim_polyline_side(trimmed_points, end_trim, false)
+	if trimmed_points.size() < 2:
+		return points
+	var packed_points := PackedVector2Array()
+	for point in trimmed_points:
+		packed_points.append(point)
+	return packed_points
+
+
+func _trim_polyline_side(points: Array, trim_amount: float, trim_from_start: bool) -> Array:
+	var remaining: float = trim_amount
+	while remaining > 0.001 and points.size() >= 2:
+		var anchor_index: int = 0 if trim_from_start else points.size() - 1
+		var neighbor_index: int = 1 if trim_from_start else points.size() - 2
+		var anchor_point: Vector2 = points[anchor_index]
+		var neighbor_point: Vector2 = points[neighbor_index]
+		var segment: Vector2 = neighbor_point - anchor_point
+		var segment_length: float = segment.length()
+		if segment_length <= 0.001:
+			points.remove_at(anchor_index)
+			continue
+		if segment_length <= remaining and points.size() > 2:
+			points.remove_at(anchor_index)
+			remaining -= segment_length
+			continue
+		var direction: Vector2 = segment / segment_length
+		remaining = min(remaining, maxf(segment_length - 0.001, 0.0))
+		if trim_from_start:
+			points[0] = anchor_point + direction * remaining
+		else:
+			points[points.size() - 1] = anchor_point + direction * remaining
+		break
+	return points
 
 
 func _draw_texture_stamp(

@@ -2,6 +2,7 @@
 extends Control
 
 const BUTTON_NODE_NAMES: PackedStringArray = ["ChoiceAButton", "ChoiceBButton", "ChoiceCButton"]
+const AppBootstrapScript = preload("res://Game/Application/app_bootstrap.gd")
 const FlowStateScript = preload("res://Game/Application/flow_state.gd")
 const LevelUpPresenterScript = preload("res://Game/UI/level_up_presenter.gd")
 const RunMenuSceneHelperScript = preload("res://Game/UI/run_menu_scene_helper.gd")
@@ -36,7 +37,7 @@ const PORTRAIT_LAYOUT_CONFIG := {
 	},
 }
 
-var _bootstrap
+var _bootstrap: AppBootstrapScript
 var _presenter: LevelUpPresenter
 var _level_up_state: LevelUpState
 var _safe_menu: SafeMenuOverlay
@@ -52,7 +53,7 @@ var _scene_node_cache: Dictionary = {}
 
 func _ready() -> void:
 	_scene_node_cache.clear()
-	_bootstrap = _scene_node("/root/AppBootstrap")
+	_bootstrap = _scene_node("/root/AppBootstrap") as AppBootstrapScript
 	_presenter = LevelUpPresenterScript.new()
 	_level_up_state = null
 	SceneAudioPlayersScript.configure_from_config(self, AUDIO_PLAYER_CONFIG)

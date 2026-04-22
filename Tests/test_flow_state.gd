@@ -9,7 +9,9 @@ const GameFlowManagerScript = preload("res://Game/Application/game_flow_manager.
 func _init() -> void:
 	test_valid_transition_boot_to_main_menu()
 	test_valid_transition_main_menu_to_map_explore()
+	test_valid_transition_map_explore_to_node_resolve()
 	test_valid_transition_map_explore_to_event()
+	test_valid_transition_node_resolve_to_combat()
 	test_valid_transition_save_safe_states_to_main_menu()
 	test_invalid_transition_combat_to_map_explore()
 	test_save_safe_naming_split()
@@ -51,6 +53,17 @@ func test_valid_transition_main_menu_to_map_explore() -> void:
 	manager.free()
 
 
+func test_valid_transition_map_explore_to_node_resolve() -> void:
+	var manager = GameFlowManagerScript.new()
+	manager.current_state = FlowStateScript.Type.MAP_EXPLORE
+	manager.call("request_transition", FlowStateScript.Type.NODE_RESOLVE)
+	assert(
+		manager.call("get_current_state") == FlowStateScript.Type.NODE_RESOLVE,
+		"Expected MAP_EXPLORE -> NODE_RESOLVE to stay valid for the live generic pending-node fallback."
+	)
+	manager.free()
+
+
 func test_valid_transition_map_explore_to_event() -> void:
 	var manager = GameFlowManagerScript.new()
 	manager.current_state = FlowStateScript.Type.MAP_EXPLORE
@@ -58,6 +71,17 @@ func test_valid_transition_map_explore_to_event() -> void:
 	assert(
 		manager.call("get_current_state") == FlowStateScript.Type.EVENT,
 		"Expected MAP_EXPLORE -> EVENT to be valid."
+	)
+	manager.free()
+
+
+func test_valid_transition_node_resolve_to_combat() -> void:
+	var manager = GameFlowManagerScript.new()
+	manager.current_state = FlowStateScript.Type.NODE_RESOLVE
+	manager.call("request_transition", FlowStateScript.Type.COMBAT)
+	assert(
+		manager.call("get_current_state") == FlowStateScript.Type.COMBAT,
+		"Expected NODE_RESOLVE -> COMBAT to stay valid while the live fallback shell remains in the transition table."
 	)
 	manager.free()
 

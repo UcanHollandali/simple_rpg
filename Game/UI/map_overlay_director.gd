@@ -2,8 +2,10 @@
 extends RefCounted
 class_name MapOverlayDirector
 
+const AppBootstrapScript = preload("res://Game/Application/app_bootstrap.gd")
 const OverlayLifecycleHelperScript = preload("res://Game/UI/overlay_lifecycle_helper.gd")
 const FlowStateScript = preload("res://Game/Application/flow_state.gd")
+const MapOverlayContractScript = preload("res://Game/UI/map_overlay_contract.gd")
 
 const EVENT_OVERLAY_OPEN_DURATION := 0.26
 const EVENT_OVERLAY_CLOSE_DURATION := 0.2
@@ -16,12 +18,6 @@ const EVENT_OVERLAY_OVERLAY_ALPHA := 0.0
 const EVENT_OVERLAY_SCRIM_ALPHA := 0.42
 const EVENT_OVERLAY_ROADSIDE_SCRIM_ALPHA := 0.54
 const EVENT_OVERLAY_TWEEN_TRANSITION := Tween.TRANS_EXPO
-
-const EVENT_OVERLAY_KEY := "event"
-const SUPPORT_OVERLAY_KEY := "support"
-const REWARD_OVERLAY_KEY := "reward"
-const LEVEL_UP_OVERLAY_KEY := "level_up"
-const OVERLAY_KEYS := [EVENT_OVERLAY_KEY, SUPPORT_OVERLAY_KEY, REWARD_OVERLAY_KEY, LEVEL_UP_OVERLAY_KEY]
 
 var _owner: Control
 var _overlay_lifecycle: OverlayLifecycleHelper
@@ -53,19 +49,19 @@ func configure(owner: Control, config: Dictionary) -> void:
 func close_all(immediate: bool = false) -> void:
 	if _overlay_lifecycle == null:
 		return
-	_overlay_lifecycle.close_overlays(OVERLAY_KEYS, immediate)
+	_overlay_lifecycle.close_overlays(_overlay_keys(), immediate)
 
 
 func position_overlays() -> void:
 	if _overlay_lifecycle == null:
 		return
-	_overlay_lifecycle.position_overlays(OVERLAY_KEYS)
+	_overlay_lifecycle.position_overlays(_overlay_keys())
 
 
 func has_active_overlay() -> bool:
 	if _overlay_lifecycle == null:
 		return false
-	for overlay_key in OVERLAY_KEYS:
+	for overlay_key in _overlay_keys():
 		var overlay: Control = _overlay_lifecycle.get_overlay(overlay_key)
 		if overlay != null and overlay.visible:
 			return true
@@ -73,69 +69,33 @@ func has_active_overlay() -> bool:
 
 
 func sync_with_flow_state(current_state: int) -> void:
-	if current_state == FlowStateScript.Type.EVENT:
-		open_event_overlay()
-	else:
-		close_event_overlay(false)
-
-	if current_state == FlowStateScript.Type.SUPPORT_INTERACTION:
-		open_support_overlay()
-	else:
-		close_support_overlay(false)
-
-	if current_state == FlowStateScript.Type.REWARD:
-		open_reward_overlay()
-	else:
-		close_reward_overlay(false)
-
-	if current_state == FlowStateScript.Type.LEVEL_UP:
-		open_level_up_overlay()
-	else:
-		close_level_up_overlay(false)
+	for overlay_state in MapOverlayContractScript.overlay_states():
+		if current_state == overlay_state:
+			open_overlay_for_state(overlay_state)
+		else:
+			close_overlay_for_state(overlay_state, false)
 
 
-func open_event_overlay() -> void:
-	if not _can_open_overlay_for_state(FlowStateScript.Type.EVENT):
-		close_event_overlay(true)
+func open_overlay_for_state(flow_state: int) -> void:
+	var overlay_key: String = MapOverlayContractScript.overlay_key(flow_state)
+	if overlay_key.is_empty():
 		return
-	_open_overlay(EVENT_OVERLAY_KEY, _event_scene, "EventOverlay", "Event")
-
-
-func close_event_overlay(immediate: bool = false) -> void:
-	_close_overlay(EVENT_OVERLAY_KEY, immediate)
-
-
-func open_support_overlay() -> void:
-	if not _can_open_overlay_for_state(FlowStateScript.Type.SUPPORT_INTERACTION):
-		close_support_overlay(true)
+	if not _can_open_overlay_for_state(flow_state):
+		close_overlay_for_state(flow_state, true)
 		return
-	_open_overlay(SUPPORT_OVERLAY_KEY, _support_scene, "SupportOverlay", "Support interaction")
+	_open_overlay(
+		overlay_key,
+		_overlay_scene_for_state(flow_state),
+		MapOverlayContractScript.overlay_root_name(flow_state),
+		MapOverlayContractScript.overlay_error_context(flow_state)
+	)
 
 
-func close_support_overlay(immediate: bool = false) -> void:
-	_close_overlay(SUPPORT_OVERLAY_KEY, immediate)
-
-
-func open_reward_overlay() -> void:
-	if not _can_open_overlay_for_state(FlowStateScript.Type.REWARD):
-		close_reward_overlay(true)
+func close_overlay_for_state(flow_state: int, immediate: bool = false) -> void:
+	var overlay_key: String = MapOverlayContractScript.overlay_key(flow_state)
+	if overlay_key.is_empty():
 		return
-	_open_overlay(REWARD_OVERLAY_KEY, _reward_scene, "RewardOverlay", "Reward")
-
-
-func close_reward_overlay(immediate: bool = false) -> void:
-	_close_overlay(REWARD_OVERLAY_KEY, immediate)
-
-
-func open_level_up_overlay() -> void:
-	if not _can_open_overlay_for_state(FlowStateScript.Type.LEVEL_UP):
-		close_level_up_overlay(true)
-		return
-	_open_overlay(LEVEL_UP_OVERLAY_KEY, _level_up_scene, "LevelUpOverlay", "Level up")
-
-
-func close_level_up_overlay(immediate: bool = false) -> void:
-	_close_overlay(LEVEL_UP_OVERLAY_KEY, immediate)
+	_close_overlay(overlay_key, immediate)
 
 
 func _open_overlay(key: String, overlay_scene: PackedScene, overlay_name: String, error_context: String) -> void:
@@ -148,6 +108,27 @@ func _close_overlay(key: String, immediate: bool) -> void:
 	if _overlay_lifecycle == null:
 		return
 	_overlay_lifecycle.close_overlay(key, immediate)
+
+
+func _overlay_keys() -> Array[String]:
+	var overlay_keys: Array[String] = []
+	for overlay_state in MapOverlayContractScript.overlay_states():
+		overlay_keys.append(MapOverlayContractScript.overlay_key(overlay_state))
+	return overlay_keys
+
+
+func _overlay_scene_for_state(flow_state: int) -> PackedScene:
+	match flow_state:
+		FlowStateScript.Type.EVENT:
+			return _event_scene
+		FlowStateScript.Type.SUPPORT_INTERACTION:
+			return _support_scene
+		FlowStateScript.Type.REWARD:
+			return _reward_scene
+		FlowStateScript.Type.LEVEL_UP:
+			return _level_up_scene
+		_:
+			return null
 
 
 func _tune_event_overlay_visuals(event_overlay: Control) -> void:
@@ -174,9 +155,8 @@ func _tune_event_overlay_visuals(event_overlay: Control) -> void:
 
 func _notify_overlay_state_changed() -> void:
 	if _owner != null and is_instance_valid(_owner):
-		_owner.call_deferred("_sync_safe_menu_launcher_visibility")
-		if _owner.has_method("_request_overlay_ui_refresh"):
-			_owner.call_deferred("_request_overlay_ui_refresh")
+		Callable(_owner, "_sync_safe_menu_launcher_visibility").call_deferred()
+		Callable(_owner, "_request_overlay_ui_refresh").call_deferred()
 
 
 func _can_open_overlay_for_state(flow_state: int) -> bool:
@@ -196,7 +176,7 @@ func _can_open_overlay_for_state(flow_state: int) -> bool:
 			return true
 
 
-func _get_app_bootstrap() -> Node:
+func _get_app_bootstrap() -> AppBootstrapScript:
 	if _owner == null or not is_instance_valid(_owner):
 		return null
-	return _owner.get_node_or_null("/root/AppBootstrap")
+	return _owner.get_node_or_null("/root/AppBootstrap") as AppBootstrapScript

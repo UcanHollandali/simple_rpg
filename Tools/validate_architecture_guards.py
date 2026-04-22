@@ -67,6 +67,8 @@ APP_BOOTSTRAP_LOOKUP_ALLOWED_FILES = {
 RUN_SESSION_COORDINATOR_FILE = APPLICATION_ROOT / "run_session_coordinator.gd"
 RUN_SESSION_COORDINATOR_PUBLIC_METHOD_LIMIT = 21
 COMMAND_EVENT_CATALOG_FILE = DOCS_ROOT / "COMMAND_EVENT_CATALOG.md"
+GAME_FLOW_STATE_MACHINE_FILE = DOCS_ROOT / "GAME_FLOW_STATE_MACHINE.md"
+MAP_CONTRACT_FILE = DOCS_ROOT / "MAP_CONTRACT.md"
 COMBAT_INVENTORY_SLOT_BRIDGE_ALLOWED_FILES = {
     PROJECT_ROOT / "Game" / "RuntimeState" / "combat_state.gd",
     PROJECT_ROOT / "Game" / "UI" / "inventory_presenter.gd",
@@ -75,17 +77,17 @@ RUN_SUMMARY_CLEANUP_ALLOWED_FILES = {
     PROJECT_ROOT / "Game" / "UI" / "run_summary_cleanup_helper.gd",
 }
 HOTSPOT_FILE_LINE_LIMITS = {
-    PROJECT_ROOT / "Game" / "RuntimeState" / "map_runtime_state.gd": 2397,
+    PROJECT_ROOT / "Game" / "RuntimeState" / "map_runtime_state.gd": 2350,
     PROJECT_ROOT / "scenes" / "combat.gd": 1200,
     PROJECT_ROOT / "scenes" / "map_explore.gd": 1967,
-    PROJECT_ROOT / "Game" / "UI" / "map_board_composer_v2.gd": 1258,
+    PROJECT_ROOT / "Game" / "UI" / "map_board_composer_v2.gd": 1000,
     PROJECT_ROOT / "Game" / "Infrastructure" / "save_service.gd": 700,
     PROJECT_ROOT / "Game" / "Infrastructure" / "save_service_legacy_loader.gd": 500,
-    PROJECT_ROOT / "Game" / "Application" / "inventory_actions.gd": 1087,
-    PROJECT_ROOT / "Game" / "Application" / "run_session_coordinator.gd": 1018,
+    PROJECT_ROOT / "Game" / "Application" / "inventory_actions.gd": 320,
+    PROJECT_ROOT / "Game" / "Application" / "run_session_coordinator.gd": 800,
     PROJECT_ROOT / "Game" / "RuntimeState" / "inventory_state.gd": 1060,
     PROJECT_ROOT / "Game" / "RuntimeState" / "support_interaction_state.gd": 976,
-    PROJECT_ROOT / "Game" / "UI" / "map_route_binding.gd": 1095,
+    PROJECT_ROOT / "Game" / "UI" / "map_route_binding.gd": 980,
     PROJECT_ROOT / "Game" / "UI" / "combat_presenter.gd": 845,
     PROJECT_ROOT / "Game" / "UI" / "safe_menu_overlay.gd": 645,
     PROJECT_ROOT / "Game" / "Application" / "combat_flow.gd": 764,
@@ -157,6 +159,21 @@ REQUIRED_COMMAND_EVENT_CATALOG_ENTRIES = (
     "CombatFlow.turn_phase_resolved",
     "BossPhaseChanged",
 )
+NODE_RESOLVE_CONTRACT_REQUIRED_FRAGMENTS = {
+    GAME_FLOW_STATE_MACHINE_FILE: (
+        "generic pending-node fallback can still route `MapExplore -> NodeResolve`",
+        "behavior-changing removal of that fallback requires a dedicated flow audit",
+    ),
+    MAP_CONTRACT_FILE: (
+        "generic pending-node fallback and legacy-compatible pending-node restore can still route into it",
+        "behavior-changing removal of that live fallback still requires a dedicated flow audit",
+    ),
+    RUN_SESSION_COORDINATOR_FILE: (
+        "map_runtime_state.set_pending_node(target_node_id)",
+        "_request_transition(FlowStateScript.Type.NODE_RESOLVE)",
+        "return FlowStateScript.Type.NODE_RESOLVE",
+    ),
+}
 RETIRED_GATE_WARDEN_TOKEN = "gate_warden"
 RETIRED_GATE_WARDEN_ALLOWED_FILES = {
     DOCS_ROOT / "ROADMAP.md",
@@ -206,6 +223,15 @@ TYPED_REFLECTION_REGRESSION_FRAGMENTS = {
     ),
     PROJECT_ROOT / "Game" / "Infrastructure" / "scene_router.gd": (
         'has_method("apply_ui_scale_to_active_scene")',
+    ),
+}
+LEGACY_OVERLAY_WRAPPER_PATTERN = re.compile(
+    r"\b(?:open|close)_(?:event|support|reward|level_up)_overlay\b"
+)
+LEGACY_OVERLAY_CONTRACT_FRAGMENTS = {
+    PROJECT_ROOT / "Game" / "Infrastructure" / "scene_router.gd": (
+        "OVERLAY_OPEN_METHODS",
+        "OVERLAY_CLOSE_METHODS",
     ),
 }
 
@@ -461,6 +487,24 @@ def validate_command_event_catalog_alignment() -> list[str]:
     return errors
 
 
+def validate_node_resolve_contract_alignment() -> list[str]:
+    errors: list[str] = []
+    for path, required_fragments in NODE_RESOLVE_CONTRACT_REQUIRED_FRAGMENTS.items():
+        if not path.is_file():
+            errors.append(f"{path.relative_to(PROJECT_ROOT).as_posix()}: missing required NodeResolve contract file")
+            continue
+
+        text = path.read_text(encoding="utf-8")
+        for fragment in required_fragments:
+            if fragment in text:
+                continue
+            rel_path = path.relative_to(PROJECT_ROOT).as_posix()
+            errors.append(
+                f"{rel_path}: missing live NodeResolve contract fragment {fragment!r}; keep the generic fallback explicit in docs and coordinator wiring until an approved flow audit changes it"
+            )
+    return errors
+
+
 def validate_app_bootstrap_public_surface() -> list[str]:
     errors = validate_public_method_budget(
         APP_BOOTSTRAP_FILE,
@@ -549,6 +593,37 @@ def validate_typed_reflection_regressions() -> list[str]:
     return errors
 
 
+def validate_overlay_contract_regressions() -> list[str]:
+    errors: list[str] = []
+    for path in iter_gd_files(GAME_ROOT, SCENES_ROOT, TESTS_ROOT):
+        lines = path.read_text(encoding="utf-8").splitlines()
+        for line_number, line in enumerate(lines, start=1):
+            match = LEGACY_OVERLAY_WRAPPER_PATTERN.search(line)
+            if match is None:
+                continue
+
+            rel_path = path.relative_to(PROJECT_ROOT).as_posix()
+            errors.append(
+                f"{rel_path}:{line_number}: legacy overlay wrapper {match.group(0)!r} should stay removed; route overlay opening/closing through the shared state-driven contract surface instead"
+            )
+
+    for path, forbidden_fragments in LEGACY_OVERLAY_CONTRACT_FRAGMENTS.items():
+        if not path.is_file():
+            continue
+
+        lines = path.read_text(encoding="utf-8").splitlines()
+        for line_number, line in enumerate(lines, start=1):
+            for fragment in forbidden_fragments:
+                if fragment not in line:
+                    continue
+
+                rel_path = path.relative_to(PROJECT_ROOT).as_posix()
+                errors.append(
+                    f"{rel_path}:{line_number}: legacy overlay dictionary fragment {fragment!r} should stay removed; keep SceneRouter on the shared overlay contract surface"
+                )
+    return errors
+
+
 def validate_run_session_coordinator_public_surface() -> list[str]:
     return validate_public_method_budget(
         RUN_SESSION_COORDINATOR_FILE,
@@ -571,10 +646,12 @@ def main() -> int:
     errors.extend(validate_app_bootstrap_lookup_spread())
     errors.extend(validate_retired_gate_warden_surface())
     errors.extend(validate_typed_reflection_regressions())
+    errors.extend(validate_overlay_contract_regressions())
     errors.extend(validate_run_session_coordinator_public_surface())
     errors.extend(validate_hotspot_file_growth())
     errors.extend(validate_stale_wrapper_regressions())
     errors.extend(validate_command_event_catalog_alignment())
+    errors.extend(validate_node_resolve_contract_alignment())
 
     if errors:
         print("Architecture guard validation failed.", file=sys.stderr)

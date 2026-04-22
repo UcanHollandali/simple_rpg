@@ -1,6 +1,7 @@
 # Layer: Scenes - presentation only
 extends Control
 
+const AppBootstrapScript = preload("res://Game/Application/app_bootstrap.gd")
 const LaunchIntroPresenterScript = preload("res://Game/UI/launch_intro_presenter.gd")
 const SceneAudioCleanupScript = preload("res://Game/UI/scene_audio_cleanup.gd")
 const SceneAudioPlayersScript = preload("res://Game/UI/scene_audio_players.gd")
@@ -34,14 +35,14 @@ const PORTRAIT_LAYOUT_CONFIG := {
 	},
 }
 
-var _bootstrap
+var _bootstrap: AppBootstrapScript
 var _presenter: LaunchIntroPresenter
 var _skip_unlocked: bool = false
 var _transition_started: bool = false
 
 
 func _ready() -> void:
-	_bootstrap = get_node_or_null("/root/AppBootstrap")
+	_bootstrap = get_node_or_null("/root/AppBootstrap") as AppBootstrapScript
 	_presenter = LaunchIntroPresenterScript.new()
 	SceneAudioPlayersScript.configure_from_config(self, AUDIO_PLAYER_CONFIG)
 	_apply_temp_theme()
@@ -66,7 +67,7 @@ func _exit_tree() -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
-		_release_app_audio_for_shutdown()
+		SceneAudioCleanupScript.release_scene_tree_audio(self)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -205,13 +206,6 @@ func _is_skip_input(event: InputEvent) -> bool:
 	return false
 
 
-func _release_app_audio_for_shutdown() -> void:
-	if not is_inside_tree():
-		return
-	var tree: SceneTree = get_tree()
-	SceneAudioCleanupScript.release_all_audio_players(tree.root)
-
-
 func _is_playtest_launch_smoke_requested() -> bool:
 	return OS.get_cmdline_args().has(PLAYTEST_LAUNCH_SMOKE_ARG)
 
@@ -222,7 +216,7 @@ func _quit_for_playtest_launch_smoke() -> void:
 	await get_tree().create_timer(PLAYTEST_LAUNCH_SMOKE_QUIT_DELAY_SECONDS).timeout
 	if not is_inside_tree():
 		return
-	_release_app_audio_for_shutdown()
+	SceneAudioCleanupScript.release_scene_tree_audio(self)
 	await get_tree().process_frame
 	await get_tree().process_frame
 	get_tree().quit()

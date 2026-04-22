@@ -5,6 +5,8 @@ class_name TestSceneRouter
 const AppBootstrapScript = preload("res://Game/Application/app_bootstrap.gd")
 const SceneRouterScript = preload("res://Game/Infrastructure/scene_router.gd")
 const FlowStateScript = preload("res://Game/Application/flow_state.gd")
+const OverlayFlowContractScript = preload("res://Game/Application/overlay_flow_contract.gd")
+const MapOverlayContractScript = preload("res://Game/UI/map_overlay_contract.gd")
 const TestExitCleanupHelperScript = preload("res://Tests/_exit_cleanup_helper.gd")
 
 
@@ -96,7 +98,7 @@ func test_map_overlay_sync_skips_empty_level_up_overlay() -> void:
 
 func test_map_overlay_sync_skips_empty_event_overlay() -> void:
 	assert(current_scene != null and current_scene.name == "MapExplore", "Expected event overlay guard coverage to run on MapExplore.")
-	current_scene.call("open_event_overlay")
+	current_scene.call(OverlayFlowContractScript.OPEN_OVERLAY_FOR_STATE_METHOD, FlowStateScript.Type.EVENT)
 	await process_frame
 	assert(_get_visible_overlay_root() == null, "Expected map overlay sync to ignore EVENT when its runtime state is missing.")
 
@@ -156,7 +158,7 @@ func _get_scene_router() -> Node:
 func _get_visible_overlay_root() -> Node:
 	if current_scene == null:
 		return null
-	for overlay_root_name in ["SupportOverlay", "EventOverlay", "RewardOverlay", "LevelUpOverlay"]:
+	for overlay_root_name in MapOverlayContractScript.overlay_root_names():
 		var overlay_root: Control = _find_visible_overlay_root(overlay_root_name)
 		if overlay_root != null:
 			return overlay_root

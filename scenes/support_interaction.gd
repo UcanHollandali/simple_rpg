@@ -4,6 +4,7 @@
 extends Control
 
 const BUTTON_NODE_NAMES: PackedStringArray = ["ActionAButton", "ActionBButton", "ActionCButton"]
+const AppBootstrapScript = preload("res://Game/Application/app_bootstrap.gd")
 const FlowStateScript = preload("res://Game/Application/flow_state.gd")
 const SceneAudioCleanupScript = preload("res://Game/UI/scene_audio_cleanup.gd")
 const RunMenuSceneHelperScript = preload("res://Game/UI/run_menu_scene_helper.gd")
@@ -42,7 +43,7 @@ const PORTRAIT_LAYOUT_CONFIG := {
 	},
 }
 
-var _bootstrap
+var _bootstrap: AppBootstrapScript
 var _presenter: SupportInteractionPresenter
 var _support_state: SupportInteractionState
 var _action_tooltip_controller: InventoryTooltipController
@@ -63,7 +64,7 @@ var _scene_node_cache: Dictionary = {}
 
 func _ready() -> void:
 	_scene_node_cache.clear()
-	_bootstrap = _scene_node("/root/AppBootstrap")
+	_bootstrap = _scene_node("/root/AppBootstrap") as AppBootstrapScript
 	_presenter = SupportInteractionPresenterScript.new()
 	_support_state = null
 	SceneAudioPlayersScript.configure_from_config(self, AUDIO_PLAYER_CONFIG)

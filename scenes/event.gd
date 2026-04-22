@@ -1,6 +1,7 @@
 # Layer: Scenes - presentation only
 extends Control
 
+const AppBootstrapScript = preload("res://Game/Application/app_bootstrap.gd")
 const FlowStateScript = preload("res://Game/Application/flow_state.gd")
 const EventPresenterScript = preload("res://Game/UI/event_presenter.gd")
 const SceneAudioCleanupScript = preload("res://Game/UI/scene_audio_cleanup.gd")
@@ -46,7 +47,7 @@ const PORTRAIT_LAYOUT_CONFIG := {
 	},
 }
 
-var _bootstrap
+var _bootstrap: AppBootstrapScript
 var _event_state: EventState
 var _run_state: RunState
 var _presenter: EventPresenter
@@ -68,7 +69,7 @@ var _scene_node_cache: Dictionary = {}
 
 func _ready() -> void:
 	_scene_node_cache.clear()
-	_bootstrap = _scene_node("/root/AppBootstrap")
+	_bootstrap = _scene_node("/root/AppBootstrap") as AppBootstrapScript
 	_event_state = null
 	_run_state = null
 	_presenter = EventPresenterScript.new()

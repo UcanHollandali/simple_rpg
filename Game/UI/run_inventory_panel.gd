@@ -5,6 +5,7 @@ class_name RunInventoryPanel
 const InventoryPresenterScript = preload("res://Game/UI/inventory_presenter.gd")
 const InventoryCardInteractionHandlerScript = preload("res://Game/UI/inventory_card_interaction_handler.gd")
 const InventoryTooltipControllerScript = preload("res://Game/UI/inventory_tooltip_controller.gd")
+const InventoryPanelLayoutScript = preload("res://Game/UI/inventory_panel_layout.gd")
 const DENSITY_MAP := "map"
 const DENSITY_COMBAT_COMPACT := "combat_compact"
 
@@ -132,9 +133,10 @@ func render(model: Dictionary) -> void:
 			_inventory_card_handler.rebuild_cards(backpack_container, backpack_card_models)
 			_backpack_cards_signature = backpack_signature
 
-	var after_render_handler: Callable = _config.get("after_render_handler", Callable())
-	if after_render_handler.is_valid():
-		after_render_handler.call(equipment_container, backpack_container)
+	var viewport_height: float = _owner.get_viewport_rect().size.y if _owner != null else 0.0
+	var density_band: String = InventoryPanelLayoutScript.card_density_band_for_viewport_height(viewport_height)
+	InventoryPanelLayoutScript.apply_card_density_overrides(equipment_container, density_band)
+	InventoryPanelLayoutScript.apply_card_density_overrides(backpack_container, density_band)
 
 
 func _apply_text_model(model: Dictionary) -> void:
@@ -197,21 +199,38 @@ func _decorate_card_models(
 func _inventory_card_models_signature(card_models: Array[Dictionary]) -> String:
 	var parts := PackedStringArray()
 	for card_model in card_models:
-		parts.append("%s|%s|%s|%s|%s|%d|%d|%s|%s|%s|%s|%s" % [
-			str(card_model.get("card_name", "")),
-			str(card_model.get("card_family", "")),
-			str(card_model.get("slot_label", "")),
-			str(card_model.get("title_text", "")),
-			str(card_model.get("detail_text", "")),
-			int(card_model.get("inventory_slot_id", -1)),
-			int(card_model.get("inventory_slot_index", -1)),
-			str(card_model.get("count_text", "")),
-			str(card_model.get("action_hint_text", "")),
-			str(card_model.get("action_hint_tone", "")),
-			str(card_model.get("accent_color", "")),
-			str(card_model.get("is_equipped", false)),
-		])
+		parts.append(_inventory_card_model_signature(card_model))
 	return "\n".join(parts)
+
+
+func _inventory_card_model_signature(card_model: Dictionary) -> String:
+	var fields := PackedStringArray([
+		str(card_model.get("card_name", "")),
+		str(card_model.get("card_family", "")),
+		str(int(card_model.get("slot_index", -1))),
+		str(int(card_model.get("inventory_slot_index", -1))),
+		str(int(card_model.get("inventory_slot_id", -1))),
+		str(card_model.get("slot_label", "")),
+		str(card_model.get("title_text", "")),
+		str(card_model.get("detail_text", "")),
+		str(card_model.get("count_text", "")),
+		str(card_model.get("icon_texture_path", "")),
+		str(card_model.get("tooltip_text", "")),
+		str(card_model.get("action_hint_text", "")),
+		str(card_model.get("action_hint_tone", "")),
+		_color_signature(Color(card_model.get("accent_color", Color.WHITE))),
+		str(bool(card_model.get("is_clickable", false))),
+		str(bool(card_model.get("is_selected", false))),
+		str(bool(card_model.get("is_equipped", false))),
+		str(bool(card_model.get("is_draggable", false))),
+		str(card_model.get("density_preset", "")),
+		str(bool(card_model.get("compact_mode", false))),
+	])
+	return "|".join(fields)
+
+
+func _color_signature(color: Color) -> String:
+	return "%.4f,%.4f,%.4f,%.4f" % [color.r, color.g, color.b, color.a]
 
 
 func _on_drag_started() -> void:

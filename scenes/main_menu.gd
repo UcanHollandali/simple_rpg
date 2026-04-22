@@ -1,6 +1,7 @@
 # Layer: Scenes - presentation only
 extends Control
 
+const AppBootstrapScript = preload("res://Game/Application/app_bootstrap.gd")
 const FlowStateScript = preload("res://Game/Application/flow_state.gd")
 const MainMenuPresenterScript = preload("res://Game/UI/main_menu_presenter.gd")
 const RunMenuSceneHelperScript = preload("res://Game/UI/run_menu_scene_helper.gd")
@@ -33,12 +34,12 @@ const PORTRAIT_LAYOUT_CONFIG := {
 	},
 }
 
-var _bootstrap
+var _bootstrap: AppBootstrapScript
 var _presenter: MainMenuPresenter
 
 
 func _ready() -> void:
-	_bootstrap = get_node_or_null("/root/AppBootstrap")
+	_bootstrap = get_node_or_null("/root/AppBootstrap") as AppBootstrapScript
 	_presenter = MainMenuPresenterScript.new()
 	SceneAudioPlayersScript.configure_from_config(self, AUDIO_PLAYER_CONFIG)
 	_soften_backdrop()
@@ -63,7 +64,7 @@ func _exit_tree() -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
-		_release_app_audio_for_shutdown()
+		SceneAudioCleanupScript.release_scene_tree_audio(self)
 
 
 func _on_start_run_pressed() -> void:
@@ -249,9 +250,3 @@ func _get_flow_manager() -> GameFlowManager:
 		return null
 	return _bootstrap.get_flow_manager()
 
-
-func _release_app_audio_for_shutdown() -> void:
-	if not is_inside_tree():
-		return
-	var tree: SceneTree = get_tree()
-	SceneAudioCleanupScript.release_all_audio_players(tree.root)

@@ -28,6 +28,7 @@ func _run() -> void:
 	test_map_scene_accepts_deferred_roadside_transition_for_destination_restore()
 	test_map_scene_keeps_focus_offset_quiet_inside_deadzone()
 	test_map_scene_blends_focus_toward_visible_cluster_context()
+	test_map_scene_clamps_focus_offset_to_keep_visible_routes_inside_frame()
 	test_map_route_binding_recomposes_board_positions_after_route_grid_resize()
 	test_map_route_binding_refreshes_cached_node_radii_after_moderate_resize()
 	test_map_route_buttons_suppress_default_tooltip_copy()
@@ -562,6 +563,74 @@ func test_map_scene_blends_focus_toward_visible_cluster_context() -> void:
 	assert(
 		absf(contextual_offset.x) < absf(raw_offset.x),
 		"Expected map focus to preserve more visible-cluster context instead of pulling the board fully toward the current node."
+	)
+	_free_control(scene)
+
+
+func test_map_scene_clamps_focus_offset_to_keep_visible_routes_inside_frame() -> void:
+	var scene: Control = MapExploreSceneScript.new()
+	var margin := MarginContainer.new()
+	margin.name = "Margin"
+	scene.add_child(margin)
+	var vbox := VBoxContainer.new()
+	vbox.name = "VBox"
+	margin.add_child(vbox)
+	var route_grid := Control.new()
+	route_grid.name = "RouteGrid"
+	route_grid.custom_minimum_size = Vector2(1080.0, 1920.0)
+	route_grid.size = Vector2(1080.0, 1920.0)
+	vbox.add_child(route_grid)
+	scene.set("_route_layout_offset", Vector2.ZERO)
+	scene.set("_board_composition_cache", {
+		"visible_nodes": [
+			{"node_id": 0, "is_current": true, "is_adjacent": false, "state_semantic": "current", "world_position": Vector2(180.0, 180.0), "clearing_radius": 56.0},
+			{"node_id": 1, "is_current": false, "is_adjacent": true, "state_semantic": "open", "world_position": Vector2(760.0, 1690.0), "clearing_radius": 60.0},
+			{"node_id": 2, "is_current": false, "is_adjacent": false, "state_semantic": "resolved", "world_position": Vector2(620.0, 1380.0), "clearing_radius": 52.0},
+		],
+		"visible_edges": [
+			{
+				"from_node_id": 0,
+				"to_node_id": 1,
+				"points": PackedVector2Array([
+					Vector2(220.0, 244.0),
+					Vector2(314.0, 522.0),
+					Vector2(432.0, 918.0),
+					Vector2(586.0, 1322.0),
+					Vector2(720.0, 1608.0),
+				]),
+			},
+		],
+	})
+	var current_world_position := Vector2(180.0, 180.0)
+	var context_world_position: Vector2 = MapFocusHelperScript.focus_context_world_position(scene.get("_board_composition_cache"), current_world_position)
+	var context_blend: float = MapFocusHelperScript.context_blend_for_positions(route_grid, current_world_position, context_world_position, MapRouteBindingScript.BOARD_FOCUS_CONTEXT_BLEND_MIN, MapRouteBindingScript.BOARD_FOCUS_CONTEXT_BLEND_MAX)
+	var unclamped_offset: Vector2 = MapFocusHelperScript.desired_focus_offset(
+		route_grid,
+		Vector2.ZERO,
+		current_world_position,
+		MapRouteBindingScript.BOARD_FOCUS_ANCHOR_FACTOR,
+		MapRouteBindingScript.BOARD_MAX_OFFSET_FACTOR,
+		MapRouteBindingScript.BOARD_FOCUS_DEADZONE_FACTOR,
+		MapRouteBindingScript.BOARD_FOCUS_DAMPING,
+		context_world_position,
+		context_blend
+	)
+	var clamped_offset: Vector2 = scene.call("_desired_focus_offset_for_world_position", current_world_position)
+	assert(
+		clamped_offset.y < unclamped_offset.y,
+		"Expected live map focus to clamp large downward drift once the visible route cluster already fills the board height."
+	)
+	var visible_bounds: Rect2 = MapFocusHelperScript.visible_content_bounds(scene.get("_board_composition_cache"))
+	var translated_bounds := Rect2(visible_bounds.position + clamped_offset, visible_bounds.size)
+	assert(
+		translated_bounds.position.x >= MapRouteBindingScript.BOARD_VISIBLE_CONTENT_PADDING.x - 0.01
+		and translated_bounds.position.y >= MapRouteBindingScript.BOARD_VISIBLE_CONTENT_PADDING.y - 0.01,
+		"Expected focus clamping to keep the visible route cluster inside the padded board frame."
+	)
+	assert(
+		translated_bounds.end.x <= route_grid.size.x - MapRouteBindingScript.BOARD_VISIBLE_CONTENT_PADDING.x + 0.01
+		and translated_bounds.end.y <= route_grid.size.y - MapRouteBindingScript.BOARD_VISIBLE_CONTENT_PADDING.y + 0.01,
+		"Expected focus clamping not to push visible roads or clearings beyond the opposite frame edge."
 	)
 	_free_control(scene)
 

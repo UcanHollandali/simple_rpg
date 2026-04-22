@@ -3,6 +3,7 @@ extends RefCounted
 class_name MapRuntimeState
 
 const ContentLoaderScript = preload("res://Game/Infrastructure/content_loader.gd")
+const MapScatterGraphToolsScript = preload("res://Game/RuntimeState/map_scatter_graph_tools.gd")
 const MapRuntimeGraphCodecScript = preload("res://Game/RuntimeState/map_runtime_graph_codec.gd")
 
 const NODE_STATE_UNDISCOVERED: String = "undiscovered"
@@ -895,14 +896,7 @@ func _sync_boss_gate_state() -> void:
 
 
 func _coerce_adjacent_ids(adjacent_variant: Variant) -> PackedInt32Array:
-	if typeof(adjacent_variant) == TYPE_PACKED_INT32_ARRAY:
-		return adjacent_variant
-
-	var adjacent_ids: PackedInt32Array = PackedInt32Array()
-	if typeof(adjacent_variant) == TYPE_ARRAY:
-		for value in adjacent_variant:
-			adjacent_ids.append(int(value))
-	return adjacent_ids
+	return MapScatterGraphToolsScript.coerce_adjacent_ids(adjacent_variant)
 
 
 func _reset_runtime_state() -> void:
@@ -1591,15 +1585,7 @@ func _build_scatter_structural_family_analysis(node_adjacency: Dictionary, role_
 
 
 func _sorted_scatter_node_ids(node_id_variants: Variant) -> Array[int]:
-	var sorted_node_ids: Array[int] = []
-	if typeof(node_id_variants) == TYPE_ARRAY:
-		for node_id_variant in node_id_variants:
-			sorted_node_ids.append(int(node_id_variant))
-	elif typeof(node_id_variants) == TYPE_PACKED_INT32_ARRAY:
-		for node_id_variant in node_id_variants:
-			sorted_node_ids.append(int(node_id_variant))
-	sorted_node_ids.sort()
-	return sorted_node_ids
+	return MapScatterGraphToolsScript.sorted_node_ids(node_id_variants)
 
 
 func _build_scatter_parent_map(node_adjacency: Dictionary, depth_by_node_id: Dictionary, sorted_node_ids: Array[int]) -> Dictionary:
@@ -1716,13 +1702,7 @@ func _build_scatter_placement_seed(node_adjacency: Dictionary, stage_index: int,
 
 
 func _build_scatter_topology_signature(node_adjacency: Dictionary) -> String:
-	var fragments: PackedStringArray = []
-	for node_id in _sorted_scatter_node_ids(node_adjacency.keys()):
-		var adjacent_fragment: PackedStringArray = []
-		for adjacent_node_id in _coerce_adjacent_ids(node_adjacency.get(node_id, PackedInt32Array())):
-			adjacent_fragment.append(str(int(adjacent_node_id)))
-		fragments.append("%d:%s" % [node_id, ",".join(adjacent_fragment)])
-	return "|".join(fragments)
+	return MapScatterGraphToolsScript.build_topology_signature(node_adjacency)
 
 func _build_unassigned_scatter_node_ids(node_adjacency: Dictionary, assignments: Dictionary) -> Array[int]:
 	var node_ids: Array[int] = []
@@ -2098,66 +2078,17 @@ func _controlled_scatter_role_targets_are_valid(node_adjacency: Dictionary, role
 
 
 func _build_scatter_path_length(node_adjacency: Dictionary, start_node_id: int, target_node_id: int) -> int:
-	if start_node_id == target_node_id:
-		return 0
-	if not node_adjacency.has(start_node_id) or not node_adjacency.has(target_node_id):
-		return -1
-
-	var visited: Dictionary = {start_node_id: true}
-	var queue: Array[Dictionary] = [{"node_id": start_node_id, "distance": 0}]
-	while not queue.is_empty():
-		var entry: Dictionary = queue.pop_front()
-		var node_id: int = int(entry.get("node_id", NO_PENDING_NODE_ID))
-		var distance: int = int(entry.get("distance", 0))
-		for adjacent_node_id in _coerce_adjacent_ids(node_adjacency.get(node_id, PackedInt32Array())):
-			if int(adjacent_node_id) == target_node_id:
-				return distance + 1
-			if visited.has(int(adjacent_node_id)):
-				continue
-			visited[int(adjacent_node_id)] = true
-			queue.append({
-				"node_id": int(adjacent_node_id),
-				"distance": distance + 1,
-			})
-	return -1
+	return MapScatterGraphToolsScript.build_path_length(node_adjacency, start_node_id, target_node_id)
 
 
 func _count_scatter_same_depth_reconnects(adjacency_by_node_id: Dictionary, depth_by_node_id: Dictionary) -> int:
-	var reconnect_count: int = 0
-	var seen_edges: Dictionary = {}
-	for node_id_variant in adjacency_by_node_id.keys():
-		var node_id: int = int(node_id_variant)
-		var node_depth: int = int(depth_by_node_id.get(node_id, -1))
-		for adjacent_node_id in _coerce_adjacent_ids(adjacency_by_node_id.get(node_id, PackedInt32Array())):
-			var adjacent_depth: int = int(depth_by_node_id.get(adjacent_node_id, -1))
-			var left_id: int = min(node_id, int(adjacent_node_id))
-			var right_id: int = max(node_id, int(adjacent_node_id))
-			var edge_key: String = "%d:%d" % [left_id, right_id]
-			if seen_edges.has(edge_key):
-				continue
-			seen_edges[edge_key] = true
-			if node_depth < 2 or adjacent_depth < 2:
-				continue
-			if node_depth != adjacent_depth:
-				continue
-			reconnect_count += 1
-	return reconnect_count
+	return MapScatterGraphToolsScript.count_same_depth_reconnects(adjacency_by_node_id, depth_by_node_id)
 
 func _count_scatter_extra_edges(node_adjacency: Dictionary) -> int:
-	var undirected_edge_count: int = 0
-	for node_id_variant in node_adjacency.keys():
-		var node_id: int = int(node_id_variant)
-		undirected_edge_count += _coerce_adjacent_ids(node_adjacency.get(node_id, PackedInt32Array())).size()
-	return max(0, int(undirected_edge_count / 2) - (SCATTER_NODE_COUNT - 1))
+	return MapScatterGraphToolsScript.count_extra_edges(node_adjacency, SCATTER_NODE_COUNT)
 
 func _build_adjacency_lookup_from_graph(graph: Array[Dictionary]) -> Dictionary:
-	var adjacency_by_node_id: Dictionary = {}
-	for entry in graph:
-		var node_id: int = int(entry.get("node_id", NO_PENDING_NODE_ID))
-		if node_id < 0:
-			continue
-		adjacency_by_node_id[node_id] = _coerce_adjacent_ids(entry.get("adjacent_node_ids", PackedInt32Array()))
-	return adjacency_by_node_id
+	return MapScatterGraphToolsScript.build_adjacency_lookup_from_graph(graph, NO_PENDING_NODE_ID)
 
 func _build_family_budget_slot_reservations_from_graph(graph: Array[Dictionary]) -> Dictionary:
 	var reservations: Dictionary = {}
@@ -2197,19 +2128,14 @@ func _rebuild_family_budget_slot_reservations_from_graph() -> void:
 	_family_budget_slot_reservations = _build_family_budget_slot_reservations_from_graph(_node_graph)
 
 func _has_scatter_edge(node_adjacency: Dictionary, left_id: int, right_id: int) -> bool:
-	return (node_adjacency.get(left_id, []) as Array[int]).has(right_id)
+	return MapScatterGraphToolsScript.has_edge(node_adjacency, left_id, right_id)
 
 func _add_scatter_edge(node_adjacency: Dictionary, left_id: int, right_id: int) -> void:
-	var left_adjacent: Array = node_adjacency.get(left_id, [])
-	var right_adjacent: Array = node_adjacency.get(right_id, [])
-	left_adjacent.append(right_id)
-	right_adjacent.append(left_id)
-	node_adjacency[left_id] = left_adjacent
-	node_adjacency[right_id] = right_adjacent
+	MapScatterGraphToolsScript.add_edge(node_adjacency, left_id, right_id)
 
 
 func _get_scatter_degree(node_adjacency: Dictionary, node_id: int) -> int:
-	return int((node_adjacency.get(node_id, []) as Array).size())
+	return MapScatterGraphToolsScript.degree(node_adjacency, node_id)
 
 
 func _build_scatter_graph_payload(node_adjacency: Dictionary, family_assignments: Dictionary) -> Array[Dictionary]:
@@ -2331,50 +2257,15 @@ func _validate_scatter_runtime_graph(graph: Array[Dictionary]) -> bool:
 
 
 func _is_graph_connected_scatter(graph: Array[Dictionary]) -> bool:
-	var adjacency_by_node_id: Dictionary = {}
-	var node_ids: Array[int] = []
-	for entry in graph:
-		var node_id: int = int(entry.get("node_id", NO_PENDING_NODE_ID))
-		adjacency_by_node_id[node_id] = _coerce_adjacent_ids(entry.get("adjacent_node_ids", []))
-		node_ids.append(node_id)
-	if not adjacency_by_node_id.has(0):
-		return false
-
-	var visited: Dictionary = {}
-	var queue: Array[int] = [0]
-	while not queue.is_empty():
-		var node_id: int = queue.pop_front()
-		if visited.has(node_id):
-			continue
-		visited[node_id] = true
-		for adjacent_node_id in adjacency_by_node_id.get(node_id, []):
-			if not visited.has(adjacent_node_id):
-				queue.append(adjacent_node_id)
-	return visited.size() == node_ids.size()
+	return MapScatterGraphToolsScript.is_graph_connected(graph, NO_PENDING_NODE_ID)
 
 
 func _build_scatter_depth_map(node_adjacency: Dictionary) -> Dictionary:
-	var depth_by_node_id: Dictionary = {}
-	var queue: Array[int] = [0]
-	depth_by_node_id[0] = 0
-	while not queue.is_empty():
-		var node_id: int = queue.pop_front()
-		var current_depth: int = int(depth_by_node_id.get(node_id, 0))
-		for adjacent_node_id in node_adjacency.get(node_id, []):
-			if depth_by_node_id.has(adjacent_node_id):
-				continue
-			depth_by_node_id[adjacent_node_id] = current_depth + 1
-			queue.append(adjacent_node_id)
-	return depth_by_node_id
+	return MapScatterGraphToolsScript.build_depth_map(node_adjacency)
 
 
 func _filter_nodes_by_depth_and_max(node_ids: Array[int], depth_by_node_id: Dictionary, min_depth: int, max_depth: int) -> Array[int]:
-	var filtered_node_ids: Array[int] = []
-	for node_id in node_ids:
-		var node_depth: int = int(depth_by_node_id.get(node_id, -1))
-		if node_depth >= min_depth and node_depth <= max_depth:
-			filtered_node_ids.append(node_id)
-	return filtered_node_ids
+	return MapScatterGraphToolsScript.filter_nodes_by_depth_range(node_ids, depth_by_node_id, min_depth, max_depth)
 
 
 func _resolve_stage_support_layout(stage_index: int) -> Dictionary:
@@ -2386,10 +2277,3 @@ func _resolve_stage_support_layout(stage_index: int) -> Dictionary:
 	var stage_offset: int = max(0, stage_index - 1)
 	return (STAGE_SUPPORT_LAYOUTS[stage_offset % STAGE_SUPPORT_LAYOUTS.size()] as Dictionary).duplicate(true)
 
-
-func _shuffle_int_array(values: Array[int], rng: RandomNumberGenerator) -> void:
-	for index in range(values.size() - 1, 0, -1):
-		var swap_index: int = rng.randi_range(0, index)
-		var current_value: int = values[index]
-		values[index] = values[swap_index]
-		values[swap_index] = current_value

@@ -44,6 +44,7 @@ func _run() -> void:
 	test_boss_gate_stays_locked_before_key_resolution()
 	test_key_resolution_updates_runtime_state_and_unlocks_boss_gate()
 	test_live_map_families_skip_node_resolve_transition_shell()
+	test_generic_pending_node_fallback_routes_through_node_resolve_transition_shell()
 	test_support_families_enter_support_interaction_without_node_resolve()
 	test_support_node_revisit_stays_traversal_only()
 	test_one_shot_support_nodes_stay_traversal_only_after_consumption()
@@ -59,6 +60,7 @@ func _run() -> void:
 	test_hamlet_bring_proof_grants_quest_item_on_completion()
 	test_map_move_at_zero_hunger_costs_hp_and_can_end_the_run()
 	test_map_runtime_state_serializes_through_run_state()
+	test_pending_node_app_state_mirror_restores_owner_context()
 	test_legacy_save_snapshot_restores_fixed_template_path()
 	test_save_runtime_restore_rejects_disconnected_realized_graph_snapshot()
 	test_run_session_coordinator_builds_content_backed_combat_setup()
@@ -737,6 +739,66 @@ func test_live_map_families_skip_node_resolve_transition_shell() -> void:
 			)
 
 		_free_node(flow_manager)
+
+
+func test_generic_pending_node_fallback_routes_through_node_resolve_transition_shell() -> void:
+	var flow_manager: Node = GameFlowManagerScript.new()
+	flow_manager.call("restore_state", FlowStateScript.Type.MAP_EXPLORE)
+
+	var transition_sequence: Array[String] = []
+	flow_manager.flow_state_changed.connect(func(old_state: int, new_state: int) -> void:
+		transition_sequence.append("%s->%s" % [
+			FlowStateScript.name_of(old_state),
+			FlowStateScript.name_of(new_state),
+		])
+	)
+
+	var run_state: RunState = RunStateScript.new()
+	run_state.reset_for_new_run()
+	run_state.stage_index = 1
+	var target_node_id: int = int(run_state.map_runtime_state.get_adjacent_node_ids()[0])
+	assert(target_node_id >= 0, "Expected the opening map shell to expose at least one adjacent node.")
+
+	var save_data: Dictionary = run_state.map_runtime_state.to_save_dict()
+	var realized_graph: Array = save_data.get("map_realized_graph", [])
+	for index in range(realized_graph.size()):
+		var entry: Dictionary = realized_graph[index]
+		if int(entry.get("node_id", -1)) != target_node_id:
+			continue
+		entry["node_family"] = "mystery_bridge"
+		realized_graph[index] = entry
+		break
+	save_data["map_realized_graph"] = realized_graph
+	run_state.map_runtime_state.load_from_save_dict(save_data, run_state.stage_index)
+	run_state.map_runtime_state.roadside_encounters_this_stage = run_state.map_runtime_state.MAX_ROADSIDE_ENCOUNTERS_PER_STAGE
+
+	var coordinator: RefCounted = RunSessionCoordinatorScript.new()
+	coordinator.call("setup", flow_manager, run_state)
+
+	var move_result: Dictionary = coordinator.call("choose_move_to_node", target_node_id)
+	assert(bool(move_result.get("ok", false)), "Expected fallback traversal to succeed.")
+	assert(
+		int(move_result.get("target_state", -1)) == FlowStateScript.Type.NODE_RESOLVE,
+		"Expected unknown direct-entry node families to use the live NodeResolve fallback shell."
+	)
+	assert(
+		transition_sequence == ["MAP_EXPLORE->NODE_RESOLVE"],
+		"Expected fallback traversal to transition through NodeResolve exactly once."
+	)
+	assert(flow_manager.call("get_current_state") == FlowStateScript.Type.NODE_RESOLVE, "Expected flow manager to land in NODE_RESOLVE for the live fallback.")
+	assert(run_state.map_runtime_state.has_pending_node(), "Expected fallback traversal to preserve pending-node context for NodeResolve.")
+	assert(run_state.map_runtime_state.pending_node_id == target_node_id, "Expected fallback traversal to preserve the pending node id.")
+	assert(run_state.map_runtime_state.pending_node_type == "mystery_bridge", "Expected fallback traversal to preserve the loaded unknown node family for NodeResolve.")
+
+	var resolve_result: Dictionary = coordinator.call("resolve_pending_node")
+	assert(
+		int(resolve_result.get("target_state", -1)) == FlowStateScript.Type.MAP_EXPLORE,
+		"Expected unresolved fallback node families to return to MapExplore when NodeResolve cannot claim a direct target."
+	)
+	assert(flow_manager.call("get_current_state") == FlowStateScript.Type.MAP_EXPLORE, "Expected NodeResolve fallback resolution to return to MapExplore.")
+	assert(not run_state.map_runtime_state.has_pending_node(), "Expected resolve_pending_node() to consume pending fallback context.")
+
+	_free_node(flow_manager)
 
 
 func test_support_node_revisit_stays_traversal_only() -> void:
@@ -1478,6 +1540,35 @@ func test_map_runtime_state_serializes_through_run_state() -> void:
 	var restored_side_mission_state: Dictionary = restored_run_state.map_runtime_state.get_side_mission_node_runtime_state(side_mission_node_id)
 	assert(String(restored_side_mission_state.get("mission_status", "")) == "accepted", "Expected restored map state to preserve accepted hamlet status by node id.")
 	assert(String(restored_side_mission_state.get("target_enemy_definition_id", "")) == "barbed_hunter", "Expected restored map state to preserve the marked hamlet enemy by node id.")
+
+
+func test_pending_node_app_state_mirror_restores_owner_context() -> void:
+	var flow_manager: Node = GameFlowManagerScript.new()
+	var run_state: RunState = RunStateScript.new()
+	run_state.reset_for_new_run()
+	var pending_node_id: int = _find_node_id_by_family(run_state.map_runtime_state, "combat")
+	assert(pending_node_id != MapRuntimeStateScript.NO_PENDING_NODE_ID, "Expected a combat node for pending-node mirror coverage.")
+	run_state.map_runtime_state.set_pending_node(pending_node_id)
+
+	var coordinator: RefCounted = RunSessionCoordinatorScript.new()
+	coordinator.call("setup", flow_manager, run_state)
+	var app_state: Dictionary = coordinator.call("get_app_state_save_data")
+	assert(int(app_state.get("pending_node_id", -1)) == pending_node_id, "Expected app_state to mirror the pending node id from MapRuntimeState.")
+	assert(String(app_state.get("pending_node_type", "")) == "combat", "Expected app_state to mirror the pending node family from MapRuntimeState.")
+
+	run_state.map_runtime_state.clear_pending_node()
+	assert(not run_state.map_runtime_state.has_pending_node(), "Expected owner-side pending-node clear before mirror restore.")
+
+	var restore_result: Dictionary = coordinator.call(
+		"restore_pending_states_for_snapshot",
+		FlowStateScript.Type.MAP_EXPLORE,
+		{"app_state": app_state}
+	)
+	assert(bool(restore_result.get("ok", false)), "Expected compat-mirror restore to succeed without widening owner meaning.")
+	assert(run_state.map_runtime_state.has_pending_node(), "Expected compat-mirror restore to repopulate the MapRuntimeState owner.")
+	assert(run_state.map_runtime_state.pending_node_id == pending_node_id, "Expected restored owner pending-node id to match the mirrored app_state field.")
+	assert(run_state.map_runtime_state.pending_node_type == "combat", "Expected restored owner pending-node type to match the mirrored app_state field.")
+	_free_node(flow_manager)
 
 
 func test_legacy_save_snapshot_restores_fixed_template_path() -> void:

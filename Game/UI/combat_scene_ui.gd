@@ -4,6 +4,7 @@ class_name CombatSceneUi
 
 const SceneLayoutHelperScript = preload("res://Game/UI/scene_layout_helper.gd")
 const TempScreenThemeScript = preload("res://Game/UI/temp_screen_theme.gd")
+const InventoryPanelLayoutScript = preload("res://Game/UI/inventory_panel_layout.gd")
 
 const PLAYER_RUN_SUMMARY_CARD_PATH := "Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/PlayerRunSummaryCard"
 const PLAYER_RUN_SUMMARY_LABEL_PATH := "Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/PlayerRunSummaryCard/PlayerRunSummaryFallbackLabel"
@@ -181,6 +182,7 @@ static func apply_portrait_safe_layout(scene: Control, secondary_node_getter: Ca
 	var is_portrait: bool = bool(values.get("is_portrait", true))
 	var compact_layout: bool = safe_width < 760.0 or (is_portrait and viewport_size.y < 1680.0) or viewport_size.x < 420.0
 	var ultra_compact_layout: bool = compact_layout and (safe_width < 600.0 or viewport_size.y < 1240.0)
+	var inventory_density_band: String = InventoryPanelLayoutScript.density_band_from_flags(compact_layout, ultra_compact_layout)
 	var landscape_compact_layout: bool = not is_portrait
 	var compact_combat_layout: bool = landscape_compact_layout or safe_width <= 740.0 or viewport_size.y <= 1960.0
 	var action_columns: int = 2 if safe_width >= 400.0 else 1
@@ -250,18 +252,18 @@ static func apply_portrait_safe_layout(scene: Control, secondary_node_getter: Ca
 		{"path": "Margin/VBox/Buttons", "theme_constants": {"separation": "button_spacing"}},
 	])
 	if quick_item_section != null:
-		quick_item_section.add_theme_constant_override("separation", 1 if ultra_compact_layout else 3 if compact_layout else 4)
+		quick_item_section.add_theme_constant_override("separation", InventoryPanelLayoutScript.combat_section_separation(inventory_density_band))
 	if action_cards_row != null:
 		action_cards_row.add_theme_constant_override("h_separation", 4 if compact_combat_layout else 6)
 		action_cards_row.add_theme_constant_override("v_separation", 4 if compact_combat_layout else 6)
 	if equipment_cards_flow != null:
 		equipment_cards_flow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		equipment_cards_flow.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-		equipment_cards_flow.add_theme_constant_override("separation", 4 if ultra_compact_layout else 6 if compact_layout else 8)
+		equipment_cards_flow.add_theme_constant_override("separation", InventoryPanelLayoutScript.card_flow_separation(inventory_density_band))
 	if inventory_cards_flow != null:
 		inventory_cards_flow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		inventory_cards_flow.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-		inventory_cards_flow.add_theme_constant_override("separation", 4 if ultra_compact_layout else 6 if compact_layout else 8)
+		inventory_cards_flow.add_theme_constant_override("separation", InventoryPanelLayoutScript.card_flow_separation(inventory_density_band))
 	var enemy_bust_size: Vector2 = Vector2(132, 190) if large_layout else Vector2(116, 166) if medium_layout else Vector2(80, 114) if landscape_compact_layout else Vector2(82, 114) if compact_combat_layout else Vector2(88, 124) if not ultra_compact_layout else Vector2(70, 100)
 	var player_bust_size: Vector2 = Vector2(142, 206) if large_layout else Vector2(124, 184) if medium_layout else Vector2(84, 120) if landscape_compact_layout else Vector2(86, 120) if compact_combat_layout else Vector2(94, 138) if not ultra_compact_layout else Vector2(78, 112)
 	var boss_token_size: Vector2 = Vector2(88, 88) if large_layout else Vector2(76, 76) if medium_layout else Vector2(58, 58) if not ultra_compact_layout else Vector2(46, 46)
@@ -278,8 +280,8 @@ static func apply_portrait_safe_layout(scene: Control, secondary_node_getter: Ca
 	var enemy_card_height: float = 184.0 if large_layout else 168.0 if medium_layout else 132.0 if landscape_compact_layout else 122.0 if compact_combat_layout else 138.0 if not ultra_compact_layout else 120.0
 	var player_card_height: float = 210.0 if large_layout else 192.0 if medium_layout else 142.0 if landscape_compact_layout else 132.0 if compact_combat_layout else 154.0 if not ultra_compact_layout else 136.0
 	var tall_portrait_layout: bool = is_portrait and viewport_size.y >= 2100.0
-	var equipment_panel_height: float = 104.0 if ultra_compact_layout else 116.0 if compact_layout else 136.0
-	var backpack_panel_height: float = 102.0 if ultra_compact_layout else 114.0 if compact_layout else 138.0
+	var equipment_panel_height: float = InventoryPanelLayoutScript.panel_height("equipment", inventory_density_band)
+	var backpack_panel_height: float = InventoryPanelLayoutScript.panel_height("backpack", inventory_density_band)
 	var secondary_scroll_height: float = 320.0 if ultra_compact_layout else 380.0 if compact_combat_layout else 470.0 if large_layout else 430.0 if medium_layout else 400.0
 	if tall_portrait_layout:
 		equipment_panel_height = max(equipment_panel_height, 126.0)
@@ -440,13 +442,13 @@ static func apply_portrait_safe_layout(scene: Control, secondary_node_getter: Ca
 	var equipment_hint_label: Label = _secondary_node(secondary_node_getter, "QuickItemSection/EquipmentHintLabel") as Label
 	if equipment_hint_label != null:
 		equipment_hint_label.visible = true
-		equipment_hint_label.max_lines_visible = 1 if compact_layout else 2
+		equipment_hint_label.max_lines_visible = InventoryPanelLayoutScript.combat_hint_max_lines(inventory_density_band)
 	var inventory_title_label: Label = _secondary_node(secondary_node_getter, "QuickItemSection/InventoryTitleLabel") as Label
 	if inventory_title_label != null:
 		inventory_title_label.visible = true
 	if inventory_hint_label != null:
 		inventory_hint_label.visible = true
-		inventory_hint_label.max_lines_visible = 1 if compact_layout else 2
+		inventory_hint_label.max_lines_visible = InventoryPanelLayoutScript.combat_hint_max_lines(inventory_density_band)
 	if secondary_scroll != null:
 		secondary_scroll.custom_minimum_size = Vector2(0.0, secondary_scroll_height)
 	return {"is_compact_layout": compact_layout or landscape_compact_layout, "action_columns": action_columns}

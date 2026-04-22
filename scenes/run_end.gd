@@ -1,6 +1,7 @@
 # Layer: Scenes - presentation only
 extends Control
 
+const AppBootstrapScript = preload("res://Game/Application/app_bootstrap.gd")
 const FlowStateScript = preload("res://Game/Application/flow_state.gd")
 const SceneAudioCleanupScript = preload("res://Game/UI/scene_audio_cleanup.gd")
 const RunMenuSceneHelperScript = preload("res://Game/UI/run_menu_scene_helper.gd")
@@ -35,7 +36,7 @@ const PORTRAIT_LAYOUT_CONFIG := {
 	},
 }
 
-var _bootstrap
+var _bootstrap: AppBootstrapScript
 var _safe_menu: SafeMenuOverlay
 
 func _ready() -> void:
@@ -44,7 +45,7 @@ func _ready() -> void:
 	var hint_label: Label = get_node_or_null("Margin/Center/ContentCard/VBox/HintLabel") as Label
 	var title_label: Label = get_node_or_null("Margin/Center/ContentCard/VBox/TitleLabel") as Label
 	var return_button: Button = get_node_or_null("Margin/Center/ContentCard/VBox/ReturnButton") as Button
-	_bootstrap = get_node_or_null("/root/AppBootstrap")
+	_bootstrap = get_node_or_null("/root/AppBootstrap") as AppBootstrapScript
 	SceneAudioPlayersScript.configure_from_config(self, AUDIO_PLAYER_CONFIG)
 	if _bootstrap != null:
 		var last_result: String = String(_bootstrap.get_last_run_result())

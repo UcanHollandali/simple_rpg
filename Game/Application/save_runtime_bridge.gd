@@ -22,15 +22,11 @@ func setup(
 
 func save_game(save_path: String = "") -> Dictionary:
 	if game_flow_manager == null or save_service == null:
-		return {"ok": false, "error": "missing_save_dependencies"}
+		return _error_result("missing_save_dependencies")
 
 	var active_flow_state: int = game_flow_manager.get_current_state()
 	if not save_service.is_implemented_save_safe_now(active_flow_state):
-		return {
-			"ok": false,
-			"error": "unsupported_save_state",
-			"active_flow_state": active_flow_state,
-		}
+		return _error_result("unsupported_save_state", {"active_flow_state": active_flow_state})
 
 	var snapshot_result: Dictionary = build_save_snapshot(save_path)
 	if not bool(snapshot_result.get("ok", false)):
@@ -40,7 +36,7 @@ func save_game(save_path: String = "") -> Dictionary:
 
 func load_game(save_path: String = "") -> Dictionary:
 	if save_service == null:
-		return {"ok": false, "error": "missing_save_service"}
+		return _error_result("missing_save_service")
 
 	var load_result: Dictionary = save_service.load_snapshot(save_path)
 	if not bool(load_result.get("ok", false)):
@@ -56,15 +52,11 @@ func load_game(save_path: String = "") -> Dictionary:
 
 func build_save_snapshot(save_path: String = "") -> Dictionary:
 	if game_flow_manager == null or run_state == null or run_session_coordinator == null or save_service == null:
-		return {"ok": false, "error": "missing_save_dependencies"}
+		return _error_result("missing_save_dependencies")
 
 	var active_flow_state: int = game_flow_manager.get_current_state()
 	if not save_service.is_implemented_save_safe_now(active_flow_state):
-		return {
-			"ok": false,
-			"error": "unsupported_save_state",
-			"active_flow_state": active_flow_state,
-		}
+		return _error_result("unsupported_save_state", {"active_flow_state": active_flow_state})
 
 	var reward_state: RewardState = run_session_coordinator.get_reward_state()
 	var level_up_state: LevelUpState = run_session_coordinator.get_level_up_state()
@@ -85,7 +77,7 @@ func build_save_snapshot(save_path: String = "") -> Dictionary:
 
 func restore_from_snapshot(snapshot: Dictionary) -> Dictionary:
 	if game_flow_manager == null or run_state == null or run_session_coordinator == null or save_service == null:
-		return {"ok": false, "error": "missing_save_dependencies"}
+		return _error_result("missing_save_dependencies")
 
 	var validation_result: Dictionary = save_service.validate_snapshot(snapshot)
 	if not bool(validation_result.get("ok", false)):
@@ -93,15 +85,11 @@ func restore_from_snapshot(snapshot: Dictionary) -> Dictionary:
 
 	var active_flow_state: int = int(snapshot.get("active_flow_state", -1))
 	if not save_service.is_implemented_save_safe_now(active_flow_state):
-		return {
-			"ok": false,
-			"error": "unsupported_save_state",
-			"active_flow_state": active_flow_state,
-		}
+		return _error_result("unsupported_save_state", {"active_flow_state": active_flow_state})
 
 	var snapshot_run_state: Variant = snapshot.get("run_state", {})
 	if typeof(snapshot_run_state) != TYPE_DICTIONARY:
-		return {"ok": false, "error": "missing_run_state"}
+		return _error_result("missing_run_state")
 
 	run_state.load_from_save_dict(snapshot_run_state, int(snapshot.get("save_schema_version", -1)))
 
@@ -125,5 +113,9 @@ func has_save_game(save_path: String = "") -> bool:
 
 func delete_save_game(save_path: String = "") -> Dictionary:
 	if save_service == null:
-		return {"ok": false, "error": "missing_save_service"}
+		return _error_result("missing_save_service")
 	return save_service.delete_save_file(save_path)
+
+
+func _error_result(error_code: String, extra: Dictionary = {}) -> Dictionary:
+	return {"ok": false, "error": error_code}.merged(extra, true)

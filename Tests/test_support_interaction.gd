@@ -5,6 +5,7 @@ class_name TestSupportInteraction
 const AppBootstrapScript = preload("res://Game/Application/app_bootstrap.gd")
 const SceneRouterScript = preload("res://Game/Infrastructure/scene_router.gd")
 const FlowStateScript = preload("res://Game/Application/flow_state.gd")
+const MapOverlayContractScript = preload("res://Game/UI/map_overlay_contract.gd")
 const CONFIRM_ICON_PATH := "res://Assets/Icons/icon_confirm.svg"
 const MAIN_MENU_START_BUTTON_PATH := "Margin/VBox/ActionPanel/ActionVBox/StartRunButton"
 const SUPPORT_ACTION_A_BUTTON_PATH := "Margin/VBox/ActionsRow/ActionAButton"
@@ -531,7 +532,7 @@ func _get_scene_root(expected_name: String = "") -> Node:
 func _get_visible_overlay_root() -> Node:
 	if current_scene == null or current_scene.name != "MapExplore":
 		return null
-	for overlay_root_name in ["SupportOverlay", "EventOverlay", "RewardOverlay", "LevelUpOverlay"]:
+	for overlay_root_name in MapOverlayContractScript.overlay_root_names():
 		var overlay_root: Control = _find_visible_overlay_root(overlay_root_name)
 		if overlay_root != null:
 			return overlay_root
@@ -554,17 +555,9 @@ func _find_visible_overlay_root(overlay_root_name: String) -> Control:
 
 
 func _overlay_root_name(expected_name: String) -> String:
-	match expected_name:
-		"SupportInteraction":
-			return "SupportOverlay"
-		"Event":
-			return "EventOverlay"
-		"Reward":
-			return "RewardOverlay"
-		"LevelUp":
-			return "LevelUpOverlay"
-		_:
-			return ""
+	return MapOverlayContractScript.overlay_root_name(
+		MapOverlayContractScript.overlay_state_from_scene_name(expected_name)
+	)
 
 
 func _require(condition: bool, message: String) -> void:

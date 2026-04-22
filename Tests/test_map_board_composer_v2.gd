@@ -19,6 +19,7 @@ func _init() -> void:
 	test_map_board_composer_uses_run_seed_for_controlled_random_variation()
 	test_map_board_composer_keeps_opening_anchor_near_vertical_center()
 	test_map_board_composer_rotates_opening_shell_beyond_the_upper_half()
+	test_map_board_composer_uses_lower_board_height_in_late_routes()
 	test_map_board_composer_surfaces_known_icons_for_seen_non_adjacent_nodes()
 	test_map_board_composer_surfaces_known_icons_for_current_and_adjacent_nodes()
 	test_map_board_composer_surfaces_side_quest_highlights()
@@ -239,6 +240,26 @@ func test_map_board_composer_rotates_opening_shell_beyond_the_upper_half() -> vo
 	assert(observed_above, "Expected some seeded opening-shell branches to remain above the start anchor.")
 	assert(observed_below, "Expected seeded opening-shell branches to sometimes rotate below the start anchor instead of always clustering upward.")
 	assert(observed_left and observed_right, "Expected seeded opening-shell branches to span both left and right sides around the start anchor.")
+
+
+func test_map_board_composer_uses_lower_board_height_in_late_routes() -> void:
+	var composer: RefCounted = MapBoardComposerV2Script.new()
+	var board_size := Vector2(920, 1180)
+	for seed in [11, 29, 41]:
+		var run_state: RunState = RunState.new()
+		run_state.reset_for_new_run()
+		run_state.configure_run_seed(seed)
+		_advance_visible_branch(run_state, 5)
+		var composition: Dictionary = composer.call("compose", run_state, board_size, Vector2(0.5, 0.58), Vector2(148, 212))
+		var visible_bounds: Rect2 = _visible_node_bounds(composition)
+		assert(
+			visible_bounds.end.y >= board_size.y * 0.80,
+			"Expected progressed node scatter to keep using the lower portrait board instead of collapsing into mostly upper / lateral lanes. Seed=%d bounds=%s." % [seed, str(visible_bounds)]
+		)
+		assert(
+			visible_bounds.size.y >= board_size.y * 0.25,
+			"Expected progressed node scatter to preserve a meaningful vertical footprint after footprint widening. Seed=%d bounds=%s." % [seed, str(visible_bounds)]
+		)
 
 
 func test_map_board_composer_penalizes_edge_hugging_outer_reconnect_fallbacks() -> void:
@@ -775,6 +796,29 @@ func _min_visible_node_spacing(composition: Dictionary) -> float:
 			var right_position: Vector2 = world_positions.get(visible_node_ids[right_index], Vector2.ZERO)
 			minimum_spacing = min(minimum_spacing, left_position.distance_to(right_position))
 	return minimum_spacing
+
+
+func _visible_node_bounds(composition: Dictionary) -> Rect2:
+	var has_bounds: bool = false
+	var min_point: Vector2 = Vector2.ZERO
+	var max_point: Vector2 = Vector2.ZERO
+	for node_variant in composition.get("visible_nodes", []):
+		if typeof(node_variant) != TYPE_DICTIONARY:
+			continue
+		var node_entry: Dictionary = node_variant
+		var position: Vector2 = Vector2(node_entry.get("world_position", Vector2.ZERO))
+		if position == Vector2.ZERO:
+			continue
+		if not has_bounds:
+			has_bounds = true
+			min_point = position
+			max_point = position
+			continue
+		min_point = Vector2(minf(min_point.x, position.x), minf(min_point.y, position.y))
+		max_point = Vector2(maxf(max_point.x, position.x), maxf(max_point.y, position.y))
+	if not has_bounds:
+		return Rect2()
+	return Rect2(min_point, max_point - min_point)
 
 
 func _polyline_distance_to_point(points: PackedVector2Array, point: Vector2) -> float:

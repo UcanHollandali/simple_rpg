@@ -4,7 +4,8 @@
 
 - This file is a production/reference companion to `Docs/MAP_COMPOSER_V2_DESIGN.md`.
 - Authority remains `Docs/VISUAL_AUDIO_STYLE_GUIDE.md` for style direction and `Docs/ASSET_PIPELINE.md` plus `Docs/ASSET_LICENSE_POLICY.md` for provenance/pipeline rules.
-- This file describes asset families required for the baseline Map Composer V2 presentation design.
+- This file describes the code-first Map Composer V2 presentation direction: the procedural renderer owns baseline terrain/board readability, while asset families stay in the optional-polish or later semantic-surface lanes.
+- Asset adoption assumes the board first behaves as a stable stage-start layout and that discovery only reveals a frozen layout; optional terrain stamp hookup stays deferred behind the asset approval contract and the live layout-regression fixes tracked in Prompt 05.
 
 ## Observed Current Asset Baseline (Certain)
 
@@ -45,6 +46,7 @@ Reuse current assets where they still fit the V2 role:
 
 - `SourceArt/Generated/new/` is a candidate/source pack for the generated-map overhaul.
 - Those files are not authority docs and they are not automatically approved runtime assets.
+- File presence under `Assets/UI/Map/` or `SourceArt/Generated/new/` must not be treated as implicit approval; runtime hookup still requires explicit approved filenames plus truthful manifest rows.
 - The current direction is selective adoption:
   - use the pack to replace or augment weak older node/path/pocket visuals
   - keep runtime graph truth and composer ownership unchanged
@@ -63,7 +65,7 @@ Reuse current assets where they still fit the V2 role:
 
 The current `ui_map_board_backdrop` shell should become optional fallback art, not the primary map-surface identity.
 
-V2 needs environmental composition assets for:
+V2 can optionally add environmental composition polish for:
 
 - trail carving
 - clearing pockets
@@ -71,19 +73,19 @@ V2 needs environmental composition assets for:
 - forest props
 - boss/key landmark emphasis
 
-## Minimum New Visual Families
+## Optional Terrain / Board Polish Families
 
-These are the minimum new families for baseline V2.
+These are optional terrain / board polish families for V2 after the procedural renderer is already acceptable on its own.
 
-| Family group | Suggested runtime family pattern | Required | Purpose | Notes |
+| Family group | Suggested runtime family pattern | Priority lane | Purpose | Notes |
 |---|---|---|---|---|
-| forest floor base | `ui_map_v2_ground_*` | yes | main board surface under clearings and trails | shared across all scaffold types |
-| trail mask / trail edge brushes | `ui_map_v2_trail_*` | yes | spline trail fill, edge breakup, worn path read | preferably vector-friendly or high-resolution transparent raster |
-| clearing underlays | `ui_map_v2_clearing_*` | yes | start/node/boss pocket read | at least small / medium / large variants |
-| canopy clusters | `ui_map_v2_canopy_*` | yes | hide unreadable space and frame the pocket | large / medium / small silhouette clusters |
-| forest props | `ui_map_v2_prop_*` | yes | roots, rocks, shrubs, broken logs | support edge framing and variation |
-| route landmark accents | `ui_map_v2_landmark_*` | yes | boss approach, key hint, guide-light accents | used sparingly, not one per node family |
-| foreground branch overlays | `ui_map_v2_foreground_*` | optional-baseline | light depth and framing | only if readability remains strong |
+| forest floor base | `ui_map_v2_ground_*` | optional-polish | supplemental board-surface breakup under clearings and trails | shared across all scaffold types; not required for baseline readability |
+| trail mask / trail edge brushes | `ui_map_v2_trail_*` | optional-polish | supplemental spline trail fill, edge breakup, worn path read | preferably vector-friendly or high-resolution transparent raster |
+| clearing underlays | `ui_map_v2_clearing_*` | optional-polish | supplemental start/node/boss pocket read | at least small / medium / large variants |
+| canopy clusters | `ui_map_v2_canopy_*` | optional-polish | supplemental concealment mass and pocket framing | large / medium / small silhouette clusters |
+| forest props | `ui_map_v2_prop_*` | later-polish | roots, rocks, shrubs, broken logs | support edge framing and variation |
+| route landmark accents | `ui_map_v2_landmark_*` | later-polish | boss approach, key hint, guide-light accents | used sparingly, not one per node family |
+| foreground branch overlays | `ui_map_v2_foreground_*` | later-polish | light depth and framing | only if readability remains strong |
 
 ## Generated-Map Pipeline Fit
 
@@ -92,9 +94,9 @@ The intended board pipeline for the current overhaul is:
 1. scatter node layout from graph truth
 2. freeze full path layout for the stage
 3. filter visible subset from that frozen layout
-4. wrap the pocket with filler / canopy / clutter / fog assets
+4. render the procedural pocket first, then optionally layer filler / canopy / clutter / fog polish
 
-Asset families must support that order.
+Asset families must support that order and remain safe when optional stamp loads return `null`.
 They must not assume that visibility changes can redraw path geometry.
 
 ## Minimum New Counts (Proposed)
@@ -111,23 +113,23 @@ These counts are a pragmatic baseline, not a strict contract:
 
 ## Current Prototype Priority Families
 
-The current prototype wave should favor these runtime-facing families first:
+The current prototype wave should favor semantic identity completion first, with terrain/board families treated as optional later polish:
 
 - node identity/icon completion
   - `icon_map_combat`
   - `icon_map_key`
   - `icon_map_boss`
-- path support
+- optional board-support polish
   - `ui_map_v2_path_edge_filler_*`
   - `ui_map_v2_path_breakup_decal_*`
   - `ui_map_v2_junction_patch_*`
-- canopy / clutter / atmosphere
+- optional canopy / clutter / atmosphere polish
   - `ui_map_v2_canopy_clump_d/e/f`
   - `ui_map_v2_ground_clutter_*`
   - `ui_map_v2_fog_patch_*`
   - `ui_map_v2_ruin_scatter_*`
 
-These are the first families that make the generated board feel less like isolated node plates and more like a connected forest pocket.
+These families can deepen the generated board after the procedural renderer itself is visually acceptable. They are not Priority 1 blockers for the first readable V2 pass.
 
 ## Overlay Asset Policy
 
@@ -176,12 +178,12 @@ This keeps production scope controlled and avoids hidden mechanic drift through 
 | Layer | Family group | Visual role |
 |---|---|---|
 | backdrop | existing `bg_map_*` | far atmosphere and depth |
-| board surface | `ui_map_v2_ground_*` | local playable forest floor |
-| path layer | `ui_map_v2_trail_*` | traversal read |
-| pocket layer | `ui_map_v2_clearing_*` | node-area readability |
-| concealment layer | `ui_map_v2_canopy_*` | unreadable forest mass |
-| prop layer | `ui_map_v2_prop_*` | variation and edge shaping |
-| landmark layer | `ui_map_v2_landmark_*` | boss/key/current-route emphasis |
+| board surface | procedural base + optional `ui_map_v2_ground_*` | local playable forest floor |
+| path layer | procedural trail read + optional `ui_map_v2_trail_*` | traversal read |
+| pocket layer | procedural clearing read + optional `ui_map_v2_clearing_*` | node-area readability |
+| concealment layer | procedural forest shapes + optional `ui_map_v2_canopy_*` | unreadable forest mass |
+| prop layer | optional `ui_map_v2_prop_*` | variation and edge shaping |
+| landmark layer | optional `ui_map_v2_landmark_*` | boss/key/current-route emphasis |
 | overlay layer | existing icons + optional `ui_map_v2_node_halo_*` | node family/state/hit target clarity |
 | actor layer | existing walker family | local traversal motion |
 
@@ -234,26 +236,28 @@ Those are optional polish, not baseline blockers.
 
 ## Production Priority
 
-## Priority 1 - Required For First Readable V2 Pass
+## Priority 1 - Required For First Readable Code-First Pass
+
+- `icon_map_combat`
+- `icon_map_key`
+- `icon_map_boss`
+
+Ground / trail / clearing / canopy / filler / junction / forest-transition families are optional polish, not Priority 1 blockers.
+
+## Priority 2 - Optional Board / Route Polish After Procedural Pass
 
 - `ui_map_v2_ground_*`
 - `ui_map_v2_trail_*`
 - `ui_map_v2_clearing_*`
 - `ui_map_v2_canopy_*`
-- `icon_map_combat`
-- `icon_map_key`
-- `icon_map_boss`
-
-## Priority 2 - Required For Strong Wayfinder Identity
-
-- `ui_map_v2_prop_*`
-- `ui_map_v2_landmark_*`
 - `ui_map_v2_path_edge_filler_*`
 - `ui_map_v2_path_breakup_decal_*`
 - `ui_map_v2_junction_patch_*`
 
-## Priority 3 - Nice To Have
+## Priority 3 - Later Semantic / Atmosphere Polish
 
+- `ui_map_v2_prop_*`
+- `ui_map_v2_landmark_*`
 - `ui_map_v2_foreground_*`
 - optional overlay refresh families
 - optional audio polish families
@@ -279,5 +283,5 @@ Those are optional polish, not baseline blockers.
 These are proposals, not confirmed repo facts:
 
 - Existing icon families are strong enough to carry node identity without a full new icon set.
-- Most V2 value will come from environmental composition assets, not from replacing every current overlay asset.
+- Most near-term V2 value will come from procedural renderer tuning plus semantic icon completion, not from terrain asset hookup.
 - The shared-core-family approach will be enough to differentiate `corridor`, `openfield`, and `loop` without separate art packs.

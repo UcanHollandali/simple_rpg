@@ -1,6 +1,7 @@
 # Layer: Scenes - presentation only
 extends Control
 
+const AppBootstrapScript = preload("res://Game/Application/app_bootstrap.gd")
 const FlowStateScript = preload("res://Game/Application/flow_state.gd")
 const CombatFlowScript = preload("res://Game/Application/combat_flow.gd")
 const CombatPresenterScript = preload("res://Game/UI/combat_presenter.gd")
@@ -120,7 +121,6 @@ func _ready() -> void:
 		"equipment_hint_label": _combat_secondary_node("QuickItemSection/EquipmentHintLabel") as Label,
 		"inventory_title_label": _combat_secondary_node("QuickItemSection/InventoryTitleLabel") as Label,
 		"inventory_hint_label": _combat_secondary_node("QuickItemSection/InventoryHintLabel") as Label,
-		"after_render_handler": Callable(self, "_after_inventory_panel_render"),
 		"click_handler": Callable(self, "_handle_inventory_card_click"),
 		"drag_complete_handler": Callable(self, "_handle_inventory_card_drag_completed"),
 		"drag_started_handler": Callable(self, "_on_inventory_card_drag_started"),
@@ -602,8 +602,8 @@ func _set_buttons_enabled(is_enabled: bool) -> void:
 			button.disabled = not is_enabled
 
 
-func _get_app_bootstrap():
-	return _scene_node("/root/AppBootstrap")
+func _get_app_bootstrap() -> AppBootstrapScript:
+	return _scene_node("/root/AppBootstrap") as AppBootstrapScript
 
 
 func _on_save_pressed() -> void:
@@ -772,48 +772,6 @@ func _handle_inventory_card_drag_completed(inventory_slot_id: int, target_index:
 	if inventory_slot_id >= 0 or target_index >= 0:
 		_append_status_line("Backpack order is locked during combat.")
 	_refresh_ui()
-
-
-func _after_inventory_panel_render(equipment_container: Container, backpack_container: Container) -> void:
-	_apply_combat_inventory_card_density(equipment_container)
-	_apply_combat_inventory_card_density(backpack_container)
-
-
-func _apply_combat_inventory_card_density(container: Container) -> void:
-	if container == null:
-		return
-	var viewport_height: float = get_viewport_rect().size.y
-	var compact_viewport: bool = viewport_height < 1560.0
-	var very_compact_viewport: bool = viewport_height < 1360.0
-	for child in container.get_children():
-		var card: PanelContainer = child as PanelContainer
-		if card == null:
-			continue
-		card.custom_minimum_size = Vector2(
-			102.0 if very_compact_viewport else 112.0 if compact_viewport else 126.0,
-			116.0 if very_compact_viewport else 126.0 if compact_viewport else 142.0
-		)
-		var slot_label: Label = card.get_node_or_null("VBox/HeaderRow/SlotLabel") as Label
-		if slot_label != null:
-			slot_label.add_theme_font_size_override("font_size", 11 if very_compact_viewport else 12)
-		var count_label: Label = card.get_node_or_null("VBox/HeaderRow/CountLabel") as Label
-		if count_label != null:
-			count_label.add_theme_font_size_override("font_size", 12 if very_compact_viewport else 13)
-		var icon_rect: TextureRect = card.get_node_or_null("VBox/IconRect") as TextureRect
-		if icon_rect != null:
-			icon_rect.custom_minimum_size = Vector2(34.0, 34.0) if very_compact_viewport else Vector2(38.0, 38.0) if compact_viewport else Vector2(42.0, 42.0)
-		var placeholder_label: Label = card.get_node_or_null("VBox/PlaceholderLabel") as Label
-		if placeholder_label != null:
-			placeholder_label.add_theme_font_size_override("font_size", 20 if very_compact_viewport else 22 if compact_viewport else 24)
-		var title_label: Label = card.get_node_or_null("VBox/TitleLabel") as Label
-		if title_label != null:
-			title_label.add_theme_font_size_override("font_size", 14 if very_compact_viewport else 15 if compact_viewport else 16)
-		var detail_label: Label = card.get_node_or_null("VBox/DetailLabel") as Label
-		if detail_label != null:
-			detail_label.add_theme_font_size_override("font_size", 11 if very_compact_viewport else 12 if compact_viewport else 13)
-		var action_hint_label: Label = card.get_node_or_null("VBox/ActionHintLabel") as Label
-		if action_hint_label != null:
-			action_hint_label.add_theme_font_size_override("font_size", 10 if very_compact_viewport else 11 if compact_viewport else 12)
 
 
 func _resolve_turn_phase_log_tone(phase_name: String, action_name: String, result: Dictionary) -> String:

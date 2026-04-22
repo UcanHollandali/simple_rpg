@@ -202,6 +202,7 @@ Current runtime-backed prototype node families:
 - `NodeResolve` remains implemented as a legacy transition shell.
 - current runtime-backed node families no longer use it on their normal direct-entry path
 - generic pending-node fallback and legacy-compatible pending-node restore can still route into it
+- behavior-changing removal of that live fallback still requires a dedicated flow audit; guarded cleanup should only document or isolate it, not retire it opportunistically
 - Planned `event` nodes and movement-triggered roadside encounters are distinct:
   - the planned map-node family remains `event` and routes directly into `Event`
   - travel-triggered roadside encounters are transient movement interruptions and do not occupy or consume a map-node slot

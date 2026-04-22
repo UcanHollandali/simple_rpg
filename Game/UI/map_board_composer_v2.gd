@@ -7,18 +7,26 @@ const UiAssetPathsScript = preload("res://Game/UI/ui_asset_paths.gd")
 const MapBoardBackdropBuilderScript = preload("res://Game/UI/map_board_backdrop_builder.gd")
 const MapBoardGeometryScript = preload("res://Game/UI/map_board_geometry.gd")
 const MapBoardEdgeRoutingScript = preload("res://Game/UI/map_board_edge_routing.gd")
+const MapBoardLayoutSolverScript = preload("res://Game/UI/map_board_layout_solver.gd")
 
 const DEFAULT_TEMPLATE_PROFILE := "corridor"
 const BASE_CENTER_FACTOR := Vector2(0.50, 0.60)
-const MIN_BOARD_MARGIN := Vector2(96.0, 108.0)
+const MIN_BOARD_MARGIN := Vector2(136.0, 108.0)
+const STABLE_LAYOUT_REUSE_POSITION_TOLERANCE := 48.0
 const OPENING_BRANCH_ANGLE_PRESETS := {
 	1: [-PI * 0.5],
-	2: [-2.18, -0.96],
-	3: [-2.50, -1.58, -0.66],
-	4: [-2.66, -2.08, -1.08, -0.48],
+	2: [-1.94, -1.06],
+	3: [-2.22, -1.50, -0.80],
+	4: [-2.30, -1.74, -1.08, -0.56],
 }
-const DEPTH_STEP_FACTORS := [0.0, 0.224, 0.196, 0.176, 0.160, 0.146]
-const DEPTH_SPREAD_FACTORS := [0.0, 0.040, 0.074, 0.090, 0.100, 0.108]
+const DEPTH_STEP_FACTORS := [0.0, 0.220, 0.190, 0.176, 0.166, 0.158]
+const DEPTH_SPREAD_FACTORS := [0.0, 0.028, 0.042, 0.050, 0.056, 0.060]
+const DEPTH_DIRECTION_PULL_FACTORS := [0.0, 0.0, 0.24, 0.40, 0.56, 0.70]
+const DEPTH_LATERAL_SPREAD_SCALE_FACTORS := [1.0, 0.80, 0.54, 0.38, 0.26, 0.20]
+const DEPTH_DOWNWARD_BIAS_FACTORS := [0.0, 0.0, 0.056, 0.100, 0.148, 0.184]
+const DEPTH_CENTER_PULL_FACTORS := [0.0, 0.0, 0.062, 0.120, 0.208, 0.280]
+const BRANCH_GLOBAL_ROTATION_RANGE := 0.92
+const BRANCH_ANGLE_NOISE := 0.04
 const PATH_FAMILY_SHORT_STRAIGHT := "short_straight"
 const PATH_FAMILY_GENTLE_CURVE := "gentle_curve"
 const PATH_FAMILY_WIDER_CURVE := "wider_curve"
@@ -62,11 +70,13 @@ func compose(
 		template_profile,
 		board_seed
 	)
-	var world_positions: Dictionary = (stable_layout.get("world_positions", {}) as Dictionary).duplicate(true)
+	var stable_world_positions: Dictionary = (stable_layout.get("world_positions", {}) as Dictionary).duplicate(true)
+	var can_reuse_stable_layout: bool = _stable_layout_matches_board_size(stable_world_positions, start_node_id, board_size)
+	var world_positions: Dictionary = stable_world_positions if can_reuse_stable_layout else {}
 	if world_positions.is_empty():
 		world_positions = _build_world_positions(graph_snapshot, board_size, layout_context, template_profile, board_seed)
 	var graph_nodes: Array[Dictionary] = _build_graph_node_entries(graph_snapshot, world_positions, board_size)
-	var layout_edges: Array = (stable_layout.get("layout_edges", []) as Array).duplicate(true)
+	var layout_edges: Array = (stable_layout.get("layout_edges", []) as Array).duplicate(true) if can_reuse_stable_layout else []
 	if layout_edges.is_empty():
 		layout_edges = _build_full_edge_layouts(graph_by_id, graph_nodes, world_positions, layout_context, template_profile, board_seed, board_size)
 	var visible_nodes: Array = _build_visible_node_entries(graph_snapshot, graph_by_id, world_positions, current_node_id, board_size)
@@ -74,7 +84,7 @@ func compose(
 	var focus_anchor: Vector2 = board_size * focus_anchor_factor
 	var current_world_position: Vector2 = world_positions.get(current_node_id, board_size * BASE_CENTER_FACTOR)
 	var focus_offset: Vector2 = _clamp_focus_offset(focus_anchor - current_world_position, max_focus_offset)
-	var forest_shapes: Array = (stable_layout.get("forest_shapes", []) as Array).duplicate(true)
+	var forest_shapes: Array = (stable_layout.get("forest_shapes", []) as Array).duplicate(true) if can_reuse_stable_layout else []
 	if forest_shapes.is_empty():
 		forest_shapes = MapBoardBackdropBuilderScript.build_forest_shapes(board_size, graph_nodes, graph_by_id, world_positions, template_profile, board_seed, BASE_CENTER_FACTOR, MIN_BOARD_MARGIN)
 	return {
@@ -227,7 +237,7 @@ func _build_branch_direction_by_root(
 	var profile_rotation: float = 0.0
 	var rotation_rng := RandomNumberGenerator.new()
 	rotation_rng.seed = _derive_seed(board_seed, "branch-global-rotation")
-	var global_rotation: float = rotation_rng.randf_range(-PI, PI)
+	var global_rotation: float = rotation_rng.randf_range(-BRANCH_GLOBAL_ROTATION_RANGE, BRANCH_GLOBAL_ROTATION_RANGE)
 	match template_profile:
 		"corridor":
 			profile_rotation = -0.04
@@ -240,7 +250,7 @@ func _build_branch_direction_by_root(
 		var base_angle: float = branch_angles[index] if index < branch_angles.size() else lerpf(-2.74, -0.40, float(index) / float(max(1, branch_root_ids.size() - 1)))
 		var branch_rng := RandomNumberGenerator.new()
 		branch_rng.seed = _derive_seed(board_seed, "branch-angle:%d" % branch_root_id)
-		var angle: float = wrapf(base_angle + global_rotation + profile_rotation + branch_rng.randf_range(-0.05, 0.05), -PI, PI)
+		var angle: float = wrapf(base_angle + global_rotation + profile_rotation + branch_rng.randf_range(-BRANCH_ANGLE_NOISE, BRANCH_ANGLE_NOISE), -PI, PI)
 		branch_direction_by_root[branch_root_id] = Vector2(cos(angle), sin(angle)).normalized()
 	return branch_direction_by_root
 func _branch_angles_for_count(branch_count: int) -> Array[float]:
@@ -262,165 +272,34 @@ func _build_world_positions(
 	template_profile: String,
 	board_seed: int
 ) -> Dictionary:
-	var origin: Vector2 = board_size * BASE_CENTER_FACTOR
-	var board_min_dimension: float = min(board_size.x, board_size.y)
-	var world_positions: Dictionary = {}
-	var start_node_id: int = int(layout_context.get("start_node_id", _resolve_start_node_id(graph_snapshot)))
-	var depth_by_node_id: Dictionary = layout_context.get("depth_by_node_id", {})
-	var parent_ids_by_node_id: Dictionary = layout_context.get("parent_ids_by_node_id", {})
-	var primary_parent_by_node_id: Dictionary = layout_context.get("primary_parent_by_node_id", {})
-	var child_ids_by_parent: Dictionary = layout_context.get("child_ids_by_parent", {})
-	var branch_root_by_node_id: Dictionary = layout_context.get("branch_root_by_node_id", {})
-	world_positions[start_node_id] = origin
-
-	for node_id in _sorted_node_ids_by_depth(graph_snapshot, depth_by_node_id):
-		if node_id == start_node_id:
-			continue
-		var node_depth: int = int(depth_by_node_id.get(node_id, 0))
-		var parent_ids: Array[int] = _int_array_from_variant(parent_ids_by_node_id.get(node_id, []))
-		if parent_ids.is_empty():
-			world_positions[node_id] = origin
-			continue
-		var primary_parent_id: int = int(primary_parent_by_node_id.get(node_id, start_node_id))
-		var parent_position: Vector2 = world_positions.get(primary_parent_id, origin)
-		var branch_root_id: int = int(branch_root_by_node_id.get(node_id, primary_parent_id))
-		var branch_direction: Vector2 = _branch_direction_for_root(layout_context, branch_root_id)
-		var outward_source: Vector2 = parent_position - origin
-		var outward_direction: Vector2 = branch_direction if outward_source.length_squared() <= 0.001 else (branch_direction * 0.62 + outward_source.normalized() * 0.38).normalized()
-		var tangent_direction: Vector2 = Vector2(-outward_direction.y, outward_direction.x)
-		var node_seed_rng := RandomNumberGenerator.new()
-		node_seed_rng.seed = _derive_seed(board_seed, "layout:%d" % node_id)
-		var position: Vector2
-		if parent_ids.size() > 1:
-			position = _position_reconnect_node(
-				node_id,
-				parent_ids,
-				world_positions,
-				layout_context,
-				board_size,
-				template_profile,
-				board_seed
-			)
-		else:
-			var sibling_ids: Array[int] = _int_array_from_variant(child_ids_by_parent.get(primary_parent_id, []))
-			var sibling_index: int = sibling_ids.find(node_id)
-			var sibling_offset_units: float = _symmetric_offset_for_index(sibling_index, sibling_ids.size())
-			var child_ids: Array[int] = _int_array_from_variant(child_ids_by_parent.get(node_id, []))
-			var leaf_like: bool = child_ids.is_empty()
-			var step_length: float = board_min_dimension * _depth_step_factor(node_depth) * _profile_layout_scale(template_profile)
-			if leaf_like and node_depth >= max(2, int(layout_context.get("max_depth", 0)) - 1):
-				step_length += board_min_dimension * 0.018
-			var spread_length: float = board_min_dimension * _depth_spread_factor(node_depth) * _profile_spread_scale(template_profile)
-			var tangent_jitter: float = node_seed_rng.randf_range(-board_min_dimension * 0.014, board_min_dimension * 0.014)
-			var outward_jitter: float = node_seed_rng.randf_range(-board_min_dimension * 0.008, board_min_dimension * 0.020)
-			var branch_curve_bias: float = node_seed_rng.randf_range(-board_min_dimension * 0.010, board_min_dimension * 0.010)
-			var lateral_offset: float = spread_length * sibling_offset_units + tangent_jitter + branch_curve_bias
-			position = parent_position + outward_direction * (step_length + outward_jitter) + tangent_direction * lateral_offset
-		world_positions[node_id] = _clamp_to_board(position, board_size)
-
-	_relax_collisions(world_positions, graph_snapshot, board_size, layout_context)
-	_reduce_edge_crossings(world_positions, graph_snapshot, board_size, layout_context)
-	_relax_collisions(world_positions, graph_snapshot, board_size, layout_context)
-	return world_positions
-func _sorted_node_ids_by_depth(graph_snapshot: Array[Dictionary], depth_by_node_id: Dictionary) -> Array[int]:
-	var node_ids: Array[int] = []
-	for node_entry in graph_snapshot:
-		node_ids.append(int(node_entry.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID)))
-	node_ids.sort_custom(func(left: int, right: int) -> bool:
-		var left_depth: int = int(depth_by_node_id.get(left, 0))
-		var right_depth: int = int(depth_by_node_id.get(right, 0))
-		if left_depth == right_depth:
-			return left < right
-		return left_depth < right_depth
+	return MapBoardLayoutSolverScript.build_world_positions(
+		graph_snapshot,
+		board_size,
+		layout_context,
+		template_profile,
+		board_seed,
+		{
+			"base_center_factor": BASE_CENTER_FACTOR,
+			"min_board_margin": MIN_BOARD_MARGIN,
+			"depth_step_factors": DEPTH_STEP_FACTORS,
+			"depth_spread_factors": DEPTH_SPREAD_FACTORS,
+			"depth_direction_pull_factors": DEPTH_DIRECTION_PULL_FACTORS,
+			"depth_lateral_spread_scale_factors": DEPTH_LATERAL_SPREAD_SCALE_FACTORS,
+			"depth_downward_bias_factors": DEPTH_DOWNWARD_BIAS_FACTORS,
+			"depth_center_pull_factors": DEPTH_CENTER_PULL_FACTORS,
+			"clearing_radius_by_node_id": _build_open_clearing_radius_by_node_id(graph_snapshot, board_size),
+		}
 	)
-	return node_ids
+func _build_open_clearing_radius_by_node_id(graph_snapshot: Array[Dictionary], board_size: Vector2) -> Dictionary:
+	var clearing_radius_by_node_id: Dictionary = {}
+	for node_entry in graph_snapshot:
+		var node_id: int = int(node_entry.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
+		clearing_radius_by_node_id[node_id] = _clearing_radius_for(String(node_entry.get("node_family", "")), "open", board_size)
+	return clearing_radius_by_node_id
 func _int_array_from_variant(value: Variant) -> Array[int]:
-	var result: Array[int] = []
-	if typeof(value) != TYPE_ARRAY:
-		return result
-	for item in value:
-		result.append(int(item))
-	return result
+	return MapBoardLayoutSolverScript.int_array_from_variant(value)
 func _branch_direction_for_root(layout_context: Dictionary, branch_root_id: int) -> Vector2:
-	var branch_direction_by_root: Dictionary = layout_context.get("branch_direction_by_root", {})
-	var direction: Vector2 = branch_direction_by_root.get(branch_root_id, Vector2(0.0, -1.0))
-	return direction if direction.length_squared() > 0.001 else Vector2(0.0, -1.0)
-func _position_reconnect_node(
-	node_id: int,
-	parent_ids: Array[int],
-	world_positions: Dictionary,
-	layout_context: Dictionary,
-	board_size: Vector2,
-	template_profile: String,
-	board_seed: int
-) -> Vector2:
-	var origin: Vector2 = board_size * BASE_CENTER_FACTOR
-	var board_unit: float = min(board_size.x, board_size.y)
-	var parent_positions: Array[Vector2] = []
-	for parent_id in parent_ids:
-		parent_positions.append(world_positions.get(parent_id, origin))
-	var midpoint: Vector2 = _average_vector2_array(parent_positions)
-	var branch_root_id: int = int(layout_context.get("branch_root_by_node_id", {}).get(node_id, parent_ids[0]))
-	var outward_direction: Vector2 = midpoint - origin
-	if outward_direction.length_squared() <= 0.001:
-		outward_direction = _branch_direction_for_root(layout_context, branch_root_id)
-	else:
-		outward_direction = (_branch_direction_for_root(layout_context, branch_root_id) * 0.48 + outward_direction.normalized() * 0.52).normalized()
-	var tangent_direction: Vector2 = Vector2(-outward_direction.y, outward_direction.x)
-	var reconnect_rng := RandomNumberGenerator.new()
-	reconnect_rng.seed = _derive_seed(board_seed, "reconnect-layout:%d" % node_id)
-	var outward_distance: float = board_unit * 0.072
-	var tangent_distance: float = board_unit * 0.036
-	match template_profile:
-		"corridor":
-			outward_distance = board_unit * 0.062
-			tangent_distance = board_unit * 0.028
-		"openfield":
-			outward_distance = board_unit * 0.080
-			tangent_distance = board_unit * 0.042
-		"loop":
-			outward_distance = board_unit * 0.076
-			tangent_distance = board_unit * 0.040
-	var tangent_sign: float = -1.0 if (reconnect_rng.randi() & 1) == 0 else 1.0
-	var tangent_jitter: float = reconnect_rng.randf_range(-board_unit * 0.010, board_unit * 0.010)
-	var outward_jitter: float = reconnect_rng.randf_range(-board_unit * 0.008, board_unit * 0.014)
-	return midpoint + outward_direction * (outward_distance + outward_jitter) + tangent_direction * (tangent_distance * tangent_sign + tangent_jitter)
-func _symmetric_offset_for_index(index: int, count: int) -> float:
-	if count <= 1 or index < 0:
-		return 0.0
-	return float(index) - (float(count - 1) * 0.5)
-func _depth_step_factor(depth: int) -> float:
-	var factor_index: int = clampi(depth, 0, DEPTH_STEP_FACTORS.size() - 1)
-	return float(DEPTH_STEP_FACTORS[factor_index])
-
-
-func _depth_spread_factor(depth: int) -> float:
-	var factor_index: int = clampi(depth, 0, DEPTH_SPREAD_FACTORS.size() - 1)
-	return float(DEPTH_SPREAD_FACTORS[factor_index])
-
-
-func _profile_layout_scale(template_profile: String) -> float:
-	match template_profile:
-		"corridor":
-			return 1.02
-		"openfield":
-			return 1.08
-		"loop":
-			return 1.04
-		_:
-			return 1.0
-
-
-func _profile_spread_scale(template_profile: String) -> float:
-	match template_profile:
-		"corridor":
-			return 0.96
-		"openfield":
-			return 1.18
-		"loop":
-			return 1.06
-		_:
-			return 1.0
+	return MapBoardLayoutSolverScript.branch_direction_for_root(layout_context, branch_root_id)
 
 
 func _max_depth_from_values(depth_values: Array) -> int:
@@ -437,6 +316,16 @@ func _average_vector2_array(values: Array[Vector2]) -> Vector2:
 	for value in values:
 		total += value
 	return total / float(values.size())
+
+
+func _stable_layout_matches_board_size(world_positions: Dictionary, start_node_id: int, board_size: Vector2) -> bool:
+	if world_positions.is_empty():
+		return false
+	var start_position: Vector2 = world_positions.get(start_node_id, Vector2.ZERO)
+	if start_position == Vector2.ZERO:
+		return false
+	var expected_origin: Vector2 = board_size * BASE_CENTER_FACTOR
+	return start_position.distance_to(expected_origin) <= STABLE_LAYOUT_REUSE_POSITION_TOLERANCE
 
 
 func _build_visible_node_entries(
@@ -1005,159 +894,6 @@ func _clamp_focus_offset(desired_offset: Vector2, max_focus_offset: Vector2) -> 
 	)
 
 
-func _clamp_to_board(position: Vector2, board_size: Vector2) -> Vector2:
-	return Vector2(
-		clampf(position.x, MIN_BOARD_MARGIN.x, board_size.x - MIN_BOARD_MARGIN.x),
-		clampf(position.y, MIN_BOARD_MARGIN.y, board_size.y - MIN_BOARD_MARGIN.y)
-	)
-
-
-func _relax_collisions(world_positions: Dictionary, graph_snapshot: Array[Dictionary], board_size: Vector2, layout_context: Dictionary) -> void:
-	var ordered_node_ids: Array[int] = []
-	var node_family_by_id: Dictionary = {}
-	for node_entry in graph_snapshot:
-		var node_id: int = int(node_entry.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
-		ordered_node_ids.append(node_id)
-		node_family_by_id[node_id] = String(node_entry.get("node_family", ""))
-	var board_unit: float = min(board_size.x, board_size.y)
-	var depth_by_node_id: Dictionary = layout_context.get("depth_by_node_id", {})
-	var branch_root_by_node_id: Dictionary = layout_context.get("branch_root_by_node_id", {})
-	for _iteration in range(24):
-		for left_index in range(ordered_node_ids.size()):
-			var left_node_id: int = ordered_node_ids[left_index]
-			for right_index in range(left_index + 1, ordered_node_ids.size()):
-				var right_node_id: int = ordered_node_ids[right_index]
-				if left_node_id == 0 and right_node_id == 0:
-					continue
-				var left_position: Vector2 = world_positions.get(left_node_id, Vector2.ZERO)
-				var right_position: Vector2 = world_positions.get(right_node_id, Vector2.ZERO)
-				var delta: Vector2 = right_position - left_position
-				var distance: float = delta.length()
-				var left_depth: int = int(depth_by_node_id.get(left_node_id, 0))
-				var right_depth: int = int(depth_by_node_id.get(right_node_id, 0))
-				var left_radius: float = _clearing_radius_for(String(node_family_by_id.get(left_node_id, "")), "open", board_size)
-				var right_radius: float = _clearing_radius_for(String(node_family_by_id.get(right_node_id, "")), "open", board_size)
-				var minimum_spacing: float = left_radius + right_radius + clampf(board_unit * 0.066, 58.0, 82.0)
-				if left_depth <= 1 or right_depth <= 1:
-					minimum_spacing += 26.0
-				elif left_depth == 2 and right_depth == 2:
-					minimum_spacing += 18.0
-				if distance >= minimum_spacing:
-					continue
-				var same_branch: bool = int(branch_root_by_node_id.get(left_node_id, left_node_id)) == int(branch_root_by_node_id.get(right_node_id, right_node_id))
-				var push_direction: Vector2 = Vector2.RIGHT if distance <= 0.001 else delta / distance
-				if same_branch:
-					var branch_direction: Vector2 = _branch_direction_for_root(layout_context, int(branch_root_by_node_id.get(left_node_id, left_node_id)))
-					var tangent_direction: Vector2 = Vector2(-branch_direction.y, branch_direction.x)
-					var tangent_sign: float = 1.0 if (right_position - left_position).dot(tangent_direction) >= 0.0 else -1.0
-					push_direction = tangent_direction * tangent_sign
-				var push_amount: float = (minimum_spacing - max(distance, 0.001)) * 0.5
-				if left_node_id != 0:
-					world_positions[left_node_id] = _clamp_to_board(left_position - push_direction * push_amount, board_size)
-				if right_node_id != 0:
-					world_positions[right_node_id] = _clamp_to_board(right_position + push_direction * push_amount, board_size)
-
-
-func _reduce_edge_crossings(world_positions: Dictionary, graph_snapshot: Array[Dictionary], board_size: Vector2, layout_context: Dictionary) -> void:
-	var board_unit: float = min(board_size.x, board_size.y)
-	var depth_by_node_id: Dictionary = layout_context.get("depth_by_node_id", {})
-	for _iteration in range(8):
-		var adjusted: bool = false
-		var edge_entries: Array[Dictionary] = _build_layout_edge_entries(graph_snapshot, world_positions)
-		for left_index in range(edge_entries.size()):
-			for right_index in range(left_index + 1, edge_entries.size()):
-				var left_edge: Dictionary = edge_entries[left_index]
-				var right_edge: Dictionary = edge_entries[right_index]
-				if _layout_edges_share_node(left_edge, right_edge):
-					continue
-				if not MapBoardGeometryScript.segments_intersect(
-					Vector2(left_edge.get("from_position", Vector2.ZERO)),
-					Vector2(left_edge.get("to_position", Vector2.ZERO)),
-					Vector2(right_edge.get("from_position", Vector2.ZERO)),
-					Vector2(right_edge.get("to_position", Vector2.ZERO))
-				):
-					continue
-				var left_move_node_id: int = _preferred_crossing_move_node_id(left_edge, depth_by_node_id)
-				var right_move_node_id: int = _preferred_crossing_move_node_id(right_edge, depth_by_node_id)
-				if left_move_node_id == MapRuntimeStateScript.NO_PENDING_NODE_ID or right_move_node_id == MapRuntimeStateScript.NO_PENDING_NODE_ID:
-					continue
-				var left_midpoint: Vector2 = (Vector2(left_edge.get("from_position", Vector2.ZERO)) + Vector2(left_edge.get("to_position", Vector2.ZERO))) * 0.5
-				var right_midpoint: Vector2 = (Vector2(right_edge.get("from_position", Vector2.ZERO)) + Vector2(right_edge.get("to_position", Vector2.ZERO))) * 0.5
-				var push_direction: Vector2 = right_midpoint - left_midpoint
-				if push_direction.length_squared() <= 0.001:
-					push_direction = Vector2(
-						-(
-							Vector2(left_edge.get("to_position", Vector2.ZERO))
-							- Vector2(left_edge.get("from_position", Vector2.ZERO))
-						).y,
-						(
-							Vector2(left_edge.get("to_position", Vector2.ZERO))
-							- Vector2(left_edge.get("from_position", Vector2.ZERO))
-						).x
-					)
-				if push_direction.length_squared() <= 0.001:
-					push_direction = Vector2.RIGHT
-				push_direction = push_direction.normalized()
-				var push_amount: float = board_unit * 0.046
-				world_positions[left_move_node_id] = _clamp_to_board(
-					Vector2(world_positions.get(left_move_node_id, Vector2.ZERO)) - push_direction * push_amount,
-					board_size
-				)
-				world_positions[right_move_node_id] = _clamp_to_board(
-					Vector2(world_positions.get(right_move_node_id, Vector2.ZERO)) + push_direction * push_amount,
-					board_size
-				)
-				adjusted = true
-		if not adjusted:
-			return
-
-
-func _build_layout_edge_entries(graph_snapshot: Array[Dictionary], world_positions: Dictionary) -> Array[Dictionary]:
-	var edge_entries: Array[Dictionary] = []
-	var seen_edge_keys: Dictionary = {}
-	for node_entry in graph_snapshot:
-		var from_node_id: int = int(node_entry.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
-		var from_position: Vector2 = world_positions.get(from_node_id, Vector2.ZERO)
-		for adjacent_node_id in _adjacent_ids_from_entry(node_entry):
-			var edge_key: String = _edge_key(from_node_id, adjacent_node_id)
-			if seen_edge_keys.has(edge_key):
-				continue
-			seen_edge_keys[edge_key] = true
-			var to_position: Vector2 = world_positions.get(adjacent_node_id, Vector2.ZERO)
-			if from_position == Vector2.ZERO or to_position == Vector2.ZERO:
-				continue
-			edge_entries.append({
-				"from_node_id": from_node_id,
-				"to_node_id": int(adjacent_node_id),
-				"from_position": from_position,
-				"to_position": to_position,
-			})
-	return edge_entries
-
-
-func _layout_edges_share_node(left_edge: Dictionary, right_edge: Dictionary) -> bool:
-	var left_ids: Array[int] = [int(left_edge.get("from_node_id", -1)), int(left_edge.get("to_node_id", -1))]
-	var right_ids: Array[int] = [int(right_edge.get("from_node_id", -1)), int(right_edge.get("to_node_id", -1))]
-	for left_id in left_ids:
-		if left_id in right_ids:
-			return true
-	return false
-
-
-func _preferred_crossing_move_node_id(edge_entry: Dictionary, depth_by_node_id: Dictionary) -> int:
-	var from_node_id: int = int(edge_entry.get("from_node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
-	var to_node_id: int = int(edge_entry.get("to_node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
-	var from_depth: int = int(depth_by_node_id.get(from_node_id, 0))
-	var to_depth: int = int(depth_by_node_id.get(to_node_id, 0))
-	if from_node_id == 0:
-		return to_node_id
-	if to_node_id == 0:
-		return from_node_id
-	if from_depth == to_depth:
-		return max(from_node_id, to_node_id)
-	return from_node_id if from_depth > to_depth else to_node_id
-
-
 func _build_board_seed(run_state: RunState, active_template_id: String, graph_snapshot: Array[Dictionary]) -> int:
 	var signature_parts: PackedStringArray = []
 	for node_entry in graph_snapshot:
@@ -1181,17 +917,11 @@ func _build_board_seed(run_state: RunState, active_template_id: String, graph_sn
 
 
 func _derive_seed(board_seed: int, salt: String) -> int:
-	return _hash_seed_string("%d|%s" % [board_seed, salt])
+	return MapBoardLayoutSolverScript.derive_seed(board_seed, salt)
 
 
 func _hash_seed_string(value: String) -> int:
-	var accumulator: int = 216613626
-	var bytes: PackedByteArray = value.to_utf8_buffer()
-	for byte in bytes:
-		accumulator = abs(int((accumulator ^ int(byte)) * 16777619))
-	if accumulator == 0:
-		return 1
-	return accumulator
+	return MapBoardLayoutSolverScript.hash_seed_string(value)
 
 
 func _template_profile_for_id(active_template_id: String) -> String:
