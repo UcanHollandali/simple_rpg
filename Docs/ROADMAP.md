@@ -1,6 +1,6 @@
 # SIMPLE RPG - Active Roadmap
 
-Last updated: 2026-04-22 (queue refresh: Prompts 06-12 active future-queue plus interleaved UX packs 06.5 / 10.5 / 11.5 / 12.5 added after Prompt 04 / 05 measured closeout).
+Last updated: 2026-04-22 (queue refresh: Prompts 06-12 active future-queue plus interleaved UX packs 06.5 / 10.5 / 11.5 / 12.5 added after Prompt 04 / 05 measured closeout; queue hygiene + main-branch continuity refreshed).
 
 This is the single active roadmap and queue index for the repo.
 It is a planning file, not an authority doc.
@@ -20,6 +20,7 @@ Gameplay and technical rules still live where `Docs/DOC_PRECEDENCE.md` says they
   - live `NodeResolve` generic fallback stays until an explicit flow audit approves removal
   - existing `/root/AppBootstrap` usage may shrink only when owner meaning and live flow behavior stay unchanged
 - Repo state: prototype-playable per `Docs/HANDOFF.md`.
+- Git continuity note: keep the active prompt wave on `main`; do not create or switch workflow branches unless the user explicitly asks for branch work.
 - Measured open facts on the current workspace:
   - `Docs/COMMAND_EVENT_CATALOG.md` now registers `turn_phase_resolved` and `BossPhaseChanged`; that catalog drift is closed.
   - active markdown internal links resolve, and the live entry docs no longer describe the whole `Docs/` tree as one flat authority surface.
@@ -146,6 +147,9 @@ Gameplay and technical rules still live where `Docs/DOC_PRECEDENCE.md` says they
   - `Docs/ROADMAP.md`
   - `Docs/Promts/06_ui_information_architecture_audit.md` (active, ready)
   - the queued pack the chat plans to reach next from the checked-in files under `Docs/Promts/`, including `06_5_microcopy_audit.md` (Prompt `06.5`), `11_5_empty_error_states.md` (Prompt `11.5`), and `12_semantic_icon_readiness.md` (Prompt `12`)
+- Git continuity note:
+  - stay on `main` during the 06-12.5 wave
+  - do not create or switch workflow branches unless the user explicitly asks
 - Completed on the current workspace:
   - `05` Part A (measurement + baseline portrait screenshots, no code change)
   - `04` Part A (direction doc closeout)

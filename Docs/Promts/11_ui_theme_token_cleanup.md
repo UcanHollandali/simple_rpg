@@ -1,7 +1,7 @@
 # Prompt 11 - UI Theme And Token Cleanup
 
-Use this prompt pack only after Prompt 10 is closed green.
-This is a future-queue pack. Do not start it while Prompt 04, Prompt 05, Prompt 06, Prompt 07, Prompt 08, Prompt 09, or Prompt 10 is still open.
+Use this prompt pack only after Prompt 10.5 is closed green.
+This is a future-queue pack. Do not start it while Prompt 04, Prompt 05, or any earlier open 06-10.5 pack is still open.
 
 Read first:
 - `AGENTS.md`

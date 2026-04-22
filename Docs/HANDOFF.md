@@ -1,6 +1,6 @@
 # SIMPLE RPG - Handoff
 
-Last updated: 2026-04-22
+Last updated: 2026-04-22 (queue hygiene refresh)
 
 This file is a current-state snapshot only.
 It is not a rule contract. If it conflicts with an authority doc, the authority doc wins.
@@ -8,6 +8,7 @@ It is not a rule contract. If it conflicts with an authority doc, the authority 
 ## Current State
 
 - The repo is prototype-playable. Mobile-first responsive UI work is live across `MapExplore`, `Combat`, and the non-combat overlay family.
+- Git workflow continuity note: keep the active prompt queue on `main`; do not create or switch workflow branches unless the user explicitly asks for branch work.
 - Temporary prototype music floor is now the calmer `proto_01` set:
   - shared non-combat loop `music_ui_hub_loop_proto_01`
   - combat loop `music_combat_loop_proto_01`
@@ -235,7 +236,7 @@ These commands were re-run through the latest Prompt 04 no-stamp verification fo
 ## Next Step
 
 1. The active future-queue is the UI overhaul wave: Prompts 06, 06.5, 07, 08, 09, 10, 10.5, 11, 11.5, 12, 12.5 tracked in `Docs/ROADMAP.md` and checked in under `Docs/Promts/`. Run them sequentially per `Docs/ROADMAP.md` Continuation Launch Order, one part per Codex message, and do not start the next pack until the current one is closed.
-   - checked-in prompt files currently exist under `Docs/Promts/` for `06`, `01` (Prompt `06.5`), `07`, `08`, `09`, `10`, `10.5`, `11`, `02` (Prompt `11.5`), `03` (Prompt `12`), and `12.5`
+   - checked-in prompt files currently exist under `Docs/Promts/` as `06_ui_information_architecture_audit.md`, `06_5_microcopy_audit.md`, `07_inventory_equipment_drawer.md`, `08_event_modal_choice_cards.md`, `09_combat_hierarchy.md`, `10_font_icon_readability_guardrails.md`, `10_5_first_run_hints.md`, `11_ui_theme_token_cleanup.md`, `11_5_empty_error_states.md`, `12_semantic_icon_readiness.md`, and `12_5_accessibility_mobile_audit.md`
    - Prompt 06 is the next active step; it produces `Docs/UI_INFORMATION_ARCHITECTURE_AUDIT.md` as a reference-only audit and grounds the Prompt 07-12 scope in repo truth (no gameplay logic, save schema, or asset hookup change).
    - Prompt 06.5 produces `Docs/UI_MICROCOPY_AUDIT.md` and assigns text-quality rewrite hand-offs to Prompts 07-11 (docs-only).
    - Prompts 07-09 carry the per-screen UI hierarchy work (inventory drawer, event choice cards, combat hierarchy) using existing truth only.
@@ -338,6 +339,10 @@ Use this exact continuation order in a fresh chat:
 5. `Docs/Promts/06_ui_information_architecture_audit.md` (active next pack)
 6. queued behind 06, in order: `Docs/Promts/06_5_microcopy_audit.md` (Prompt `06.5`), `Docs/Promts/07_inventory_equipment_drawer.md`, `Docs/Promts/08_event_modal_choice_cards.md`, `Docs/Promts/09_combat_hierarchy.md`, `Docs/Promts/10_font_icon_readability_guardrails.md`, `Docs/Promts/10_5_first_run_hints.md`, `Docs/Promts/11_ui_theme_token_cleanup.md`, `Docs/Promts/11_5_empty_error_states.md` (Prompt `11.5`), `Docs/Promts/12_semantic_icon_readiness.md` (Prompt `12`), `Docs/Promts/12_5_accessibility_mobile_audit.md`
 
+Git continuity note:
+- stay on `main` for this queue
+- do not create or switch workflow branches unless the user explicitly asks
+
 Prompt progression rule:
 
 - Prompt 01, Prompt 02, and Prompt 03 are already archived under `Docs/Archive/Prompts/2026-04-21-phase-a-closed/`. Do not reopen them.
@@ -356,6 +361,7 @@ Copy/paste start message for a new chat:
 ```text
 AGENTS.md, Docs/DOC_PRECEDENCE.md, Docs/HANDOFF.md ve Docs/ROADMAP.md oku.
 Sonra Docs/Promts/06_ui_information_architecture_audit.md prompt paketini oku ama uygulamaya baslama.
+Bu devam dalgasinda `main` branch uzerinde kal; yeni workflow branch acma veya branch degistirme.
 
 UI overhaul dalgasi suanda kuyrukta (siraya sadik kal):
 06 -> 06.5 -> 07 -> 08 -> 09 -> 10 -> 10.5 -> 11 -> 11.5 -> 12 -> 12.5
