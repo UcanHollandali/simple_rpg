@@ -323,12 +323,9 @@ func prime_roadside_visual_state(current_node_id: int, target_node_id: int) -> v
 		return
 	var target_world_position: Vector2 = _get_node_world_position(target_node_id)
 	var target_offset: Vector2 = _desired_focus_offset_for_world_position(target_world_position)
-	var interruption_offset: Vector2 = _route_layout_offset.lerp(
+	var interruption_offset: Vector2 = _route_layout_offset_for_move_progress(
 		target_offset,
-		MapRouteMotionHelperScript.route_camera_follow_progress(
-			ROADSIDE_INTERRUPTION_PROGRESS,
-			ROUTE_MOVE_CAMERA_DELAY_RATIO
-		)
+		ROADSIDE_INTERRUPTION_PROGRESS
 	)
 	_roadside_visual_state = {
 		"current_node_id": current_node_id,
@@ -351,15 +348,25 @@ func stop_walker_walk_cycle() -> void:
 	_walker_cycle_token += 1
 
 
-func animate_route_selection(button_node_name: String, target_node_id: int, move_to_node_callback: Callable) -> void:
-	await _run_route_selection(button_node_name, target_node_id, move_to_node_callback)
+func animate_route_selection(
+	button_node_name: String,
+	target_node_id: int,
+	move_to_node_callback: Callable,
+	selection_end_progress: float = 1.0
+) -> void:
+	await _run_route_selection(button_node_name, target_node_id, move_to_node_callback, selection_end_progress)
 
 
 func animate_pending_roadside_continuation() -> void:
 	await _run_pending_roadside_continuation()
 
 
-func _run_route_selection(button_node_name: String, target_node_id: int, move_to_node_callback: Callable) -> void:
+func _run_route_selection(
+	button_node_name: String,
+	target_node_id: int,
+	move_to_node_callback: Callable,
+	selection_end_progress: float = 1.0
+) -> void:
 	var route_index: int = ROUTE_BUTTON_NODE_NAMES.find(button_node_name)
 	if route_index < 0:
 		move_to_node_callback.call(target_node_id)
@@ -381,7 +388,17 @@ func _run_route_selection(button_node_name: String, target_node_id: int, move_to
 	_set_walker_facing(target_center.x >= start_center.x)
 	var target_world_position: Vector2 = _get_node_world_position(target_node_id)
 	var target_offset: Vector2 = _desired_focus_offset_for_world_position(target_world_position)
-	await _animate_route_move_camera_follow(start_center, target_center, target_offset, current_node_id, target_node_id)
+	var end_progress: float = clampf(selection_end_progress, 0.0, 1.0)
+	var move_target_offset: Vector2 = _route_layout_offset_for_move_progress(target_offset, end_progress)
+	await _animate_route_move_camera_follow(
+		start_center,
+		target_center,
+		move_target_offset,
+		current_node_id,
+		target_node_id,
+		0.0,
+		end_progress
+	)
 
 	stop_walker_walk_cycle()
 	_set_walker_texture(MAP_WALKER_IDLE_TEXTURE)
@@ -807,54 +824,21 @@ func _run_walker_cycle(token: int) -> void:
 		await _owner.get_tree().create_timer(_walker_frame_interval).timeout
 
 
-func _animate_route_move_camera_follow(start_center: Vector2, target_center: Vector2, target_offset: Vector2, current_node_id: int, target_node_id: int) -> void:
+func _animate_route_move_camera_follow(
+	start_center: Vector2,
+	target_center: Vector2,
+	target_offset: Vector2,
+	current_node_id: int,
+	target_node_id: int,
+	start_progress: float = 0.0,
+	end_progress: float = 1.0
+) -> void:
 	_route_move_world_path = MapRouteMotionHelperScript.build_route_move_world_path(
 		_board_composition_cache,
 		current_node_id,
 		target_node_id,
 		start_center - _route_layout_offset,
 		target_center - _route_layout_offset
-	)
-	_route_move_path_length = MapRouteMotionHelperScript.polyline_length(_route_move_world_path)
-	var move_duration: float = MapRouteMotionHelperScript.clamp_route_move_duration(
-		_route_move_path_length,
-		ROUTE_MOVE_MIN_DURATION,
-		ROUTE_MOVE_MAX_DURATION,
-		ROUTE_MOVE_BASE_DURATION,
-		ROUTE_MOVE_PIXELS_PER_SECOND
-	)
-	_route_move_stride_cycles = MapRouteMotionHelperScript.resolve_route_move_stride_cycles(
-		_route_move_path_length,
-		WALKER_STRIDE_PIXELS_PER_CYCLE
-	)
-	_walker_frame_interval = MapRouteMotionHelperScript.resolve_walker_frame_interval(
-		_route_move_path_length,
-		move_duration,
-		WALKER_FRAME_INTERVAL_MIN,
-		WALKER_FRAME_INTERVAL_MAX
-	)
-	_route_move_start_offset = _route_layout_offset
-	_route_move_target_offset = target_offset
-	_route_move_sample_start_progress = 0.0
-	_route_move_sample_end_progress = 1.0
-	if _walker_root != null:
-		_walker_root.visible = true
-		_reset_walker_stride_visuals()
-	_start_walker_walk_cycle()
-	var tween: Tween = _owner.create_tween()
-	tween.set_trans(Tween.TRANS_LINEAR)
-	tween.set_ease(Tween.EASE_IN_OUT)
-	tween.tween_method(Callable(self, "_update_route_move_progress"), 0.0, 1.0, move_duration)
-	await tween.finished
-
-
-func _animate_route_move_camera_follow_segment(current_node_id: int, target_node_id: int, target_offset: Vector2, start_progress: float, end_progress: float) -> void:
-	_route_move_world_path = MapRouteMotionHelperScript.build_route_move_world_path(
-		_board_composition_cache,
-		current_node_id,
-		target_node_id,
-		_get_node_world_position(current_node_id),
-		_get_node_world_position(target_node_id)
 	)
 	_route_move_path_length = MapRouteMotionHelperScript.polyline_length(_route_move_world_path)
 	var segment_start: float = clampf(start_progress, 0.0, 1.0)
@@ -897,6 +881,18 @@ func _animate_route_move_camera_follow_segment(current_node_id: int, target_node
 	await tween.finished
 
 
+func _animate_route_move_camera_follow_segment(current_node_id: int, target_node_id: int, target_offset: Vector2, start_progress: float, end_progress: float) -> void:
+	await _animate_route_move_camera_follow(
+		_get_node_world_position(current_node_id) + _route_layout_offset,
+		_get_node_world_position(target_node_id) + _route_layout_offset,
+		target_offset,
+		current_node_id,
+		target_node_id,
+		start_progress,
+		end_progress
+	)
+
+
 func _update_route_move_progress(progress: float) -> void:
 	var travel_progress: float = lerpf(
 		_route_move_sample_start_progress,
@@ -930,6 +926,16 @@ func _update_route_move_progress(progress: float) -> void:
 	)
 	_apply_walker_stride_visuals(stride_offset)
 	_walker_root.position = _position_for_walker_center(world_point + current_offset + stride_offset)
+
+
+func _route_layout_offset_for_move_progress(target_offset: Vector2, progress: float) -> Vector2:
+	return _route_layout_offset.lerp(
+		target_offset,
+		MapRouteMotionHelperScript.route_camera_follow_progress(
+			progress,
+			ROUTE_MOVE_CAMERA_DELAY_RATIO
+		)
+	)
 
 
 func _apply_walker_stride_visuals(stride_offset: Vector2) -> void:

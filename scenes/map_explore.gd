@@ -2,6 +2,7 @@
 extends Control
 
 const AppBootstrapScript = preload("res://Game/Application/app_bootstrap.gd")
+const RunSessionCoordinatorScript = preload("res://Game/Application/run_session_coordinator.gd")
 const MapExplorePresenterScript = preload("res://Game/UI/map_explore_presenter.gd")
 const RunInventoryPanelScript = preload("res://Game/UI/run_inventory_panel.gd")
 const MapOverlayDirectorScript = preload("res://Game/UI/map_overlay_director.gd")
@@ -11,6 +12,7 @@ const MapExploreSceneUiScript = preload("res://Game/UI/map_explore_scene_ui.gd")
 const RunStatusStripScript = preload("res://Game/UI/run_status_strip.gd")
 const InventoryOverflowPromptScript = preload("res://Game/UI/inventory_overflow_prompt.gd")
 const MapRuntimeStateScript = preload("res://Game/RuntimeState/map_runtime_state.gd")
+const EventStateScript = preload("res://Game/RuntimeState/event_state.gd")
 const SceneAudioPlayersScript = preload("res://Game/UI/scene_audio_players.gd")
 const SceneAudioCleanupScript = preload("res://Game/UI/scene_audio_cleanup.gd")
 const SceneLayoutHelperScript = preload("res://Game/UI/scene_layout_helper.gd")
@@ -176,11 +178,97 @@ func _on_route_button_pressed(button_node_name: String) -> void:
 	var target_node_id: int = _route_binding.resolve_target_node_id(button_node_name)
 	if target_node_id < 0:
 		return
+	var selection_end_progress: float = _resolve_route_selection_end_progress(target_node_id)
 	_route_binding.begin_selection()
 	SceneAudioPlayersScript.play(self, "NodeSelectSfxPlayer")
-	await _route_binding.animate_route_selection(button_node_name, target_node_id, Callable(self, "_move_to_node"))
+	await _route_binding.animate_route_selection(
+		button_node_name,
+		target_node_id,
+		Callable(self, "_move_to_node"),
+		selection_end_progress
+	)
 	var run_state: RunState = _get_run_state()
 	_route_binding.finish_selection_and_render(run_state)
+
+
+func _resolve_route_selection_end_progress(target_node_id: int) -> float:
+	if _would_open_roadside_encounter_preview(target_node_id):
+		return MapRouteBindingScript.ROADSIDE_INTERRUPTION_PROGRESS
+	return 1.0
+
+
+func _would_open_roadside_encounter_preview(target_node_id: int) -> bool:
+	var run_state: RunState = _get_run_state()
+	if run_state == null or run_state.map_runtime_state == null:
+		return false
+	var map_runtime_state: RefCounted = run_state.map_runtime_state
+	if not map_runtime_state.can_move_to_node(target_node_id):
+		return false
+	var predicted_hunger: int = max(0, run_state.hunger - RunSessionCoordinatorScript.MAP_MOVE_HUNGER_COST)
+	var predicted_player_hp: int = run_state.player_hp
+	if predicted_hunger == 0:
+		predicted_player_hp = max(0, predicted_player_hp - 1)
+	if predicted_player_hp <= 0:
+		return false
+	var target_node_type: String = map_runtime_state.get_node_family(target_node_id)
+	var target_node_state: String = map_runtime_state.get_node_state(target_node_id)
+	if target_node_state != MapRuntimeStateScript.NODE_STATE_DISCOVERED:
+		return false
+	if not map_runtime_state.get_active_side_quest_by_target_node_id(target_node_id).is_empty():
+		return false
+	if target_node_type in RunSessionCoordinatorScript.ROADSIDE_ENCOUNTER_EXCLUDED_FAMILIES:
+		return false
+	if not _has_eligible_roadside_template_preview(run_state, target_node_id, predicted_hunger, predicted_player_hp):
+		return false
+	var draw_index: int = max(0, int(run_state.rng_stream_states.get(RunSessionCoordinatorScript.ROADSIDE_ENCOUNTER_STREAM_NAME, 0)))
+	var context_salt: String = "%s|from:%d|to:%d|stage:%d" % [
+		target_node_type,
+		int(map_runtime_state.current_node_id),
+		target_node_id,
+		run_state.stage_index,
+	]
+	var roadside_rng := RandomNumberGenerator.new()
+	roadside_rng.seed = int(run_state._build_stream_seed(
+		RunSessionCoordinatorScript.ROADSIDE_ENCOUNTER_STREAM_NAME,
+		draw_index,
+		context_salt
+	))
+	return roadside_rng.randf() < RunSessionCoordinatorScript.ROADSIDE_ENCOUNTER_TRIGGER_CHANCE
+
+
+func _has_eligible_roadside_template_preview(
+	run_state: RunState,
+	target_node_id: int,
+	predicted_hunger: int,
+	predicted_player_hp: int
+) -> bool:
+	if run_state == null:
+		return false
+	var preview_event_state: EventStateScript = EventStateScript.new()
+	preview_event_state.setup_for_node(
+		target_node_id,
+		run_state.stage_index,
+		EventStateScript.SOURCE_CONTEXT_ROADSIDE_ENCOUNTER,
+		run_state.run_seed,
+		_build_roadside_trigger_context_preview(run_state, predicted_hunger, predicted_player_hp)
+	)
+	return not preview_event_state.choices.is_empty()
+
+
+func _build_roadside_trigger_context_preview(
+	run_state: RunState,
+	predicted_hunger: int,
+	predicted_player_hp: int
+) -> Dictionary:
+	if run_state == null:
+		return {}
+	var max_hp: int = max(1, RunState.DEFAULT_PLAYER_HP)
+	var hp_percent: float = (float(predicted_player_hp) / float(max_hp)) * 100.0
+	return {
+		EventStateScript.TRIGGER_STAT_HUNGER: predicted_hunger,
+		EventStateScript.TRIGGER_STAT_HP_PERCENT: hp_percent,
+		EventStateScript.TRIGGER_STAT_GOLD: run_state.gold,
+	}
 
 
 func _on_save_run_pressed() -> void:
