@@ -1,16 +1,5 @@
 # SIMPLE RPG - Semantic Asset Wave Scope
 
-## Status
-
-- This file is reference-only.
-- This file is a production/reference companion to `Docs/ASSET_BACKLOG.md`.
-- Authority remains `Docs/VISUAL_AUDIO_STYLE_GUIDE.md` for style direction and `Docs/ASSET_PIPELINE.md` plus `Docs/ASSET_LICENSE_POLICY.md` for approval, provenance, and runtime-boundary rules.
-- This file does not approve assets, does not hook assets into runtime, and does not reopen terrain-transition or baked-board art lanes.
-
-## Purpose
-
-Scope the next AI-assisted asset wave to semantic single-object surfaces only so future asset work strengthens map identity without turning terrain art into a runtime dependency.
-
 ## Composition Reference
 
 Pinned visual target for future semantic asset generation:
@@ -38,6 +27,17 @@ This visual language is reached through the existing architecture, not through a
 - seed-driven controlled-scatter produces a different topology per run
 - procedural code draws roads, clearings, atmosphere, canopy massing, and decor variation
 - semantic single-object art carries node identity and optional prop decoration
+
+## Status
+
+- This file is reference-only.
+- This file is a production/reference companion to `Docs/ASSET_BACKLOG.md`.
+- Authority remains `Docs/VISUAL_AUDIO_STYLE_GUIDE.md` for style direction and `Docs/ASSET_PIPELINE.md` plus `Docs/ASSET_LICENSE_POLICY.md` for approval, provenance, and runtime-boundary rules.
+- This file does not approve assets, does not hook assets into runtime, and does not reopen terrain-transition or baked-board art lanes.
+
+## Purpose
+
+Scope the next AI-assisted asset wave to semantic single-object surfaces only so future asset work strengthens map identity without turning terrain art into a runtime dependency.
 
 ## Tier 1 - Node Identity Icon Completion
 

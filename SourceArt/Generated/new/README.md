@@ -8,7 +8,7 @@ Active authority and queue ownership remain in:
 - `Docs/MAP_CONTRACT.md`
 - `Docs/MAP_COMPOSER_V2_DESIGN.md`
 - `Docs/MAP_COMPOSER_V2_ASSET_REQUIREMENTS.md`
-- `Docs/Promts/04_map_renderer_code_first.md` (active queue; supersedes the archived Prompt 03 Part G terrain-asset hookup framing)
+- `Docs/Archive/Prompts/2026-04-22-map-lane-closed/04_map_renderer_code_first.md` (closed-green archive reference; supersedes the archived Prompt 03 Part G terrain-asset hookup framing)
 
 This folder keeps source masters only:
 

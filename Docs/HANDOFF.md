@@ -141,7 +141,8 @@ It is not a rule contract. If it conflicts with an authority doc, the authority 
     - the pack now uses normalized source-master subfolders plus a short local `README.md`
     - the operational prompt reference kept in-place is `asset_prompts.md`
     - redundant source-planning markdowns now live under `SourceArt/Archive/2026-04-20-map_prototype_pack/docs/`
-    - its first intended runtime-adoption families are missing/weak node icons plus path filler, canopy, clutter, fog, and ruin-scatter support
+    - future runtime-facing adoption remains scoped to the Prompt 04 semantic wave direction: missing/weak node icons first, then optional semantic props / item / portrait surfaces if later approved
+    - terrain-transition, path-filler, canopy, fog, clutter, and ruin-scatter families stay candidate/source-only and are not the next runtime-adoption lane
   - combat feedback now resolves on phase beats, keeps same-target feedback from overwriting itself, and gives action-hint / intent / button feedback a narrow motion pass
   - combat defend SFX path now uses the renamed `sfx_defend_01.ogg`; stale `sfx_brace` live references are gone
   - high-visibility runtime asset polish is now live on the current prototype slice:
@@ -175,10 +176,10 @@ It is not a rule contract. If it conflicts with an authority doc, the authority 
     - `Game/Infrastructure/save_service.gd` keeps schema-8 write, dispatch, and validation (`660` lines)
     - `Game/Infrastructure/save_service_legacy_loader.gd` carries schema `1/2/5/6/7` compat checks
   - `map_runtime_state.gd` still remains a large high-risk owner file (`2279` lines / `146` functions), but its first owner-preserving extraction pass now routes pure scatter adjacency/depth/path/connectivity helpers through `Game/RuntimeState/map_scatter_graph_tools.gd` while pending-node, key/boss-gate, reset lifecycle, and save-codec logic stay local to the owner
-  - `map_board_composer_v2.gd` now measures `977` lines after the Prompt 05 scatter / continuity follow-up; `Game/UI/map_board_layout_solver.gd` carries layout placement/collision/crossing helpers while `MapBoardComposerV2` stays the caller-facing derived-layout owner and the frozen full-layout baseline stays unchanged
+- `map_board_composer_v2.gd` now measures `928` lines after the Prompt 05 scatter / continuity follow-up; `Game/UI/map_board_layout_solver.gd` carries layout placement/collision/crossing helpers while `MapBoardComposerV2` stays the caller-facing derived-layout owner and the frozen full-layout baseline stays unchanged
   - `inventory_actions.gd` now measures `230` lines after its first application-local extraction pass; `Game/Application/inventory_item_mutation_helper.gd` carries item-mutation helpers while `InventoryActions` stays the caller-facing mutation surface and save/runtime ownership stays unchanged
   - `run_session_coordinator.gd` now measures `751` lines after its first application-local extraction pass; `Game/Application/run_session_state_helper.gd` carries state/setup utility helpers while pending-node compat mirror handling, direct-entry routing, and save/restore assumptions stay with `RunSessionCoordinator`
-  - `map_route_binding.gd` now measures `973` lines after the Prompt 05 closeout follow-up; `Game/UI/map_route_layout_helper.gd` and `Game/UI/map_route_motion_helper.gd` carry emergency-layout and route-motion math while `MapRouteBinding` stays the caller-facing board/route binding owner and the frozen-layout plus widened-footprint behavior stays unchanged
+- `map_route_binding.gd` now measures `855` lines after the Prompt 05 closeout follow-up; `Game/UI/map_route_layout_helper.gd` and `Game/UI/map_route_motion_helper.gd` carry emergency-layout and route-motion math while `MapRouteBinding` stays the caller-facing board/route binding owner and the frozen-layout plus widened-footprint behavior stays unchanged
 - Current save baseline:
   - `save_schema_version = 8`
   - `content_version = prototype_content_v7`
@@ -233,7 +234,8 @@ These commands were re-run through the latest Prompt 04 no-stamp verification fo
 
 ## Next Step
 
-1. The active future-queue is the UI overhaul wave: Prompts 06, 06.5, 07, 08, 09, 10, 10.5, 11, 11.5, 12, 12.5 under `Docs/Promts/`. Run them sequentially per `Docs/ROADMAP.md` Continuation Launch Order, one part per Codex message, and do not start the next pack until the current one is closed.
+1. The active future-queue is the UI overhaul wave: Prompts 06, 06.5, 07, 08, 09, 10, 10.5, 11, 11.5, 12, 12.5 tracked in `Docs/ROADMAP.md` and checked in under `Docs/Promts/`. Run them sequentially per `Docs/ROADMAP.md` Continuation Launch Order, one part per Codex message, and do not start the next pack until the current one is closed.
+   - checked-in prompt files currently exist under `Docs/Promts/` for `06`, `01` (Prompt `06.5`), `07`, `08`, `09`, `10`, `10.5`, `11`, `02` (Prompt `11.5`), `03` (Prompt `12`), and `12.5`
    - Prompt 06 is the next active step; it produces `Docs/UI_INFORMATION_ARCHITECTURE_AUDIT.md` as a reference-only audit and grounds the Prompt 07-12 scope in repo truth (no gameplay logic, save schema, or asset hookup change).
    - Prompt 06.5 produces `Docs/UI_MICROCOPY_AUDIT.md` and assigns text-quality rewrite hand-offs to Prompts 07-11 (docs-only).
    - Prompts 07-09 carry the per-screen UI hierarchy work (inventory drawer, event choice cards, combat hierarchy) using existing truth only.
@@ -257,12 +259,12 @@ These commands were re-run through the latest Prompt 04 no-stamp verification fo
 - Archived: `Docs/Archive/Prompts/2026-04-21-phase-a-closed/03_extraction_and_next_wave.md`
   - scope completed: `Part A-F` landed the extraction wave across `MapRuntimeState`, `map_board_composer_v2`, `inventory_actions`, `run_session_coordinator`, and `map_route_binding` without changing save shape or owner meaning
   - `Part G` (asset-hook wiring) is superseded by Prompt 04 code-first direction; the terrain-asset hookup framing is no longer the next active step and is not part of the active queue
-- Measured closeout: `Docs/Promts/04_map_renderer_code_first.md`
+- Archived measured closeout: `Docs/Archive/Prompts/2026-04-22-map-lane-closed/04_map_renderer_code_first.md`
   - direction: code-first procedural map renderer; AI asset wave scoped to semantic single-object surfaces only
   - `Part A-E` are complete on this workspace
   - measured result: direction docs landed, procedural renderer polish landed, the renderer review lane passed checkpoints `1-6`, semantic icon-wave planning now lives in `Docs/ASSET_WAVE_SEMANTIC_SCOPE.md`, and the fresh no-stamp verification lane passed checkpoint `7` with [stage_start](../export/portrait_review/prompt04_no_stamp_after_20260422_074912/stage_start_1080x1920.png), [mid_progression](../export/portrait_review/prompt04_no_stamp_after_20260422_074912/mid_progression_1080x1920.png), [late_progression](../export/portrait_review/prompt04_no_stamp_after_20260422_074912/late_progression_1080x1920.png), and [report](../export/portrait_review/prompt04_no_stamp_after_20260422_074912/prompt04_no_stamp_report.json)
   - status: closed green on the current workspace
-- Measured closeout: `Docs/Promts/05_map_layout_regression_fix.md`
+- Archived measured closeout: `Docs/Archive/Prompts/2026-04-22-map-lane-closed/05_map_layout_regression_fix.md`
   - direction: fix or explicitly disprove lower-board underuse, over-lateral clustering, clipped/disappearing route segments, and fragmented visible cluster inside the composer / route binding lane
   - `Part A-F` are complete on this workspace
   - measured result: the final green lane [stage_start](../export/portrait_review/prompt05_followup_after_20260422_074840/stage_start_1080x1920.png), [mid_progression](../export/portrait_review/prompt05_followup_after_20260422_074840/mid_progression_1080x1920.png), [late_progression](../export/portrait_review/prompt05_followup_after_20260422_074840/late_progression_1080x1920.png), and [report](../export/portrait_review/prompt05_followup_after_20260422_074840/prompt05_part_e_report.json) clear lower-board underuse, over-lateral clustering, clipped/disappearing route segments, and fragmented visible cluster while preserving the frozen-layout signature across progression states
@@ -272,7 +274,7 @@ These commands were re-run through the latest Prompt 04 no-stamp verification fo
     - active, ready
     - goal: produce reference-only `Docs/UI_INFORMATION_ARCHITECTURE_AUDIT.md` covering current UI hierarchy across `MapExplore`, `Combat`, the overlay family, and the run-status shells using repo truth
     - hard guardrails: docs-only; no gameplay logic, save/schema, asset hookup, flow, or ownership change
-  - `Docs/Promts/06_5_microcopy_audit.md`
+  - `Docs/Promts/06_5_microcopy_audit.md` (Prompt `06.5`)
     - queued after 06
     - goal: produce reference-only `Docs/UI_MICROCOPY_AUDIT.md` of every player-facing text surface (tooltips, disabled reasons, button labels, empty / error / one-shot strings); assigns rewrite hand-offs to Prompts 07-11
     - hard guardrails: docs-only; no code change in this pack
@@ -301,11 +303,11 @@ These commands were re-run through the latest Prompt 04 no-stamp verification fo
     - queued after 10.5
     - goal: centralize shared UI color/spacing/typography/component-state tokens after hierarchy and readability wins land; cleanup-only, no behavior change
     - hard guardrails: no file rename (including `temp_screen_theme.gd`)
-  - `Docs/Promts/11_5_empty_error_states.md`
+  - `Docs/Promts/11_5_empty_error_states.md` (Prompt `11.5`)
     - queued after 11
     - goal: implement empty-state, loading/transition-state, and error/failure-state rewrites from `Docs/UI_MICROCOPY_AUDIT.md` so blank surfaces and failure paths feel intentional and consistent
     - hard guardrails: presentation-only; no failure semantics or save change
-  - `Docs/Promts/12_semantic_icon_readiness.md`
+  - `Docs/Promts/12_semantic_icon_readiness.md` (Prompt `12`)
     - queued after 11.5; also gated on Prompt 04 Part D (already landed)
     - goal: produce reference-only `Docs/SEMANTIC_ICON_READINESS_CHECKLIST.md` as a runtime-readiness / asset-contract checkpoint
     - hard guardrails: no asset generation, no asset approval, no `UiAssetPaths` change, no runtime hook implementation; this pack does not unblock asset hookup by itself
@@ -334,7 +336,7 @@ Use this exact continuation order in a fresh chat:
 3. `Docs/HANDOFF.md`
 4. `Docs/ROADMAP.md`
 5. `Docs/Promts/06_ui_information_architecture_audit.md` (active next pack)
-6. queued behind 06, in order: `Docs/Promts/06_5_microcopy_audit.md`, `Docs/Promts/07_inventory_equipment_drawer.md`, `Docs/Promts/08_event_modal_choice_cards.md`, `Docs/Promts/09_combat_hierarchy.md`, `Docs/Promts/10_font_icon_readability_guardrails.md`, `Docs/Promts/10_5_first_run_hints.md`, `Docs/Promts/11_ui_theme_token_cleanup.md`, `Docs/Promts/11_5_empty_error_states.md`, `Docs/Promts/12_semantic_icon_readiness.md`, `Docs/Promts/12_5_accessibility_mobile_audit.md`
+6. queued behind 06, in order: `Docs/Promts/06_5_microcopy_audit.md` (Prompt `06.5`), `Docs/Promts/07_inventory_equipment_drawer.md`, `Docs/Promts/08_event_modal_choice_cards.md`, `Docs/Promts/09_combat_hierarchy.md`, `Docs/Promts/10_font_icon_readability_guardrails.md`, `Docs/Promts/10_5_first_run_hints.md`, `Docs/Promts/11_ui_theme_token_cleanup.md`, `Docs/Promts/11_5_empty_error_states.md` (Prompt `11.5`), `Docs/Promts/12_semantic_icon_readiness.md` (Prompt `12`), `Docs/Promts/12_5_accessibility_mobile_audit.md`
 
 Prompt progression rule:
 

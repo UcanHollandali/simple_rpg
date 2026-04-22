@@ -13,8 +13,8 @@ Gameplay and technical rules still live where `Docs/DOC_PRECEDENCE.md` says they
   - archived closed green: `Docs/Archive/Prompts/2026-04-21-phase-a-closed/01_foundation_fastlane.md`
   - archived closed green: `Docs/Archive/Prompts/2026-04-21-phase-a-closed/02_guarded_cleanup.md`
   - archived: `Docs/Archive/Prompts/2026-04-21-phase-a-closed/03_extraction_and_next_wave.md` (`Part A-F` closed green; `Part G` superseded by Prompt 04 code-first direction, asset-hook step stays deferred and is not reopened)
-  - measured closeout: `Docs/Promts/04_map_renderer_code_first.md` (`Part A-E` closed green on the current workspace; the code-first direction, renderer polish, semantic icon-wave scope plan, and safe no-stamp verification lane are all in place)
-  - measured closeout: `Docs/Promts/05_map_layout_regression_fix.md` (`Part A-F` closed green on the current workspace; lower-board underuse, over-lateral clustering, clipped/disappearing route segments, and fragmented visible cluster are cleared on the final portrait lane while frozen-layout stability holds)
+  - archived measured closeout: `Docs/Archive/Prompts/2026-04-22-map-lane-closed/04_map_renderer_code_first.md` (`Part A-E` closed green on the current workspace; the code-first direction, renderer polish, semantic icon-wave scope plan, and safe no-stamp verification lane are all in place)
+  - archived measured closeout: `Docs/Archive/Prompts/2026-04-22-map-lane-closed/05_map_layout_regression_fix.md` (`Part A-F` closed green on the current workspace; lower-board underuse, over-lateral clustering, clipped/disappearing route segments, and fragmented visible cluster are cleared on the final portrait lane while frozen-layout stability holds)
 - Locked continuation decisions:
   - canonical pending-node owner: `MapRuntimeState`
   - live `NodeResolve` generic fallback stays until an explicit flow audit approves removal
@@ -30,11 +30,11 @@ Gameplay and technical rules still live where `Docs/DOC_PRECEDENCE.md` says they
   - pending-node continuity still spans `RunSessionCoordinator` save orchestration and `MapRuntimeState` owner-side load/consume behavior; any owner move there is escalate-first.
 - Hotspot measurements:
   - `Game/RuntimeState/map_runtime_state.gd`: `2279` lines
-  - `Game/UI/map_board_composer_v2.gd`: `977` lines
+- `Game/UI/map_board_composer_v2.gd`: `928` lines
   - `scenes/combat.gd`: `1142` lines
   - `scenes/map_explore.gd`: `930` lines
   - `Game/Application/inventory_actions.gd`: `230` lines
-  - `Game/UI/map_route_binding.gd`: `973` lines
+- `Game/UI/map_route_binding.gd`: `855` lines
   - `Game/RuntimeState/inventory_state.gd`: `1060` lines
   - `Game/Application/run_session_coordinator.gd`: `751` lines
   - `Game/RuntimeState/support_interaction_state.gd`: `976` lines
@@ -88,12 +88,12 @@ Gameplay and technical rules still live where `Docs/DOC_PRECEDENCE.md` says they
    - Status: archived.
    - Result: `Part A-F` closed green; the extraction wave landed across `MapRuntimeState`, `map_board_composer_v2`, `inventory_actions`, `run_session_coordinator`, and `map_route_binding` without changing save shape or owner meaning.
    - `Part G` (asset-hook wiring) is superseded by Prompt 04 code-first direction and is not part of the active queue. The asset-hook step remains deferred behind the `ASSET_PIPELINE.md` approval + manifest row contract.
-4. [04_map_renderer_code_first.md](Promts/04_map_renderer_code_first.md)
-   - Status: closed green; `Part A-E` complete on the current workspace.
+4. [04_map_renderer_code_first.md](Archive/Prompts/2026-04-22-map-lane-closed/04_map_renderer_code_first.md)
+   - Status: closed green, archived; `Part A-E` complete on the current workspace.
    - Goal: formalize the code-first renderer direction, polish procedural map presentation so the board reads acceptably with zero generated terrain stamps, and produce a written semantic icon wave scope plan for future AI asset work.
    - Measured outcome: code-first direction is documented, `map_board_canvas.gd` and `map_board_style.gd` were polished, `Docs/ASSET_WAVE_SEMANTIC_SCOPE.md` now exists as a reference-only production companion, and the fresh no-stamp verification lane under `export/portrait_review/prompt04_no_stamp_after_20260422_074912/` passes the acceptance checklist.
-5. [05_map_layout_regression_fix.md](Promts/05_map_layout_regression_fix.md)
-   - Status: closed green; `Part A-F` complete on the current workspace.
+5. [05_map_layout_regression_fix.md](Archive/Prompts/2026-04-22-map-lane-closed/05_map_layout_regression_fix.md)
+   - Status: closed green, archived; `Part A-F` complete on the current workspace.
    - Goal: fix or explicitly disprove the live map layout regressions (lower-board underuse, over-lateral clustering, clipped/disappearing route segments, fragmented visible cluster) inside the composer / route binding lane while keeping the frozen full-layout baseline intact.
    - Measured outcome: the final lane under `export/portrait_review/prompt05_followup_after_20260422_074840/` clears lower-board underuse, over-lateral clustering, clipped/disappearing route segments, and fragmented visible cluster while preserving the frozen-layout baseline.
 6. [06_ui_information_architecture_audit.md](Promts/06_ui_information_architecture_audit.md)
@@ -101,7 +101,7 @@ Gameplay and technical rules still live where `Docs/DOC_PRECEDENCE.md` says they
    - Goal: produce `Docs/UI_INFORMATION_ARCHITECTURE_AUDIT.md` as a reference-only audit of map / event / combat / inventory decision visibility plus a concrete next-step queue for Prompts 07-12.
    - Constraint: docs-only pass; existing-truth rule applies; no gameplay logic, save schema, or asset hookup change.
    - Exit: the audit doc exists, is reference-only, and the recommended Prompt 07 scope is grounded in repo truth.
-7. [06_5_microcopy_audit.md](Promts/06_5_microcopy_audit.md)
+7. [06_5_microcopy_audit.md](Promts/06_5_microcopy_audit.md) (`Prompt 06.5`)
    - Status: queued after Prompt 06.
    - Goal: produce `Docs/UI_MICROCOPY_AUDIT.md` as a reference-only audit of every player-facing text surface (tooltips, disabled reasons, button labels, empty / error / one-shot strings) and assign rewrite hand-offs to Prompts 07-11.
    - Constraint: docs-only; no code change in this pack.
@@ -125,11 +125,11 @@ Gameplay and technical rules still live where `Docs/DOC_PRECEDENCE.md` says they
 13. [11_ui_theme_token_cleanup.md](Promts/11_ui_theme_token_cleanup.md)
     - Status: queued after Prompt 10.5.
     - Goal: centralize shared UI color / spacing / typography / component-state tokens after the hierarchy and readability wins land, behavior-preserving only.
-14. [11_5_empty_error_states.md](Promts/11_5_empty_error_states.md)
+14. [11_5_empty_error_states.md](Promts/11_5_empty_error_states.md) (`Prompt 11.5`)
     - Status: queued after Prompt 11.
     - Goal: implement the empty-state, loading/transition-state, and error/failure-state rewrites from `Docs/UI_MICROCOPY_AUDIT.md` so blank surfaces and failure paths feel intentional and consistent.
     - Constraint: presentation-only; no failure semantics or save change.
-15. [12_semantic_icon_readiness.md](Promts/12_semantic_icon_readiness.md)
+15. [12_semantic_icon_readiness.md](Promts/12_semantic_icon_readiness.md) (`Prompt 12`)
     - Status: queued after Prompt 11.5 and Prompt 04 Part D (the latter is already landed).
     - Goal: produce `Docs/SEMANTIC_ICON_READINESS_CHECKLIST.md` as a reference-only runtime-readiness / asset-contract / hookup-prep checkpoint for the semantic icon wave; does not unblock asset hookup by itself.
 16. [12_5_accessibility_mobile_audit.md](Promts/12_5_accessibility_mobile_audit.md)
@@ -145,7 +145,7 @@ Gameplay and technical rules still live where `Docs/DOC_PRECEDENCE.md` says they
   - `Docs/HANDOFF.md`
   - `Docs/ROADMAP.md`
   - `Docs/Promts/06_ui_information_architecture_audit.md` (active, ready)
-  - the queued pack the chat plans to reach next, from `Docs/Promts/07_*` through `Docs/Promts/12_*`
+  - the queued pack the chat plans to reach next from the checked-in files under `Docs/Promts/`, including `06_5_microcopy_audit.md` (Prompt `06.5`), `11_5_empty_error_states.md` (Prompt `11.5`), and `12_semantic_icon_readiness.md` (Prompt `12`)
 - Completed on the current workspace:
   - `05` Part A (measurement + baseline portrait screenshots, no code change)
   - `04` Part A (direction doc closeout)
