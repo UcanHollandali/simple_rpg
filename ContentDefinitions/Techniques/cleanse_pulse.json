@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "definition_id": "cleanse_pulse",
+  "family": "Techniques",
+  "tags": [
+    "technique",
+    "combat",
+    "utility",
+    "cleanse"
+  ],
+  "display": {
+    "name": "Cleanse Pulse",
+    "short_description": "Remove your current afflictions and gain 2 guard."
+  },
+  "rules": {
+    "usage_limit": "once_per_combat",
+    "action_target": "self",
+    "effect": {
+      "type": "remove_statuses",
+      "params": {
+        "target": "self",
+        "guard_gain": 2
+      }
+    }
+  }
+}

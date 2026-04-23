@@ -18,8 +18,8 @@ func test_poison_applies_ticks_and_expires_in_combat_state() -> void:
 	assert(not bool(defend_result.get("skipped", true)), "Expected defend to resolve before the first poison attack.")
 
 	var enemy_result: Dictionary = flow.process_enemy_action()
-	assert(int(enemy_result.get("damage_applied", -1)) == 2, "Expected defend guard to reduce the first venom hit from 4 to 2.")
-	assert(flow.combat_state.player_hp == 58, "Expected player HP to drop from 60 to 58 after the first venom hit.")
+	assert(int(enemy_result.get("damage_applied", -1)) == 1, "Expected defend guard to reduce the first venom hit from 4 to 1.")
+	assert(flow.combat_state.player_hp == 59, "Expected player HP to drop from 60 to 59 after the first venom hit.")
 	assert(flow.combat_state.player_statuses.size() == 1, "Expected poison status to be applied to the player.")
 	assert(
 		String(flow.combat_state.player_statuses[0].get("definition_id", "")) == "poison",
@@ -31,24 +31,24 @@ func test_poison_applies_ticks_and_expires_in_combat_state() -> void:
 	)
 
 	var first_turn_end: Dictionary = flow.process_turn_end()
-	assert(flow.combat_state.player_hp == 56, "Expected poison to tick for 2 damage at the first turn end.")
+	assert(flow.combat_state.player_hp == 57, "Expected poison to tick for 2 damage at the first turn end.")
 	assert(
 		int(flow.combat_state.player_statuses[0].get("remaining_turns", -1)) == 1,
 		"Expected poison to drop to 1 remaining turn after the first tick."
 	)
-	assert(int(first_turn_end.get("player_hunger", -1)) == RunState.DEFAULT_HUNGER - 1, "Expected normal hunger drain to continue after poison resolution.")
+	assert(int(first_turn_end.get("player_hunger", -1)) == RunState.DEFAULT_HUNGER - 2, "Expected defend turn end to spend the baseline hunger tick plus the extra defend cost.")
 
 	flow.process_defend()
 	var second_enemy_result: Dictionary = flow.process_enemy_action()
 	assert(int(second_enemy_result.get("damage_applied", -1)) == 0, "Expected defend guard to blank the second venom enemy hit from 2 to 0.")
 
 	var second_turn_end: Dictionary = flow.process_turn_end()
-	assert(flow.combat_state.player_hp == 54, "Expected second poison tick to apply before the status expires.")
+	assert(flow.combat_state.player_hp == 55, "Expected second poison tick to apply before the status expires.")
 	assert(flow.combat_state.player_statuses.is_empty(), "Expected poison to expire after its second tick.")
-	assert(int(second_turn_end.get("player_hunger", -1)) == RunState.DEFAULT_HUNGER - 2, "Expected hunger progression to remain intact on the second turn end.")
+	assert(int(second_turn_end.get("player_hunger", -1)) == RunState.DEFAULT_HUNGER - 4, "Expected hunger progression to remain intact on the second turn end.")
 
 	run_state.commit_combat_result(flow.combat_state)
-	assert(run_state.player_hp == 54, "Expected committed run HP to reflect combat-local poison damage.")
+	assert(run_state.player_hp == 55, "Expected committed run HP to reflect combat-local poison damage.")
 	assert(not run_state.to_save_dict().has("player_statuses"), "Expected combat-local statuses to stay out of RunState save data.")
 
 

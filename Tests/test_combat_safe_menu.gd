@@ -3,6 +3,7 @@ extends SceneTree
 class_name TestCombatSafeMenu
 
 const AppBootstrapScript = preload("res://Game/Application/app_bootstrap.gd")
+const FirstRunHintControllerScript = preload("res://Game/UI/first_run_hint_controller.gd")
 const SceneRouterScript = preload("res://Game/Infrastructure/scene_router.gd")
 const FlowStateScript = preload("res://Game/Application/flow_state.gd")
 const TestExitCleanupHelperScript = preload("res://Tests/_exit_cleanup_helper.gd")
@@ -12,6 +13,7 @@ const COMBAT_SAFE_MENU_LAUNCHER_BUTTON_PATH := "SafeMenuOverlay/MenuLauncherButt
 const COMBAT_SAFE_MENU_MENU_LAYER_PATH := "SafeMenuOverlay/MenuLayer"
 const COMBAT_SAFE_MENU_TITLE_PATH := "SafeMenuOverlay/MenuLayer/PanelHolder/PanelRow/MenuPanel/VBox/TitleLabel"
 const COMBAT_SAFE_MENU_SUBTITLE_PATH := "SafeMenuOverlay/MenuLayer/PanelHolder/PanelRow/MenuPanel/VBox/SubtitleLabel"
+const COMBAT_SAFE_MENU_TUTORIAL_BUTTON_PATH := "SafeMenuOverlay/MenuLayer/PanelHolder/PanelRow/MenuPanel/VBox/ActionsVBox/DisableTutorialHintsButton"
 const COMBAT_SAFE_MENU_MAIN_MENU_BUTTON_PATH := "SafeMenuOverlay/MenuLayer/PanelHolder/PanelRow/MenuPanel/VBox/ActionsVBox/ReturnToMainMenuButton"
 const ROUTE_BUTTON_NODE_NAMES: PackedStringArray = [
 	"CombatNodeButton",
@@ -65,13 +67,34 @@ func _on_process_frame() -> void:
 				var menu_layer: Control = current_scene.get_node_or_null(COMBAT_SAFE_MENU_MENU_LAYER_PATH) as Control
 				var title_label: Label = current_scene.get_node_or_null(COMBAT_SAFE_MENU_TITLE_PATH) as Label
 				var subtitle_label: Label = current_scene.get_node_or_null(COMBAT_SAFE_MENU_SUBTITLE_PATH) as Label
+				var tutorial_button: Button = current_scene.get_node_or_null(COMBAT_SAFE_MENU_TUTORIAL_BUTTON_PATH) as Button
 				var main_menu_button: Button = current_scene.get_node_or_null(COMBAT_SAFE_MENU_MAIN_MENU_BUTTON_PATH) as Button
 				_require(menu_layer != null and menu_layer.visible, "Expected combat safe menu to open after pressing the launcher.")
 				_require(title_label != null and title_label.text == "Settings", "Expected combat safe menu title to match the shared Settings title.")
+				_require(tutorial_button != null and tutorial_button.visible and not tutorial_button.disabled, "Expected combat safe menu to expose the tutorial suppression button while hints remain.")
 				_require(main_menu_button != null, "Expected combat safe menu to keep the return-to-main-menu button node for shared menu structure.")
 				_require(main_menu_button.visible, "Expected combat safe menu to keep Return to Main Menu visible for shared layout consistency.")
 				_require(main_menu_button.disabled, "Expected combat safe menu to disable Return to Main Menu because combat is not a direct main-menu exit state.")
 				_require(subtitle_label != null and subtitle_label.text == "Save, load, return to menu, mute music, or quit.", "Expected combat safe-menu subtitle to match the shared settings copy.")
+				tutorial_button.emit_signal("pressed")
+				_advance_phase(4)
+		4:
+			if _is_scene("Combat"):
+				var bootstrap: Node = get_root().get_node_or_null("AppBootstrap")
+				var coordinator: RefCounted = bootstrap.run_session_coordinator if bootstrap != null else null
+				var hint_controller: FirstRunHintController = coordinator.get("_first_run_hint_controller") as FirstRunHintController if coordinator != null else null
+				var tutorial_button: Button = current_scene.get_node_or_null(COMBAT_SAFE_MENU_TUTORIAL_BUTTON_PATH) as Button
+				var expected_hint_ids: Array[String] = []
+				for hint_id in FirstRunHintControllerScript.FROZEN_HINT_IDS:
+					expected_hint_ids.append(String(hint_id))
+				expected_hint_ids.sort()
+				_require(hint_controller != null, "Expected combat safe-menu coverage to resolve the shared first-run hint controller.")
+				_require(hint_controller.get_active_hint_id().is_empty(), "Expected safe-menu tutorial suppression to dismiss the active hint immediately.")
+				_require(
+					hint_controller.build_save_data() == expected_hint_ids,
+					"Expected safe-menu tutorial suppression to mark the frozen hint set as shown for this save."
+				)
+				_require(tutorial_button != null and not tutorial_button.visible, "Expected the tutorial suppression button to hide once no hints remain.")
 				await _finish_success("test_combat_safe_menu")
 
 	_assert_phase_timeout()

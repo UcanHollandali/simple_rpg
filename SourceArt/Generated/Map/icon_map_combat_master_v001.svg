@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="combat_blade" x1="38" y1="28" x2="92" y2="100" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F2E7C8"/>
+      <stop offset="1" stop-color="#B79A63"/>
+    </linearGradient>
+  </defs>
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <path d="M34 28 50 44 60 34 44 18Z" fill="#E6DFC9" stroke="#395856" stroke-width="4"/>
+    <path d="M50 44 40 96l10 10 38-56Z" fill="url(#combat_blade)" stroke="#F2E7C8" stroke-width="3"/>
+    <path d="M94 26 78 42 68 32 84 16Z" fill="#D7BC74" stroke="#395856" stroke-width="4"/>
+    <path d="M78 42 88 96 78 106 40 58Z" fill="#395856" stroke="#F2E7C8" stroke-width="3"/>
+    <circle cx="64" cy="63" r="11" fill="#B6543C" stroke="#F2E7C8" stroke-width="4"/>
+    <path d="M64 46v-10M80 63h10M64 90v-10M38 63h10" stroke="#D7BC74" stroke-width="6"/>
+  </g>
+</svg>

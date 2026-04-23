@@ -96,7 +96,8 @@ Derived data, cached data, facade reads, and UI view state do not replace that o
   - direct out-of-combat consumable use
 - `RunState` still exposes compatibility accessors for limited compatibility-focused tests and save/load compatibility lanes.
 - During active combat, `CombatState` temporarily owns combat-local guard plus the interpreted equipped loadout snapshot used for attack/defend resolution.
-- Combat-time gear swaps and backpack reorder are no longer part of the canonical combat loop.
+- Broader combat-time gear swapping and backpack reorder are not part of the canonical combat loop.
+- The current live exception is the narrow turn-consuming `SwapHand` lane for eligible carried `right_hand` / `left_hand` spares; that legality stays combat-local through `CombatState` / `CombatFlow` and does not move equipment ownership out of `InventoryState`.
 
 ### Map
 
@@ -128,6 +129,7 @@ Derived data, cached data, facade reads, and UI view state do not replace that o
 - `CombatFlow` drives combat-local resolution and presentation signals.
 - `RunState.commit_combat_result()` is the handoff path back to long-lived run truth.
 - Combat-time combat math still reads the canonical backpack-plus-equipment owner as setup input, but the live turn-by-turn combat truth stays inside `CombatState`.
+- The current live combat command surface also includes narrow turn-consuming `SwapHand` for eligible carried `right_hand` / `left_hand` spares only.
 - Combat-only statuses do not survive combat unless a closer rule contract explicitly changes that.
 
 ## Save Rule

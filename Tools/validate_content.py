@@ -3,11 +3,21 @@
 
 from __future__ import annotations
 
-import json
 import re
 import sys
 from collections import deque
 from pathlib import Path
+
+from validate_content_base import (
+    ValidationError,
+    ValidationIssue,
+    ValidationWarning,
+    iter_content_files,
+    load_json,
+    validate_authoring_order,
+    validate_definition_id,
+    validate_family,
+)
 
 
 REQUIRED_TOP_LEVEL_FIELDS = (
@@ -39,6 +49,7 @@ SUPPORTED_FAMILIES = {
     "MerchantStocks",
     "MapTemplates",
     "SideMissions",
+    "Techniques",
 }
 
 ENEMY_ENCOUNTER_TIERS = {"minor", "elite"}
@@ -120,6 +131,14 @@ SUPPORTED_SIDE_MISSION_TYPES = {
     "rescue_missing_scout",
     "bring_proof",
 }
+SUPPORTED_TECHNIQUE_USAGE_LIMITS = {"once_per_combat"}
+SUPPORTED_TECHNIQUE_ACTION_TARGETS = {"self", "enemy"}
+SUPPORTED_TECHNIQUE_EFFECT_TYPES = {
+    "remove_statuses",
+    "attack_ignore_armor",
+    "attack_lifesteal",
+    "prime_next_attack",
+}
 SUPPORTED_WEAPON_DURABILITY_PROFILES = {"sturdy", "standard", "fragile", "heavy"}
 ORDERED_AUTHORING_FAMILIES = {"Enemies", "CharacterPerks"}
 ORDERING_FIELD_NAME = "authoring_order"
@@ -164,15 +183,6 @@ def main(argv: list[str]) -> int:
     return 0
 
 
-def iter_content_files(content_root: Path) -> list[Path]:
-    json_files: list[Path] = []
-
-    for path in sorted(content_root.rglob("*.json")):
-        json_files.append(path)
-
-    return json_files
-
-
 def validate_file(
     json_path: Path,
     content_root: Path,
@@ -204,7 +214,7 @@ def validate_file(
     rules = data.get("rules")
 
     if isinstance(definition_id, str):
-        validate_definition_id(json_path, definition_id, seen_definition_ids, errors)
+        validate_definition_id(json_path, definition_id, seen_definition_ids, errors, DEFINITION_ID_PATTERN)
         expected_stem = json_path.stem
         if definition_id != expected_stem:
             errors.append(
@@ -220,8 +230,16 @@ def validate_file(
         )
 
     if isinstance(family, str):
-        validate_family(json_path, family, content_root, errors)
-        validate_authoring_order(json_path, family, data, seen_authoring_orders, errors)
+        validate_family(json_path, family, content_root, errors, SUPPORTED_FAMILIES)
+        validate_authoring_order(
+            json_path,
+            family,
+            data,
+            seen_authoring_orders,
+            errors,
+            ORDERED_AUTHORING_FAMILIES,
+            ORDERING_FIELD_NAME,
+        )
     else:
         errors.append(ValidationError(json_path, "invalid_family", "family must be a string."))
 
@@ -243,137 +261,6 @@ def validate_file(
 
     if isinstance(family, str) and isinstance(rules, dict):
         validate_runtime_support(json_path, family, data, rules, errors, warnings, content_root)
-
-
-def load_json(json_path: Path, errors: list["ValidationIssue"]) -> dict | list | None:
-    try:
-        with json_path.open("r", encoding="utf-8") as handle:
-            return json.load(handle)
-    except json.JSONDecodeError as exc:
-        errors.append(
-            ValidationError(
-                json_path,
-                "invalid_json",
-                f"JSON parse error at line {exc.lineno}, column {exc.colno}: {exc.msg}",
-            )
-        )
-    except OSError as exc:
-        errors.append(ValidationError(json_path, "file_read_error", str(exc)))
-    return None
-
-
-def validate_definition_id(
-    json_path: Path,
-    definition_id: str,
-    seen_definition_ids: dict[str, Path],
-    errors: list["ValidationIssue"],
-) -> None:
-    if not DEFINITION_ID_PATTERN.match(definition_id):
-        errors.append(
-            ValidationError(
-                json_path,
-                "invalid_definition_id_format",
-                f"definition_id '{definition_id}' must match ^[a-z][a-z0-9_]*$.",
-            )
-        )
-
-    previous_path = seen_definition_ids.get(definition_id)
-    if previous_path is not None:
-        errors.append(
-            ValidationError(
-                json_path,
-                "duplicate_definition_id",
-                f"definition_id '{definition_id}' is already used by {previous_path}.",
-            )
-        )
-        return
-
-    seen_definition_ids[definition_id] = json_path
-
-
-def validate_family(
-    json_path: Path,
-    family: str,
-    content_root: Path,
-    errors: list["ValidationIssue"],
-) -> None:
-    if family not in SUPPORTED_FAMILIES:
-        errors.append(
-            ValidationError(
-                json_path,
-                "invalid_family",
-                f"family '{family}' is not in the supported family list.",
-            )
-        )
-        return
-
-    try:
-        relative_parts = json_path.relative_to(content_root).parts
-    except ValueError:
-        errors.append(
-            ValidationError(json_path, "path_error", "File is not inside ContentDefinitions root.")
-        )
-        return
-
-    if not relative_parts:
-        errors.append(
-            ValidationError(json_path, "path_error", "Could not determine content family folder from path.")
-        )
-        return
-
-    folder_name = relative_parts[0]
-    if folder_name != family:
-        errors.append(
-            ValidationError(
-                json_path,
-                "family_folder_mismatch",
-                f"Path folder '{folder_name}' does not match family '{family}'.",
-            )
-        )
-
-
-def validate_authoring_order(
-    json_path: Path,
-    family: str,
-    data: dict,
-    seen_authoring_orders: dict[str, dict[int, Path]],
-    errors: list["ValidationIssue"],
-) -> None:
-    if family not in ORDERED_AUTHORING_FAMILIES:
-        if ORDERING_FIELD_NAME in data:
-            errors.append(
-                ValidationError(
-                    json_path,
-                    "unsupported_authoring_order",
-                    f"{family} definitions must not use top-level field '{ORDERING_FIELD_NAME}' in the current runtime-backed slice.",
-                )
-            )
-        return
-
-    authoring_order = data.get(ORDERING_FIELD_NAME)
-    if isinstance(authoring_order, bool) or not isinstance(authoring_order, int) or authoring_order <= 0:
-        errors.append(
-            ValidationError(
-                json_path,
-                "invalid_authoring_order",
-                f"{family} definitions must use a positive integer top-level field '{ORDERING_FIELD_NAME}'.",
-            )
-        )
-        return
-
-    family_orders = seen_authoring_orders.setdefault(family, {})
-    previous_path = family_orders.get(authoring_order)
-    if previous_path is not None:
-        errors.append(
-            ValidationError(
-                json_path,
-                "duplicate_authoring_order",
-                f"{family} '{ORDERING_FIELD_NAME}' value {authoring_order} is already used by {previous_path}.",
-            )
-        )
-        return
-
-    family_orders[authoring_order] = json_path
 
 
 def validate_enemy_fields(
@@ -514,6 +401,10 @@ def validate_runtime_support(
 
     if family == "SideMissions":
         validate_side_mission_runtime_support(json_path, rules, errors, content_root)
+        return
+
+    if family == "Techniques":
+        validate_technique_runtime_support(json_path, rules, errors)
         return
 
 
@@ -1094,6 +985,158 @@ def validate_status_runtime_support(
             "Status behavior resolution is reserved for later runtime support and must not be used in current canonical content.",
         )
     )
+
+
+def validate_technique_runtime_support(
+    json_path: Path,
+    rules: dict,
+    errors: list["ValidationIssue"],
+) -> None:
+    usage_limit = rules.get("usage_limit")
+    if not isinstance(usage_limit, str) or usage_limit not in SUPPORTED_TECHNIQUE_USAGE_LIMITS:
+        errors.append(
+            ValidationError(
+                json_path,
+                "invalid_technique_usage_limit",
+                "Techniques.rules.usage_limit must be 'once_per_combat' in the current MVP slice.",
+            )
+        )
+
+    action_target = rules.get("action_target")
+    if not isinstance(action_target, str) or action_target not in SUPPORTED_TECHNIQUE_ACTION_TARGETS:
+        errors.append(
+            ValidationError(
+                json_path,
+                "invalid_technique_action_target",
+                "Techniques.rules.action_target must be 'self' or 'enemy'.",
+            )
+        )
+
+    effect = rules.get("effect")
+    if not isinstance(effect, dict):
+        errors.append(
+            ValidationError(
+                json_path,
+                "invalid_technique_effect",
+                "Techniques.rules.effect must be an object.",
+            )
+        )
+        return
+
+    effect_type = effect.get("type")
+    if not isinstance(effect_type, str) or effect_type not in SUPPORTED_TECHNIQUE_EFFECT_TYPES:
+        errors.append(
+            ValidationError(
+                json_path,
+                "unsupported_technique_effect_type",
+                "Techniques.rules.effect.type must be one of: %s."
+                % ", ".join(sorted(SUPPORTED_TECHNIQUE_EFFECT_TYPES)),
+            )
+        )
+        return
+
+    params = effect.get("params", {})
+    if not isinstance(params, dict):
+        errors.append(
+            ValidationError(
+                json_path,
+                "invalid_technique_effect_params",
+                "Techniques.rules.effect.params must be an object when present.",
+            )
+        )
+        return
+
+    if effect_type == "remove_statuses":
+        if action_target != "self":
+            errors.append(
+                ValidationError(
+                    json_path,
+                    "invalid_cleanse_target",
+                    "remove_statuses techniques must target self in the current MVP slice.",
+                )
+            )
+        target_param = params.get("target", "self")
+        guard_gain = params.get("guard_gain", 0)
+        normalized_params = dict(params)
+        if target_param == "self" and "target" in normalized_params:
+            normalized_params.pop("target")
+        if "guard_gain" in normalized_params and guard_gain == 0:
+            normalized_params.pop("guard_gain")
+        if target_param != "self" or any(key not in {"guard_gain"} for key in normalized_params.keys()):
+            errors.append(
+                ValidationError(
+                    json_path,
+                    "invalid_cleanse_params",
+                    "remove_statuses techniques may only use target='self' plus an optional positive integer guard_gain in the current MVP slice.",
+                )
+            )
+        if "guard_gain" in params and (not isinstance(guard_gain, int) or guard_gain <= 0):
+            errors.append(
+                ValidationError(
+                    json_path,
+                    "invalid_cleanse_guard_gain",
+                    "remove_statuses guard_gain must be a positive integer when present.",
+                )
+            )
+        return
+
+    if effect_type == "attack_ignore_armor":
+        if action_target != "enemy":
+            errors.append(
+                ValidationError(
+                    json_path,
+                    "invalid_ignore_armor_target",
+                    "attack_ignore_armor techniques must target enemy.",
+                )
+            )
+        if params not in [{}, None]:
+            errors.append(
+                ValidationError(
+                    json_path,
+                    "unexpected_ignore_armor_params",
+                    "attack_ignore_armor techniques must keep params empty in the current MVP slice.",
+                )
+            )
+        return
+
+    if effect_type == "attack_lifesteal":
+        if action_target != "enemy":
+            errors.append(
+                ValidationError(
+                    json_path,
+                    "invalid_lifesteal_target",
+                    "attack_lifesteal techniques must target enemy.",
+                )
+            )
+        heal_ratio_percent = params.get("heal_ratio_percent")
+        if not isinstance(heal_ratio_percent, int) or heal_ratio_percent <= 0 or heal_ratio_percent > 100:
+            errors.append(
+                ValidationError(
+                    json_path,
+                    "invalid_lifesteal_ratio",
+                    "attack_lifesteal techniques must define heal_ratio_percent in range 1..100.",
+                )
+            )
+        return
+
+    if effect_type == "prime_next_attack":
+        if action_target != "self":
+            errors.append(
+                ValidationError(
+                    json_path,
+                    "invalid_prime_target",
+                    "prime_next_attack techniques must target self.",
+                )
+            )
+        damage_multiplier = params.get("damage_multiplier")
+        if not isinstance(damage_multiplier, int) or damage_multiplier < 2:
+            errors.append(
+                ValidationError(
+                    json_path,
+                    "invalid_prime_attack_multiplier",
+                    "prime_next_attack techniques must define an integer damage_multiplier of at least 2.",
+                )
+            )
 
 
 def validate_run_loadout_runtime_support(
@@ -2925,22 +2968,6 @@ def validate_item_grant_entry(
 
 def is_shorthand_intent_value(value: str) -> bool:
     return bool(re.fullmatch(r"[a-z_]+", value))
-
-
-class ValidationIssue:
-    def __init__(self, path: Path, error_type: str, message: str) -> None:
-        self.path = str(path)
-        self.error_type = error_type
-        self.message = message
-
-
-class ValidationError(ValidationIssue):
-    pass
-
-
-class ValidationWarning(ValidationIssue):
-    pass
-
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv))

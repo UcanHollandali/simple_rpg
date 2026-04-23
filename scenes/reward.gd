@@ -15,13 +15,20 @@ const TempScreenThemeScript = preload("res://Game/UI/temp_screen_theme.gd")
 const CARD_NODE_NAMES: PackedStringArray = ["ChoiceACard", "ChoiceBCard", "ChoiceCCard"]
 const BUTTON_NODE_NAMES: PackedStringArray = ["ChoiceAButton", "ChoiceBButton", "ChoiceCButton"]
 const CUSTOM_TOOLTIP_META_KEY := "custom_tooltip_text"
+const APP_BOOTSTRAP_PATH := "/root/AppBootstrap"
+const MARGIN_PATH := "Margin"
+const ROOT_VBOX_PATH := MARGIN_PATH + "/VBox"
 const OFFERS_SHELL_PATH := "Margin/VBox/OffersShell"
 const OFFERS_CONTENT_PATH := OFFERS_SHELL_PATH + "/VBox"
 const HEADER_CARD_PATH := OFFERS_CONTENT_PATH + "/HeaderRow/HeaderCard"
 const HEADER_STACK_PATH := HEADER_CARD_PATH + "/HeaderStack"
+const HEADER_CHIP_CARD_PATH := HEADER_STACK_PATH + "/ChipCard"
 const RUN_STATUS_CARD_PATH := OFFERS_CONTENT_PATH + "/HeaderRow/RunStatusCard"
+const RUN_STATUS_LABEL_PATH := RUN_STATUS_CARD_PATH + "/RunStatusLabel"
 const CARDS_ROW_PATH := OFFERS_CONTENT_PATH + "/CardsRow"
 const STATUS_LABEL_PATH := "Margin/VBox/StatusLabel"
+const SCRIM_PATH := "Scrim"
+const BACKDROP_NODE_NAMES: PackedStringArray = ["BackgroundFar", "BackgroundMid", "BackgroundOverlay"]
 # Keep post-combat reward resolution on the map bed so the flow does not hard-cut
 # into a separate temp cue every time the player exits combat.
 const ONE_SHOT_SFX_TRANSITION_LEAD_IN_SECONDS := 0.08
@@ -61,17 +68,23 @@ var _overflow_prompt: InventoryOverflowPrompt
 var _pending_overflow_offer_id: String = ""
 var _scene_node_cache: Dictionary = {}
 
+@onready var _margin: MarginContainer = _scene_node(MARGIN_PATH) as MarginContainer
+@onready var _root_vbox: Control = _scene_node(ROOT_VBOX_PATH) as Control
+@onready var _offers_shell: PanelContainer = _scene_node(OFFERS_SHELL_PATH) as PanelContainer
+@onready var _header_card: PanelContainer = _scene_node(HEADER_CARD_PATH) as PanelContainer
+@onready var _header_chip_card: PanelContainer = _scene_node(HEADER_CHIP_CARD_PATH) as PanelContainer
 @onready var _header_chip_label: Label = _scene_node("%s/ChipCard/ChipLabel" % HEADER_STACK_PATH) as Label
 @onready var _header_title_label: Label = _scene_node("%s/TitleLabel" % HEADER_STACK_PATH) as Label
 @onready var _header_context_label: Label = _scene_node("%s/ContextLabel" % HEADER_STACK_PATH) as Label
 @onready var _header_hint_label: Label = _scene_node("%s/HintLabel" % HEADER_STACK_PATH) as Label
 @onready var _status_label: Label = _scene_node(STATUS_LABEL_PATH) as Label
 @onready var _run_status_card: PanelContainer = _scene_node(RUN_STATUS_CARD_PATH) as PanelContainer
+@onready var _scrim: ColorRect = _scene_node(SCRIM_PATH) as ColorRect
 
 
 func _ready() -> void:
 	_scene_node_cache.clear()
-	_bootstrap = _scene_node("/root/AppBootstrap") as AppBootstrapScript
+	_bootstrap = _scene_node(APP_BOOTSTRAP_PATH) as AppBootstrapScript
 	_reward_state = null
 	_run_state = null
 	_presenter = RewardPresenterScript.new()
@@ -272,32 +285,30 @@ func _button_path(index: int) -> String:
 func _apply_temp_theme() -> void:
 	var is_overlay: bool = self.top_level
 	if is_overlay:
-		for node_name in ["BackgroundFar", "BackgroundMid", "BackgroundOverlay"]:
+		for node_name in BACKDROP_NODE_NAMES:
 			var backdrop: CanvasItem = _scene_node(node_name) as CanvasItem
 			if backdrop != null:
 				backdrop.visible = false
-		var scrim: ColorRect = _scene_node("Scrim") as ColorRect
-		if scrim != null:
-			scrim.visible = true
-			TempScreenThemeScript.apply_scrim(scrim)
-			scrim.color = Color(
-				scrim.color.r,
-				scrim.color.g,
-				scrim.color.b,
+		if _scrim != null:
+			_scrim.visible = true
+			TempScreenThemeScript.apply_scrim(_scrim)
+			_scrim.color = Color(
+				_scrim.color.r,
+				_scrim.color.g,
+				_scrim.color.b,
 				TempScreenThemeScript.resolve_surface_scrim_alpha("reward_modal")
 			)
-		var margin: MarginContainer = _scene_node("Margin") as MarginContainer
-		if margin != null:
+		if _margin != null:
 			var overlay_margins: Dictionary = TempScreenThemeScript.compute_overlay_margins(get_viewport_rect().size, PORTRAIT_SAFE_MAX_WIDTH, PORTRAIT_SAFE_MIN_SIDE_MARGIN)
-			margin.add_theme_constant_override("margin_left", int(overlay_margins.get("left", PORTRAIT_SAFE_MIN_SIDE_MARGIN)))
-			margin.add_theme_constant_override("margin_top", int(overlay_margins.get("top", 40)))
-			margin.add_theme_constant_override("margin_right", int(overlay_margins.get("right", PORTRAIT_SAFE_MIN_SIDE_MARGIN)))
-			margin.add_theme_constant_override("margin_bottom", int(overlay_margins.get("bottom", 40)))
+			_margin.add_theme_constant_override("margin_left", int(overlay_margins.get("left", PORTRAIT_SAFE_MIN_SIDE_MARGIN)))
+			_margin.add_theme_constant_override("margin_top", int(overlay_margins.get("top", 40)))
+			_margin.add_theme_constant_override("margin_right", int(overlay_margins.get("right", PORTRAIT_SAFE_MIN_SIDE_MARGIN)))
+			_margin.add_theme_constant_override("margin_bottom", int(overlay_margins.get("bottom", 40)))
 	else:
 		TempScreenThemeScript.apply_modal_popup_shell(
 			self,
-			_scene_node("Margin") as MarginContainer,
-			_scene_node("Margin/VBox") as Control,
+			_margin,
+			_root_vbox,
 			TempScreenThemeScript.REWARD_ACCENT_COLOR,
 			"ContentShell",
 			34,
@@ -306,13 +317,13 @@ func _apply_temp_theme() -> void:
 			96
 		)
 	TempScreenThemeScript.apply_panel(
-		_scene_node(OFFERS_SHELL_PATH) as PanelContainer,
+		_offers_shell,
 		TempScreenThemeScript.PANEL_BORDER_COLOR,
 		28,
 		0.6
 	)
 	TempScreenThemeScript.intensify_panel(
-		_scene_node(OFFERS_SHELL_PATH) as PanelContainer,
+		_offers_shell,
 		TempScreenThemeScript.PANEL_BORDER_COLOR,
 		3,
 		28,
@@ -322,13 +333,13 @@ func _apply_temp_theme() -> void:
 		18
 	)
 	TempScreenThemeScript.apply_panel(
-		_scene_node(HEADER_CARD_PATH) as PanelContainer,
+		_header_card,
 		TempScreenThemeScript.REWARD_ACCENT_COLOR,
 		20,
 		0.74
 	)
 	TempScreenThemeScript.intensify_panel(
-		_scene_node(HEADER_CARD_PATH) as PanelContainer,
+		_header_card,
 		TempScreenThemeScript.REWARD_ACCENT_COLOR,
 		3,
 		18,
@@ -338,7 +349,7 @@ func _apply_temp_theme() -> void:
 		14
 	)
 	TempScreenThemeScript.apply_chip(
-		_scene_node("%s/ChipCard" % HEADER_STACK_PATH) as PanelContainer,
+		_header_chip_card,
 		_header_chip_label,
 		TempScreenThemeScript.REWARD_ACCENT_COLOR
 	)
@@ -350,40 +361,40 @@ func _apply_temp_theme() -> void:
 		{"path": "%s/TitleLabel" % HEADER_STACK_PATH, "tone": "title"},
 		{"path": "%s/ContextLabel" % HEADER_STACK_PATH, "tone": "reward"},
 		{"path": "%s/HintLabel" % HEADER_STACK_PATH, "tone": "muted"},
-		{"path": "%s/RunStatusLabel" % RUN_STATUS_CARD_PATH, "tone": "muted"},
+		{"path": RUN_STATUS_LABEL_PATH, "tone": "muted"},
 		{"path": STATUS_LABEL_PATH, "tone": "body"},
 	])
 
 	for card_name in CARD_NODE_NAMES:
-		var choice_card: PanelContainer = _scene_node("%s/%s" % [CARDS_ROW_PATH, card_name]) as PanelContainer
+		var choice_card: PanelContainer = _scene_node(_card_panel_path_by_name(card_name)) as PanelContainer
 		TempScreenThemeScript.apply_choice_card_shell(choice_card, TempScreenThemeScript.REWARD_ACCENT_COLOR)
-		TempScreenThemeScript.apply_label(_scene_node("%s/%s/VBox/BadgeLabel" % [CARDS_ROW_PATH, card_name]) as Label, "reward")
-		TempScreenThemeScript.apply_label(_scene_node("%s/%s/VBox/OfferTitleLabel" % [CARDS_ROW_PATH, card_name]) as Label, "title")
-		TempScreenThemeScript.apply_label(_scene_node("%s/%s/VBox/OfferDetailLabel" % [CARDS_ROW_PATH, card_name]) as Label)
+		TempScreenThemeScript.apply_label(_scene_node(_card_badge_label_path(card_name)) as Label, "reward")
+		TempScreenThemeScript.apply_label(_scene_node(_card_title_label_path(card_name)) as Label, "title")
+		TempScreenThemeScript.apply_label(_scene_node(_card_detail_label_path(card_name)) as Label)
 
 	for button_name in BUTTON_NODE_NAMES:
 		TempScreenThemeScript.apply_button(
-			_scene_node("%s/%s/VBox/%s" % [CARDS_ROW_PATH, _reward_card_name_for_button(button_name), button_name]) as Button,
+			_scene_node(_button_path_by_name(button_name)) as Button,
 			TempScreenThemeScript.REWARD_ACCENT_COLOR
 		)
-		var action_button: Button = _scene_node("%s/%s/VBox/%s" % [CARDS_ROW_PATH, _reward_card_name_for_button(button_name), button_name]) as Button
+		var action_button: Button = _scene_node(_button_path_by_name(button_name)) as Button
 		if action_button != null:
 			action_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	SceneLayoutHelperScript.apply_control_overrides(self, {}, [
 		{"path": "%s/TitleLabel" % HEADER_STACK_PATH, "font_size": 34},
 		{"path": "%s/ContextLabel" % HEADER_STACK_PATH, "font_size": 16},
 		{"path": "%s/HintLabel" % HEADER_STACK_PATH, "font_size": 15},
-		{"path": "%s/RunStatusLabel" % RUN_STATUS_CARD_PATH, "font_size": 14},
+		{"path": RUN_STATUS_LABEL_PATH, "font_size": 14},
 		{"path": STATUS_LABEL_PATH, "font_size": 14},
 	])
 	if _status_label != null:
 		_status_label.modulate = Color(1, 1, 1, 0.74)
 	for card_name in CARD_NODE_NAMES:
 		SceneLayoutHelperScript.apply_control_overrides(self, {}, [
-			{"path": "%s/%s" % [CARDS_ROW_PATH, card_name], "custom_minimum_size": {"x": 0.0, "y": 124.0}},
-			{"path": "%s/%s/VBox/OfferTitleLabel" % [CARDS_ROW_PATH, card_name], "font_size": 23},
-			{"path": "%s/%s/VBox/OfferDetailLabel" % [CARDS_ROW_PATH, card_name], "font_size": 15},
-			{"path": "%s/%s/VBox/%s" % [CARDS_ROW_PATH, card_name, card_name.replace("Card", "Button")], "font_size": 18},
+			{"path": _card_panel_path_by_name(card_name), "custom_minimum_size": {"x": 0.0, "y": 124.0}},
+			{"path": _card_title_label_path(card_name), "font_size": 23},
+			{"path": _card_detail_label_path(card_name), "font_size": 15},
+			{"path": _button_path_by_name(_reward_button_name_for_card(card_name)), "font_size": 18},
 		])
 
 
@@ -468,24 +479,24 @@ func _apply_portrait_safe_layout() -> void:
 	)
 	values["hint_font_size"] = max(14, int(values.get("context_font_size", 17)) - 2)
 	SceneLayoutHelperScript.apply_control_overrides(self, values, [
-		{"path": "Margin/VBox", "theme_constants": {"separation": "vbox_separation"}},
+		{"path": ROOT_VBOX_PATH, "theme_constants": {"separation": "vbox_separation"}},
 		{"path": OFFERS_CONTENT_PATH, "theme_constants": {"separation": "vbox_separation"}},
 		{"path": "%s/HeaderRow" % OFFERS_CONTENT_PATH, "theme_constants": {"separation": "vbox_separation"}},
 		{"path": CARDS_ROW_PATH, "theme_constants": {"separation": "vbox_separation"}},
 		{"path": "%s/TitleLabel" % HEADER_STACK_PATH, "font_size": "title_font_size"},
 		{"path": "%s/ContextLabel" % HEADER_STACK_PATH, "font_size": "context_font_size"},
 		{"path": "%s/HintLabel" % HEADER_STACK_PATH, "font_size": "hint_font_size"},
-		{"path": "%s/RunStatusLabel" % RUN_STATUS_CARD_PATH, "font_size": "status_font_size"},
+		{"path": RUN_STATUS_LABEL_PATH, "font_size": "status_font_size"},
 		{"path": STATUS_LABEL_PATH, "font_size": "status_font_size"},
 		{"path": RUN_STATUS_CARD_PATH, "custom_minimum_size": {"x": "run_status_width", "y": 0.0}},
 	])
 	for card_name in CARD_NODE_NAMES:
 		SceneLayoutHelperScript.apply_control_overrides(self, values, [
-			{"path": "%s/%s" % [CARDS_ROW_PATH, card_name], "custom_minimum_size": {"x": 0.0, "y": "card_height"}},
-			{"path": "%s/%s/VBox/BadgeLabel" % [CARDS_ROW_PATH, card_name], "font_size": "status_font_size"},
-			{"path": "%s/%s/VBox/OfferTitleLabel" % [CARDS_ROW_PATH, card_name], "font_size": "card_title_font_size"},
-			{"path": "%s/%s/VBox/OfferDetailLabel" % [CARDS_ROW_PATH, card_name], "font_size": "card_detail_font_size"},
-			{"path": "%s/%s/VBox/%s" % [CARDS_ROW_PATH, card_name, _reward_button_name_for_card(card_name)], "font_size": "button_font_size", "custom_minimum_size": {"x": 0.0, "y": "button_height"}, "theme_constants": {"icon_max_width": "button_icon_max_width"}},
+			{"path": _card_panel_path_by_name(card_name), "custom_minimum_size": {"x": 0.0, "y": "card_height"}},
+			{"path": _card_badge_label_path(card_name), "font_size": "status_font_size"},
+			{"path": _card_title_label_path(card_name), "font_size": "card_title_font_size"},
+			{"path": _card_detail_label_path(card_name), "font_size": "card_detail_font_size"},
+			{"path": _button_path_by_name(_reward_button_name_for_card(card_name)), "font_size": "button_font_size", "custom_minimum_size": {"x": 0.0, "y": "button_height"}, "theme_constants": {"icon_max_width": "button_icon_max_width"}},
 		])
 	if _reward_tooltip_controller != null:
 		_reward_tooltip_controller.refresh_hovered_tooltip()
@@ -496,6 +507,22 @@ func _hide_run_status_card() -> void:
 		return
 	_run_status_card.visible = false
 	_run_status_card.custom_minimum_size = Vector2.ZERO
+
+
+func _card_panel_path_by_name(card_name: String) -> String:
+	return "%s/%s" % [CARDS_ROW_PATH, card_name]
+
+
+func _card_badge_label_path(card_name: String) -> String:
+	return "%s/VBox/BadgeLabel" % _card_panel_path_by_name(card_name)
+
+
+func _card_title_label_path(card_name: String) -> String:
+	return "%s/VBox/OfferTitleLabel" % _card_panel_path_by_name(card_name)
+
+
+func _card_detail_label_path(card_name: String) -> String:
+	return "%s/VBox/OfferDetailLabel" % _card_panel_path_by_name(card_name)
 
 
 func _scene_node(path: String) -> Node:
@@ -534,3 +561,7 @@ func _reward_button_name_for_card(card_name: String) -> String:
 			return "ChoiceCButton"
 		_:
 			return ""
+
+
+func _button_path_by_name(button_name: String) -> String:
+	return "%s/VBox/%s" % [_card_panel_path_by_name(_reward_card_name_for_button(button_name)), button_name]

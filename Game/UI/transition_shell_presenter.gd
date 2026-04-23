@@ -57,15 +57,15 @@ func build_node_resolve_hint_text(node_type: String) -> String:
 func build_node_icon_texture_path(node_type: String) -> String:
 	match node_type:
 		"combat":
-			return UiAssetPathsScript.ATTACK_ICON_TEXTURE_PATH
+			return UiAssetPathsScript.MAP_COMBAT_ICON_TEXTURE_PATH
 		"boss":
-			return UiAssetPathsScript.BOSS_ICON_TEXTURE_PATH
+			return UiAssetPathsScript.MAP_BOSS_ICON_TEXTURE_PATH
 		"event":
 			return UiAssetPathsScript.EVENT_ICON_TEXTURE_PATH
 		"reward":
 			return UiAssetPathsScript.REWARD_ICON_TEXTURE_PATH
 		"key":
-			return UiAssetPathsScript.KEY_ICON_TEXTURE_PATH
+			return UiAssetPathsScript.MAP_KEY_ICON_TEXTURE_PATH
 		_:
 			return UiAssetPathsScript.ROUTE_ICON_TEXTURE_PATH
 

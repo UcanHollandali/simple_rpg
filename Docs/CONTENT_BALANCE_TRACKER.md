@@ -1,6 +1,6 @@
 # SIMPLE RPG - Content Balance Tracker
 
-Last updated: 2026-04-17
+Last updated: 2026-04-23
 
 This file is reference-only.
 It is a current content inventory and balance-reading snapshot, not a gameplay authority.
@@ -45,7 +45,13 @@ Use this file to answer:
 - top-level actions:
   - `Attack`
   - `Defend`
+  - `Technique`
   - `Use Item`
+- narrow combat swap surface:
+  - `SwapHand` is live for `right_hand` / `left_hand` only
+  - exactly `1` hand-slot swap per turn
+  - swap consumes the turn
+  - armor, belt, and backpack reorder stay locked
 - the old temporary mitigation action is removed
 - damage order:
   - raw damage
@@ -53,20 +59,52 @@ Use this file to answer:
   - guard absorption
   - HP loss
 - defend / guard:
-  - base defend guard: `2`
+  - base defend guard: `3`
   - shield defend bonus: `+2`
   - dual-wield defend penalty: `-1`
   - turn-end guard decay rate: `75%`
   - effective carryover target: about `25%`
+  - full defend-turn hunger cost: `2`
 - dual wield:
   - offhand weapon bonus: `+1` attack
   - offhand weapon penalty: `-1` defend guard
+- techniques:
+  - player carries `1` equipped technique between combats
+  - usage stays `once_per_combat`
+  - current technique set:
+    - `cleanse_pulse`
+    - `sundering_strike`
+    - `blood_draw`
+    - `echo_strike`
 - hunger combat penalty:
   - hunger `6` or lower: `-1` attack
   - hunger `2` or lower: `-2` attack
   - hunger `0`: lose `1` HP at combat hunger tick
 - fallback attack:
   - broken or missing weapon -> `1` damage before mitigation
+
+### Playtest Read
+
+- current live combat baseline after Prompt `35`:
+  - `Defend` is no longer dead space; it now buys meaningful HP preservation against the current `5`-damage opener floor at the cost of `+1` extra hunger
+  - Pattern Pack A enemies now ask readable turn-order questions instead of reading like flat stat blocks
+  - techniques are live and tactically distinct, but their value spread should still be watched
+  - hand-slot swap is live and most clearly earns space as broken-weapon recovery rather than broad proactive inventory play
+- concrete baseline examples from the Prompt `35` checkpoint:
+  - `bone_raider` opener:
+    - `Attack` line: `5` outgoing, `5` incoming
+    - `Defend` line: `3` guard, `2` incoming, `2` hunger total for the turn
+  - `dusk_pikeman` turn `3`:
+    - greed line into `impaling_drive`: player fell to `17 HP`
+    - read line with defend on the spike turn: player held `20 HP`
+  - `ashen_sapper` turn `3`:
+    - greed line into `breach_maul`: player fell to `19 HP`
+    - read line with defend on the spike turn: player held `22 HP`
+  - technique baseline:
+    - `cleanse_pulse`: now clears current afflictions and adds a small `2 guard` pulse
+    - `sundering_strike`: `6` damage through the `bone_raider` armor floor
+    - `blood_draw`: `5` damage plus `2` self-heal on the same baseline
+    - `echo_strike`: tuned on `2026-04-23` from `x2` to `x3` next attack after the post-wave playtest checkpoint
 
 ### Attrition And Economy
 
@@ -113,7 +151,7 @@ Use this file to answer:
 - removed mechanic:
   - the old temporary mitigation action
 - removed combat loop assumptions:
-  - combat-time gear swap as a normal player-facing loop
+  - broader combat-time gear swap as a normal player-facing loop
   - combat-time backpack reorder as a normal player-facing loop
 - removed live flow role:
   - `NodeResolve` as the normal active map-to-interaction bridge for current runtime-backed node families
@@ -135,6 +173,7 @@ Use this file to answer:
 - MerchantStocks: `9`
 - SideMissions: `10`
 - CharacterPerks: `15`
+- Techniques: `4`
 - Rewards: `2`
 - MapTemplates: `7`
 

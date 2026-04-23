@@ -41,11 +41,13 @@ Do not infer ownership from convenience accessors exposed on `RunState` or `AppB
 
 - [AGENTS.md](../AGENTS.md)
 - [CLAUDE.md](../CLAUDE.md): Claude-specific working memory alias; defers to `AGENTS.md`, not a separate rule source
-- [HANDOFF.md](HANDOFF.md)
+- [HANDOFF.md](HANDOFF.md): current-state snapshot only; not a rule source
 
 ### Context and History
 
 - [ROADMAP.md](ROADMAP.md): active short-horizon roadmap and queue index; not a rule source
+- [MAP_TOPOLOGY_LOCAL_GRAPH_DESIGN.md](MAP_TOPOLOGY_LOCAL_GRAPH_DESIGN.md): reference-only map-topology design companion; subordinate to `MAP_CONTRACT.md`, `SOURCE_OF_TRUTH.md`, and the save/flow authority docs
+- [MAP_COMPOSER_V2_DESIGN.md](MAP_COMPOSER_V2_DESIGN.md): reference-only map-presentation design companion; subordinate to `MAP_CONTRACT.md`, `SOURCE_OF_TRUTH.md`, and the save/flow authority docs
 - [PRODUCTION_RISK_REGISTER.md](PRODUCTION_RISK_REGISTER.md): reference-only continuation guardrails for growth risks; non-authoritative
 - [COMMAND_EVENT_CATALOG.md](COMMAND_EVENT_CATALOG.md): implemented command/event name reference plus reserved naming registry; non-authoritative
 - [FIGMA_TRUTH_ALIGNMENT_PASS.md](FIGMA_TRUTH_ALIGNMENT_PASS.md): reference-only Figma sync bridge for the placeholder shell; non-authoritative and subordinate to the relevant design/technical/production docs
@@ -63,6 +65,7 @@ Do not infer ownership from convenience accessors exposed on `RunState` or `AppB
 - If you need archive history, search it explicitly by path instead of widening normal repo scans.
 - Prompt dumps, frozen checklists, and stale bridge ballast should not be restored into the active doc set.
 - Archived audits, retired prompt packs, and superseded roadmaps belong under `Docs/Archive/`.
+- `Docs/Promts/` may hold active execution packs, but it is not an authority surface and it is not the canonical queue index; archive only the packs that are genuinely retired or superseded.
 
 ## Fast Topic Map
 
@@ -78,6 +81,8 @@ Do not infer ownership from convenience accessors exposed on `RunState` or `AppB
 | combat visibility | `COMBAT_RULE_CONTRACT.md` |
 | flow transitions | `GAME_FLOW_STATE_MACHINE.md` |
 | map structure | `MAP_CONTRACT.md` |
+| map-topology redesign companion | `MAP_TOPOLOGY_LOCAL_GRAPH_DESIGN.md` (reference only; authority stays in `MAP_CONTRACT.md` and `SOURCE_OF_TRUTH.md`) |
+| map fixed-board presentation design companion | `MAP_COMPOSER_V2_DESIGN.md` (reference only; authority stays in `MAP_CONTRACT.md` and `SOURCE_OF_TRUTH.md`) |
 | support interactions and economy | `SUPPORT_INTERACTION_CONTRACT.md` |
 | rewards and level-up flow | `REWARD_LEVELUP_CONTRACT.md` |
 | save rules | `SAVE_SCHEMA.md` |
@@ -97,13 +102,19 @@ Do not infer ownership from convenience accessors exposed on `RunState` or `AppB
 - `README.md` is an entrypoint, not the final rule source.
 - `README.md` should stay short and point here for detailed topic routing instead of duplicating the full topic map.
 - `AGENTS.md` and `CLAUDE.md` are workflow files, not gameplay rule contracts.
+- workflow docs route work and impose discipline. They do not override valid boundary-safe implementation work that stays inside the relevant authority docs.
 - `CLAUDE.md` is not an independent rule source. It is a Claude working-memory alias over `AGENTS.md`.
 - continuation gate/checklist requirements belong in `AGENTS.md` as workflow discipline, not in gameplay or technical authority docs.
 - `HANDOFF.md` is a current-state handoff file, not a rule contract.
 - `ROADMAP.md` is the active planning and queue file, not a rule contract.
+- `HANDOFF.md` should stay a snapshot. `ROADMAP.md` should stay a queue. Neither should turn into a second authority layer.
+- Use `ROADMAP.md` as the canonical active prompt-wave order/open-state surface and `HANDOFF.md` as the current-state companion snapshot.
+- Do not infer active queue state from `Docs/Promts/` packs or from reference-only design companions.
 - `SOURCE_OF_TRUTH.md` decides runtime ownership questions. `RunState` or `AppBootstrap` convenience access does not override the owner named there.
 - `COMMAND_EVENT_CATALOG.md` is a naming/reference file, not the authority for whether a command family or event family should exist.
 - `PRODUCTION_RISK_REGISTER.md` is a reference-only continuation guardrail, not a rule contract or current-state source.
+- `MAP_TOPOLOGY_LOCAL_GRAPH_DESIGN.md` is a reference-only design companion. It is not a queue surface and it must not override `MAP_CONTRACT.md`, `SOURCE_OF_TRUTH.md`, `SAVE_SCHEMA.md`, or `GAME_FLOW_STATE_MACHINE.md`.
+- `MAP_COMPOSER_V2_DESIGN.md` is a reference-only presentation companion. It is not a queue surface and it must not override `MAP_CONTRACT.md`, `SOURCE_OF_TRUTH.md`, `SAVE_SCHEMA.md`, or `GAME_FLOW_STATE_MACHINE.md`.
 - `FIGMA_TRUTH_ALIGNMENT_PASS.md` is a reference-only corrective-sync bridge, not a gameplay or technical authority file.
 - `FIGMA_TRUTH_ALIGNMENT_PASS.md` must not override `GDD.md`, `MAP_CONTRACT.md`, `REWARD_LEVELUP_CONTRACT.md`, `SUPPORT_INTERACTION_CONTRACT.md`, or the production authority docs it depends on.
 - `ASSET_BACKLOG.md` is an execution backlog, not a style or licensing authority.
@@ -121,8 +132,10 @@ Do not infer ownership from convenience accessors exposed on `RunState` or `AppB
 
 - `HANDOFF.md` is the only rolling current-state file.
 - `HANDOFF.md` should be rewritten as the current state changes; resolved items should be removed or replaced instead of accumulated.
+- `HANDOFF.md` should not grow into a prompt pack mirror or copy/paste start-message bundle.
 - `README.md` should change rarely and remain the stable repo entrypoint.
 - validator commands, Godot runners, and platform/tooling notes should stay in the closest authority doc, typically `TECH_BASELINE.md`, not in `README.md`.
+- `ROADMAP.md` should stay focused on the active queue and near phases instead of duplicating long archived closeout history.
 - `DECISION_LOG.md` is only for accepted project-level decisions.
 - `DEFERRED_DECISIONS.md` is only for consciously open topics, not backlog tracking.
 

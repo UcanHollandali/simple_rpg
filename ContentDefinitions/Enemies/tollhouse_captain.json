@@ -4,7 +4,7 @@
   "authoring_order": 205,
   "family": "Enemies",
   "encounter_tier": "elite",
-  "design_intent_question": "Can the player read an early boss that alternates measured setup cuts with one committed punish, saving Defend for the real swing instead of panicking on every beat?",
+  "design_intent_question": "Can the player read the captain's phase escalation, holding Defend for the committed halberd drops instead of flinching at every measured cut?",
   "tags": [
     "enemy",
     "boss",
@@ -14,7 +14,7 @@
   ],
   "display": {
     "name": "Tollhouse Captain",
-    "short_description": "A hard-eyed road captain who tests the player's nerve with measured pressure before a heavier finishing stroke.",
+    "short_description": "A road captain who teaches patience first, then turns the fight into a harsher weaken-into-spike sequence as the toll comes due.",
     "icon_key": "enemy_tollhouse_captain"
   },
   "rules": {
@@ -26,12 +26,12 @@
       {
         "intent_id": "captain_test_cut",
         "action_family": "attack",
-        "threat_level": "medium",
+        "threat_level": "low",
         "effects": [
           {
             "type": "deal_damage",
             "params": {
-              "base": 4,
+              "base": 3,
               "damage_kind": "physical"
             }
           }
@@ -65,7 +65,7 @@
           {
             "type": "deal_damage",
             "params": {
-              "base": 8,
+              "base": 9,
               "damage_kind": "physical"
             }
           }
@@ -80,12 +80,12 @@
           {
             "intent_id": "captain_test_cut",
             "action_family": "attack",
-            "threat_level": "medium",
+            "threat_level": "low",
             "effects": [
               {
                 "type": "deal_damage",
                 "params": {
-                  "base": 4,
+                  "base": 3,
                   "damage_kind": "physical"
                 }
               }
@@ -99,7 +99,7 @@
               {
                 "type": "deal_damage",
                 "params": {
-                  "base": 4,
+                  "base": 3,
                   "damage_kind": "physical"
                 }
               },
@@ -107,6 +107,20 @@
                 "type": "apply_status",
                 "params": {
                   "definition_id": "weakened"
+                }
+              }
+            ]
+          },
+          {
+            "intent_id": "captain_halberd_drop",
+            "action_family": "attack",
+            "threat_level": "high",
+            "effects": [
+              {
+                "type": "deal_damage",
+                "params": {
+                  "base": 8,
+                  "damage_kind": "physical"
                 }
               }
             ]
@@ -146,7 +160,7 @@
               {
                 "type": "deal_damage",
                 "params": {
-                  "base": 8,
+                  "base": 9,
                   "damage_kind": "physical"
                 }
               }
@@ -187,7 +201,7 @@
               {
                 "type": "deal_damage",
                 "params": {
-                  "base": 8,
+                  "base": 9,
                   "damage_kind": "physical"
                 }
               }

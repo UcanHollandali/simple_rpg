@@ -4,13 +4,16 @@ class_name CombatFlow
 
 const ContentLoaderScript = preload("res://Game/Infrastructure/content_loader.gd")
 const InventoryActionsScript = preload("res://Game/Application/inventory_actions.gd")
+const InventoryStateScript = preload("res://Game/RuntimeState/inventory_state.gd")
 signal domain_event_emitted(event_name: String, payload: Dictionary)
 signal combat_ended_signal(result: String)
 signal turn_phase_resolved(phase_name: String, action_name: String, result: Dictionary)
 
 const ACTION_ATTACK: String = "attack"
 const ACTION_DEFEND: String = "defend"
+const ACTION_TECHNIQUE: String = "technique"
 const ACTION_USE_ITEM: String = "use_item"
+const ACTION_SWAP_HAND: String = "swap_hand"
 
 const PHASE_PLAYER_ACTION: String = "player_action"
 const PHASE_ENEMY_ACTION: String = "enemy_action"
@@ -23,6 +26,7 @@ var _run_state: RunState
 var _enemy_definition: Dictionary = {}
 var _weapon_definition: Dictionary = {}
 var _content_loader: ContentLoader = ContentLoaderScript.new()
+var _pending_turn_hunger_cost: int = -1
 
 
 func _init(resolver: CombatResolver = null) -> void:
@@ -44,6 +48,8 @@ func setup_combat(
 
 	combat_state = CombatState.new()
 	combat_state.setup_from_run_state(_run_state, _enemy_definition, combat_setup_data)
+	_resolve_active_weapon_definition()
+	_pending_turn_hunger_cost = -1
 
 	emit_signal("domain_event_emitted", "CombatStarted", {
 		"enemy_definition_id": String(_enemy_definition.get("definition_id", "")),
@@ -69,10 +75,11 @@ func process_player_attack() -> Dictionary:
 
 	var effective_player_state: Dictionary = combat_state.build_effective_player_state()
 	effective_player_state["random_roll_percent"] = int(effective_player_state.get("random_roll_percent", 100))
+	var active_weapon_definition: Dictionary = _resolve_active_weapon_definition()
 	var result: Dictionary = _resolver.resolve_player_attack(
 		effective_player_state,
 		combat_state.enemy_state,
-		_weapon_definition
+		active_weapon_definition
 	)
 
 	_consume_resolver_output(result)
@@ -82,6 +89,82 @@ func process_player_attack() -> Dictionary:
 
 func resolve_attack_turn() -> Dictionary:
 	return _resolve_full_turn(ACTION_ATTACK)
+
+
+func resolve_swap_hand_turn(equipment_slot_name: String, backpack_slot_id: int) -> Dictionary:
+	return _resolve_full_turn(ACTION_SWAP_HAND, {
+		"equipment_slot_name": equipment_slot_name,
+		"backpack_slot_id": backpack_slot_id,
+	})
+
+
+func process_technique() -> Dictionary:
+	if combat_state.combat_ended:
+		return _build_ended_action_result()
+
+	var forced_skip_result: Dictionary = _build_forced_skip_result(ACTION_TECHNIQUE)
+	if not forced_skip_result.is_empty():
+		return forced_skip_result
+	if not has_equipped_technique():
+		return _build_skipped_action_result({
+			"consume_turn": false,
+			"error": "missing_equipped_technique",
+		})
+	if not is_technique_available():
+		return _build_skipped_action_result({
+			"consume_turn": false,
+			"error": _resolve_technique_unavailable_reason(),
+			"technique_definition_id": String(combat_state.equipped_technique_definition_id),
+		})
+
+	var effective_player_state: Dictionary = combat_state.build_effective_player_state()
+	effective_player_state["random_roll_percent"] = int(effective_player_state.get("random_roll_percent", 100))
+	effective_player_state["queued_attack_multiplier"] = max(1, int(combat_state.queued_attack_multiplier))
+	effective_player_state["player_status_count"] = combat_state.player_statuses.size()
+	var active_weapon_definition: Dictionary = _resolve_active_weapon_definition()
+	var result: Dictionary = _resolver.resolve_player_technique(
+		effective_player_state,
+		combat_state.enemy_state,
+		active_weapon_definition,
+		combat_state.equipped_technique_definition
+	)
+	if bool(result.get("skipped", false)):
+		return _build_skipped_action_result({
+			"consume_turn": false,
+			"error": String(result.get("error", "technique_failed")),
+		})
+
+	if String(result.get("technique_effect_type", "")) == "remove_statuses":
+		var removed_status_definition_ids: PackedStringArray = combat_state.clear_player_statuses()
+		result["removed_status_definition_ids"] = removed_status_definition_ids
+		result["removed_status_count"] = removed_status_definition_ids.size()
+
+	_consume_resolver_output(result)
+	combat_state.technique_spent = true
+	combat_state.player_state["technique_spent"] = true
+	_sync_mirror_fields_from_runtime_state()
+	_append_event({
+		"type": "technique_used",
+		"turn": combat_state.current_turn,
+		"technique_definition_id": String(result.get("technique_definition_id", combat_state.equipped_technique_definition_id)),
+		"technique_effect_type": String(result.get("technique_effect_type", "")),
+	})
+	_emit_player_action_chosen("Technique")
+	emit_signal("domain_event_emitted", "TechniqueUsed", {
+		"turn": combat_state.current_turn,
+		"technique_definition_id": String(result.get("technique_definition_id", combat_state.equipped_technique_definition_id)),
+		"display_name": String(result.get("technique_display_name", combat_state.equipped_technique_definition_id)),
+		"technique_effect_type": String(result.get("technique_effect_type", "")),
+		"damage_applied": int(result.get("damage_applied", 0)),
+		"healed_amount": int(result.get("healed_amount", 0)),
+		"removed_status_count": int(result.get("removed_status_count", 0)),
+		"queued_attack_multiplier": int(result.get("queued_attack_multiplier", 1)),
+	})
+	return _finalize_action_result(result)
+
+
+func resolve_technique_turn() -> Dictionary:
+	return _resolve_full_turn(ACTION_TECHNIQUE)
 
 
 func process_enemy_action() -> Dictionary:
@@ -102,6 +185,74 @@ func process_enemy_action() -> Dictionary:
 
 func resolve_use_item_turn(slot_index: int = -1) -> Dictionary:
 	return _resolve_full_turn(ACTION_USE_ITEM, slot_index)
+
+
+func process_swap_hand(equipment_slot_name: String, backpack_slot_id: int) -> Dictionary:
+	if combat_state.combat_ended:
+		return _build_ended_action_result()
+
+	var forced_skip_result: Dictionary = _build_forced_skip_result(ACTION_SWAP_HAND)
+	if not forced_skip_result.is_empty():
+		return forced_skip_result
+	if not _is_supported_hand_swap_slot(equipment_slot_name):
+		return _build_skipped_action_result({
+			"consume_turn": false,
+			"error": "unsupported_hand_swap_slot",
+			"equipment_slot_name": equipment_slot_name,
+		})
+
+	var projected_inventory: InventoryState = _build_projected_inventory_state()
+	if projected_inventory == null:
+		return _build_skipped_action_result({
+			"consume_turn": false,
+			"error": "missing_inventory_projection",
+			"equipment_slot_name": equipment_slot_name,
+		})
+	if _build_hand_swap_candidate_slots(projected_inventory, equipment_slot_name).is_empty():
+		return _build_skipped_action_result({
+			"consume_turn": false,
+			"error": "missing_hand_swap_candidate",
+			"equipment_slot_name": equipment_slot_name,
+		})
+
+	var candidate_index: int = projected_inventory.find_slot_index_by_id(backpack_slot_id)
+	if candidate_index < 0:
+		return _build_skipped_action_result({
+			"consume_turn": false,
+			"error": "missing_inventory_slot",
+			"equipment_slot_name": equipment_slot_name,
+			"backpack_slot_id": backpack_slot_id,
+		})
+
+	var candidate_slot: Dictionary = projected_inventory.inventory_slots[candidate_index]
+	if not _slot_is_valid_hand_swap_candidate(projected_inventory, candidate_slot, equipment_slot_name):
+		return _build_skipped_action_result({
+			"consume_turn": false,
+			"error": "invalid_hand_swap_candidate",
+			"equipment_slot_name": equipment_slot_name,
+			"backpack_slot_id": backpack_slot_id,
+		})
+
+	var swap_result: Dictionary = projected_inventory.move_backpack_slot_to_equipment(backpack_slot_id, equipment_slot_name)
+	if not bool(swap_result.get("ok", false)):
+		return _build_skipped_action_result({
+			"consume_turn": false,
+			"error": String(swap_result.get("error", "hand_swap_failed")),
+			"equipment_slot_name": equipment_slot_name,
+			"backpack_slot_id": backpack_slot_id,
+		})
+
+	combat_state.apply_inventory_projection(projected_inventory)
+	_resolve_active_weapon_definition()
+	_sync_mirror_fields_from_runtime_state()
+	_emit_player_action_chosen("SwapHand")
+	return _build_action_result(false, check_combat_end(), {
+		"equipment_slot_name": equipment_slot_name,
+		"backpack_slot_id": backpack_slot_id,
+		"equipped_definition_id": String(swap_result.get("definition_id", "")),
+		"equipped_inventory_family": String(swap_result.get("inventory_family", "")),
+		"replaced_definition_id": String(swap_result.get("replaced_definition_id", "")),
+	})
 
 
 func process_use_item(slot_index: int = -1) -> Dictionary:
@@ -145,7 +296,8 @@ func process_use_item(slot_index: int = -1) -> Dictionary:
 	var hunger_restored_amount: int = next_hunger - previous_hunger
 	var repaired_durability: int = 0
 	if repairs_weapon:
-		var max_durability: int = int(_weapon_definition.get("rules", {}).get("stats", {}).get("max_durability", previous_durability))
+		var active_weapon_definition: Dictionary = _resolve_active_weapon_definition()
+		var max_durability: int = int(active_weapon_definition.get("rules", {}).get("stats", {}).get("max_durability", previous_durability))
 		if max_durability > previous_durability:
 			repaired_durability = max_durability - previous_durability
 			combat_state.weapon_instance["current_durability"] = max_durability
@@ -225,21 +377,28 @@ func process_defend() -> Dictionary:
 		"guard_points": int(defend_result.get("guard_generated", 0)),
 	})
 	_emit_player_action_chosen("Defend")
+	var extra_hunger_cost: int = CombatResolver.resolve_defend_extra_hunger_cost()
+	var turn_hunger_cost: int = CombatResolver.resolve_defend_turn_hunger_cost()
+	_pending_turn_hunger_cost = turn_hunger_cost
 	emit_signal("domain_event_emitted", "GuardGained", {
 		"turn": combat_state.current_turn,
 		"guard_points": int(defend_result.get("guard_generated", 0)),
 		"shield_bonus_applied": bool(defend_result.get("shield_bonus_applied", false)),
 		"dual_wield_penalty_applied": bool(defend_result.get("dual_wield_penalty_applied", false)),
+		"extra_hunger_cost": extra_hunger_cost,
+		"turn_hunger_cost": turn_hunger_cost,
 	})
 	return _build_action_result(false, check_combat_end(), {
 		"guard_generated": int(defend_result.get("guard_generated", 0)),
 		"guard_points": combat_state.current_guard,
 		"shield_bonus_applied": bool(defend_result.get("shield_bonus_applied", false)),
 		"dual_wield_penalty_applied": bool(defend_result.get("dual_wield_penalty_applied", false)),
+		"extra_hunger_cost": extra_hunger_cost,
+		"turn_hunger_cost": turn_hunger_cost,
 	})
 
 
-func process_turn_end() -> Dictionary:
+func process_turn_end(hunger_cost: int = -1) -> Dictionary:
 	var retained_guard: int = CombatResolver.resolve_turn_end_guard_carryover(
 		int(combat_state.player_state.get("guard_points", combat_state.current_guard))
 	)
@@ -248,11 +407,18 @@ func process_turn_end() -> Dictionary:
 	var status_summary: Dictionary = combat_state.resolve_player_turn_end_statuses()
 	_emit_status_turn_end_events(status_summary)
 	_sync_mirror_fields_from_runtime_state()
+	var resolved_hunger_cost: int = hunger_cost
+	if resolved_hunger_cost < 0:
+		resolved_hunger_cost = _pending_turn_hunger_cost
+		if resolved_hunger_cost < 0:
+			resolved_hunger_cost = CombatResolver.resolve_base_turn_hunger_cost()
+	_pending_turn_hunger_cost = -1
 
 	if check_combat_end():
-		return _build_turn_end_summary(status_summary, true)
+		return _build_turn_end_summary(status_summary, true, max(0, resolved_hunger_cost))
 
-	CombatResolver.apply_turn_end_hunger_tick(combat_state)
+	resolved_hunger_cost = max(0, resolved_hunger_cost)
+	CombatResolver.apply_turn_end_hunger_tick(combat_state, resolved_hunger_cost)
 	CombatResolver.apply_hunger_penalty(combat_state)
 	CombatResolver.advance_turn(combat_state)
 	var phase_change: Dictionary = CombatResolver.advance_intent(combat_state)
@@ -260,7 +426,7 @@ func process_turn_end() -> Dictionary:
 		_emit_boss_phase_changed(phase_change)
 	_sync_mirror_fields_from_runtime_state()
 
-	var turn_end_summary: Dictionary = _build_turn_end_summary(status_summary)
+	var turn_end_summary: Dictionary = _build_turn_end_summary(status_summary, false, resolved_hunger_cost)
 
 	_append_event({
 		"type": "turn_end_resolved",
@@ -296,10 +462,14 @@ func build_preview_snapshot() -> Dictionary:
 
 	var effective_player_state: Dictionary = combat_state.build_effective_player_state()
 	effective_player_state["random_roll_percent"] = 100
-	var attack_result: Dictionary = _resolver.resolve_player_attack(
+	effective_player_state["queued_attack_multiplier"] = max(1, int(combat_state.queued_attack_multiplier))
+	effective_player_state["player_status_count"] = combat_state.player_statuses.size()
+	var active_weapon_definition: Dictionary = _resolve_active_weapon_definition()
+	var attack_result: Dictionary = _resolver.resolve_player_attack_with_context(
 		effective_player_state,
 		combat_state.enemy_state,
-		_weapon_definition
+		active_weapon_definition,
+		{"damage_multiplier": max(1, int(combat_state.queued_attack_multiplier))}
 	)
 	var enemy_result: Dictionary = _resolver.resolve_enemy_action(
 		combat_state.enemy_state,
@@ -317,6 +487,7 @@ func build_preview_snapshot() -> Dictionary:
 	var next_weapon_state: Dictionary = attack_result.get("updated_weapon_state", attack_result.get("weapon_instance", {}))
 	var next_durability: int = int(next_weapon_state.get("current_durability", current_durability))
 	var updated_enemy_preview_state: Dictionary = attack_result.get("updated_defender_state", {})
+	var technique_preview: Dictionary = _build_technique_preview_snapshot(effective_player_state)
 
 	return {
 		"attack_damage_preview": int(attack_result.get("damage_applied", 0)),
@@ -329,11 +500,30 @@ func build_preview_snapshot() -> Dictionary:
 		"guard_gain_preview": int(defend_result.get("guard_generated", 0)),
 		"guard_absorb_preview": int(defend_enemy_result.get("guard_absorbed", 0)),
 		"guard_damage_preview": int(defend_enemy_result.get("damage_applied", 0)),
-		"hunger_tick_preview": 1,
-	}
+		"hunger_tick_preview": CombatResolver.resolve_base_turn_hunger_cost(),
+		"defend_hunger_cost_preview": CombatResolver.resolve_defend_turn_hunger_cost(),
+	}.merged(technique_preview, true)
 
-func _resolve_full_turn(action_name: String, slot_index: int = 0) -> Dictionary:
-	var action_result: Dictionary = _resolve_player_action(action_name, slot_index)
+func get_hand_swap_candidates(equipment_slot_name: String) -> Array[Dictionary]:
+	if not _is_supported_hand_swap_slot(equipment_slot_name):
+		return []
+	var projected_inventory: InventoryState = _build_projected_inventory_state()
+	return _build_hand_swap_candidate_slots(projected_inventory, equipment_slot_name)
+
+
+func has_hand_swap_candidates(equipment_slot_name: String) -> bool:
+	return not get_hand_swap_candidates(equipment_slot_name).is_empty()
+
+
+func has_any_hand_swap_candidates() -> bool:
+	return (
+		has_hand_swap_candidates(InventoryStateScript.EQUIPMENT_SLOT_RIGHT_HAND)
+		or has_hand_swap_candidates(InventoryStateScript.EQUIPMENT_SLOT_LEFT_HAND)
+	)
+
+
+func _resolve_full_turn(action_name: String, action_payload: Variant = null) -> Dictionary:
+	var action_result: Dictionary = _resolve_player_action(action_name, action_payload)
 	emit_signal("turn_phase_resolved", PHASE_PLAYER_ACTION, action_name, action_result)
 
 	var turn_result: Dictionary = {
@@ -355,7 +545,8 @@ func _resolve_full_turn(action_name: String, slot_index: int = 0) -> Dictionary:
 	if bool(enemy_result.get("combat_ended", false)):
 		return turn_result
 
-	var turn_end_result: Dictionary = process_turn_end()
+	var turn_end_hunger_cost: int = int(action_result.get("turn_hunger_cost", CombatResolver.resolve_base_turn_hunger_cost()))
+	var turn_end_result: Dictionary = process_turn_end(turn_end_hunger_cost)
 	turn_result["turn_end_result"] = turn_end_result
 	turn_result["combat_ended"] = bool(turn_end_result.get("combat_ended", combat_state.combat_ended))
 	turn_result["combat_result"] = String(turn_end_result.get("combat_result", combat_state.combat_result))
@@ -363,14 +554,28 @@ func _resolve_full_turn(action_name: String, slot_index: int = 0) -> Dictionary:
 	return turn_result
 
 
-func _resolve_player_action(action_name: String, slot_index: int = 0) -> Dictionary:
+func _resolve_player_action(action_name: String, action_payload: Variant = null) -> Dictionary:
 	match action_name:
 		ACTION_ATTACK:
 			return process_player_attack()
 		ACTION_DEFEND:
 			return process_defend()
+		ACTION_TECHNIQUE:
+			return process_technique()
 		ACTION_USE_ITEM:
-			return process_use_item(slot_index)
+			var requested_slot_index: int = int(action_payload) if typeof(action_payload) == TYPE_INT else -1
+			return process_use_item(requested_slot_index)
+		ACTION_SWAP_HAND:
+			if typeof(action_payload) != TYPE_DICTIONARY:
+				return _build_skipped_action_result({
+					"consume_turn": false,
+					"error": "missing_hand_swap_payload",
+				})
+			var payload: Dictionary = action_payload
+			return process_swap_hand(
+				String(payload.get("equipment_slot_name", "")),
+				int(payload.get("backpack_slot_id", -1))
+			)
 		_:
 			return {
 				"skipped": true,
@@ -380,6 +585,89 @@ func _resolve_player_action(action_name: String, slot_index: int = 0) -> Diction
 				"error": "unknown_player_action",
 				"action_name": action_name,
 			}
+
+
+func _build_technique_preview_snapshot(effective_player_state: Dictionary) -> Dictionary:
+	if not has_equipped_technique():
+		return {
+			"has_equipped_technique": false,
+		}
+
+	var active_weapon_definition: Dictionary = _resolve_active_weapon_definition()
+	var technique_definition: Dictionary = combat_state.equipped_technique_definition
+	var display: Dictionary = technique_definition.get("display", {})
+	var rules: Dictionary = technique_definition.get("rules", {})
+	var effect: Dictionary = rules.get("effect", {})
+	var effect_type: String = String(effect.get("type", "")).strip_edges()
+	var params: Dictionary = effect.get("params", {})
+	var preview: Dictionary = {
+		"has_equipped_technique": true,
+		"technique_definition_id": String(combat_state.equipped_technique_definition_id),
+		"technique_display_name": String(display.get("name", combat_state.equipped_technique_definition_id)),
+		"technique_short_description": String(display.get("short_description", "")),
+		"technique_effect_type": effect_type,
+		"technique_spent": bool(combat_state.technique_spent),
+		"technique_available": is_technique_available(),
+		"technique_unavailable_reason": _resolve_technique_unavailable_reason(),
+		"queued_attack_multiplier": max(1, int(combat_state.queued_attack_multiplier)),
+	}
+
+	match effect_type:
+		"remove_statuses":
+			preview["technique_removed_status_count"] = combat_state.player_statuses.size()
+			preview["technique_guard_gain_preview"] = max(0, int(params.get("guard_gain", 0)))
+		"attack_ignore_armor":
+			var ignore_armor_result: Dictionary = _resolver.resolve_player_attack_with_context(
+				effective_player_state,
+				combat_state.enemy_state,
+				active_weapon_definition,
+				{"ignore_armor": true}
+			)
+			preview["technique_damage_preview"] = int(ignore_armor_result.get("damage_applied", 0))
+			preview["technique_ignores_armor"] = true
+		"attack_lifesteal":
+			var lifesteal_result: Dictionary = _resolver.resolve_player_attack_with_context(
+				effective_player_state,
+				combat_state.enemy_state,
+				active_weapon_definition,
+				{"heal_ratio_percent": int(params.get("heal_ratio_percent", 0))}
+			)
+			preview["technique_damage_preview"] = int(lifesteal_result.get("damage_applied", 0))
+			preview["technique_heal_preview"] = int(lifesteal_result.get("healed_amount", 0))
+		"prime_next_attack":
+			preview["technique_attack_multiplier_preview"] = max(1, int(params.get("damage_multiplier", 2)))
+
+	return preview
+
+
+func has_equipped_technique() -> bool:
+	return combat_state != null and combat_state.has_equipped_technique()
+
+
+func is_technique_available() -> bool:
+	if not has_equipped_technique():
+		return false
+	if combat_state.technique_spent:
+		return false
+	var effect_type: String = String(
+		combat_state.equipped_technique_definition.get("rules", {}).get("effect", {}).get("type", "")
+	).strip_edges()
+	if effect_type == "remove_statuses":
+		return not combat_state.player_statuses.is_empty()
+	return true
+
+
+func _resolve_technique_unavailable_reason() -> String:
+	if not has_equipped_technique():
+		return "missing_equipped_technique"
+	if combat_state.technique_spent:
+		return "technique_spent"
+	var effect_type: String = String(
+		combat_state.equipped_technique_definition.get("rules", {}).get("effect", {}).get("type", "")
+	).strip_edges()
+	if effect_type == "remove_statuses" and combat_state.player_statuses.is_empty():
+		return "no_statuses_to_cleanse"
+	return ""
 
 
 func _build_forced_skip_result(action_name: String) -> Dictionary:
@@ -434,10 +722,11 @@ func _emit_player_action_chosen(action_name: String) -> void:
 	})
 
 
-func _build_turn_end_summary(status_summary: Dictionary, combat_ended: bool = false) -> Dictionary:
+func _build_turn_end_summary(status_summary: Dictionary, combat_ended: bool = false, hunger_spent: int = 0) -> Dictionary:
 	return {
 		"player_hp": combat_state.player_hp,
 		"player_hunger": combat_state.player_hunger,
+		"hunger_spent": max(0, hunger_spent),
 		"guard_points": combat_state.current_guard,
 		"current_turn": combat_state.current_turn,
 		"current_intent": combat_state.current_intent.duplicate(true),
@@ -490,6 +779,16 @@ func _consume_resolver_output(result: Dictionary) -> void:
 		var enemy_state: Dictionary = updated_enemy_state
 		combat_state.enemy_state = enemy_state.duplicate(true)
 
+	var updated_player_statuses: Variant = result.get("updated_player_statuses", null)
+	if typeof(updated_player_statuses) == TYPE_ARRAY:
+		var statuses: Array = updated_player_statuses
+		var typed_statuses: Array[Dictionary] = []
+		for status_value in statuses:
+			if typeof(status_value) != TYPE_DICTIONARY:
+				continue
+			typed_statuses.append((status_value as Dictionary).duplicate(true))
+		combat_state.player_statuses = typed_statuses
+
 	var updated_weapon_state: Variant = result.get("updated_weapon_state", null)
 	if typeof(updated_weapon_state) == TYPE_DICTIONARY:
 		var weapon_state: Dictionary = updated_weapon_state
@@ -526,6 +825,8 @@ func _sync_mirror_fields_from_runtime_state() -> void:
 		combat_state.consumable_slots = consumable_array.duplicate(true)
 
 	combat_state.current_guard = max(0, int(combat_state.player_state.get("guard_points", combat_state.current_guard)))
+	combat_state.technique_spent = bool(combat_state.player_state.get("technique_spent", combat_state.technique_spent))
+	combat_state.queued_attack_multiplier = max(1, int(combat_state.player_state.get("queued_attack_multiplier", combat_state.queued_attack_multiplier)))
 
 
 func _append_events(events_variant: Variant) -> void:
@@ -623,6 +924,10 @@ func _merge_player_runtime_fields(updated_state: Dictionary) -> void:
 	if typeof(consumable_variant) == TYPE_ARRAY:
 		var consumable_slots: Array = consumable_variant
 		combat_state.player_state["consumable_slots"] = consumable_slots.duplicate(true)
+	if updated_state.has("technique_spent"):
+		combat_state.player_state["technique_spent"] = bool(updated_state.get("technique_spent", combat_state.player_state.get("technique_spent", false)))
+	if updated_state.has("queued_attack_multiplier"):
+		combat_state.player_state["queued_attack_multiplier"] = max(1, int(updated_state.get("queued_attack_multiplier", combat_state.player_state.get("queued_attack_multiplier", 1))))
 
 
 func find_first_usable_consumable_slot_index() -> int:
@@ -669,10 +974,61 @@ func _is_consumable_slot_usable(slot_index: int) -> bool:
 		return true
 	if repairs_weapon:
 		var current_durability: int = int(combat_state.weapon_instance.get("current_durability", 0))
-		var max_durability: int = int(_weapon_definition.get("rules", {}).get("stats", {}).get("max_durability", current_durability))
+		var active_weapon_definition: Dictionary = _resolve_active_weapon_definition()
+		var max_durability: int = int(active_weapon_definition.get("rules", {}).get("stats", {}).get("max_durability", current_durability))
 		if max_durability > current_durability:
 			return true
 	return false
+
+
+func _resolve_active_weapon_definition() -> Dictionary:
+	if combat_state == null:
+		return _weapon_definition
+	var definition_id: String = String(combat_state.weapon_instance.get("definition_id", "")).strip_edges()
+	if definition_id.is_empty():
+		_weapon_definition = {}
+		return _weapon_definition
+	if String(_weapon_definition.get("definition_id", "")).strip_edges() == definition_id:
+		return _weapon_definition
+	var resolved_definition: Dictionary = _content_loader.load_definition("Weapons", definition_id)
+	_weapon_definition = resolved_definition.duplicate(true) if not resolved_definition.is_empty() else {}
+	return _weapon_definition
+
+
+func _build_projected_inventory_state() -> InventoryState:
+	if _run_state == null or _run_state.inventory_state == null:
+		return null
+	return combat_state.build_inventory_projection(_run_state.inventory_state)
+
+
+func _build_hand_swap_candidate_slots(projected_inventory: InventoryState, equipment_slot_name: String) -> Array[Dictionary]:
+	var candidates: Array[Dictionary] = []
+	if projected_inventory == null or not _is_supported_hand_swap_slot(equipment_slot_name):
+		return candidates
+	for slot_value in projected_inventory.inventory_slots:
+		if typeof(slot_value) != TYPE_DICTIONARY:
+			continue
+		var slot: Dictionary = slot_value
+		if not _slot_is_valid_hand_swap_candidate(projected_inventory, slot, equipment_slot_name):
+			continue
+		candidates.append(slot.duplicate(true))
+	return candidates
+
+
+func _slot_is_valid_hand_swap_candidate(projected_inventory: InventoryState, slot: Dictionary, equipment_slot_name: String) -> bool:
+	if projected_inventory == null or slot.is_empty() or not _is_supported_hand_swap_slot(equipment_slot_name):
+		return false
+	var slot_id: int = int(slot.get("slot_id", -1))
+	if slot_id <= 0:
+		return false
+	return projected_inventory.slot_can_equip_to(slot, equipment_slot_name)
+
+
+func _is_supported_hand_swap_slot(equipment_slot_name: String) -> bool:
+	return equipment_slot_name in [
+		InventoryStateScript.EQUIPMENT_SLOT_RIGHT_HAND,
+		InventoryStateScript.EQUIPMENT_SLOT_LEFT_HAND,
+	]
 
 
 func _apply_status_effects_from_enemy_intent(intent: Dictionary) -> Array[Dictionary]:

@@ -18,6 +18,8 @@ const PANEL_HIDDEN_SCALE := Vector2(0.98, 0.98)
 const PANEL_VISIBLE_SCALE := Vector2.ONE
 const FROZEN_HINT_IDS := [
 	"first_combat_defend",
+	"first_combat_technique",
+	"first_combat_hand_swap",
 	"first_left_hand_shield",
 	"first_left_hand_offhand_weapon",
 	"first_hamlet",
@@ -28,8 +30,16 @@ const FROZEN_HINT_IDS := [
 ]
 const HINT_MODELS := {
 	"first_combat_defend": {
-		"text": "Defend builds Guard before HP. It is often safer than swinging into a big hit.",
+		"text": "Defend puts Guard in front of HP, but it costs +1 extra hunger. Some Guard carries into the next turn.",
 		"accent": TempScreenThemeScript.TEAL_ACCENT_COLOR,
+	},
+	"first_combat_technique": {
+		"text": "Techniques sit in the action row. Each one works once per combat and may stay unavailable until its condition is met.",
+		"accent": TempScreenThemeScript.REWARD_ACCENT_COLOR,
+	},
+	"first_combat_hand_swap": {
+		"text": "Hand Swap changes one hand slot from a packed spare and ends the turn. Armor and belt stay locked.",
+		"accent": TempScreenThemeScript.RUST_ACCENT_COLOR,
 	},
 	"first_left_hand_shield": {
 		"text": "The left hand is dual-purpose. It can hold a shield or an offhand weapon.",
@@ -128,6 +138,24 @@ func mark_hint_shown(hint_id: String) -> bool:
 	var was_already_shown: bool = has_shown_hint(normalized_hint_id)
 	_shown_hint_lookup[normalized_hint_id] = true
 	return not was_already_shown
+
+
+func has_unshown_hints() -> bool:
+	for hint_id in FROZEN_HINT_IDS:
+		if not has_shown_hint(hint_id):
+			return true
+	return false
+
+
+func mark_all_hints_shown() -> bool:
+	var changed: bool = not _active_hint_id.is_empty() or not _pending_hint_ids.is_empty()
+	for hint_id in FROZEN_HINT_IDS:
+		if mark_hint_shown(hint_id):
+			changed = true
+	_pending_hint_ids.clear()
+	_active_hint_id = ""
+	_hide_panel_immediate()
+	return changed
 
 
 func build_save_data() -> Array[String]:

@@ -2,11 +2,11 @@
 
 Small-scope, preparation-focused, turn-based roguelite RPG for mobile portrait.
 
-This repository is documentation-first. The project is intentionally being built to stay:
+This repository is documentation-routed. The docs are here to make authority, workflow, and current-state routing explicit:
 - AI-friendly
 - human-maintainable
-- low-refactor
 - content-extensible
+- safe to refactor when owner/save/flow boundaries stay intact
 
 ## Start Here
 
@@ -23,6 +23,7 @@ Fresh-chat shortcut:
 - read `Docs/HANDOFF.md` for the current snapshot
 - read `Docs/DOC_PRECEDENCE.md` for routing
 - then open only the closest authority doc for the task
+- treat workflow docs as discipline and routing surfaces, not as a ban on guarded cleanup or helper extraction
 
 Do not treat `README.md` as the rolling status file or as the detailed topic authority.
 

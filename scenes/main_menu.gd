@@ -13,6 +13,23 @@ const ONE_SHOT_UI_TRANSITION_LEAD_IN_SECONDS := 0.06
 const PLAYTEST_TAGLINE_TEXT := "Rota seç. Hayatta kal. Kapıya ulaş."
 const PORTRAIT_SAFE_MAX_WIDTH := 940
 const PORTRAIT_SAFE_MIN_SIDE_MARGIN := 32
+const APP_BOOTSTRAP_PATH := "/root/AppBootstrap"
+const HERO_PANEL_PATH := "Margin/VBox/HeroPanel"
+const ACTION_PANEL_PATH := "Margin/VBox/ActionPanel"
+const START_RUN_BUTTON_PATH := "Margin/VBox/ActionPanel/ActionVBox/StartRunButton"
+const LOAD_RUN_BUTTON_PATH := "Margin/VBox/ActionPanel/ActionVBox/LoadRunButton"
+const STATUS_LABEL_PATH := "Margin/VBox/ActionPanel/ActionVBox/StatusLabel"
+const TITLE_LABEL_PATH := "Margin/VBox/HeroPanel/HeroVBox/TitleLabel"
+const SUBTITLE_LABEL_PATH := "Margin/VBox/HeroPanel/HeroVBox/SubtitleLabel"
+const MOOD_LABEL_PATH := "Margin/VBox/HeroPanel/HeroVBox/MoodLabel"
+const CHIP_ROW_PATH := "Margin/VBox/HeroPanel/HeroVBox/ChipRow"
+const PLAYTEST_CHIP_CARD_PATH := "Margin/VBox/HeroPanel/HeroVBox/ChipRow/PlaytestChipCard"
+const PLAYTEST_CHIP_LABEL_PATH := "Margin/VBox/HeroPanel/HeroVBox/ChipRow/PlaytestChipCard/PlaytestChipLabel"
+const SAVE_CHIP_CARD_PATH := "Margin/VBox/HeroPanel/HeroVBox/ChipRow/SaveChipCard"
+const SAVE_CHIP_LABEL_PATH := "Margin/VBox/HeroPanel/HeroVBox/ChipRow/SaveChipCard/SaveChipLabel"
+const PLAYTEST_READ_LABEL_PATH := "Margin/VBox/ActionPanel/ActionVBox/PlaytestReadLabel"
+const FLOW_READ_LABEL_PATH := "Margin/VBox/HeroPanel/HeroVBox/FlowReadLabel"
+const BACKDROP_SCRIM_PATH := "BackdropScrim"
 const AUDIO_PLAYER_CONFIG := {
 	"UiConfirmSfxPlayer": {"path": "res://Assets/Audio/SFX/sfx_ui_confirm_01.ogg"},
 	"PanelOpenSfxPlayer": {"path": "res://Assets/Audio/SFX/sfx_panel_open_01.ogg"},
@@ -38,21 +55,36 @@ const PORTRAIT_LAYOUT_CONFIG := {
 var _bootstrap: AppBootstrapScript
 var _presenter: MainMenuPresenter
 
+@onready var _hero_panel: PanelContainer = get_node_or_null(HERO_PANEL_PATH) as PanelContainer
+@onready var _action_panel: PanelContainer = get_node_or_null(ACTION_PANEL_PATH) as PanelContainer
+@onready var _start_button: Button = get_node_or_null(START_RUN_BUTTON_PATH) as Button
+@onready var _load_button: Button = get_node_or_null(LOAD_RUN_BUTTON_PATH) as Button
+@onready var _status_label: Label = get_node_or_null(STATUS_LABEL_PATH) as Label
+@onready var _title_label: Label = get_node_or_null(TITLE_LABEL_PATH) as Label
+@onready var _subtitle_label: Label = get_node_or_null(SUBTITLE_LABEL_PATH) as Label
+@onready var _mood_label: Label = get_node_or_null(MOOD_LABEL_PATH) as Label
+@onready var _chip_row: BoxContainer = get_node_or_null(CHIP_ROW_PATH) as BoxContainer
+@onready var _playtest_chip_card: PanelContainer = get_node_or_null(PLAYTEST_CHIP_CARD_PATH) as PanelContainer
+@onready var _playtest_chip_label: Label = get_node_or_null(PLAYTEST_CHIP_LABEL_PATH) as Label
+@onready var _save_chip_card: PanelContainer = get_node_or_null(SAVE_CHIP_CARD_PATH) as PanelContainer
+@onready var _save_chip_label: Label = get_node_or_null(SAVE_CHIP_LABEL_PATH) as Label
+@onready var _playtest_read_label: Label = get_node_or_null(PLAYTEST_READ_LABEL_PATH) as Label
+@onready var _flow_read_label: Label = get_node_or_null(FLOW_READ_LABEL_PATH) as Label
+@onready var _backdrop_scrim: ColorRect = get_node_or_null(BACKDROP_SCRIM_PATH) as ColorRect
+
 
 func _ready() -> void:
-	_bootstrap = get_node_or_null("/root/AppBootstrap") as AppBootstrapScript
+	_bootstrap = get_node_or_null(APP_BOOTSTRAP_PATH) as AppBootstrapScript
 	_presenter = MainMenuPresenterScript.new()
 	SceneAudioPlayersScript.configure_from_config(self, AUDIO_PLAYER_CONFIG)
 	_soften_backdrop()
 	_apply_temp_theme()
 	SceneLayoutHelperScript.bind_viewport_size_changed(self, Callable(self, "_apply_portrait_safe_layout"))
 	_apply_portrait_safe_layout()
-	var start_button: Button = get_node_or_null("Margin/VBox/ActionPanel/ActionVBox/StartRunButton") as Button
-	var load_button: Button = get_node_or_null("Margin/VBox/ActionPanel/ActionVBox/LoadRunButton") as Button
-	if start_button != null and not start_button.is_connected("pressed", Callable(self, "_on_start_run_pressed")):
-		start_button.connect("pressed", Callable(self, "_on_start_run_pressed"))
-	if load_button != null and not load_button.is_connected("pressed", Callable(self, "_on_load_run_pressed")):
-		load_button.connect("pressed", Callable(self, "_on_load_run_pressed"))
+	if _start_button != null and not _start_button.is_connected("pressed", Callable(self, "_on_start_run_pressed")):
+		_start_button.connect("pressed", Callable(self, "_on_start_run_pressed"))
+	if _load_button != null and not _load_button.is_connected("pressed", Callable(self, "_on_load_run_pressed")):
+		_load_button.connect("pressed", Callable(self, "_on_load_run_pressed"))
 	_refresh_ui()
 	SceneAudioPlayersScript.start_looping(self, "MainMenuMusicPlayer")
 	SceneAudioPlayersScript.play(self, "PanelOpenSfxPlayer")
@@ -88,85 +120,71 @@ func _on_load_run_pressed() -> void:
 	if bool(load_result.get("ok", false)):
 		return
 
-	var status_label: Label = get_node_or_null("Margin/VBox/ActionPanel/ActionVBox/StatusLabel") as Label
-	if status_label != null:
-		status_label.text = RunMenuSceneHelperScript.build_load_failure_status_text(load_result)
+	if _status_label != null:
+		_status_label.text = RunMenuSceneHelperScript.build_load_failure_status_text(load_result)
 
 
 func _refresh_ui() -> void:
-	var load_button: Button = get_node_or_null("Margin/VBox/ActionPanel/ActionVBox/LoadRunButton") as Button
-	var start_button: Button = get_node_or_null("Margin/VBox/ActionPanel/ActionVBox/StartRunButton") as Button
 	var has_save: bool = _bootstrap != null and _bootstrap.has_save_game()
-	if load_button != null:
-		load_button.disabled = not has_save
-		load_button.text = "Resume Safe Save"
-	if start_button != null:
-		start_button.text = "Begin New Run"
+	if _load_button != null:
+		_load_button.disabled = not has_save
+		_load_button.text = "Resume Safe Save"
+	if _start_button != null:
+		_start_button.text = "Begin New Run"
 
-	var title_label: Label = get_node_or_null("Margin/VBox/HeroPanel/HeroVBox/TitleLabel") as Label
-	_set_label_text(title_label, _presenter.build_title_text())
+	_set_label_text(_title_label, _presenter.build_title_text())
+	_set_label_text(_subtitle_label, PLAYTEST_TAGLINE_TEXT)
+	_set_label_text(_mood_label, _presenter.build_mood_text())
 
-	var subtitle_label: Label = get_node_or_null("Margin/VBox/HeroPanel/HeroVBox/SubtitleLabel") as Label
-	_set_label_text(subtitle_label, PLAYTEST_TAGLINE_TEXT)
+	if _chip_row != null:
+		_chip_row.visible = true
 
-	var mood_label: Label = get_node_or_null("Margin/VBox/HeroPanel/HeroVBox/MoodLabel") as Label
-	_set_label_text(mood_label, _presenter.build_mood_text())
+	if _playtest_chip_label != null:
+		_playtest_chip_label.text = _presenter.build_playtest_chip_text()
 
-	var chip_row: BoxContainer = get_node_or_null("Margin/VBox/HeroPanel/HeroVBox/ChipRow") as BoxContainer
-	if chip_row != null:
-		chip_row.visible = true
-
-	var playtest_chip_label: Label = get_node_or_null("Margin/VBox/HeroPanel/HeroVBox/ChipRow/PlaytestChipCard/PlaytestChipLabel") as Label
-	if playtest_chip_label != null:
-		playtest_chip_label.text = _presenter.build_playtest_chip_text()
-
-	var save_chip_label: Label = get_node_or_null("Margin/VBox/HeroPanel/HeroVBox/ChipRow/SaveChipCard/SaveChipLabel") as Label
-	if save_chip_label != null:
-		save_chip_label.text = _presenter.build_save_chip_text(has_save)
+	if _save_chip_label != null:
+		_save_chip_label.text = _presenter.build_save_chip_text(has_save)
 
 	_apply_save_chip_theme(has_save)
 
-	var playtest_read_label: Label = get_node_or_null("Margin/VBox/ActionPanel/ActionVBox/PlaytestReadLabel") as Label
-	_set_label_text(playtest_read_label, _presenter.build_playtest_read_text(has_save))
+	_set_label_text(_playtest_read_label, _presenter.build_playtest_read_text(has_save))
 
-	var flow_read_label: Label = get_node_or_null("Margin/VBox/HeroPanel/HeroVBox/FlowReadLabel") as Label
-	_set_label_text(flow_read_label, _presenter.build_flow_read_text())
-	if flow_read_label != null:
-		flow_read_label.visible = not flow_read_label.text.is_empty()
+	_set_label_text(_flow_read_label, _presenter.build_flow_read_text())
+	if _flow_read_label != null:
+		_flow_read_label.visible = not _flow_read_label.text.is_empty()
 
-	var status_label: Label = get_node_or_null("Margin/VBox/ActionPanel/ActionVBox/StatusLabel") as Label
-	_set_label_text(status_label, _presenter.build_status_text(has_save))
+	_set_label_text(_status_label, _presenter.build_status_text(has_save))
 
 
 func _apply_temp_theme() -> void:
-	TempScreenThemeScript.apply_panel(get_node_or_null("Margin/VBox/HeroPanel") as PanelContainer, TempScreenThemeScript.PANEL_BORDER_COLOR, 20, 0.74)
-	TempScreenThemeScript.apply_panel(get_node_or_null("Margin/VBox/ActionPanel") as PanelContainer, TempScreenThemeScript.REWARD_ACCENT_COLOR, 20, 0.97)
+	TempScreenThemeScript.apply_panel(_hero_panel, TempScreenThemeScript.PANEL_BORDER_COLOR, 20, 0.74)
+	TempScreenThemeScript.apply_panel(_action_panel, TempScreenThemeScript.REWARD_ACCENT_COLOR, 20, 0.97)
 	TempScreenThemeScript.apply_chip(
-		get_node_or_null("Margin/VBox/HeroPanel/HeroVBox/ChipRow/PlaytestChipCard") as PanelContainer,
-		get_node_or_null("Margin/VBox/HeroPanel/HeroVBox/ChipRow/PlaytestChipCard/PlaytestChipLabel") as Label,
+		_playtest_chip_card,
+		_playtest_chip_label,
 		TempScreenThemeScript.TEAL_ACCENT_COLOR
 	)
-	TempScreenThemeScript.apply_button(get_node_or_null("Margin/VBox/ActionPanel/ActionVBox/StartRunButton") as Button)
-	TempScreenThemeScript.apply_button(get_node_or_null("Margin/VBox/ActionPanel/ActionVBox/LoadRunButton") as Button, TempScreenThemeScript.TEAL_ACCENT_COLOR, true)
+	TempScreenThemeScript.apply_button(_start_button)
+	TempScreenThemeScript.apply_button(_load_button, TempScreenThemeScript.TEAL_ACCENT_COLOR, true)
 	SceneLayoutHelperScript.apply_label_tones(self, [
-		{"path": "Margin/VBox/HeroPanel/HeroVBox/TitleLabel", "tone": "title"},
-		{"path": "Margin/VBox/HeroPanel/HeroVBox/SubtitleLabel", "tone": "muted"},
-		{"path": "Margin/VBox/HeroPanel/HeroVBox/MoodLabel", "tone": "muted"},
-		{"path": "Margin/VBox/ActionPanel/ActionVBox/PlaytestReadLabel", "tone": "body"},
-		{"path": "Margin/VBox/HeroPanel/HeroVBox/FlowReadLabel", "tone": "muted"},
-		{"path": "Margin/VBox/ActionPanel/ActionVBox/StatusLabel", "tone": "muted"},
+		{"path": TITLE_LABEL_PATH, "tone": "title"},
+		{"path": SUBTITLE_LABEL_PATH, "tone": "muted"},
+		{"path": MOOD_LABEL_PATH, "tone": "muted"},
+		{"path": PLAYTEST_READ_LABEL_PATH, "tone": "body"},
+		{"path": FLOW_READ_LABEL_PATH, "tone": "muted"},
+		{"path": STATUS_LABEL_PATH, "tone": "muted"},
 	])
-	_refine_panel_style(get_node_or_null("Margin/VBox/HeroPanel") as PanelContainer, 1, 2, 18, 18, 14, 14)
-	_refine_panel_style(get_node_or_null("Margin/VBox/ActionPanel") as PanelContainer, 1, 10, 18, 18, 16, 16)
-	TempScreenThemeScript.intensify_panel(get_node_or_null("Margin/VBox/HeroPanel") as PanelContainer, TempScreenThemeScript.PANEL_BORDER_COLOR, 3, 22, 0.03, 0.18, 20, 18)
-	TempScreenThemeScript.intensify_panel(get_node_or_null("Margin/VBox/ActionPanel") as PanelContainer, TempScreenThemeScript.REWARD_ACCENT_COLOR, 3, 22, 0.03, 0.22, 20, 18)
+	_refine_panel_style(_hero_panel, 1, 2, 18, 18, 14, 14)
+	_refine_panel_style(_action_panel, 1, 10, 18, 18, 16, 16)
+	TempScreenThemeScript.intensify_panel(_hero_panel, TempScreenThemeScript.PANEL_BORDER_COLOR, 3, 22, 0.03, 0.18, 20, 18)
+	TempScreenThemeScript.intensify_panel(_action_panel, TempScreenThemeScript.REWARD_ACCENT_COLOR, 3, 22, 0.03, 0.22, 20, 18)
 	SceneLayoutHelperScript.apply_control_overrides(self, {}, [
-		{"path": "Margin/VBox/HeroPanel/HeroVBox/TitleLabel", "font_size": 72},
-		{"path": "Margin/VBox/HeroPanel/HeroVBox/SubtitleLabel", "font_size": 24},
-		{"path": "Margin/VBox/HeroPanel/HeroVBox/MoodLabel", "font_size": 22},
-		{"path": "Margin/VBox/HeroPanel/HeroVBox/FlowReadLabel", "font_size": 18, "visible": true},
-		{"path": "Margin/VBox/ActionPanel/ActionVBox/PlaytestReadLabel", "font_size": 22},
-		{"path": "Margin/VBox/ActionPanel/ActionVBox/StatusLabel", "font_size": 18},
+		{"path": TITLE_LABEL_PATH, "font_size": 72},
+		{"path": SUBTITLE_LABEL_PATH, "font_size": 24},
+		{"path": MOOD_LABEL_PATH, "font_size": 22},
+		{"path": FLOW_READ_LABEL_PATH, "font_size": 18, "visible": true},
+		{"path": PLAYTEST_READ_LABEL_PATH, "font_size": 22},
+		{"path": STATUS_LABEL_PATH, "font_size": 18},
 	])
 
 
@@ -197,13 +215,12 @@ func _apply_portrait_safe_layout() -> void:
 func _soften_backdrop() -> void:
 	TempScreenThemeScript.apply_wayfinder_backdrop(self, 0.88, 0.38, 0.10, true)
 
-	var scrim: ColorRect = get_node_or_null("BackdropScrim") as ColorRect
-	TempScreenThemeScript.apply_scrim(scrim)
-	if scrim != null:
-		scrim.color = Color(
-			scrim.color.r,
-			scrim.color.g,
-			scrim.color.b,
+	TempScreenThemeScript.apply_scrim(_backdrop_scrim)
+	if _backdrop_scrim != null:
+		_backdrop_scrim.color = Color(
+			_backdrop_scrim.color.r,
+			_backdrop_scrim.color.g,
+			_backdrop_scrim.color.b,
 			TempScreenThemeScript.resolve_surface_scrim_alpha("main_menu_backdrop")
 		)
 
@@ -243,15 +260,14 @@ func _set_label_text(label: Label, text: String) -> void:
 
 
 func _set_status_text(text: String) -> void:
-	var status_label: Label = get_node_or_null("Margin/VBox/ActionPanel/ActionVBox/StatusLabel") as Label
-	_set_label_text(status_label, text)
+	_set_label_text(_status_label, text)
 
 
 func _apply_save_chip_theme(has_save: bool) -> void:
 	var accent: Color = TempScreenThemeScript.REWARD_ACCENT_COLOR if has_save else TempScreenThemeScript.RUST_ACCENT_COLOR
 	TempScreenThemeScript.apply_chip(
-		get_node_or_null("Margin/VBox/HeroPanel/HeroVBox/ChipRow/SaveChipCard") as PanelContainer,
-		get_node_or_null("Margin/VBox/HeroPanel/HeroVBox/ChipRow/SaveChipCard/SaveChipLabel") as Label,
+		_save_chip_card,
+		_save_chip_label,
 		accent
 	)
 

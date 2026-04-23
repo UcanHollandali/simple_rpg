@@ -2,6 +2,7 @@
 extends RefCounted
 class_name SupportInteractionPresenter
 
+const ContentLoaderScript = preload("res://Game/Infrastructure/content_loader.gd")
 const ItemDefinitionTooltipBuilderScript = preload("res://Game/UI/item_definition_tooltip_builder.gd")
 const InventoryStateScript = preload("res://Game/RuntimeState/inventory_state.gd")
 const RunStatusPresenterScript = preload("res://Game/UI/run_status_presenter.gd")
@@ -10,6 +11,7 @@ const UiAssetPathsScript = preload("res://Game/UI/ui_asset_paths.gd")
 const DEFAULT_BUTTON_COUNT: int = 3
 
 var _item_tooltip_builder: ItemDefinitionTooltipBuilder = ItemDefinitionTooltipBuilderScript.new()
+var _loader: ContentLoader = ContentLoaderScript.new()
 
 
 func build_chip_text(support_state: RefCounted) -> String:
@@ -53,7 +55,9 @@ func build_context_text(support_state: RefCounted) -> String:
 				return "Pick a target."
 			return UiCompactCopyScript.pick_one("service")
 		"hamlet":
-			var mission_status: String = String(support_state.get("mission_status"))
+			var mission_status: String = String(support_state.mission_status)
+			if String(support_state.training_step) == SupportInteractionState.TRAINING_STEP_TECHNIQUE_CHOICE:
+				return "Take one field lesson."
 			match mission_status:
 				"offered":
 					return UiCompactCopyScript.pick_one("request")
@@ -87,7 +91,9 @@ func build_hint_text(support_state: RefCounted) -> String:
 				return "Pick 1 target."
 			return "One service."
 		"hamlet":
-			var mission_status: String = String(support_state.get("mission_status"))
+			var mission_status: String = String(support_state.mission_status)
+			if String(support_state.training_step) == SupportInteractionState.TRAINING_STEP_TECHNIQUE_CHOICE:
+				return "Pick 1 technique or skip."
 			match mission_status:
 				"offered":
 					return "Accept it. Clear it. Return."
@@ -222,6 +228,10 @@ func _build_action_detail_text(support_state: RefCounted, offer: Dictionary) -> 
 			return _compact_summary_text(String(support_state.summary_text if support_state != null else ""))
 		"grant_gold":
 			return "Gain %d gold." % amount
+		"equip_technique":
+			return _build_technique_detail_text(offer)
+		"skip_training_choice":
+			return "Keep current loadout."
 		"buy_consumable", "buy_weapon", "buy_shield", "buy_armor", "buy_belt", "buy_passive_item", "grant_item", "claim_side_mission_reward":
 			var inventory_family: String = _resolve_inventory_family_for_offer(offer)
 			var definition_id: String = String(offer.get("definition_id", "")).strip_edges()
@@ -238,6 +248,10 @@ func _build_action_detail_text(support_state: RefCounted, offer: Dictionary) -> 
 
 
 func _build_action_icon_texture_path(support_state: RefCounted, offer: Dictionary) -> String:
+	if String(offer.get("effect_type", "")).strip_edges() == "equip_technique":
+		return _build_technique_icon_texture_path(offer)
+	if String(offer.get("effect_type", "")).strip_edges() == "skip_training_choice":
+		return UiAssetPathsScript.PASSIVE_ICON_TEXTURE_PATH
 	var inventory_family: String = _resolve_inventory_family_for_offer(offer)
 	var effect_icon: String = UiAssetPathsScript.build_effect_icon_texture_path(
 		String(offer.get("effect_type", "")),
@@ -303,6 +317,10 @@ func _build_offer_tooltip_text(support_state: RefCounted, offer: Dictionary) -> 
 			tooltip_text = _compact_summary_text(String(support_state.summary_text if support_state != null else ""))
 		"grant_gold":
 			tooltip_text = "Gain %d gold." % amount
+		"equip_technique":
+			tooltip_text = _build_technique_tooltip_text(offer)
+		"skip_training_choice":
+			tooltip_text = "Keep your current equipped technique. This hamlet lesson will not stay open."
 		"buy_consumable", "buy_weapon", "buy_shield", "buy_armor", "buy_belt", "buy_passive_item", "grant_item", "claim_side_mission_reward":
 			var inventory_family: String = _resolve_inventory_family_for_offer(offer)
 			var definition_id: String = String(offer.get("definition_id", "")).strip_edges()
@@ -359,6 +377,69 @@ func _build_unavailable_tooltip_text(unavailable_reason: String) -> String:
 			return "Already settled."
 		_:
 			return "Unavailable."
+
+
+func _build_technique_detail_text(offer: Dictionary) -> String:
+	var technique_definition: Dictionary = _load_technique_definition(offer)
+	if technique_definition.is_empty():
+		return "Once per combat."
+	var display: Dictionary = technique_definition.get("display", {})
+	var short_description: String = String(display.get("short_description", "")).strip_edges()
+	var replaces_definition_id: String = String(offer.get("replaces_definition_id", "")).strip_edges()
+	var replaced_name: String = _resolve_technique_display_name(replaces_definition_id)
+	if short_description.is_empty():
+		short_description = "Once per combat."
+	var detail_parts: Array[String] = [short_description]
+	if not replaced_name.is_empty():
+		detail_parts.append("Replaces %s" % replaced_name)
+	return _join_tooltip_parts(detail_parts)
+
+
+func _build_technique_tooltip_text(offer: Dictionary) -> String:
+	var technique_definition: Dictionary = _load_technique_definition(offer)
+	if technique_definition.is_empty():
+		return "Technique unavailable."
+	var display: Dictionary = technique_definition.get("display", {})
+	var detail_parts: Array[String] = [
+		String(display.get("short_description", "")).strip_edges(),
+		"Once per combat.",
+	]
+	var replaces_definition_id: String = String(offer.get("replaces_definition_id", "")).strip_edges()
+	var replaced_name: String = _resolve_technique_display_name(replaces_definition_id)
+	if not replaced_name.is_empty():
+		detail_parts.append("Replaces %s." % replaced_name)
+	return _join_tooltip_parts(detail_parts)
+
+
+func _build_technique_icon_texture_path(offer: Dictionary) -> String:
+	var technique_definition: Dictionary = _load_technique_definition(offer)
+	if technique_definition.is_empty():
+		return UiAssetPathsScript.PASSIVE_ICON_TEXTURE_PATH
+	var tags_variant: Variant = technique_definition.get("tags", [])
+	if typeof(tags_variant) == TYPE_ARRAY:
+		for tag_variant in tags_variant:
+			var tag: String = String(tag_variant).strip_edges().to_lower()
+			if tag in ["offense", "armor_break", "tempo", "prime_attack"]:
+				return UiAssetPathsScript.ATTACK_ICON_TEXTURE_PATH
+			if tag in ["sustain", "lifesteal", "cleanse", "utility"]:
+				return UiAssetPathsScript.CONSUMABLE_ICON_TEXTURE_PATH
+	return UiAssetPathsScript.PASSIVE_ICON_TEXTURE_PATH
+
+
+func _load_technique_definition(offer: Dictionary) -> Dictionary:
+	var definition_id: String = String(offer.get("definition_id", "")).strip_edges()
+	if definition_id.is_empty():
+		return {}
+	return _loader.load_definition("Techniques", definition_id)
+
+
+func _resolve_technique_display_name(definition_id: String) -> String:
+	if definition_id.is_empty():
+		return ""
+	var technique_definition: Dictionary = _loader.load_definition("Techniques", definition_id)
+	if technique_definition.is_empty():
+		return definition_id
+	return String(technique_definition.get("display", {}).get("name", definition_id))
 
 
 func _join_tooltip_parts(parts: Array) -> String:

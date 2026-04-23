@@ -97,6 +97,9 @@ The minimum safe path is:
 
 `reference_only -> candidate_source -> approved_master -> runtime export + manifest row`
 
+`SourceArt/Generated/new/` is a candidate-pack lane only.
+Do not point `asset_manifest.csv` `master_path` rows there directly; choose or clean the approved master into an active source lane first.
+
 ## Temporary Sourcing Order
 
 Temporary production passes exist to open a stable runtime floor, not to declare a final asset.
@@ -289,6 +292,7 @@ See `Docs/FIGMA_TRUTH_ALIGNMENT_PASS.md` for the active screen/component executi
 
 - default local search should stay on active source/master lanes; `SourceArt/Archive/` is archive ballast unless a task explicitly needs dated history
 - `SourceArt/Archive/` may be intentionally empty between cleanup passes; keep it as a historical lane, not as an active source/master lane
+- do not leave review preview sheets in `SourceArt/Edited/`; once the active masters are chosen, move those previews into `SourceArt/Archive/`
 - if a future task genuinely needs a dated review dump, treat that output as review/reference material first and promote only through the normal approved-master plus manifest workflow
 
 ## Placeholder And Release Discipline

@@ -3,7 +3,9 @@ extends RefCounted
 class_name SaveService
 
 const FlowStateScript = preload("res://Game/Application/flow_state.gd")
+const ContentLoaderScript = preload("res://Game/Infrastructure/content_loader.gd")
 const SaveServiceLegacyLoaderScript = preload("res://Game/Infrastructure/save_service_legacy_loader.gd")
+const SaveValidationCommonScript = preload("res://Game/Infrastructure/save_validation_common.gd")
 
 const DEFAULT_SAVE_PATH: String = "user://simple_rpg_safe_state_save.json"
 const SAVE_SCHEMA_VERSION: int = 8
@@ -12,6 +14,8 @@ const SAVE_TYPE_SAFE_STATE: String = "safe_state_manual"
 const SAVE_KEY_ACTIVE_TEMPLATE_ID: String = "active_map_template_id"
 const SAVE_KEY_REALIZED_GRAPH: String = "map_realized_graph"
 const APP_STATE_KEY_SHOWN_FIRST_RUN_HINTS: String = "shown_first_run_hints"
+const APP_STATE_KEY_PENDING_NODE_ID: String = "pending_node_id"
+const APP_STATE_KEY_PENDING_NODE_TYPE: String = "pending_node_type"
 const SUPPORTED_NODE_FAMILIES := [
 	"start",
 	"combat",
@@ -198,6 +202,11 @@ func validate_snapshot(snapshot: Dictionary) -> Dictionary:
 	var schema_validation: Dictionary = _legacy_loader.validate_schema_specific_run_state(save_schema_version, run_state_data)
 	if not bool(schema_validation.get("ok", false)):
 		return schema_validation
+	if not SaveValidationCommonScript.equipped_technique_definition_id_is_valid(String(run_state_data.get("equipped_technique_definition_id", "")).strip_edges()):
+		return {
+			"ok": false,
+			"error": "invalid_equipped_technique_definition_id",
+		}
 	var realized_graph_variant: Variant = run_state_data.get(SAVE_KEY_REALIZED_GRAPH, null)
 	var has_realized_graph: bool = save_schema_version >= SaveServiceLegacyLoaderScript.LEGACY_REWARD_SAVE_SCHEMA_VERSION or typeof(realized_graph_variant) == TYPE_ARRAY
 	var realized_graph: Array = []
@@ -218,7 +227,7 @@ func validate_snapshot(snapshot: Dictionary) -> Dictionary:
 				"ok": false,
 				"error": "invalid_map_realized_graph",
 			}
-		if not _realized_graph_contains_node(realized_graph, current_node_id):
+		if not SaveValidationCommonScript.realized_graph_contains_node(realized_graph, current_node_id):
 			return {
 				"ok": false,
 				"error": "current_node_not_in_map",
@@ -229,7 +238,7 @@ func validate_snapshot(snapshot: Dictionary) -> Dictionary:
 			"ok": false,
 			"error": "missing_map_node_states",
 		}
-	if not has_realized_graph and not _map_node_states_contain_node(map_node_states_variant as Array, current_node_id):
+	if not has_realized_graph and not SaveValidationCommonScript.map_node_states_contain_node(map_node_states_variant as Array, current_node_id):
 		return {
 			"ok": false,
 			"error": "current_node_not_in_map",
@@ -290,9 +299,16 @@ func validate_snapshot(snapshot: Dictionary) -> Dictionary:
 			"ok": false,
 			"error": "invalid_shown_first_run_hints",
 		}
+	var pending_node_mirror_validation: Dictionary = _validate_pending_node_compat_mirror(
+		app_state,
+		map_node_states_variant as Array,
+		realized_graph
+	)
+	if not bool(pending_node_mirror_validation.get("ok", false)):
+		return pending_node_mirror_validation
 	var support_interaction_source_node_is_valid: bool = true
 	if typeof(support_interaction_variant) == TYPE_DICTIONARY:
-		support_interaction_source_node_is_valid = _map_contains_node(
+		support_interaction_source_node_is_valid = SaveValidationCommonScript.map_contains_node(
 			int((support_interaction_variant as Dictionary).get("source_node_id", -1)),
 			map_node_states_variant as Array,
 			realized_graph
@@ -303,7 +319,9 @@ func validate_snapshot(snapshot: Dictionary) -> Dictionary:
 		level_up_variant,
 		support_interaction_variant,
 		app_state,
-		support_interaction_source_node_is_valid
+		support_interaction_source_node_is_valid,
+		map_node_states_variant as Array,
+		realized_graph
 	)
 
 
@@ -352,15 +370,6 @@ func _duplicate_variant(value: Variant) -> Variant:
 			return value
 
 
-func _map_node_states_contain_node(map_node_states: Array, node_id: int) -> bool:
-	for entry_variant in map_node_states:
-		if typeof(entry_variant) != TYPE_DICTIONARY:
-			continue
-		if int((entry_variant as Dictionary).get("node_id", -1)) == node_id:
-			return true
-	return false
-
-
 func _support_node_states_are_valid(support_node_states: Array, map_node_states: Array, realized_graph: Array = []) -> bool:
 	var support_families_by_node_id: Dictionary = _build_support_family_lookup(realized_graph)
 	for entry_variant in support_node_states:
@@ -368,7 +377,7 @@ func _support_node_states_are_valid(support_node_states: Array, map_node_states:
 			return false
 		var entry: Dictionary = entry_variant
 		var node_id: int = int(entry.get("node_id", -1))
-		if not _map_contains_node(node_id, map_node_states, realized_graph):
+		if not SaveValidationCommonScript.map_contains_node(node_id, map_node_states, realized_graph):
 			return false
 		var support_type: String = String(entry.get("support_type", ""))
 		if support_type not in ["rest", "merchant", "blacksmith"]:
@@ -385,13 +394,14 @@ func _support_node_states_are_valid(support_node_states: Array, map_node_states:
 
 
 func _side_mission_node_states_are_valid(side_mission_node_states: Array, map_node_states: Array, realized_graph: Array = []) -> bool:
+	var loader: ContentLoader = ContentLoaderScript.new()
 	var side_mission_families_by_node_id: Dictionary = _build_side_mission_family_lookup(realized_graph)
 	for entry_variant in side_mission_node_states:
 		if typeof(entry_variant) != TYPE_DICTIONARY:
 			return false
 		var entry: Dictionary = entry_variant
 		var node_id: int = int(entry.get("node_id", -1))
-		if not _map_contains_node(node_id, map_node_states, realized_graph):
+		if not SaveValidationCommonScript.map_contains_node(node_id, map_node_states, realized_graph):
 			return false
 		if not side_mission_families_by_node_id.is_empty() and String(side_mission_families_by_node_id.get(node_id, "")) != "hamlet":
 			return false
@@ -407,10 +417,10 @@ func _side_mission_node_states_are_valid(side_mission_node_states: Array, map_no
 		var target_node_id: int = int(entry.get("target_node_id", -1))
 		var target_enemy_definition_id: String = String(entry.get("target_enemy_definition_id", "")).strip_edges()
 		if target_node_id >= 0:
-			if not _map_contains_node(target_node_id, map_node_states, realized_graph):
+			if not SaveValidationCommonScript.map_contains_node(target_node_id, map_node_states, realized_graph):
 				return false
-			var target_family: String = _realized_graph_family_for_node(realized_graph, target_node_id)
-			if not _side_quest_target_family_is_valid(mission_type, target_family):
+			var target_family: String = SaveValidationCommonScript.realized_graph_family_for_node(realized_graph, target_node_id)
+			if not SaveValidationCommonScript.side_quest_target_family_is_valid(mission_type, target_family):
 				return false
 			if mission_type == "hunt_marked_enemy" and target_enemy_definition_id.is_empty():
 				return false
@@ -422,36 +432,22 @@ func _side_mission_node_states_are_valid(side_mission_node_states: Array, map_no
 		var reward_offers_variant: Variant = entry.get("reward_offers", [])
 		if typeof(reward_offers_variant) != TYPE_ARRAY:
 			return false
-		for offer_variant in reward_offers_variant:
-			if typeof(offer_variant) != TYPE_DICTIONARY:
+		if not SaveValidationCommonScript.side_quest_reward_offers_are_valid(reward_offers_variant as Array):
+			return false
+		var training_step: String = String(entry.get("training_step", "")).strip_edges()
+		if training_step not in ["", "technique_choice"]:
+			return false
+		var technique_offers_variant: Variant = entry.get("technique_offers", [])
+		if typeof(technique_offers_variant) != TYPE_ARRAY:
+			return false
+		if training_step == "technique_choice":
+			if mission_status != "claimed":
 				return false
-			var offer: Dictionary = offer_variant
-			if String(offer.get("offer_id", "")).strip_edges().is_empty():
+			if not SaveValidationCommonScript.technique_offer_array_is_valid(loader, technique_offers_variant as Array, true):
 				return false
-			var effect_type: String = String(offer.get("effect_type", "")).strip_edges()
-			if effect_type.is_empty():
-				effect_type = "claim_side_mission_reward"
-			match effect_type:
-				"grant_gold":
-					if int(offer.get("amount", 0)) <= 0:
-						return false
-				"grant_item", "claim_side_mission_reward":
-					var inventory_family: String = String(offer.get("inventory_family", "")).strip_edges()
-					if not _side_quest_reward_inventory_family_is_supported(inventory_family):
-						return false
-					if String(offer.get("definition_id", "")).strip_edges().is_empty():
-						return false
-					if inventory_family == "consumable" and int(offer.get("amount", 0)) <= 0:
-						return false
-				_:
-					return false
+		elif not SaveValidationCommonScript.technique_offer_array_is_valid(loader, technique_offers_variant as Array, false):
+			return false
 	return true
-
-
-func _map_contains_node(node_id: int, map_node_states: Array, realized_graph: Array) -> bool:
-	if _map_node_states_contain_node(map_node_states, node_id):
-		return true
-	return _realized_graph_contains_node(realized_graph, node_id)
 
 
 func _map_node_states_match_realized_graph(map_node_states: Array, realized_graph: Array) -> bool:
@@ -473,15 +469,6 @@ func _map_node_states_match_realized_graph(map_node_states: Array, realized_grap
 			return false
 
 	return realized_states_by_node_id.size() == map_node_states.size()
-
-
-func _realized_graph_contains_node(realized_graph: Array, node_id: int) -> bool:
-	for entry_variant in realized_graph:
-		if typeof(entry_variant) != TYPE_DICTIONARY:
-			continue
-		if int((entry_variant as Dictionary).get("node_id", -1)) == node_id:
-			return true
-	return false
 
 
 func _realized_graph_is_valid(realized_graph: Array) -> bool:
@@ -602,28 +589,6 @@ func _build_side_mission_family_lookup(realized_graph: Array) -> Dictionary:
 	return side_mission_families_by_node_id
 
 
-func _realized_graph_family_for_node(realized_graph: Array, node_id: int) -> String:
-	for entry_variant in realized_graph:
-		if typeof(entry_variant) != TYPE_DICTIONARY:
-			continue
-		var entry: Dictionary = entry_variant
-		if int(entry.get("node_id", -1)) != node_id:
-			continue
-		var node_family: String = String(entry.get("node_family", ""))
-		return "hamlet" if node_family == "side_mission" else node_family
-	return ""
-
-
-func _side_quest_target_family_is_valid(mission_type: String, target_family: String) -> bool:
-	match mission_type:
-		"deliver_supplies":
-			return target_family in ["event", "reward", "rest", "merchant", "blacksmith"]
-		"rescue_missing_scout", "bring_proof":
-			return target_family in ["combat", "event", "reward"]
-		_:
-			return target_family == "combat"
-
-
 func _realized_graph_node_matches_family(realized_graph: Array, node_id: int, expected_family: String) -> bool:
 	for entry_variant in realized_graph:
 		if typeof(entry_variant) != TYPE_DICTIONARY:
@@ -649,18 +614,6 @@ func _variant_to_node_id_array(value: Variant) -> Array[int]:
 	return node_ids
 
 
-func _side_quest_reward_inventory_family_is_supported(inventory_family: String) -> bool:
-	return inventory_family in [
-		"weapon",
-		"shield",
-		"armor",
-		"belt",
-		"passive",
-		"shield_attachment",
-		"consumable",
-	]
-
-
 func _shown_first_run_hints_are_valid(app_state: Dictionary) -> bool:
 	if not app_state.has(APP_STATE_KEY_SHOWN_FIRST_RUN_HINTS):
 		return true
@@ -674,3 +627,20 @@ func _shown_first_run_hints_are_valid(app_state: Dictionary) -> bool:
 			return false
 		seen_hint_ids[hint_id] = true
 	return true
+
+
+func _validate_pending_node_compat_mirror(app_state: Dictionary, map_node_states: Array, realized_graph: Array = []) -> Dictionary:
+	var pending_node_type: String = String(app_state.get(APP_STATE_KEY_PENDING_NODE_TYPE, "")).strip_edges()
+	if not app_state.has(APP_STATE_KEY_PENDING_NODE_ID):
+		if pending_node_type.is_empty():
+			return {"ok": true}
+		return {"ok": false, "error": "invalid_app_state_pending_node_type"}
+	var pending_node_id: int = int(app_state.get(APP_STATE_KEY_PENDING_NODE_ID, -1))
+	if pending_node_id < 0 or not SaveValidationCommonScript.map_contains_node(pending_node_id, map_node_states, realized_graph):
+		return {"ok": false, "error": "invalid_app_state_pending_node_id"}
+	if pending_node_type.is_empty():
+		return {"ok": true}
+	var realized_node_family: String = SaveValidationCommonScript.realized_graph_family_for_node(realized_graph, pending_node_id)
+	if realized_node_family.is_empty() or pending_node_type == realized_node_family:
+		return {"ok": true}
+	return {"ok": false, "error": "invalid_app_state_pending_node_type"}

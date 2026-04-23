@@ -16,8 +16,19 @@ const InventoryTooltipControllerScript = preload("res://Game/UI/inventory_toolti
 const InventoryOverflowPromptScript = preload("res://Game/UI/inventory_overflow_prompt.gd")
 const TempScreenThemeScript = preload("res://Game/UI/temp_screen_theme.gd")
 const CUSTOM_TOOLTIP_META_KEY := "custom_tooltip_text"
+const APP_BOOTSTRAP_PATH := "/root/AppBootstrap"
+const MARGIN_PATH := "Margin"
+const ROOT_VBOX_PATH := MARGIN_PATH + "/VBox"
 const HEADER_CARD_PATH := "Margin/VBox/HeaderRow/HeaderCard"
 const HEADER_STACK_PATH := "%s/HeaderStack" % HEADER_CARD_PATH
+const HEADER_CHIP_CARD_PATH := "%s/ChipCard" % HEADER_STACK_PATH
+const RUN_STATUS_CARD_PATH := ROOT_VBOX_PATH + "/HeaderRow/RunStatusCard"
+const RUN_STATUS_LABEL_PATH := RUN_STATUS_CARD_PATH + "/StatusLabel"
+const ACTIONS_ROW_PATH := ROOT_VBOX_PATH + "/ActionsRow"
+const FOOTER_ROW_PATH := ROOT_VBOX_PATH + "/FooterRow"
+const LEAVE_BUTTON_PATH := FOOTER_ROW_PATH + "/LeaveButton"
+const SCRIM_PATH := "Scrim"
+const BACKDROP_NODE_NAMES: PackedStringArray = ["BackgroundFar", "BackgroundMid", "BackgroundOverlay"]
 const ONE_SHOT_UI_TRANSITION_LEAD_IN_SECONDS := 0.06
 const PORTRAIT_SAFE_MAX_WIDTH := 920
 const PORTRAIT_SAFE_MIN_SIDE_MARGIN := 30
@@ -54,18 +65,23 @@ var _action_in_flight: bool = false
 var _scene_node_cache: Dictionary = {}
 var _first_run_hint_controller: FirstRunHintController
 
+@onready var _margin: MarginContainer = _scene_node(MARGIN_PATH) as MarginContainer
+@onready var _root_vbox: Control = _scene_node(ROOT_VBOX_PATH) as Control
+@onready var _header_card: PanelContainer = _scene_node(HEADER_CARD_PATH) as PanelContainer
+@onready var _header_chip_card: PanelContainer = _scene_node(HEADER_CHIP_CARD_PATH) as PanelContainer
 @onready var _header_chip_label: Label = _scene_node("%s/ChipCard/ChipLabel" % HEADER_STACK_PATH) as Label
 @onready var _header_title_label: Label = _scene_node("%s/TitleLabel" % HEADER_STACK_PATH) as Label
 @onready var _header_context_label: Label = _scene_node("%s/ContextLabel" % HEADER_STACK_PATH) as Label
 @onready var _header_summary_label: Label = _scene_node("%s/SummaryLabel" % HEADER_STACK_PATH) as Label
 @onready var _header_hint_label: Label = _scene_node("%s/HintLabel" % HEADER_STACK_PATH) as Label
-@onready var _leave_button: Button = _scene_node("Margin/VBox/FooterRow/LeaveButton") as Button
-@onready var _run_status_card: PanelContainer = _scene_node("Margin/VBox/HeaderRow/RunStatusCard") as PanelContainer
+@onready var _leave_button: Button = _scene_node(LEAVE_BUTTON_PATH) as Button
+@onready var _run_status_card: PanelContainer = _scene_node(RUN_STATUS_CARD_PATH) as PanelContainer
+@onready var _scrim: ColorRect = _scene_node(SCRIM_PATH) as ColorRect
 
 
 func _ready() -> void:
 	_scene_node_cache.clear()
-	_bootstrap = _scene_node("/root/AppBootstrap") as AppBootstrapScript
+	_bootstrap = _scene_node(APP_BOOTSTRAP_PATH) as AppBootstrapScript
 	_presenter = SupportInteractionPresenterScript.new()
 	_support_state = null
 	SceneAudioPlayersScript.configure_from_config(self, AUDIO_PLAYER_CONFIG)
@@ -152,7 +168,7 @@ func _on_leave_pressed() -> void:
 
 func _connect_buttons() -> void:
 	for index in range(BUTTON_NODE_NAMES.size()):
-		var button: Button = _scene_node("Margin/VBox/ActionsRow/%s" % BUTTON_NODE_NAMES[index]) as Button
+		var button: Button = _scene_node(_action_button_path(BUTTON_NODE_NAMES[index])) as Button
 		if button == null:
 			continue
 		var handler: Callable = Callable(self, "_on_action_pressed").bind(index)
@@ -171,7 +187,7 @@ func _connect_buttons() -> void:
 
 func _ensure_action_button_content() -> void:
 	for button_name in BUTTON_NODE_NAMES:
-		var button: Button = _scene_node("Margin/VBox/ActionsRow/%s" % button_name) as Button
+		var button: Button = _scene_node(_action_button_path(button_name)) as Button
 		if button == null:
 			continue
 		StackedButtonContentScript.ensure(button)
@@ -196,7 +212,7 @@ func _render_support_state() -> void:
 
 	var button_models: Array[Dictionary] = _presenter.build_action_view_models(_support_state, BUTTON_NODE_NAMES.size())
 	for index in range(BUTTON_NODE_NAMES.size()):
-		var button: Button = _scene_node("Margin/VBox/ActionsRow/%s" % BUTTON_NODE_NAMES[index]) as Button
+		var button: Button = _scene_node(_action_button_path(BUTTON_NODE_NAMES[index])) as Button
 		if button == null:
 			continue
 
@@ -253,6 +269,7 @@ func _on_return_to_main_menu_pressed() -> void:
 
 func _refresh_save_controls() -> void:
 	RunMenuSceneHelperScript.sync_load_available(_safe_menu, _bootstrap)
+	RunMenuSceneHelperScript.sync_tutorial_hints_available(_safe_menu, _first_run_hint_controller)
 
 
 func _set_support_status_text(text: String) -> void:
@@ -279,29 +296,27 @@ func _on_action_button_mouse_exited(button: Button) -> void:
 
 func _apply_temp_theme() -> void:
 	# In overlay mode keep the map bed visible and let the action cards carry the visual weight.
-	var margin: MarginContainer = _scene_node("Margin") as MarginContainer
 	var is_overlay: bool = self.top_level
 	if is_overlay:
-		for node_name in ["BackgroundFar", "BackgroundMid", "BackgroundOverlay"]:
+		for node_name in BACKDROP_NODE_NAMES:
 			var backdrop: CanvasItem = _scene_node(node_name) as CanvasItem
 			if backdrop != null:
 				backdrop.visible = false
-		var scrim: ColorRect = _scene_node("Scrim") as ColorRect
-		if scrim != null:
-			scrim.visible = true
-			TempScreenThemeScript.apply_scrim(scrim)
-			scrim.color = Color(scrim.color.r, scrim.color.g, scrim.color.b, 0.38)
-		if margin != null:
+		if _scrim != null:
+			_scrim.visible = true
+			TempScreenThemeScript.apply_scrim(_scrim)
+			_scrim.color = Color(_scrim.color.r, _scrim.color.g, _scrim.color.b, 0.38)
+		if _margin != null:
 			var overlay_margins: Dictionary = TempScreenThemeScript.compute_overlay_margins(get_viewport_rect().size, PORTRAIT_SAFE_MAX_WIDTH, PORTRAIT_SAFE_MIN_SIDE_MARGIN)
-			margin.add_theme_constant_override("margin_left", int(overlay_margins.get("left", PORTRAIT_SAFE_MIN_SIDE_MARGIN)))
-			margin.add_theme_constant_override("margin_top", int(overlay_margins.get("top", 40)))
-			margin.add_theme_constant_override("margin_right", int(overlay_margins.get("right", PORTRAIT_SAFE_MIN_SIDE_MARGIN)))
-			margin.add_theme_constant_override("margin_bottom", int(overlay_margins.get("bottom", 40)))
+			_margin.add_theme_constant_override("margin_left", int(overlay_margins.get("left", PORTRAIT_SAFE_MIN_SIDE_MARGIN)))
+			_margin.add_theme_constant_override("margin_top", int(overlay_margins.get("top", 40)))
+			_margin.add_theme_constant_override("margin_right", int(overlay_margins.get("right", PORTRAIT_SAFE_MIN_SIDE_MARGIN)))
+			_margin.add_theme_constant_override("margin_bottom", int(overlay_margins.get("bottom", 40)))
 	else:
 		TempScreenThemeScript.apply_modal_popup_shell(
 			self,
-			margin,
-			_scene_node("Margin/VBox") as Control,
+			_margin,
+			_root_vbox,
 			TempScreenThemeScript.TEAL_ACCENT_COLOR,
 			"ContentShell",
 			34,
@@ -310,11 +325,11 @@ func _apply_temp_theme() -> void:
 			102
 		)
 	TempScreenThemeScript.apply_choice_card_shell(
-		_scene_node(HEADER_CARD_PATH) as PanelContainer,
+		_header_card,
 		TempScreenThemeScript.TEAL_ACCENT_COLOR
 	)
 	TempScreenThemeScript.apply_chip(
-		_scene_node("%s/ChipCard" % HEADER_STACK_PATH) as PanelContainer,
+		_header_chip_card,
 		_header_chip_label,
 		TempScreenThemeScript.TEAL_ACCENT_COLOR
 	)
@@ -327,11 +342,11 @@ func _apply_temp_theme() -> void:
 		{"path": "%s/ContextLabel" % HEADER_STACK_PATH, "tone": "reward"},
 		{"path": "%s/SummaryLabel" % HEADER_STACK_PATH, "tone": "muted"},
 		{"path": "%s/HintLabel" % HEADER_STACK_PATH, "tone": "accent"},
-		{"path": "Margin/VBox/HeaderRow/RunStatusCard/StatusLabel", "tone": "muted"},
+		{"path": RUN_STATUS_LABEL_PATH, "tone": "muted"},
 	])
 
 	for button_name in BUTTON_NODE_NAMES:
-		var action_button: Button = _scene_node("Margin/VBox/ActionsRow/%s" % button_name) as Button
+		var action_button: Button = _scene_node(_action_button_path(button_name)) as Button
 		TempScreenThemeScript.apply_button(action_button, TempScreenThemeScript.TEAL_ACCENT_COLOR)
 		if action_button != null:
 			action_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -342,19 +357,19 @@ func _apply_temp_theme() -> void:
 		{"path": "%s/ContextLabel" % HEADER_STACK_PATH, "font_size": 16},
 		{"path": "%s/SummaryLabel" % HEADER_STACK_PATH, "font_size": 16},
 		{"path": "%s/HintLabel" % HEADER_STACK_PATH, "font_size": 15},
-		{"path": "Margin/VBox/HeaderRow/RunStatusCard/StatusLabel", "font_size": 14},
-		{"path": "Margin/VBox/FooterRow/LeaveButton", "font_size": 16},
+		{"path": RUN_STATUS_LABEL_PATH, "font_size": 14},
+		{"path": LEAVE_BUTTON_PATH, "font_size": 16},
 	])
 	for button_name in BUTTON_NODE_NAMES:
-		var button_path: String = "Margin/VBox/ActionsRow/%s" % button_name
+		var button_path: String = _action_button_path(button_name)
 		SceneLayoutHelperScript.apply_control_overrides(self, {}, [
 			{"path": button_path, "custom_minimum_size": {"x": 0.0, "y": 78.0}},
-			{"path": StackedButtonContentScript.title_path(button_path), "font_size": 19},
-			{"path": StackedButtonContentScript.detail_path(button_path), "font_size": 14},
-			{"path": StackedButtonContentScript.icon_path(button_path), "custom_minimum_size": {"x": 24.0, "y": 24.0}},
+			{"path": _action_button_title_path(button_name), "font_size": 19},
+			{"path": _action_button_detail_path(button_name), "font_size": 14},
+			{"path": _action_button_icon_path(button_name), "custom_minimum_size": {"x": 24.0, "y": 24.0}},
 		])
-		TempScreenThemeScript.apply_label(_scene_node(StackedButtonContentScript.title_path(button_path)) as Label, "title")
-		TempScreenThemeScript.apply_label(_scene_node(StackedButtonContentScript.detail_path(button_path)) as Label, "muted")
+		TempScreenThemeScript.apply_label(_scene_node(_action_button_title_path(button_name)) as Label, "title")
+		TempScreenThemeScript.apply_label(_scene_node(_action_button_detail_path(button_name)) as Label, "muted")
 	if _leave_button != null:
 		_leave_button.text = "Back to the Road"
 
@@ -369,7 +384,8 @@ func _setup_safe_menu() -> void:
 		String(menu_config.get("launcher_text", RunMenuSceneHelperScript.SHARED_LAUNCHER_TEXT)),
 		Callable(self, "_on_save_pressed"),
 		Callable(self, "_on_load_pressed"),
-		Callable(self, "_on_return_to_main_menu_pressed")
+		Callable(self, "_on_return_to_main_menu_pressed"),
+		Callable(self, "_on_disable_tutorial_hints_pressed")
 	)
 
 
@@ -398,7 +414,7 @@ func _clear_overflow_prompt() -> void:
 
 func _set_action_buttons_interactable(is_interactable: bool) -> void:
 	for button_name in BUTTON_NODE_NAMES:
-		var button: Button = _scene_node("Margin/VBox/ActionsRow/%s" % button_name) as Button
+		var button: Button = _scene_node(_action_button_path(button_name)) as Button
 		if button == null or not button.visible:
 			continue
 		button.disabled = not is_interactable
@@ -442,26 +458,26 @@ func _apply_portrait_safe_layout() -> void:
 	values["footer_separation"] = 10 if viewport_size.y < 1560.0 else 12
 	values["hint_font_size"] = max(14, int(values.get("summary_font_size", 17)) - 2)
 	SceneLayoutHelperScript.apply_control_overrides(self, values, [
-		{"path": "Margin/VBox", "theme_constants": {"separation": "vbox_separation"}},
-		{"path": "Margin/VBox/HeaderRow", "theme_constants": {"separation": "vbox_separation"}},
+		{"path": ROOT_VBOX_PATH, "theme_constants": {"separation": "vbox_separation"}},
+		{"path": "%s/HeaderRow" % ROOT_VBOX_PATH, "theme_constants": {"separation": "vbox_separation"}},
 		{"path": HEADER_STACK_PATH, "theme_constants": {"separation": 4}},
-		{"path": "Margin/VBox/ActionsRow", "theme_constants": {"separation": "vbox_separation"}},
-		{"path": "Margin/VBox/FooterRow", "theme_constants": {"separation": "footer_separation"}},
+		{"path": ACTIONS_ROW_PATH, "theme_constants": {"separation": "vbox_separation"}},
+		{"path": FOOTER_ROW_PATH, "theme_constants": {"separation": "footer_separation"}},
 		{"path": "%s/TitleLabel" % HEADER_STACK_PATH, "font_size": "title_font_size"},
 		{"path": "%s/ContextLabel" % HEADER_STACK_PATH, "font_size": "context_font_size"},
 		{"path": "%s/SummaryLabel" % HEADER_STACK_PATH, "font_size": "summary_font_size"},
 		{"path": "%s/HintLabel" % HEADER_STACK_PATH, "font_size": "hint_font_size"},
-		{"path": "Margin/VBox/HeaderRow/RunStatusCard/StatusLabel", "font_size": "status_font_size"},
-		{"path": "Margin/VBox/HeaderRow/RunStatusCard", "custom_minimum_size": {"x": "run_status_width", "y": 0.0}},
-		{"path": "Margin/VBox/FooterRow/LeaveButton", "font_size": "leave_font_size", "custom_minimum_size": {"x": 0.0, "y": "leave_button_height"}},
+		{"path": RUN_STATUS_LABEL_PATH, "font_size": "status_font_size"},
+		{"path": RUN_STATUS_CARD_PATH, "custom_minimum_size": {"x": "run_status_width", "y": 0.0}},
+		{"path": LEAVE_BUTTON_PATH, "font_size": "leave_font_size", "custom_minimum_size": {"x": 0.0, "y": "leave_button_height"}},
 	])
 	for button_name in BUTTON_NODE_NAMES:
-		var button_path: String = "Margin/VBox/ActionsRow/%s" % button_name
+		var button_path: String = _action_button_path(button_name)
 		SceneLayoutHelperScript.apply_control_overrides(self, values, [
 			{"path": button_path, "custom_minimum_size": {"x": 0.0, "y": "button_height"}},
-			{"path": StackedButtonContentScript.title_path(button_path), "font_size": "button_font_size"},
-			{"path": StackedButtonContentScript.detail_path(button_path), "font_size": max(13, int(values.get("button_font_size", 18)) - 3)},
-			{"path": StackedButtonContentScript.icon_path(button_path), "custom_minimum_size": {"x": "button_icon_max_width", "y": "button_icon_max_width"}},
+			{"path": _action_button_title_path(button_name), "font_size": "button_font_size"},
+			{"path": _action_button_detail_path(button_name), "font_size": max(13, int(values.get("button_font_size", 18)) - 3)},
+			{"path": _action_button_icon_path(button_name), "custom_minimum_size": {"x": "button_icon_max_width", "y": "button_icon_max_width"}},
 		])
 	if _action_tooltip_controller != null:
 		_action_tooltip_controller.refresh_hovered_tooltip()
@@ -478,6 +494,22 @@ func _hide_run_status_card() -> void:
 
 func _should_defer_to_scene_close(result: Dictionary) -> bool:
 	return int(result.get("target_state", FlowStateScript.Type.SUPPORT_INTERACTION)) != FlowStateScript.Type.SUPPORT_INTERACTION or _support_state == null
+
+
+func _action_button_path(button_name: String) -> String:
+	return "%s/%s" % [ACTIONS_ROW_PATH, button_name]
+
+
+func _action_button_title_path(button_name: String) -> String:
+	return StackedButtonContentScript.title_path(_action_button_path(button_name))
+
+
+func _action_button_detail_path(button_name: String) -> String:
+	return StackedButtonContentScript.detail_path(_action_button_path(button_name))
+
+
+func _action_button_icon_path(button_name: String) -> String:
+	return StackedButtonContentScript.icon_path(_action_button_path(button_name))
 
 
 func _scene_node(path: String) -> Node:
@@ -499,6 +531,7 @@ func _setup_first_run_hint_controller() -> void:
 	if _first_run_hint_controller == null:
 		return
 	_first_run_hint_controller.setup(self, HEADER_STACK_PATH, 190)
+	RunMenuSceneHelperScript.sync_tutorial_hints_available(_safe_menu, _first_run_hint_controller)
 
 
 func _release_first_run_hint_controller_host() -> void:
@@ -506,6 +539,7 @@ func _release_first_run_hint_controller_host() -> void:
 		return
 	_first_run_hint_controller.release_host(self)
 	_first_run_hint_controller = null
+	RunMenuSceneHelperScript.sync_tutorial_hints_available(_safe_menu, _first_run_hint_controller)
 
 
 func _request_contextual_first_run_hint() -> void:
@@ -524,3 +558,12 @@ func _resolve_first_run_hint_controller() -> FirstRunHintController:
 	if coordinator == null:
 		return null
 	return coordinator.get("_first_run_hint_controller") as FirstRunHintController
+
+func _on_disable_tutorial_hints_pressed() -> void:
+	_setup_first_run_hint_controller()
+	if _first_run_hint_controller == null:
+		return
+	var changed: bool = _first_run_hint_controller.mark_all_hints_shown()
+	RunMenuSceneHelperScript.sync_tutorial_hints_available(_safe_menu, _first_run_hint_controller)
+	if _safe_menu != null:
+		_safe_menu.set_status_text(RunMenuSceneHelperScript.build_tutorial_hints_status_text(changed))

@@ -13,7 +13,7 @@ Save stores authoritative runtime truth, not presentation data.
 - Current save-sensitive truth lives in implemented owners only:
   - `GameFlowManager` for active flow state
   - `RunState` for current run-level data
-  - `MapRuntimeState` for the current controlled-scatter stage-local realized graph slice, current node identity, realized graph truth, node-state truth, stage-local key / boss-gate truth, stage-local support-node local state, stage-local side-mission local state, roadside encounter quota state, and canonical pending-node continuity, serialized through `RunState`
+  - `MapRuntimeState` for the current controlled-scatter stage-local realized graph slice, current node identity, realized graph truth, node-state truth, stage-local key / boss-gate truth, stage-local support-node local state, stage-local side-mission local state, roadside encounter quota state, and canonical pending-node truth
   - `InventoryState` for backpack slot order plus explicit equipment-slot dictionaries
   - `CombatState` for active combat-only truth
   - `EventState` for pending event offer truth during the dedicated `Event` flow
@@ -107,6 +107,64 @@ Current prototype note:
 - `FlowState.is_architecturally_save_safe`, `FlowState.is_implemented_save_safe_now`, and `SaveService.is_implemented_save_safe_now` now name the split explicitly.
 - `FlowState.is_save_safe` remains the older compatibility alias; `SaveService` no longer keeps the older mirror helper.
 
+## Technique Continuity (Live Prompt 27 Additive Surface)
+
+- First-pass technique ownership is now save-backed, not visit-local only.
+- Run-level continuity now includes:
+  - `RunState.equipped_technique_definition_id`
+  - missing older saves default to the empty / no-technique state
+- Support-visit continuity now includes:
+  - `SupportInteractionState.training_step`
+  - `SupportInteractionState.technique_offers`
+  - these fields are only meaningful while a hamlet training choice is currently open inside `SupportInteraction`
+- Save validation now checks:
+  - equipped technique ids against the authored `Techniques` definitions
+  - `training_step` against the allowed `["", "technique_choice"]` slice
+  - `technique_offers` against the current hamlet training-offer schema
+- Combat-local technique transient state remains combat-only:
+  - the once-per-combat spent flag lives in `CombatState`
+  - queued next-attack multipliers such as `echo_strike` priming also stay combat-local
+  - `Combat` is still not save-safe, so those transient fields are not part of the safe-state baseline
+- Prompt `27` does not add a new safe-state flow and does not move combat truth into UI ownership.
+
+## Approved Prompt 29 Hand-Slot Swap Save Target (Not Live Yet)
+
+This section records the approved Prompt `29` continuity target.
+It is not current live save truth yet.
+
+- Prompt `29` does not approve combat save-safe continuation.
+- `Combat` remains non-save-safe while a hand-slot swap surface is open or while a broken-weapon follow-up decision is pending.
+- No additive save fields are approved for:
+  - pending swap slot focus
+  - pending swap candidate lists
+  - mid-combat broken-weapon prompt state
+- If Prompt `29` lands, swapped hand truth should continue to persist only through the normal post-combat inventory/runtime copy path.
+- Prompt `29` does not approve a new safe-state flow and does not widen the safe-state baseline beyond the current `RunState` / `InventoryState` continuity surface.
+
+## Advanced Enemy Intent Escalation Target (Prompt 30, Not Live Yet)
+
+This section records the save/continuity target for later advanced enemy-intent work.
+It is not current live save truth yet.
+
+- Prompt `30` does not approve combat save-safe continuation.
+- First advanced-intent runtime work should still keep all advanced enemy state combat-local only.
+- No additive save fields are approved in Prompt `30` for:
+  - prepared follow-up payloads
+  - enemy-owned status instances
+  - enemy guard or temporary armor-up state
+  - enemy temporary stat-buff state
+  - multi-hit packet cursors
+  - advanced revealed-intent packet snapshots
+- If later implementation ever wants save-safe combat continuation, the prerequisite additive combat snapshot surface would need to serialize at least:
+  - the currently revealed advanced intent id / family
+  - any prepared follow-up payload plus expiry window
+  - enemy guard and temporary enemy stat modifiers
+  - enemy-owned status instances, durations, and stacks
+  - boss-phase index plus any phase-local advanced-intent cursor that can affect the next reveal
+  - any partially resolved multi-hit packet cursor if combat can be resumed mid-action
+- Those fields are future prerequisite questions only.
+- Prompt `30` does not approve those schema additions now.
+
 ## Persisted Runtime Areas
 
 Current implementation owners relevant to future save work:
@@ -144,6 +202,7 @@ Current baseline note:
   - transitional `RunSessionCoordinator.last_run_result` continuity when `RunEnd` is active
   - cross-run application continuity under `app_state.shown_first_run_hints`
 - `RunEnd` restore currently depends on transitional `RunSessionCoordinator.last_run_result` continuity from `app_state`.
+- current accepted persisted `last_run_result` values are `victory` and `defeat`; snapshot validation rejects empty or unknown `RunEnd` results
 - `CombatState` is intentionally excluded from the baseline save file
 - `EventState` is intentionally excluded from the baseline save file
 - save/load attempts while `Event` is the active flow must fail with `unsupported_save_state`; the current baseline does not reconstruct mid-event choice surfaces
@@ -196,6 +255,7 @@ Current baseline note:
 - current pending-node continuity is not written by `MapRuntimeState.to_save_dict()`
 - pending node identity/type currently lives under `RunSessionCoordinator.get_app_state_save_data()` as `app_state.pending_node_id` / `app_state.pending_node_type`
 - those `app_state` fields are a compatibility mirror over `MapRuntimeState` owner truth and must not be widened into a second pending-node payload without an explicit save audit
+- snapshot validation currently rejects `app_state.pending_node_id` when it does not point at a real saved map node, and rejects `app_state.pending_node_type` when it is present without a mirrored id or contradicts the realized-graph family for that node
 - schema-8 snapshots may also carry `app_state.shown_first_run_hints` as a stable-id array for once-per-save contextual-hint continuity; this field is additive-optional and missing older saves default it to `[]`
 - `map_realized_graph` is the exact restore truth for schema-2 procedural saves; load does not rely on re-running scaffold fill from seed alone.
 - Legacy schema-1 map saves still rebuild the old fixed authored adjacency graph from content under the matching `content_version` baseline.

@@ -1,10 +1,10 @@
-# Prompt 06.5 - UI Microcopy Audit
+﻿# Prompt 06.5 - UI Microcopy Audit
 
 Use this prompt pack only after Prompt 06 is closed green.
 This is a future-queue pack. Do not start it while Prompt 06 or any earlier open UI-overhaul pack is still open.
 
 Checked-in filename note:
-- this pack lives at `Docs/Promts/06_5_microcopy_audit.md`
+- this pack lives at `Docs/Archive/Prompts/2026-04-23-closed-green-prompt-packs/06_5_microcopy_audit.md`
 - checked-in filename and logical queue position now match Prompt `06.5`
 
 Read first:

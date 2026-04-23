@@ -161,7 +161,7 @@ size_flags_horizontal = 3
 theme_override_constants/separation = 4
 
 [node name="IntentTitleLabel" type="Label" parent="Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentCard/IntentVBox"]
-text = "Next Hit"
+text = "Next Threat"
 
 [node name="IntentRow" type="HBoxContainer" parent="Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentCard/IntentVBox"]
 theme_override_constants/separation = 6
@@ -341,6 +341,25 @@ icon = ExtResource("3")
 text = "Guard ? | HP ?"
 autowrap_mode = 3
 
+[node name="TechniqueActionCard" type="PanelContainer" parent="Margin/VBox/Buttons/ActionCardsRow"]
+visible = false
+size_flags_horizontal = 3
+
+[node name="TechniqueActionVBox" type="VBoxContainer" parent="Margin/VBox/Buttons/ActionCardsRow/TechniqueActionCard"]
+theme_override_constants/separation = 4
+
+[node name="TechniqueActionEyebrowLabel" type="Label" parent="Margin/VBox/Buttons/ActionCardsRow/TechniqueActionCard/TechniqueActionVBox"]
+text = "TACTICAL TECHNIQUE"
+
+[node name="TechniqueActionButton" type="Button" parent="Margin/VBox/Buttons/ActionCardsRow/TechniqueActionCard/TechniqueActionVBox"]
+text = "Technique"
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 46)
+
+[node name="TechniqueActionPreviewLabel" type="Label" parent="Margin/VBox/Buttons/ActionCardsRow/TechniqueActionCard/TechniqueActionVBox"]
+text = "Once per combat"
+autowrap_mode = 3
+
 [node name="ActionHintPanel" type="PanelContainer" parent="Margin/VBox/Buttons"]
 visible = false
 size_flags_horizontal = 3
@@ -369,11 +388,45 @@ theme_override_constants/separation = 6
 theme_override_constants/separation = 4
 size_flags_vertical = 0
 
+[node name="HandSwapPanel" type="PanelContainer" parent="Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection"]
+visible = false
+size_flags_horizontal = 3
+
+[node name="HandSwapVBox" type="VBoxContainer" parent="Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/HandSwapPanel"]
+theme_override_constants/separation = 4
+
+[node name="HandSwapTitleLabel" type="Label" parent="Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/HandSwapPanel/HandSwapVBox"]
+text = "Hand Swap"
+
+[node name="HandSwapHintLabel" type="Label" parent="Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/HandSwapPanel/HandSwapVBox"]
+text = "Swap ends the turn. Armor and belt stay locked."
+autowrap_mode = 3
+
+[node name="HandSwapSlotButtonsRow" type="HFlowContainer" parent="Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/HandSwapPanel/HandSwapVBox"]
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 6
+
+[node name="RightHandSwapButton" type="Button" parent="Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/HandSwapPanel/HandSwapVBox/HandSwapSlotButtonsRow"]
+visible = false
+toggle_mode = true
+text = "Right Hand"
+custom_minimum_size = Vector2(0, 42)
+
+[node name="LeftHandSwapButton" type="Button" parent="Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/HandSwapPanel/HandSwapVBox/HandSwapSlotButtonsRow"]
+visible = false
+toggle_mode = true
+text = "Left Hand"
+custom_minimum_size = Vector2(0, 42)
+
+[node name="HandSwapCandidatesFlow" type="HFlowContainer" parent="Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/HandSwapPanel/HandSwapVBox"]
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 6
+
 [node name="EquipmentTitleLabel" type="Label" parent="Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection"]
 text = "Equipment"
 
 [node name="EquipmentHintLabel" type="Label" parent="Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection"]
-text = "Equipment stays locked during combat."
+text = "Only hand swaps are legal in combat. Swap ends turn. Armor and belt stay locked."
 autowrap_mode = 3
 
 [node name="EquipmentCard" type="PanelContainer" parent="Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection"]
@@ -387,7 +440,7 @@ theme_override_constants/v_separation = 6
 text = "Backpack"
 
 [node name="InventoryHintLabel" type="Label" parent="Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection"]
-text = "Tap consumables to use them. Gear changes are locked during combat."
+text = "Tap consumables to use them. Hand swaps stay narrow and armor/belt remain locked."
 autowrap_mode = 3
 
 [node name="InventoryCard" type="PanelContainer" parent="Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection"]

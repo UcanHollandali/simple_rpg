@@ -4,7 +4,7 @@
   "authoring_order": 120,
   "family": "Enemies",
   "encounter_tier": "minor",
-  "design_intent_question": "Can the player recognize that a slow armored body still creates a real Defend turn when its heavier slam is telegraphed cleanly enough?",
+  "design_intent_question": "Can the player hold Defend through harmless bumps and answer only the lowered-head crash that actually matters?",
   "tags": [
     "enemy",
     "beast",
@@ -14,7 +14,7 @@
   ],
   "display": {
     "name": "Mossback Ram",
-    "short_description": "A thick-skulled forest brute that shrugs off light swings and teaches respect for a slow heavy hit.",
+    "short_description": "A thick-skulled forest brute that tests whether the player can ignore chip pressure and respect one committed antler slam.",
     "icon_key": "enemy_mossback_ram"
   },
   "rules": {
@@ -34,7 +34,7 @@
           {
             "type": "deal_damage",
             "params": {
-              "base": 2,
+              "base": 1,
               "damage_kind": "physical"
             }
           }
@@ -57,12 +57,12 @@
       {
         "intent_id": "antler_crash",
         "action_family": "attack",
-        "threat_level": "medium",
+        "threat_level": "high",
         "effects": [
           {
             "type": "deal_damage",
             "params": {
-              "base": 4,
+              "base": 5,
               "damage_kind": "physical"
             }
           }

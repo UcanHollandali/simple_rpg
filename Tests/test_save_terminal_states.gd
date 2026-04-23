@@ -28,6 +28,7 @@ var _is_finishing: bool = false
 func _init() -> void:
 	print("test_save_terminal_states: setup")
 	_assert_content_version_mismatch_is_rejected()
+	_assert_invalid_run_result_is_rejected()
 	_ensure_autoload_like_nodes()
 	var delete_result: Dictionary = _get_bootstrap().call("delete_save_game", SAVE_PATH)
 	_require(bool(delete_result.get("ok", false)), "Expected stale save cleanup to succeed.")
@@ -208,6 +209,27 @@ func _assert_content_version_mismatch_is_rejected() -> void:
 	)
 	var delete_result: Dictionary = save_service.delete_save_file(CONTENT_VERSION_MISMATCH_PATH)
 	_require(bool(delete_result.get("ok", false)), "Expected mismatch save cleanup to succeed.")
+
+
+func _assert_invalid_run_result_is_rejected() -> void:
+	var save_service: SaveService = SaveServiceScript.new()
+	var run_state: RunState = RunStateScript.new()
+	run_state.reset_for_new_run()
+	var snapshot: Dictionary = save_service.create_snapshot(
+		"",
+		FlowStateScript.Type.RUN_END,
+		run_state.to_save_dict(),
+		null,
+		null,
+		null,
+		{"last_run_result": "escaped"}
+	)
+	var validation_result: Dictionary = save_service.validate_snapshot(snapshot)
+	_require(not bool(validation_result.get("ok", false)), "Expected RunEnd snapshots with unknown run results to be rejected.")
+	_require(
+		String(validation_result.get("error", "")) == "invalid_run_result",
+		"Expected unknown RunEnd results to fail with invalid_run_result."
+	)
 
 
 func _require(condition: bool, message: String) -> void:

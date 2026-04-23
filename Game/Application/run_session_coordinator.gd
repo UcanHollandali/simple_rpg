@@ -392,7 +392,7 @@ func choose_support_action(action_id: String, discard_slot_id: int = -1) -> Dict
 		return _error_result("missing_support_state", {"action_id": action_id})
 
 	if action_id == "leave":
-		_persist_active_support_node_state()
+		_persist_active_support_node_state_on_exit()
 		support_interaction_state = null
 		_request_transition(FlowStateScript.Type.MAP_EXPLORE)
 		return {"ok": true, "action_id": action_id, "target_state": FlowStateScript.Type.MAP_EXPLORE}
@@ -643,6 +643,27 @@ func _persist_active_support_node_state() -> void:
 		support_interaction_state,
 		NODE_FAMILY_HAMLET
 	)
+
+
+func _persist_active_support_node_state_on_exit() -> void:
+	if run_state == null or support_interaction_state == null:
+		return
+	if (
+		String(support_interaction_state.support_type) == SupportInteractionStateScript.TYPE_HAMLET
+		and String(support_interaction_state.training_step) == SupportInteractionStateScript.TRAINING_STEP_TECHNIQUE_CHOICE
+		and run_state.map_runtime_state != null
+		and int(support_interaction_state.source_node_id) >= 0
+	):
+		var persisted_state: Dictionary = support_interaction_state.build_persisted_node_state()
+		persisted_state["mission_status"] = SupportInteractionStateScript.SIDE_MISSION_STATUS_CLAIMED
+		persisted_state["training_step"] = SupportInteractionStateScript.TRAINING_STEP_NONE
+		persisted_state["technique_offers"] = []
+		run_state.map_runtime_state.save_side_quest_node_runtime_state(
+			int(support_interaction_state.source_node_id),
+			persisted_state
+		)
+		return
+	_persist_active_support_node_state()
 
 
 func _resolve_post_reward_progression() -> int:

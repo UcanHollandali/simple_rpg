@@ -8,7 +8,7 @@ const SHARED_MENU_SUBTITLE := "Save, load, return to menu, mute music, or quit."
 const SHARED_LAUNCHER_TEXT := "Settings"
 
 
-static func ensure_safe_menu(owner: Node, existing_menu: SafeMenuOverlay, title_text: String, subtitle_text: String, launcher_text: String, save_handler: Callable, load_handler: Callable, main_menu_handler: Callable = Callable()) -> SafeMenuOverlay:
+static func ensure_safe_menu(owner: Node, existing_menu: SafeMenuOverlay, title_text: String, subtitle_text: String, launcher_text: String, save_handler: Callable, load_handler: Callable, main_menu_handler: Callable = Callable(), disable_tutorial_hints_handler: Callable = Callable()) -> SafeMenuOverlay:
 	if existing_menu != null or owner == null:
 		return existing_menu
 
@@ -22,6 +22,9 @@ static func ensure_safe_menu(owner: Node, existing_menu: SafeMenuOverlay, title_
 		safe_menu.load_requested.connect(load_handler)
 	if main_menu_handler.is_valid() and not safe_menu.is_connected("return_to_main_menu_requested", main_menu_handler):
 		safe_menu.return_to_main_menu_requested.connect(main_menu_handler)
+	safe_menu.set_tutorial_hints_available(disable_tutorial_hints_handler.is_valid())
+	if disable_tutorial_hints_handler.is_valid() and not safe_menu.is_connected("disable_tutorial_hints_requested", disable_tutorial_hints_handler):
+		safe_menu.disable_tutorial_hints_requested.connect(disable_tutorial_hints_handler)
 	return safe_menu
 
 
@@ -39,6 +42,12 @@ static func sync_load_available(menu: SafeMenuOverlay, bootstrap) -> void:
 	menu.set_load_available(bootstrap != null and bootstrap.has_save_game())
 
 
+static func sync_tutorial_hints_available(menu: SafeMenuOverlay, hint_controller) -> void:
+	if menu == null:
+		return
+	menu.set_tutorial_hints_available(hint_controller != null and hint_controller.has_unshown_hints())
+
+
 static func build_save_status_text(save_result: Dictionary) -> String:
 	if bool(save_result.get("ok", false)):
 		return "Run saved."
@@ -47,3 +56,7 @@ static func build_save_status_text(save_result: Dictionary) -> String:
 
 static func build_load_failure_status_text(load_result: Dictionary) -> String:
 	return "Load failed: %s" % String(load_result.get("error", "unknown"))
+
+
+static func build_tutorial_hints_status_text(changed: bool) -> String:
+	return "Tutorial hints disabled for this save." if changed else "Tutorial hints were already disabled for this save."

@@ -327,6 +327,30 @@ The current prototype uses authored side-quest definitions for hamlet contract-b
   - current authored content now covers all four mission hooks with multiple stage-local request definitions
   - generic multi-step quest chains, multiple objectives, and non-gear contract rewards remain deferred
 
+### Techniques (Live Prompt 27 Family)
+
+- First-pass technique definitions now live as an authored content family under `ContentDefinitions/Techniques/*.json`.
+- The current live definition set is:
+  - `cleanse_pulse` using `remove_statuses` plus an authored small `guard_gain`
+  - `sundering_strike` using `attack_ignore_armor`
+  - `blood_draw` using `attack_lifesteal`
+  - `echo_strike` using `prime_next_attack`
+- Technique definitions must keep the normal stable-id rules:
+  - file-name / `definition_id` match
+  - separate `display` vs `rules`
+  - no gameplay truth in presentation-only fields
+- First-pass technique authoring stays narrow:
+  - single-target combat use only
+  - limited-use tactical effects only
+  - no true multi-hit packets
+  - no hand-slot swap dependency
+  - no enemy-side status ownership
+- Hamlet training delivery points at these stable technique definition ids with a narrow `2`-offer-plus-`skip` surface; it does not require a broader generic weighted training-pool family.
+- Still deferred:
+  - `stun`
+  - dedicated trainer content families behind Prompt `31`
+  - broader multi-technique loadout/buildcraft families
+
 ### Enemies
 
 Enemy definitions require the standard top-level fields plus:
@@ -351,6 +375,7 @@ Optional reserved enemy metadata:
 - current status:
   - reserved metadata only
   - current prototype runtime ignores it for combat exit flow
+  - current prototype stage-rotation selection still depends on stage tags plus authored order, not on a broader elite encounter lane
   - current prototype flow contract remains `Combat victory -> Reward`
 
 ## Naming Rules
@@ -573,6 +598,12 @@ Current canonical combat-backed content should stay inside this narrow slice:
   - takes the first intent on combat setup
   - rotates enemy definitions by explicit top-level `authoring_order`, not by file-name sort
   - advances by sequential index each turn
+- Current Pack A enemy patterns stay inside that slice:
+  - `light -> heavy`
+  - `status pressure -> punish`
+  - `greed / resource punish`
+  - boss-only phase spike through `rules.boss_phases[*].intent_pool`
+- Current readable examples include `mossback_ram`, `skeletal_hound`, `dusk_pikeman`, `ashen_sapper`, `chain_trapper`, `grave_chanter`, and `tollhouse_captain`.
 - `weight` is intentionally not part of the current truthful content surface.
 
 ## Build Engine Scope
@@ -593,14 +624,90 @@ Current canonical combat-backed content should stay inside this narrow slice:
 These remain part of target architecture direction, but not current runtime truth:
 
 - weighted intent selection via `weight`
+- true multi-hit or chained hit packets
 - authored chance procs via `random_roll_percent`
 - consumable `use_effect` resolution beyond self-target `heal` + `modify_hunger`
 - generic status-tick or routing runtime beyond the current small player-status pool
+- enemy self-buff / self-guard / armor-up runtime
+- enemy-side status ownership
 - generic target routing
 - generic trigger/effect matrix across all families
 - weighted reward generation through `Rewards`
 - weighted or tag-driven event template selection
 - generic multi-effect event resolution beyond the current 2-choice / 1-outcome-per-choice slice
+
+## Advanced Enemy Intent Expansion Target (Prompt 30, Not Live Yet)
+
+This section records the approved content-grammar target for later advanced enemy-intent work.
+It is not current live content truth yet.
+
+- Advanced enemy intents require a grammar expansion under `Enemies.rules.intent_pool[*]`; they are not a content-only extension of the current Pack A slice.
+- Intended new top-level per-intent metadata for advanced entries:
+  - `intent_family`
+    - allowed advanced values:
+      - `setup_pass`
+      - `multi_hit`
+      - `self_state`
+      - `enemy_status`
+  - `telegraph_family`
+    - explicit player-facing telegraph bucket for presenter/UI treatment
+  - optional `telegraph_tags`
+    - narrow authored tags that describe the threat read without moving gameplay truth into UI
+- Intended advanced effect-family expansion for `Enemies.rules.intent_pool[*].effects[*]`:
+  - `prepare_followup`
+    - target: `enemy_self`
+    - required params:
+      - `prepared_intent_id`
+      - `expires_after_turns`
+  - `deal_damage_packets`
+    - target: `player`
+    - required params:
+      - `packets`
+    - each packet is an authored ordered hit entry, not a weighted branch
+  - `gain_enemy_guard`
+    - target: `enemy_self`
+    - required params:
+      - `amount`
+  - `modify_enemy_stat`
+    - target: `enemy_self`
+    - required params:
+      - `stat_key`
+      - `amount`
+      - `duration_turns`
+    - intended first-pass keys:
+      - `attack_power_bonus`
+      - `incoming_damage_flat_reduction`
+  - `apply_enemy_status`
+    - target: `enemy_self`
+    - required params:
+      - `definition_id`
+  - `remove_enemy_status`
+    - target: `enemy_self`
+    - required params:
+      - `definition_id`
+- Intended routing stays narrow even after this expansion:
+  - supported targets remain only `player` and `enemy_self`
+  - no ally routing
+  - no random target selection
+  - no route-wide or party-wide targeting
+- Intended enemy-side status expansion is explicit:
+  - later implementation should use a dedicated authored family under `ContentDefinitions/EnemyStatuses/`
+  - do not silently overload the current player-owned `Statuses/` slice and pretend both owners already share one canonical family
+- Intended multi-hit scope stays narrow:
+  - ordered packets only
+  - no weighted packet routing
+  - no packet-level random target dispatch
+  - no hidden extra-hit math outside authored packets
+- Intended setup/pass scope stays narrow:
+  - at most `1` prepared follow-up payload may be armed on the enemy at a time
+  - preparation and follow-up expiry must be explicit in authored data
+  - preparing a follow-up is not the same as opening generic trigger routing
+- Intended self-state scope stays narrow:
+  - enemy guard / armor-up / temporary attack-up are the first explicit self-state targets
+  - this does not approve generic enemy heal, cleanse, or summon behavior
+- Intended enemy-status scope stays narrow:
+  - enemy-owned statuses are still deterministic authored state, not generic proc-web authoring
+  - introducing enemy-owned statuses does not approve generic status-to-status routing or weighted behavior graphs
 
 ## Design-Rejected Growth Directions
 

@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "definition_id": "blood_draw",
+  "family": "Techniques",
+  "tags": [
+    "technique",
+    "combat",
+    "sustain",
+    "lifesteal"
+  ],
+  "display": {
+    "name": "Blood Draw",
+    "short_description": "Attack once and heal for half the damage dealt."
+  },
+  "rules": {
+    "usage_limit": "once_per_combat",
+    "action_target": "enemy",
+    "effect": {
+      "type": "attack_lifesteal",
+      "params": {
+        "heal_ratio_percent": 50
+      }
+    }
+  }
+}

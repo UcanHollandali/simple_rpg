@@ -3,6 +3,7 @@ extends RefCounted
 class_name MapRouteLayoutHelper
 
 const MapRuntimeStateScript = preload("res://Game/RuntimeState/map_runtime_state.gd")
+const MapFocusHelperScript = preload("res://Game/UI/map_focus_helper.gd")
 
 
 static func visible_routes_need_emergency_slot_layout(
@@ -74,6 +75,102 @@ static func build_board_graph_signature(run_state) -> String:
 	})
 
 
+static func build_stable_layout_snapshot(
+	board_composition_cache: Dictionary,
+	force_next_layout_recompose: bool,
+	graph_signature: String,
+	board_graph_signature: String
+) -> Dictionary:
+	if force_next_layout_recompose or graph_signature != board_graph_signature or board_composition_cache.is_empty():
+		return {}
+	return {
+		"world_positions": (board_composition_cache.get("world_positions", {}) as Dictionary).duplicate(true),
+		"ground_shapes": (board_composition_cache.get("ground_shapes", []) as Array).duplicate(true),
+		"filler_shapes": (board_composition_cache.get("filler_shapes", []) as Array).duplicate(true),
+		"forest_shapes": (board_composition_cache.get("forest_shapes", []) as Array).duplicate(true),
+		"layout_edges": (board_composition_cache.get("layout_edges", []) as Array).duplicate(true),
+	}
+
+
+static func refresh_cached_visible_node_radii(
+	board_composition_cache: Dictionary,
+	board_composer: RefCounted,
+	board_size: Vector2
+) -> Dictionary:
+	if board_composition_cache.is_empty() or board_composer == null:
+		return board_composition_cache
+	var cached_visible_nodes: Array = board_composition_cache.get("visible_nodes", [])
+	if cached_visible_nodes.is_empty():
+		return board_composition_cache
+	var updated_cache: Dictionary = board_composition_cache.duplicate(true)
+	var refreshed_visible_nodes: Array[Dictionary] = []
+	for node_variant in cached_visible_nodes:
+		if typeof(node_variant) != TYPE_DICTIONARY:
+			continue
+		var node_entry: Dictionary = (node_variant as Dictionary).duplicate(true)
+		node_entry["clearing_radius"] = board_composer.build_clearing_radius(
+			String(node_entry.get("node_family", "")),
+			String(node_entry.get("state_semantic", "open")),
+			board_size
+		)
+		refreshed_visible_nodes.append(node_entry)
+	updated_cache["visible_nodes"] = refreshed_visible_nodes
+	return updated_cache
+
+
+static func restore_visible_edge_continuity(board_composition_cache: Dictionary) -> Dictionary:
+	if board_composition_cache.is_empty():
+		return board_composition_cache
+	var updated_cache: Dictionary = board_composition_cache.duplicate(true)
+	var visible_nodes: Array = updated_cache.get("visible_nodes", [])
+	var layout_edges: Array = updated_cache.get("layout_edges", [])
+	var visible_edges: Array = (updated_cache.get("visible_edges", []) as Array).duplicate(true)
+	var current_node_id: int = int(updated_cache.get("current_node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
+	if visible_nodes.is_empty() or layout_edges.is_empty() or current_node_id == MapRuntimeStateScript.NO_PENDING_NODE_ID:
+		return updated_cache
+	var visible_node_ids: Dictionary = {}
+	var visible_node_by_id: Dictionary = {}
+	for node_variant in visible_nodes:
+		if typeof(node_variant) != TYPE_DICTIONARY:
+			continue
+		var node_entry: Dictionary = node_variant
+		var node_id: int = int(node_entry.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
+		visible_node_ids[node_id] = true
+		visible_node_by_id[node_id] = node_entry
+	var connected_node_ids: Dictionary = _visible_edge_component_node_ids(visible_edges, current_node_id)
+	if connected_node_ids.size() >= visible_node_ids.size():
+		return updated_cache
+	var accepted_edge_keys: Dictionary = {}
+	for edge_entry in visible_edges:
+		accepted_edge_keys["%d:%d" % [
+			min(int(edge_entry.get("from_node_id", -1)), int(edge_entry.get("to_node_id", -1))),
+			max(int(edge_entry.get("from_node_id", -1)), int(edge_entry.get("to_node_id", -1))),
+		]] = true
+	for edge_variant in layout_edges:
+		if typeof(edge_variant) != TYPE_DICTIONARY or connected_node_ids.size() >= visible_node_ids.size():
+			continue
+		var edge_entry: Dictionary = edge_variant
+		var from_node_id: int = int(edge_entry.get("from_node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
+		var to_node_id: int = int(edge_entry.get("to_node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
+		var edge_key: String = "%d:%d" % [min(from_node_id, to_node_id), max(from_node_id, to_node_id)]
+		if accepted_edge_keys.has(edge_key):
+			continue
+		if not visible_node_ids.has(from_node_id) or not visible_node_ids.has(to_node_id):
+			continue
+		if connected_node_ids.has(from_node_id) == connected_node_ids.has(to_node_id):
+			continue
+		var extra_edge: Dictionary = edge_entry.duplicate(true)
+		var from_node: Dictionary = visible_node_by_id.get(from_node_id, {})
+		var to_node: Dictionary = visible_node_by_id.get(to_node_id, {})
+		extra_edge["state_semantic"] = "locked" if String(from_node.get("state_semantic", "")) == "locked" or String(to_node.get("state_semantic", "")) == "locked" else ("resolved" if String(from_node.get("node_state", "")) == MapRuntimeStateScript.NODE_STATE_RESOLVED and String(to_node.get("node_state", "")) == MapRuntimeStateScript.NODE_STATE_RESOLVED else "open")
+		extra_edge["is_history"] = not (from_node_id == current_node_id or to_node_id == current_node_id)
+		visible_edges.append(extra_edge)
+		accepted_edge_keys[edge_key] = true
+		connected_node_ids = _visible_edge_component_node_ids(visible_edges, current_node_id)
+	updated_cache["visible_edges"] = visible_edges
+	return updated_cache
+
+
 static func marker_position_for_route_model(
 	board_composition_cache: Dictionary,
 	route_layout_offset: Vector2,
@@ -112,6 +209,25 @@ static func get_node_world_position(board_composition_cache: Dictionary, node_id
 		return Vector2.ZERO
 	var world_positions: Dictionary = board_composition_cache.get("world_positions", {})
 	return world_positions.get(node_id, Vector2.ZERO)
+
+
+static func desired_focus_offset_for_world_position(
+	route_grid: Control,
+	board_composition_cache: Dictionary,
+	current_offset: Vector2,
+	world_position: Vector2,
+	board_focus_anchor_factor: Vector2,
+	board_max_offset_factor: Vector2,
+	board_focus_deadzone_factor: Vector2,
+	board_focus_damping: float,
+	board_focus_context_blend_min: float,
+	board_focus_context_blend_max: float,
+	board_focus_clamp_padding: Vector2,
+	board_visible_content_padding: Vector2,
+	node_plate_half_size: Vector2,
+	board_lower_fill_target_factor: float
+) -> Vector2:
+	return Vector2.ZERO
 
 
 static func emergency_route_marker_position(
@@ -328,3 +444,29 @@ static func _build_emergency_route_slot_factors(
 	for slot_factor_variant in slot_factors_variant:
 		slot_factors.append(Vector2(slot_factor_variant))
 	return slot_factors
+
+
+static func _visible_edge_component_node_ids(edges: Array, start_node_id: int) -> Dictionary:
+	var adjacency: Dictionary = {}
+	for edge_entry in edges:
+		var from_node_id: int = int(edge_entry.get("from_node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
+		var to_node_id: int = int(edge_entry.get("to_node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
+		if from_node_id == MapRuntimeStateScript.NO_PENDING_NODE_ID or to_node_id == MapRuntimeStateScript.NO_PENDING_NODE_ID:
+			continue
+		if not adjacency.has(from_node_id):
+			adjacency[from_node_id] = []
+		if not adjacency.has(to_node_id):
+			adjacency[to_node_id] = []
+		(adjacency[from_node_id] as Array).append(to_node_id)
+		(adjacency[to_node_id] as Array).append(from_node_id)
+	var component_node_ids: Dictionary = {start_node_id: true}
+	var open_node_ids: Array[int] = [start_node_id]
+	while not open_node_ids.is_empty():
+		var node_id: int = open_node_ids.pop_front()
+		for adjacent_node_id_variant in adjacency.get(node_id, []):
+			var adjacent_node_id: int = int(adjacent_node_id_variant)
+			if component_node_ids.has(adjacent_node_id):
+				continue
+			component_node_ids[adjacent_node_id] = true
+			open_node_ids.append(adjacent_node_id)
+	return component_node_ids

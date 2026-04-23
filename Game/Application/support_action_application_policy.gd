@@ -4,6 +4,11 @@ class_name SupportActionApplicationPolicy
 
 const ContentLoaderScript = preload("res://Game/Infrastructure/content_loader.gd")
 const INVENTORY_CHOICE_REQUIRED_ERROR: String = "inventory_choice_required"
+const HAMLET_TRAINING_TECHNIQUE_IDS_BY_STAGE := {
+	1: ["cleanse_pulse", "blood_draw", "sundering_strike", "echo_strike"],
+	2: ["sundering_strike", "echo_strike", "blood_draw", "cleanse_pulse"],
+	3: ["blood_draw", "cleanse_pulse", "sundering_strike", "echo_strike"],
+}
 
 func apply_action(
 	active_run_state: RunState,
@@ -110,7 +115,7 @@ func apply_action(
 				discard_slot_id
 			)
 			if not bool(add_result.get("ok", false)):
-				return {"ok": false, "action_id": action_id, "error": String(add_result.get("error", "support_action_failed"))}
+				return _merge_support_action_failure(action_id, add_result)
 			active_run_state.gold -= cost_gold
 			active_support_state.mark_offer_unavailable(action_id)
 			result.merge(add_result, true)
@@ -127,7 +132,7 @@ func apply_action(
 				discard_slot_id
 			)
 			if not bool(weapon_result.get("ok", false)):
-				return {"ok": false, "action_id": action_id, "error": String(weapon_result.get("error", "support_action_failed"))}
+				return _merge_support_action_failure(action_id, weapon_result)
 			active_run_state.gold -= cost_gold
 			active_support_state.mark_offer_unavailable(action_id)
 			result.merge(weapon_result, true)
@@ -144,7 +149,7 @@ func apply_action(
 				discard_slot_id
 			)
 			if not bool(armor_result.get("ok", false)):
-				return {"ok": false, "action_id": action_id, "error": String(armor_result.get("error", "support_action_failed"))}
+				return _merge_support_action_failure(action_id, armor_result)
 			active_run_state.gold -= cost_gold
 			active_support_state.mark_offer_unavailable(action_id)
 			result.merge(armor_result, true)
@@ -161,7 +166,7 @@ func apply_action(
 				discard_slot_id
 			)
 			if not bool(shield_result.get("ok", false)):
-				return {"ok": false, "action_id": action_id, "error": String(shield_result.get("error", "support_action_failed"))}
+				return _merge_support_action_failure(action_id, shield_result)
 			active_run_state.gold -= cost_gold
 			active_support_state.mark_offer_unavailable(action_id)
 			result.merge(shield_result, true)
@@ -178,7 +183,7 @@ func apply_action(
 				discard_slot_id
 			)
 			if not bool(belt_result.get("ok", false)):
-				return {"ok": false, "action_id": action_id, "error": String(belt_result.get("error", "support_action_failed"))}
+				return _merge_support_action_failure(action_id, belt_result)
 			active_run_state.gold -= cost_gold
 			active_support_state.mark_offer_unavailable(action_id)
 			result.merge(belt_result, true)
@@ -195,7 +200,7 @@ func apply_action(
 				discard_slot_id
 			)
 			if not bool(passive_result.get("ok", false)):
-				return {"ok": false, "action_id": action_id, "error": String(passive_result.get("error", "support_action_failed"))}
+				return _merge_support_action_failure(action_id, passive_result)
 			active_run_state.gold -= cost_gold
 			active_support_state.mark_offer_unavailable(action_id)
 			result.merge(passive_result, true)
@@ -224,6 +229,16 @@ func apply_action(
 			if not bool(reward_result.get("ok", false)):
 				return reward_result.merged({"action_id": action_id}, true)
 			result.merge(reward_result, true)
+			result["close_interaction"] = bool(reward_result.get("close_interaction", true))
+		"equip_technique", "skip_training_choice":
+			var training_result: Dictionary = _apply_hamlet_training_choice(
+				active_run_state,
+				active_support_state,
+				offer
+			)
+			if not bool(training_result.get("ok", false)):
+				return training_result.merged({"action_id": action_id}, true)
+			result.merge(training_result, true)
 			result["close_interaction"] = true
 		_:
 			return {"ok": false, "action_id": action_id, "error": "unknown_support_action"}
@@ -237,6 +252,14 @@ func _should_close_interaction_after_apply(active_support_state: SupportInteract
 	if active_support_state.support_type != SupportInteractionState.TYPE_MERCHANT:
 		return true
 	return not active_support_state.has_available_offers()
+
+
+func _merge_support_action_failure(action_id: String, action_result: Dictionary) -> Dictionary:
+	return action_result.merged({
+		"ok": false,
+		"action_id": action_id,
+		"error": String(action_result.get("error", "support_action_failed")),
+	}, true)
 
 
 func _resolve_inventory_grant(
@@ -433,6 +456,13 @@ func _apply_hamlet_reward_claim(
 
 	var persisted_state: Dictionary = active_support_state.build_persisted_node_state()
 	persisted_state["mission_status"] = SupportInteractionState.SIDE_MISSION_STATUS_CLAIMED
+	var training_offers: Array[Dictionary] = _build_hamlet_training_offers(active_run_state, active_support_state)
+	if training_offers.is_empty():
+		persisted_state["training_step"] = SupportInteractionState.TRAINING_STEP_NONE
+		persisted_state["technique_offers"] = []
+	else:
+		persisted_state["training_step"] = SupportInteractionState.TRAINING_STEP_TECHNIQUE_CHOICE
+		persisted_state["technique_offers"] = training_offers
 	active_support_state.setup_for_type(
 		SupportInteractionState.TYPE_HAMLET,
 		int(active_support_state.source_node_id),
@@ -445,7 +475,67 @@ func _apply_hamlet_reward_claim(
 	return {
 		"ok": true,
 		"mission_status": SupportInteractionState.SIDE_MISSION_STATUS_CLAIMED,
+		"close_interaction": training_offers.is_empty(),
+		"training_offer_count": training_offers.size(),
 	}.merged(reward_result, true)
+
+
+func _apply_hamlet_training_choice(
+	active_run_state: RunState,
+	active_support_state: SupportInteractionState,
+	offer: Dictionary
+) -> Dictionary:
+	if active_support_state.support_type != SupportInteractionState.TYPE_HAMLET:
+		return {"ok": false, "error": "invalid_support_type"}
+	if String(active_support_state.training_step) != SupportInteractionState.TRAINING_STEP_TECHNIQUE_CHOICE:
+		return {"ok": false, "error": "training_choice_not_open"}
+
+	var effect_type: String = String(offer.get("effect_type", "")).strip_edges()
+	var previously_equipped_definition_id: String = String(active_run_state.equipped_technique_definition_id).strip_edges()
+	var persisted_state: Dictionary = active_support_state.build_persisted_node_state()
+	persisted_state["mission_status"] = SupportInteractionState.SIDE_MISSION_STATUS_CLAIMED
+	persisted_state["training_step"] = SupportInteractionState.TRAINING_STEP_NONE
+	persisted_state["technique_offers"] = []
+
+	match effect_type:
+		"equip_technique":
+			var technique_definition_id: String = String(offer.get("definition_id", "")).strip_edges()
+			if technique_definition_id.is_empty():
+				return {"ok": false, "error": "missing_technique_definition"}
+			active_run_state.equipped_technique_definition_id = technique_definition_id
+			active_support_state.setup_for_type(
+				SupportInteractionState.TYPE_HAMLET,
+				int(active_support_state.source_node_id),
+				persisted_state,
+				active_run_state.stage_index,
+				active_run_state.inventory_state,
+				active_run_state.map_runtime_state,
+				active_run_state.run_seed
+			)
+			return {
+				"ok": true,
+				"mission_status": SupportInteractionState.SIDE_MISSION_STATUS_CLAIMED,
+				"equipped_technique_definition_id": technique_definition_id,
+				"replaced_technique_definition_id": previously_equipped_definition_id,
+			}
+		"skip_training_choice":
+			active_support_state.setup_for_type(
+				SupportInteractionState.TYPE_HAMLET,
+				int(active_support_state.source_node_id),
+				persisted_state,
+				active_run_state.stage_index,
+				active_run_state.inventory_state,
+				active_run_state.map_runtime_state,
+				active_run_state.run_seed
+			)
+			return {
+				"ok": true,
+				"mission_status": SupportInteractionState.SIDE_MISSION_STATUS_CLAIMED,
+				"equipped_technique_definition_id": previously_equipped_definition_id,
+				"training_skipped": true,
+			}
+		_:
+			return {"ok": false, "error": "invalid_training_choice_effect"}
 
 
 func _extract_hamlet_reward_pool(mission_definition: Dictionary) -> Array[Dictionary]:
@@ -486,6 +576,70 @@ func _extract_hamlet_reward_pool(mission_definition: Dictionary) -> Array[Dictio
 				if inventory_family == InventoryState.INVENTORY_FAMILY_CONSUMABLE:
 					reward_offer["amount"] = max(1, int(offer.get("amount", 1)))
 				result.append(reward_offer)
+	return result
+
+
+func _build_hamlet_training_offers(
+	active_run_state: RunState,
+	active_support_state: SupportInteractionState
+) -> Array[Dictionary]:
+	if active_run_state == null or active_support_state == null:
+		return []
+
+	var technique_ids_variant: Variant = HAMLET_TRAINING_TECHNIQUE_IDS_BY_STAGE.get(
+		int(active_run_state.stage_index),
+		HAMLET_TRAINING_TECHNIQUE_IDS_BY_STAGE.get(1, [])
+	)
+	if typeof(technique_ids_variant) != TYPE_ARRAY:
+		return []
+	var technique_definition_ids: Array = (technique_ids_variant as Array).duplicate(true)
+	var equipped_definition_id: String = String(active_run_state.equipped_technique_definition_id).strip_edges()
+	if not equipped_definition_id.is_empty() and technique_definition_ids.size() > 2:
+		technique_definition_ids.erase(equipped_definition_id)
+
+	var rng_context: Dictionary = active_run_state.consume_named_rng_context(
+		"hamlet_training_offer",
+		"%d:%d:%s" % [
+			int(active_run_state.stage_index),
+			int(active_support_state.source_node_id),
+			String(active_support_state.mission_definition_id),
+		]
+	)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = max(1, int(rng_context.get("stream_seed", 1)))
+	_shuffle_variant_array(technique_definition_ids, rng)
+
+	var loader: ContentLoader = ContentLoaderScript.new()
+	var result: Array[Dictionary] = []
+	for technique_definition_id_variant in technique_definition_ids:
+		if result.size() >= 2:
+			break
+		var technique_definition_id: String = String(technique_definition_id_variant).strip_edges()
+		if technique_definition_id.is_empty():
+			continue
+		var technique_definition: Dictionary = loader.load_definition("Techniques", technique_definition_id)
+		if technique_definition.is_empty():
+			continue
+		var display_name: String = String(technique_definition.get("display", {}).get("name", technique_definition_id))
+		var offer: Dictionary = {
+			"offer_id": "equip_%s" % technique_definition_id,
+			"label": "Take %s" % display_name,
+			"effect_type": "equip_technique",
+			"definition_id": technique_definition_id,
+			"available": true,
+		}
+		if not equipped_definition_id.is_empty():
+			offer["replaces_definition_id"] = equipped_definition_id
+		result.append(offer)
+
+	if result.is_empty():
+		return result
+	result.append({
+		"offer_id": "skip_hamlet_training",
+		"label": "Skip for now",
+		"effect_type": "skip_training_choice",
+		"available": true,
+	})
 	return result
 
 

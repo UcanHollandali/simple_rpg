@@ -4,6 +4,7 @@ class_name SaveServiceLegacyLoader
 
 const FlowStateScript = preload("res://Game/Application/flow_state.gd")
 const ContentLoaderScript = preload("res://Game/Infrastructure/content_loader.gd")
+const SaveValidationCommonScript = preload("res://Game/Infrastructure/save_validation_common.gd")
 
 const PREVIOUS_SAVE_SCHEMA_VERSION: int = 7
 const OLDER_SAVE_SCHEMA_VERSION: int = 6
@@ -100,6 +101,11 @@ func validate_schema_specific_run_state(save_schema_version: int, run_state_data
 					"ok": false,
 					"error": "invalid_character_perk_state",
 				}
+			if not SaveValidationCommonScript.equipped_technique_definition_id_is_valid(String(run_state_data.get("equipped_technique_definition_id", "")).strip_edges()):
+				return {
+					"ok": false,
+					"error": "invalid_equipped_technique_definition_id",
+				}
 	elif save_schema_version >= SHARED_BAG_SAVE_SCHEMA_VERSION:
 		var inventory_slots_variant: Variant = run_state_data.get("inventory_slots", null)
 		if typeof(inventory_slots_variant) != TYPE_ARRAY or not _inventory_slots_are_valid(inventory_slots_variant as Array):
@@ -157,7 +163,9 @@ func validate_pending_state_snapshot(
 	level_up_variant: Variant,
 	support_interaction_variant: Variant,
 	app_state: Dictionary,
-	support_interaction_source_node_is_valid: bool
+	support_interaction_source_node_is_valid: bool,
+	map_node_states: Array = [],
+	realized_graph: Array = []
 ) -> Dictionary:
 	match active_flow_state:
 		FlowStateScript.Type.MAP_EXPLORE:
@@ -230,7 +238,7 @@ func validate_pending_state_snapshot(
 					"ok": false,
 					"error": "empty_support_interaction_offers",
 				}
-			if not _support_interaction_state_is_valid(support_interaction_data):
+			if not _support_interaction_state_is_valid(support_interaction_data, map_node_states, realized_graph):
 				return {
 					"ok": false,
 					"error": "invalid_support_interaction_state",
@@ -252,10 +260,16 @@ func validate_pending_state_snapshot(
 					"ok": false,
 					"error": "unexpected_pending_choice_state",
 				}
-			if String(app_state.get("last_run_result", "")).is_empty():
+			var last_run_result: String = String(app_state.get("last_run_result", "")).strip_edges()
+			if last_run_result.is_empty():
 				return {
 					"ok": false,
 					"error": "missing_run_result",
+				}
+			if last_run_result not in ["victory", "defeat"]:
+				return {
+					"ok": false,
+					"error": "invalid_run_result",
 				}
 		_:
 			return {
@@ -436,18 +450,20 @@ func _extract_offer_count(state_data: Dictionary) -> int:
 	return (offers_variant as Array).size()
 
 
-func _support_interaction_state_is_valid(support_interaction_data: Dictionary) -> bool:
+func _support_interaction_state_is_valid(
+	support_interaction_data: Dictionary,
+	map_node_states: Array = [],
+	realized_graph: Array = []
+) -> bool:
 	var support_type: String = String(support_interaction_data.get("support_type", ""))
 	if support_type not in ["rest", "merchant", "blacksmith", "hamlet", "side_mission"]:
 		return false
 	if support_type in ["hamlet", "side_mission"]:
-		var mission_status: String = String(support_interaction_data.get("mission_status", ""))
-		if mission_status not in ["offered", "accepted", "completed", "claimed"]:
-			return false
-		var reward_offers_variant: Variant = support_interaction_data.get("reward_offers", [])
-		if typeof(reward_offers_variant) != TYPE_ARRAY:
-			return false
-		return true
+		return SaveValidationCommonScript.hamlet_support_interaction_state_is_valid(
+			support_interaction_data,
+			map_node_states,
+			realized_graph
+		)
 	if support_type != "blacksmith":
 		return true
 

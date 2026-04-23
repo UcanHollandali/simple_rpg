@@ -272,7 +272,7 @@ func _on_process_frame() -> void:
 				_require(combat_flow != null, "Expected combat flow owner on Combat scene.")
 				match _combat_inventory_cycle_step:
 					0:
-						_require_inventory_card_action_copy(COMBAT_RIGHT_HAND_CARD_PATH, "Locked during combat")
+						_require_inventory_card_action_copy(COMBAT_RIGHT_HAND_CARD_PATH, "Packed spare needed")
 						_require_combat_inventory_card_density()
 						_combat_locked_equipment_signature_before_click = _build_combat_inventory_signature(combat_flow)
 						_combat_log_before_locked_equipment_click = _combat_log_text()

@@ -4,7 +4,7 @@
   "authoring_order": 220,
   "family": "Enemies",
   "encounter_tier": "minor",
-  "design_intent_question": "Can the player spot the late-run sapper who turns durability pressure into a real threat, defending the breach swing after the corrosive setup instead of after it is too late?",
+  "design_intent_question": "Can the player stop greed-attacking through corrosion and answer the breach swing on time?",
   "tags": [
     "enemy",
     "stage_3",
@@ -14,7 +14,7 @@
   ],
   "display": {
     "name": "Ashen Sapper",
-    "short_description": "A siege worker with a pry bar and acid glass, softening the player's gear before one heavier breach strike.",
+    "short_description": "A siege worker who tests patience with light probes, then corrodes gear before one brutal breach blow.",
     "icon_key": "enemy_ashen_sapper"
   },
   "rules": {
@@ -31,7 +31,7 @@
           {
             "type": "deal_damage",
             "params": {
-              "base": 3,
+              "base": 2,
               "damage_kind": "physical"
             }
           }
@@ -65,7 +65,7 @@
           {
             "type": "deal_damage",
             "params": {
-              "base": 6,
+              "base": 7,
               "damage_kind": "physical"
             }
           }

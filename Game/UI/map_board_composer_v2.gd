@@ -8,26 +8,40 @@ const MapBoardBackdropBuilderScript = preload("res://Game/UI/map_board_backdrop_
 const MapBoardGroundBuilderScript = preload("res://Game/UI/map_board_ground_builder.gd")
 const MapBoardFillerBuilderScript = preload("res://Game/UI/map_board_filler_builder.gd")
 const MapBoardGeometryScript = preload("res://Game/UI/map_board_geometry.gd")
+const MapBoardHistoryEdgeFilterScript = preload("res://Game/UI/map_board_history_edge_filter.gd")
 const MapBoardEdgeRoutingScript = preload("res://Game/UI/map_board_edge_routing.gd")
 const MapBoardLayoutSolverScript = preload("res://Game/UI/map_board_layout_solver.gd")
 
 const DEFAULT_TEMPLATE_PROFILE := "corridor"
-const BASE_CENTER_FACTOR := Vector2(0.50, 0.60)
+const BASE_CENTER_FACTOR := Vector2(0.50, 0.63)
 const MIN_BOARD_MARGIN := Vector2(136.0, 108.0)
+const MAX_NODE_CLEARING_RADIUS := 78.0
+const PATH_STROKE_CLEARANCE := 18.0
+const WALKER_FOOTPRINT_CLEARANCE := 26.0
+const OVERLAY_CLEARANCE := Vector2(58.0, 30.0)
+const LOCAL_CLEARING_SILHOUETTE_CLEARANCE := 12.0
 const STABLE_LAYOUT_REUSE_POSITION_TOLERANCE := 48.0
 const OPENING_BRANCH_ANGLE_PRESETS := {
 	1: [-PI * 0.5],
-	2: [-1.94, -1.06],
-	3: [-2.22, -1.50, -0.80],
-	4: [-2.30, -1.74, -1.08, -0.56],
+	2: [-2.00, -1.00],
+	3: [-2.28, -1.54, -0.74],
+	4: [-2.36, -1.80, -1.02, -0.48],
 }
-const DEPTH_STEP_FACTORS := [0.0, 0.220, 0.190, 0.176, 0.166, 0.158]
-const DEPTH_SPREAD_FACTORS := [0.0, 0.028, 0.042, 0.050, 0.056, 0.060]
-const DEPTH_DIRECTION_PULL_FACTORS := [0.0, 0.0, 0.24, 0.40, 0.56, 0.70]
-const DEPTH_LATERAL_SPREAD_SCALE_FACTORS := [1.0, 0.80, 0.54, 0.38, 0.26, 0.20]
-const DEPTH_DOWNWARD_BIAS_FACTORS := [0.0, 0.0, 0.056, 0.100, 0.148, 0.184]
-const DEPTH_CENTER_PULL_FACTORS := [0.0, 0.0, 0.062, 0.120, 0.208, 0.280]
-const BRANCH_GLOBAL_ROTATION_RANGE := 0.92
+const DEPTH_STEP_FACTORS := [0.0, 0.240, 0.230, 0.222, 0.214, 0.208]
+const DEPTH_SPREAD_FACTORS := [0.0, 0.044, 0.072, 0.090, 0.104, 0.112]
+const DEPTH_DIRECTION_PULL_FACTORS := [0.0, 0.0, 0.10, 0.17, 0.22, 0.28]
+const DEPTH_LATERAL_SPREAD_SCALE_FACTORS := [1.0, 0.96, 0.88, 0.78, 0.68, 0.60]
+const DEPTH_DOWNWARD_BIAS_FACTORS := [0.0, 0.0, 0.018, 0.030, 0.042, 0.054]
+const DEPTH_CENTER_PULL_FACTORS := [0.0, 0.0, 0.014, 0.024, 0.036, 0.048]
+const DEPTH_SECTOR_PULL_FACTORS := [0.0, 0.0, 0.24, 0.38, 0.50, 0.58]
+const DEPTH_SECTOR_HORIZONTAL_FACTORS := [0.0, 0.0, 0.30, 0.44, 0.56, 0.64]
+const DEPTH_SECTOR_VERTICAL_FACTORS := [0.0, 0.0, 0.18, 0.30, 0.42, 0.50]
+const DEPTH_OUTER_POCKET_PULL_FACTORS := [0.0, 0.0, 0.10, 0.22, 0.34, 0.44]
+const DEPTH_OUTER_POCKET_HORIZONTAL_FACTORS := [0.0, 0.0, 0.24, 0.36, 0.48, 0.56]
+const DEPTH_OUTER_POCKET_VERTICAL_FACTORS := [0.0, 0.0, 0.08, 0.18, 0.28, 0.38]
+const DEPTH_SIBLING_RADIAL_STAGGER_FACTORS := [0.0, 0.0, 0.020, 0.030, 0.038, 0.046]
+const DEPTH_TOP_EDGE_RELIEF_FACTORS := [0.0, 0.0, 0.0, 0.032, 0.046, 0.058]
+const BRANCH_GLOBAL_ROTATION_RANGE := 0.52
 const BRANCH_ANGLE_NOISE := 0.04
 const PATH_FAMILY_SHORT_STRAIGHT := "short_straight"
 const PATH_FAMILY_GENTLE_CURVE := "gentle_curve"
@@ -37,6 +51,9 @@ const EDGE_NODE_AVOIDANCE_PADDING := 18.0
 const EDGE_NODE_AVOIDANCE_MIN_SHIFT := 24.0
 const EDGE_NODE_AVOIDANCE_MAX_SHIFT := 86.0
 const EDGE_NODE_AVOIDANCE_MAX_PASSES := 5
+const OUTER_RECONNECT_MARGIN_BIAS := Vector2(42.0, 64.0)
+const SAME_DEPTH_RECONNECT_MAX_RATIO := 1.60
+const SAME_DEPTH_RECONNECT_MIN_EDGE_CLEARANCE := 72.0
 func compose(
 	run_state: RunState,
 	board_size: Vector2,
@@ -72,6 +89,8 @@ func compose(
 		template_profile,
 		board_seed
 	)
+	var playable_rect: Rect2 = build_playable_rect(board_size)
+	var min_board_margin: Vector2 = playable_rect.position
 	var stable_world_positions: Dictionary = (stable_layout.get("world_positions", {}) as Dictionary).duplicate(true)
 	var can_reuse_stable_layout: bool = _stable_layout_matches_board_size(stable_world_positions, start_node_id, board_size)
 	var world_positions: Dictionary = stable_world_positions if can_reuse_stable_layout else {}
@@ -81,15 +100,12 @@ func compose(
 	if layout_edges.is_empty(): layout_edges = _build_full_edge_layouts(graph_by_id, graph_nodes, world_positions, layout_context, template_profile, board_seed, board_size)
 	var visible_nodes: Array = _build_visible_node_entries(graph_snapshot, graph_by_id, world_positions, current_node_id, board_size)
 	var visible_edges: Array = _build_visible_edges(layout_edges, visible_nodes, current_node_id, board_size)
-	var focus_anchor: Vector2 = board_size * focus_anchor_factor
-	var current_world_position: Vector2 = world_positions.get(current_node_id, board_size * BASE_CENTER_FACTOR)
-	var focus_offset: Vector2 = _clamp_focus_offset(focus_anchor - current_world_position, max_focus_offset)
 	var ground_shapes: Array = (stable_layout.get("ground_shapes", []) as Array).duplicate(true) if can_reuse_stable_layout else []
-	if ground_shapes.is_empty(): ground_shapes = MapBoardGroundBuilderScript.build_ground_shapes(board_size, graph_nodes, template_profile, board_seed, BASE_CENTER_FACTOR, MIN_BOARD_MARGIN)
+	if ground_shapes.is_empty(): ground_shapes = MapBoardGroundBuilderScript.build_ground_shapes(board_size, graph_nodes, layout_edges, template_profile, board_seed, BASE_CENTER_FACTOR, min_board_margin)
 	var filler_shapes: Array = (stable_layout.get("filler_shapes", []) as Array).duplicate(true) if can_reuse_stable_layout else []
-	if filler_shapes.is_empty(): filler_shapes = MapBoardFillerBuilderScript.build_filler_shapes(board_size, graph_nodes, layout_edges, template_profile, board_seed, BASE_CENTER_FACTOR, MIN_BOARD_MARGIN)
+	if filler_shapes.is_empty(): filler_shapes = MapBoardFillerBuilderScript.build_filler_shapes(board_size, graph_nodes, layout_edges, template_profile, board_seed, BASE_CENTER_FACTOR, min_board_margin)
 	var forest_shapes: Array = (stable_layout.get("forest_shapes", []) as Array).duplicate(true) if can_reuse_stable_layout else []
-	if forest_shapes.is_empty(): forest_shapes = MapBoardBackdropBuilderScript.build_forest_shapes(board_size, graph_nodes, graph_by_id, world_positions, template_profile, board_seed, BASE_CENTER_FACTOR, MIN_BOARD_MARGIN)
+	if forest_shapes.is_empty(): forest_shapes = MapBoardBackdropBuilderScript.build_forest_shapes(board_size, graph_nodes, layout_edges, template_profile, board_seed, BASE_CENTER_FACTOR, min_board_margin)
 	return {
 		"seed": board_seed,
 		"template_profile": template_profile,
@@ -103,12 +119,41 @@ func compose(
 		"ground_shapes": ground_shapes,
 		"filler_shapes": filler_shapes,
 		"forest_shapes": forest_shapes,
-		"focus_offset": focus_offset,
+		"focus_offset": Vector2.ZERO,
 	}
 
 
 func build_clearing_radius(node_family: String, state_semantic: String, board_size: Vector2) -> float:
 	return _clearing_radius_for(node_family, state_semantic, board_size)
+
+
+static func build_playable_rect(board_size: Vector2) -> Rect2:
+	var margin: Vector2 = build_playable_margin()
+	return Rect2(
+		margin,
+		Vector2(
+			maxf(0.0, board_size.x - margin.x * 2.0),
+			maxf(0.0, board_size.y - margin.y * 2.0)
+		)
+	)
+
+
+static func build_playable_margin() -> Vector2:
+	return Vector2(
+		MAX_NODE_CLEARING_RADIUS + maxf(OVERLAY_CLEARANCE.x, maxf(PATH_STROKE_CLEARANCE, maxf(WALKER_FOOTPRINT_CLEARANCE, LOCAL_CLEARING_SILHOUETTE_CLEARANCE))),
+		MAX_NODE_CLEARING_RADIUS + maxf(OVERLAY_CLEARANCE.y, maxf(PATH_STROKE_CLEARANCE, maxf(WALKER_FOOTPRINT_CLEARANCE, LOCAL_CLEARING_SILHOUETTE_CLEARANCE)))
+	)
+
+
+static func build_path_safe_rect(board_size: Vector2) -> Rect2:
+	var path_margin: float = maxf(PATH_STROKE_CLEARANCE, WALKER_FOOTPRINT_CLEARANCE * 0.5)
+	return Rect2(
+		Vector2(path_margin, path_margin),
+		Vector2(
+			maxf(0.0, board_size.x - path_margin * 2.0),
+			maxf(0.0, board_size.y - path_margin * 2.0)
+		)
+	)
 
 
 func _empty_composition() -> Dictionary:
@@ -293,13 +338,22 @@ func _build_world_positions(
 		board_seed,
 		{
 			"base_center_factor": BASE_CENTER_FACTOR,
-			"min_board_margin": MIN_BOARD_MARGIN,
+			"playable_rect": build_playable_rect(board_size),
+			"min_board_margin": build_playable_margin(),
 			"depth_step_factors": DEPTH_STEP_FACTORS,
 			"depth_spread_factors": DEPTH_SPREAD_FACTORS,
 			"depth_direction_pull_factors": DEPTH_DIRECTION_PULL_FACTORS,
 			"depth_lateral_spread_scale_factors": DEPTH_LATERAL_SPREAD_SCALE_FACTORS,
 			"depth_downward_bias_factors": DEPTH_DOWNWARD_BIAS_FACTORS,
 			"depth_center_pull_factors": DEPTH_CENTER_PULL_FACTORS,
+			"depth_sector_pull_factors": DEPTH_SECTOR_PULL_FACTORS,
+			"depth_sector_horizontal_factors": DEPTH_SECTOR_HORIZONTAL_FACTORS,
+			"depth_sector_vertical_factors": DEPTH_SECTOR_VERTICAL_FACTORS,
+			"depth_outer_pocket_pull_factors": DEPTH_OUTER_POCKET_PULL_FACTORS,
+			"depth_outer_pocket_horizontal_factors": DEPTH_OUTER_POCKET_HORIZONTAL_FACTORS,
+			"depth_outer_pocket_vertical_factors": DEPTH_OUTER_POCKET_VERTICAL_FACTORS,
+			"depth_sibling_radial_stagger_factors": DEPTH_SIBLING_RADIAL_STAGGER_FACTORS,
+			"depth_top_edge_relief_factors": DEPTH_TOP_EDGE_RELIEF_FACTORS,
 			"clearing_radius_by_node_id": _build_open_clearing_radius_by_node_id(graph_snapshot, board_size),
 		}
 	)
@@ -408,17 +462,24 @@ func _build_visible_edges(layout_edges: Array, visible_nodes: Array[Dictionary],
 				visible_nodes,
 				EDGE_NODE_AVOIDANCE_PADDING
 			)
-			or not MapBoardGeometryScript.polyline_stays_inside_board_frame(edge_points, board_size)
+			or not MapBoardGeometryScript.polyline_stays_inside_rect(edge_points, build_path_safe_rect(board_size), 1.0)
 		):
 			continue
 		var edge_entry: Dictionary = base_edge.duplicate(true)
 		edge_entry["state_semantic"] = _edge_semantic_for(from_node, to_node)
 		edge_entry["is_history"] = not is_local_focus_edge
+		edge_entry["is_local_actionable"] = is_local_focus_edge
+		edge_entry["route_surface_semantic"] = (
+			"local_actionable"
+			if is_local_focus_edge
+			else "history_reconnect" if bool(edge_entry.get("is_reconnect_edge", false))
+			else "history"
+		)
 		if is_local_focus_edge:
 			local_focus_edges.append(edge_entry)
 		else:
 			history_edges.append(edge_entry)
-	var filtered_history_edges: Array[Dictionary] = _filter_non_crossing_history_edges(local_focus_edges, history_edges)
+	var filtered_history_edges: Array[Dictionary] = MapBoardHistoryEdgeFilterScript.filter_non_crossing_history_edges(local_focus_edges, history_edges)
 	return filtered_history_edges + local_focus_edges
 func _build_full_edge_layouts(
 	graph_by_id: Dictionary,
@@ -467,59 +528,6 @@ func _build_full_edge_layouts(
 		return left_key < right_key
 	)
 	return layout_edges
-func _filter_non_crossing_history_edges(
-	local_focus_edges: Array[Dictionary],
-	history_edges: Array[Dictionary]
-) -> Array[Dictionary]:
-	var sorted_history_edges: Array[Dictionary] = history_edges.duplicate(true)
-	sorted_history_edges.sort_custom(func(left_edge: Dictionary, right_edge: Dictionary) -> bool:
-		return MapBoardGeometryScript.compare_visible_edge_priority(left_edge, right_edge)
-	)
-	var filtered_history_edges: Array[Dictionary] = []
-	for edge_entry in sorted_history_edges:
-		var conflicting_history_indexes: Array[int] = MapBoardGeometryScript.conflicting_visible_edge_indexes(edge_entry, filtered_history_edges)
-		if conflicting_history_indexes.is_empty():
-			if MapBoardGeometryScript.visible_edge_crosses_any(edge_entry, local_focus_edges):
-				continue
-			filtered_history_edges.append(edge_entry)
-			continue
-		if bool(edge_entry.get("is_reconnect_edge", false)) or MapBoardGeometryScript.visible_edge_crosses_any(edge_entry, local_focus_edges):
-			continue
-		var can_replace_reconnects: bool = true
-		for edge_index in conflicting_history_indexes:
-			if not bool((filtered_history_edges[edge_index] as Dictionary).get("is_reconnect_edge", false)):
-				can_replace_reconnects = false
-				break
-		if not can_replace_reconnects:
-			continue
-		MapBoardGeometryScript.remove_visible_edges_at_indexes(filtered_history_edges, conflicting_history_indexes)
-		filtered_history_edges.append(edge_entry)
-	var has_same_depth_reconnect: bool = false
-	for edge_entry in filtered_history_edges:
-		if bool(edge_entry.get("is_reconnect_edge", false)) and int(edge_entry.get("depth_delta", 1)) == 0:
-			has_same_depth_reconnect = true
-			break
-	if has_same_depth_reconnect:
-		return filtered_history_edges
-	var accepted_edge_keys: Dictionary = {}
-	for edge_entry in filtered_history_edges:
-		accepted_edge_keys[_edge_key(int(edge_entry.get("from_node_id", -1)), int(edge_entry.get("to_node_id", -1)))] = true
-	for edge_entry in sorted_history_edges:
-		if not bool(edge_entry.get("is_reconnect_edge", false)) or int(edge_entry.get("depth_delta", 1)) != 0:
-			continue
-		var edge_key: String = _edge_key(int(edge_entry.get("from_node_id", -1)), int(edge_entry.get("to_node_id", -1)))
-		if accepted_edge_keys.has(edge_key) or MapBoardGeometryScript.visible_edge_crosses_any(edge_entry, local_focus_edges):
-			continue
-		var conflicting_history_indexes: Array[int] = MapBoardGeometryScript.conflicting_visible_edge_indexes(edge_entry, filtered_history_edges)
-		if not conflicting_history_indexes.is_empty():
-			if filtered_history_edges.size() - conflicting_history_indexes.size() < 2:
-				continue
-			MapBoardGeometryScript.remove_visible_edges_at_indexes(filtered_history_edges, conflicting_history_indexes)
-		filtered_history_edges.append(edge_entry)
-		break
-	return filtered_history_edges
-
-
 func _build_graph_node_entries(graph_snapshot: Array[Dictionary], world_positions: Dictionary, board_size: Vector2) -> Array[Dictionary]:
 	var graph_nodes: Array[Dictionary] = []
 	for node_entry in graph_snapshot:
@@ -530,6 +538,13 @@ func _build_graph_node_entries(graph_snapshot: Array[Dictionary], world_position
 			"clearing_radius": _clearing_radius_for(String(node_entry.get("node_family", "")), "open", board_size),
 	})
 	return graph_nodes
+
+
+func _filter_non_crossing_history_edges(
+	local_focus_edges: Array[Dictionary],
+	history_edges: Array[Dictionary]
+) -> Array[Dictionary]:
+	return MapBoardHistoryEdgeFilterScript.filter_non_crossing_history_edges(local_focus_edges, history_edges)
 
 
 func _build_edge_path_model(
@@ -580,6 +595,7 @@ func _build_edge_path_model(
 		or int(primary_parent_by_node_id.get(to_node_id, MapRuntimeStateScript.NO_PENDING_NODE_ID)) == from_node_id
 	)
 	var is_reconnect_edge: bool = not is_primary_corridor_edge
+	var is_same_depth_reconnect_edge: bool = is_reconnect_edge and abs(from_depth - to_depth) == 0
 	var same_branch: bool = int(branch_root_by_node_id.get(from_node_id, from_node_id)) == int(branch_root_by_node_id.get(to_node_id, to_node_id))
 	var deeper_node_id: int = to_node_id if to_depth >= from_depth else from_node_id
 	var branch_direction: Vector2 = _branch_direction_for_root(layout_context, int(branch_root_by_node_id.get(deeper_node_id, deeper_node_id)))
@@ -648,14 +664,14 @@ func _build_edge_path_model(
 			p1 += wide_offset
 			p2 += wide_offset * 0.98
 		PATH_FAMILY_OUTWARD_RECONNECTING_ARC:
-			tangent_length = clampf(distance * 0.24, 30.0, 110.0)
+			tangent_length = clampf(distance * 0.21, 26.0, 96.0)
 			p1 = p0 + direction_normalized * tangent_length
 			p2 = p3 - direction_normalized * tangent_length
-			var arc_curvature: float = clampf(distance * 0.086 * profile_multiplier, 10.0, 40.0)
-			var arc_outward: float = clampf(distance * 0.14, 18.0, 56.0) + (8.0 if locked_edge else 0.0)
+			var arc_curvature: float = clampf(distance * 0.072 * profile_multiplier, 8.0, 28.0)
+			var arc_outward: float = clampf(distance * 0.102, 14.0, 40.0) + (6.0 if locked_edge else 0.0)
 			var arc_sign: float = _curve_sign_for(_derive_seed(edge_hash, "arc"), normal, outward_direction, true)
-			p1 += outward_direction * arc_outward * 1.14 + normal * arc_curvature * arc_sign * 0.58
-			p2 += outward_direction * arc_outward * 0.92 + normal * arc_curvature * arc_sign * 0.34
+			p1 += outward_direction * arc_outward * 0.92 + normal * arc_curvature * arc_sign * 0.46 + branch_bias * 0.22
+			p2 += outward_direction * arc_outward * 0.80 + normal * arc_curvature * arc_sign * 0.28 + branch_bias * 0.14
 	var points: PackedVector2Array = _sample_cubic_bezier(p0, p1, p2, p3, 16)
 	var avoidance_offset: Vector2 = MapBoardGeometryScript.edge_node_avoidance_offset(
 		points,
@@ -698,12 +714,31 @@ func _build_edge_path_model(
 		avoidance_pass += 1
 	if MapBoardGeometryScript.polyline_hits_other_visible_nodes(points, from_node_id, to_node_id, visible_nodes, EDGE_NODE_AVOIDANCE_PADDING):
 		path_family = PATH_FAMILY_OUTWARD_RECONNECTING_ARC
-		var outward_escape: float = clampf(distance * 0.42, 46.0, 148.0)
-		var fallback_tangent: float = clampf(distance * 0.18, 24.0, 92.0)
-		p1 = p0 + direction_normalized * fallback_tangent + outward_direction * outward_escape
-		p2 = p3 - direction_normalized * fallback_tangent + outward_direction * outward_escape * 0.92
+		var outward_escape: float = clampf(distance * 0.26, 30.0, 94.0)
+		var fallback_tangent: float = clampf(distance * 0.16, 20.0, 70.0)
+		var fallback_curve: float = clampf(distance * 0.10, 12.0, 36.0)
+		var fallback_sign: float = _curve_sign_for(_derive_seed(edge_hash, "fallback-arc"), normal, outward_direction, true)
+		p1 = p0 + direction_normalized * fallback_tangent + outward_direction * outward_escape + normal * fallback_curve * fallback_sign + branch_bias * 0.16
+		p2 = p3 - direction_normalized * fallback_tangent + outward_direction * outward_escape * 0.88 + normal * fallback_curve * fallback_sign * 0.60 + branch_bias * 0.12
 		points = _sample_cubic_bezier(p0, p1, p2, p3, 16)
 		if MapBoardGeometryScript.polyline_hits_other_visible_nodes(points, from_node_id, to_node_id, visible_nodes, EDGE_NODE_AVOIDANCE_PADDING):
+			if is_same_depth_reconnect_edge:
+				var local_fallback_points: PackedVector2Array = _build_same_depth_reconnect_local_fallback_points(
+					p0,
+					p3,
+					visible_nodes,
+					from_node_id,
+					to_node_id,
+					board_size,
+					outward_direction
+				)
+				if not local_fallback_points.is_empty():
+					points = local_fallback_points
+					return {
+						"is_reconnect_edge": is_reconnect_edge,
+						"path_family": path_family,
+						"points": points,
+					}
 			var fallback_points: PackedVector2Array = _build_outer_reconnect_fallback_points(
 				p0,
 				p3,
@@ -713,12 +748,195 @@ func _build_edge_path_model(
 				board_size
 			)
 			if not fallback_points.is_empty():
-				points = fallback_points
+				if is_same_depth_reconnect_edge and not _same_depth_reconnect_points_are_acceptable(fallback_points, p0, p3, board_size):
+					var bounded_fallback_points: PackedVector2Array = _build_same_depth_reconnect_local_fallback_points(
+						p0,
+						p3,
+						visible_nodes,
+						from_node_id,
+						to_node_id,
+						board_size,
+						outward_direction
+					)
+					if not bounded_fallback_points.is_empty():
+						points = bounded_fallback_points
+					else:
+						points = fallback_points
+				else:
+					points = fallback_points
 	return {
 		"is_reconnect_edge": is_reconnect_edge,
 		"path_family": path_family,
 		"points": points,
 	}
+
+
+func _build_same_depth_reconnect_local_fallback_points(
+	p0: Vector2,
+	p3: Vector2,
+	visible_nodes: Array[Dictionary],
+	from_node_id: int,
+	to_node_id: int,
+	board_size: Vector2,
+	outward_direction: Vector2
+) -> PackedVector2Array:
+	var direct_min_x: float = minf(p0.x, p3.x)
+	var direct_max_x: float = maxf(p0.x, p3.x)
+	var direct_min_y: float = minf(p0.y, p3.y)
+	var direct_max_y: float = maxf(p0.y, p3.y)
+	var safe_left: float = SAME_DEPTH_RECONNECT_MIN_EDGE_CLEARANCE
+	var safe_right: float = board_size.x - SAME_DEPTH_RECONNECT_MIN_EDGE_CLEARANCE
+	var safe_top: float = SAME_DEPTH_RECONNECT_MIN_EDGE_CLEARANCE
+	var safe_bottom: float = board_size.y - SAME_DEPTH_RECONNECT_MIN_EDGE_CLEARANCE
+	var preferred_vertical_offset: float = clampf(board_size.y * 0.05, 28.0, 72.0)
+	var preferred_horizontal_offset: float = clampf(board_size.x * 0.05, 28.0, 72.0)
+	var secondary_vertical_offset: float = clampf(preferred_vertical_offset * 0.68, 20.0, preferred_vertical_offset)
+	var secondary_horizontal_offset: float = clampf(preferred_horizontal_offset * 0.68, 20.0, preferred_horizontal_offset)
+	var direct_midpoint: Vector2 = (p0 + p3) * 0.5
+	var horizontal_lanes: Array[float] = []
+	var vertical_lanes: Array[float] = []
+	_append_unique_lane(horizontal_lanes, clampf(direct_min_y - secondary_vertical_offset, safe_top, safe_bottom))
+	_append_unique_lane(horizontal_lanes, clampf(direct_min_y - preferred_vertical_offset, safe_top, safe_bottom))
+	_append_unique_lane(horizontal_lanes, clampf(direct_max_y + secondary_vertical_offset, safe_top, safe_bottom))
+	_append_unique_lane(horizontal_lanes, clampf(direct_max_y + preferred_vertical_offset, safe_top, safe_bottom))
+	_append_unique_lane(horizontal_lanes, clampf(lerpf(p0.y, p3.y, 0.36), safe_top, safe_bottom))
+	_append_unique_lane(horizontal_lanes, clampf(lerpf(p0.y, p3.y, 0.64), safe_top, safe_bottom))
+	_append_unique_lane(horizontal_lanes, clampf(direct_midpoint.y + outward_direction.y * board_size.y * 0.06, safe_top, safe_bottom))
+	_append_unique_lane(vertical_lanes, clampf(direct_min_x - secondary_horizontal_offset, safe_left, safe_right))
+	_append_unique_lane(vertical_lanes, clampf(direct_min_x - preferred_horizontal_offset, safe_left, safe_right))
+	_append_unique_lane(vertical_lanes, clampf(direct_max_x + secondary_horizontal_offset, safe_left, safe_right))
+	_append_unique_lane(vertical_lanes, clampf(direct_max_x + preferred_horizontal_offset, safe_left, safe_right))
+	_append_unique_lane(vertical_lanes, clampf(lerpf(p0.x, p3.x, 0.22), safe_left, safe_right))
+	_append_unique_lane(vertical_lanes, clampf(lerpf(p0.x, p3.x, 0.38), safe_left, safe_right))
+	_append_unique_lane(vertical_lanes, clampf(direct_midpoint.x + outward_direction.x * board_size.x * 0.06, safe_left, safe_right))
+
+	var candidates: Array[Dictionary] = []
+	for lane_y in horizontal_lanes:
+		if absf(lane_y - p0.y) < 18.0 and absf(lane_y - p3.y) < 18.0:
+			continue
+		_append_same_depth_reconnect_candidate(
+			candidates,
+			PackedVector2Array([p0, Vector2(p0.x, lane_y), Vector2(p3.x, lane_y), p3]),
+			visible_nodes,
+			from_node_id,
+			to_node_id,
+			board_size,
+			p0,
+			p3
+		)
+	for lane_x in vertical_lanes:
+		if absf(lane_x - p0.x) < 18.0 and absf(lane_x - p3.x) < 18.0:
+			continue
+		_append_same_depth_reconnect_candidate(
+			candidates,
+			PackedVector2Array([p0, Vector2(lane_x, p0.y), Vector2(lane_x, p3.y), p3]),
+			visible_nodes,
+			from_node_id,
+			to_node_id,
+			board_size,
+			p0,
+			p3
+		)
+	for lane_x in vertical_lanes:
+		for lane_y in horizontal_lanes:
+			_append_same_depth_reconnect_candidate(
+				candidates,
+				PackedVector2Array([p0, Vector2(p0.x, lane_y), Vector2(lane_x, lane_y), Vector2(lane_x, p3.y), p3]),
+				visible_nodes,
+				from_node_id,
+				to_node_id,
+				board_size,
+				p0,
+				p3
+			)
+			_append_same_depth_reconnect_candidate(
+				candidates,
+				PackedVector2Array([p0, Vector2(lane_x, p0.y), Vector2(lane_x, lane_y), Vector2(p3.x, lane_y), p3]),
+				visible_nodes,
+				from_node_id,
+				to_node_id,
+				board_size,
+				p0,
+				p3
+			)
+	if candidates.is_empty():
+		return PackedVector2Array()
+	candidates.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
+		var left_score: float = float(left.get("score", INF))
+		var right_score: float = float(right.get("score", INF))
+		if not is_equal_approx(left_score, right_score):
+			return left_score < right_score
+		return float(left.get("length", INF)) < float(right.get("length", INF))
+	)
+	return PackedVector2Array((candidates[0] as Dictionary).get("points", PackedVector2Array()))
+
+
+func _append_same_depth_reconnect_candidate(
+	candidates: Array[Dictionary],
+	points: PackedVector2Array,
+	visible_nodes: Array[Dictionary],
+	from_node_id: int,
+	to_node_id: int,
+	board_size: Vector2,
+	p0: Vector2,
+	p3: Vector2
+) -> void:
+	if points.size() < 2:
+		return
+	if MapBoardGeometryScript.polyline_hits_other_visible_nodes(
+		points,
+		from_node_id,
+		to_node_id,
+		visible_nodes,
+		EDGE_NODE_AVOIDANCE_PADDING
+	):
+		return
+	if not _same_depth_reconnect_points_are_acceptable(points, p0, p3, board_size):
+		return
+	candidates.append({
+		"points": points,
+		"length": MapBoardGeometryScript.visible_edge_polyline_length({"points": points}),
+		"score": MapBoardEdgeRoutingScript.score_outer_reconnect_candidate(points, p0, p3, board_size),
+	})
+
+
+func _same_depth_reconnect_points_are_acceptable(
+	points: PackedVector2Array,
+	p0: Vector2,
+	p3: Vector2,
+	board_size: Vector2
+) -> bool:
+	if points.size() < 2:
+		return false
+	var direct_distance: float = p0.distance_to(p3)
+	if direct_distance <= 0.001:
+		return false
+	var path_length: float = MapBoardGeometryScript.visible_edge_polyline_length({"points": points})
+	if path_length > direct_distance * SAME_DEPTH_RECONNECT_MAX_RATIO:
+		return false
+	return _minimum_polyline_edge_clearance(points, board_size) >= SAME_DEPTH_RECONNECT_MIN_EDGE_CLEARANCE
+
+
+func _minimum_polyline_edge_clearance(points: PackedVector2Array, board_size: Vector2) -> float:
+	var minimum_clearance: float = INF
+	for point in points:
+		minimum_clearance = minf(
+			minimum_clearance,
+			minf(
+				minf(point.x, board_size.x - point.x),
+				minf(point.y, board_size.y - point.y)
+			)
+		)
+	return minimum_clearance
+
+
+func _append_unique_lane(lanes: Array[float], value: float) -> void:
+	for lane in lanes:
+		if is_equal_approx(float(lane), value) or absf(float(lane) - value) < 14.0:
+			return
+	lanes.append(value)
+
+
 func _resolve_edge_path_family(
 	edge_hash: int,
 	distance_ratio: float,
@@ -736,8 +954,8 @@ func _resolve_edge_path_family(
 		if distance_ratio >= lerpf(0.24, 0.31, seed_bias) or tangential_alignment >= lerpf(0.54, 0.68, seed_bias):
 			return PATH_FAMILY_WIDER_CURVE
 		return PATH_FAMILY_GENTLE_CURVE
-	var straight_distance_cap: float = lerpf(0.194, 0.244, seed_bias)
-	var straight_alignment_floor: float = lerpf(0.68, 0.82, seed_bias)
+	var straight_distance_cap: float = lerpf(0.232, 0.272, seed_bias)
+	var straight_alignment_floor: float = lerpf(0.70, 0.84, seed_bias)
 	if (
 		distance_ratio <= straight_distance_cap
 		and radial_alignment >= straight_alignment_floor
@@ -810,7 +1028,7 @@ func _build_outer_reconnect_fallback_points(
 		from_node_id,
 		to_node_id,
 		board_size,
-		MIN_BOARD_MARGIN,
+		build_playable_margin() + OUTER_RECONNECT_MARGIN_BIAS,
 		EDGE_NODE_AVOIDANCE_PADDING
 	)
 func _edge_semantic_for(from_node: Dictionary, to_node: Dictionary) -> String:
@@ -842,7 +1060,7 @@ func _icon_texture_path_for_family(node_family: String) -> String:
 		"start":
 			return UiAssetPathsScript.START_ICON_TEXTURE_PATH
 		"combat":
-			return UiAssetPathsScript.ATTACK_ICON_TEXTURE_PATH
+			return UiAssetPathsScript.MAP_COMBAT_ICON_TEXTURE_PATH
 		"event":
 			return UiAssetPathsScript.EVENT_ICON_TEXTURE_PATH
 		"reward":
@@ -856,9 +1074,9 @@ func _icon_texture_path_for_family(node_family: String) -> String:
 		"blacksmith":
 			return UiAssetPathsScript.BLACKSMITH_ICON_TEXTURE_PATH
 		"key":
-			return UiAssetPathsScript.KEY_ICON_TEXTURE_PATH
+			return UiAssetPathsScript.MAP_KEY_ICON_TEXTURE_PATH
 		"boss":
-			return UiAssetPathsScript.BOSS_ICON_TEXTURE_PATH
+			return UiAssetPathsScript.MAP_BOSS_ICON_TEXTURE_PATH
 		_:
 			return ""
 

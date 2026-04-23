@@ -30,6 +30,7 @@ This file locks the technical baseline that should not stay ambiguous.
 - Keep Godot closed while broad external patch sets are being applied.
 - Do not run smoke or scene-isolation helpers while another Godot editor or headless process is already open.
 - Prefer the repo-local safe launchers and runners so global editor state does not pollute this project.
+- Current Windows smoke helper may reap stale repo-local Godot helper processes after a bounded shutdown wait; it is not permission to keep an external editor open while running repo helpers.
 - Treat `.godot/` and `_godot_profile/` as disposable cache/runtime state, not source of truth.
 - If editor behavior becomes inconsistent:
   1. close all Godot processes
@@ -45,8 +46,11 @@ This file locks the technical baseline that should not stay ambiguous.
 - macOS/Linux asset validator: `python3 Tools/validate_assets.py`
 - Windows architecture guard validator: `py -3 Tools/validate_architecture_guards.py`
 - macOS/Linux architecture guard validator: `python3 Tools/validate_architecture_guards.py`
-  - current guard scope: no new in-repo `dispatch()` callers, no new runtime-side `RunState` compatibility reads, no new test-side inventory compatibility reads, no new runtime-side `current_node_index` creep outside explicit compatibility files, no new scene/UI direct gameplay-truth mutation creep, no new combat inventory slot-id compatibility bridge spread, no new stale `RunSummaryCard` tree-scan workaround growth, no new Application/Infrastructure presentation-node coupling, no new hotspot large-file line-count creep on the current extraction-first slices including locked test/tool hotspots, no stale wrapper regression, no implemented command/event catalog drift, no `NodeResolve` live generic-fallback contract drift across authority docs and coordinator wiring, no typed-owner reflection regression on the current locked low-risk slices, no new test-side private owner-call spread outside explicit grandfathered lanes, no new `AppBootstrap` / `RunSessionCoordinator` public-surface growth, no new `/root/AppBootstrap` lookup spread, and no retired stage-1 boss surface regressions outside explicit planning/history docs
+  - semantic hard-fail guards cover boundary drift such as owner/truth/coupling regressions, compatibility creep, facade/public-surface widening, live contract drift, and catalog or legacy-surface regressions
+  - ergonomic warnings cover hotspot file growth and active workflow-doc ballast; those are repo maintainability signals, not gameplay authority
 - Windows playtest export: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/export_windows_playtest.ps1`
+- playtest session JSONL capture is opt-in via `--playtest-log`; do not treat generic debug/editor/test runs as playtest telemetry by default
+- explicit playtest telemetry sessions append a `session_start` header and stable `session_id` so one JSONL file can contain multiple separable sessions without pretending to be one run
 - Windows portrait screenshot review capture: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_portrait_review_capture.ps1`
 - Windows local cache/build cleanup: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/clean_local_artifacts.ps1`
 - Windows bounded regression runner (default bounded subset only): `Tools/run_godot_tests.ps1` or `Tools/run_godot_tests.cmd`

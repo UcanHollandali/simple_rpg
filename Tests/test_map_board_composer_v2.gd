@@ -3,8 +3,10 @@ extends SceneTree
 class_name TestMapBoardComposerV2
 
 const MapBoardComposerV2Script = preload("res://Game/UI/map_board_composer_v2.gd")
+const MapBoardBackdropBuilderScript = preload("res://Game/UI/map_board_backdrop_builder.gd")
 const MapBoardEdgeRoutingScript = preload("res://Game/UI/map_board_edge_routing.gd")
 const MapBoardFillerBuilderScript = preload("res://Game/UI/map_board_filler_builder.gd")
+const MapBoardGeometryScript = preload("res://Game/UI/map_board_geometry.gd")
 const ALLOWED_PATH_FAMILIES := [
 	"short_straight",
 	"gentle_curve",
@@ -18,16 +20,24 @@ func _init() -> void:
 	test_map_board_composer_assigns_deterministic_path_families()
 	test_map_board_composer_survives_save_restore_without_layout_fields()
 	test_map_board_composer_uses_run_seed_for_controlled_random_variation()
-	test_map_board_composer_keeps_opening_anchor_near_vertical_center()
-	test_map_board_composer_rotates_opening_shell_beyond_the_upper_half()
-	test_map_board_composer_uses_lower_board_height_in_late_routes()
+	test_map_board_composer_keeps_opening_anchor_center_local_on_fixed_board()
+	test_map_board_composer_spreads_opening_shell_across_a_readable_upper_fan()
+	test_map_board_composer_uses_the_mid_and_upper_portrait_band_in_late_routes()
+	test_map_board_composer_materially_uses_the_lower_portrait_band_in_late_routes()
+	test_map_board_composer_keeps_late_routes_off_the_top_edge_knot()
+	test_map_board_composer_separates_late_route_adjacent_choices_into_distinct_lanes()
+	test_map_board_composer_spreads_late_routes_across_distinct_cardinal_sectors()
 	test_map_board_composer_surfaces_known_icons_for_seen_non_adjacent_nodes()
 	test_map_board_composer_surfaces_known_icons_for_current_and_adjacent_nodes()
 	test_map_board_composer_surfaces_side_quest_highlights()
+	test_map_board_composer_exposes_fixed_board_safe_bounds_contract()
 	test_map_board_composer_keeps_visible_nodes_portrait_safe_without_overlap()
 	test_map_board_composer_emits_deterministic_ground_shapes()
 	test_map_board_composer_emits_deterministic_filler_shapes()
 	test_map_board_composer_emits_deterministic_forest_shapes()
+	test_map_board_composer_centers_ground_bed_on_layout_action_bounds()
+	test_map_board_composer_tames_corridor_ground_bed_footprint()
+	test_map_board_composer_keeps_forest_shapes_clear_of_route_action_pocket()
 	test_map_board_composer_keeps_layout_backdrop_stable_across_progression()
 	test_map_board_composer_keeps_full_edge_layout_stable_across_progression()
 	test_map_board_composer_does_not_scale_current_nodes()
@@ -38,7 +48,9 @@ func _init() -> void:
 	test_map_board_composer_penalizes_edge_hugging_outer_reconnect_fallbacks()
 	test_map_board_composer_keeps_outer_reconnect_fallbacks_inside_the_inner_frame()
 	test_map_board_composer_keeps_discovered_history_edges_visible()
+	test_map_board_composer_exposes_route_surface_semantics_for_visible_edges()
 	test_map_board_composer_keeps_one_visible_outer_reconnect_in_late_route_history()
+	test_map_board_composer_limits_same_depth_reconnect_detours_on_fixed_board()
 	test_map_board_composer_prefers_non_reconnect_history_when_crossing_reconnect_conflicts()
 	print("test_map_board_composer_v2: all assertions passed")
 	quit()
@@ -184,7 +196,7 @@ func test_map_board_composer_survives_save_restore_without_layout_fields() -> vo
 	)
 
 
-func test_map_board_composer_keeps_opening_anchor_near_vertical_center() -> void:
+func test_map_board_composer_keeps_opening_anchor_center_local_on_fixed_board() -> void:
 	var composer: RefCounted = MapBoardComposerV2Script.new()
 	var run_state: RunState = RunState.new()
 	run_state.reset_for_new_run()
@@ -195,8 +207,12 @@ func test_map_board_composer_keeps_opening_anchor_near_vertical_center() -> void
 	var start_position: Vector2 = world_positions.get(0, Vector2.ZERO)
 	assert(start_position != Vector2.ZERO, "Expected the opening anchor node to keep a composed world position.")
 	assert(
-		start_position.y >= board_size.y * 0.57 and start_position.y <= board_size.y * 0.64,
-		"Expected the opening anchor node to stay near the portrait board's vertical center instead of drifting too far upward or downward."
+		start_position.x >= board_size.x * 0.46 and start_position.x <= board_size.x * 0.54,
+		"Expected the fixed-board opening anchor to stay horizontally center-local instead of drifting into a side pocket."
+	)
+	assert(
+		start_position.y >= board_size.y * 0.54 and start_position.y <= board_size.y * 0.64,
+		"Expected the fixed-board opening anchor to stay center-local instead of sliding too low on the portrait board."
 	)
 
 
@@ -217,10 +233,9 @@ func test_map_board_composer_uses_run_seed_for_controlled_random_variation() -> 
 	)
 
 
-func test_map_board_composer_rotates_opening_shell_beyond_the_upper_half() -> void:
+func test_map_board_composer_spreads_opening_shell_across_a_readable_upper_fan() -> void:
 	var composer: RefCounted = MapBoardComposerV2Script.new()
 	var observed_above: bool = false
-	var observed_below: bool = false
 	var observed_left: bool = false
 	var observed_right: bool = false
 	for seed in range(1, 13):
@@ -236,19 +251,18 @@ func test_map_board_composer_rotates_opening_shell_beyond_the_upper_half() -> vo
 				continue
 			var offset: Vector2 = branch_position - start_position
 			observed_above = observed_above or offset.y < -24.0
-			observed_below = observed_below or offset.y > 24.0
 			observed_left = observed_left or offset.x < -24.0
 			observed_right = observed_right or offset.x > 24.0
-		if observed_above and observed_below and observed_left and observed_right:
+		if observed_above and observed_left and observed_right:
 			break
-	assert(observed_above, "Expected some seeded opening-shell branches to remain above the start anchor.")
-	assert(observed_below, "Expected seeded opening-shell branches to sometimes rotate below the start anchor instead of always clustering upward.")
-	assert(observed_left and observed_right, "Expected seeded opening-shell branches to span both left and right sides around the start anchor.")
+	assert(observed_above, "Expected seeded opening-shell branches to keep a readable upward fan off the fixed-board anchor.")
+	assert(observed_left and observed_right, "Expected seeded opening-shell branches to span both left and right sides around the fixed-board anchor.")
 
 
-func test_map_board_composer_uses_lower_board_height_in_late_routes() -> void:
+func test_map_board_composer_uses_the_mid_and_upper_portrait_band_in_late_routes() -> void:
 	var composer: RefCounted = MapBoardComposerV2Script.new()
 	var board_size := Vector2(920, 1180)
+	var playable_rect: Rect2 = MapBoardComposerV2Script.build_playable_rect(board_size)
 	for seed in [11, 29, 41]:
 		var run_state: RunState = RunState.new()
 		run_state.reset_for_new_run()
@@ -257,12 +271,145 @@ func test_map_board_composer_uses_lower_board_height_in_late_routes() -> void:
 		var composition: Dictionary = composer.call("compose", run_state, board_size, Vector2(0.5, 0.58), Vector2(148, 212))
 		var visible_bounds: Rect2 = _visible_node_bounds(composition)
 		assert(
-			visible_bounds.end.y >= board_size.y * 0.80,
-			"Expected progressed node scatter to keep using the lower portrait board instead of collapsing into mostly upper / lateral lanes. Seed=%d bounds=%s." % [seed, str(visible_bounds)]
+			visible_bounds.position.y <= playable_rect.position.y + playable_rect.size.y * 0.22,
+			"Expected late-route board scatter to reach the upper playable band instead of collapsing into mostly lower lanes. Seed=%d bounds=%s." % [seed, str(visible_bounds)]
 		)
 		assert(
-			visible_bounds.size.y >= board_size.y * 0.25,
-			"Expected progressed node scatter to preserve a meaningful vertical footprint after footprint widening. Seed=%d bounds=%s." % [seed, str(visible_bounds)]
+			visible_bounds.end.y >= playable_rect.position.y + playable_rect.size.y * 0.70,
+			"Expected late-route board scatter to keep a grounded lower read while still using the upper portrait band. Seed=%d bounds=%s." % [seed, str(visible_bounds)]
+		)
+		assert(
+			visible_bounds.size.y >= playable_rect.size.y * 0.64,
+			"Expected progressed node scatter to preserve a tall portrait footprint after layout convergence. Seed=%d bounds=%s." % [seed, str(visible_bounds)]
+		)
+
+
+func test_map_board_composer_materially_uses_the_lower_portrait_band_in_late_routes() -> void:
+	var composer: RefCounted = MapBoardComposerV2Script.new()
+	var board_size := Vector2(920, 1180)
+	var playable_rect: Rect2 = MapBoardComposerV2Script.build_playable_rect(board_size)
+	for seed in [11, 29, 41]:
+		var run_state: RunState = RunState.new()
+		run_state.reset_for_new_run()
+		run_state.configure_run_seed(seed)
+		_advance_visible_branch(run_state, 5)
+		var composition: Dictionary = composer.call("compose", run_state, board_size, Vector2(0.5, 0.58), Vector2(148, 212))
+		var lower_band_floor: float = playable_rect.position.y + playable_rect.size.y * 0.66
+		var lower_band_visible_count: int = 0
+		for node_variant in composition.get("visible_nodes", []):
+			if typeof(node_variant) != TYPE_DICTIONARY:
+				continue
+			var position: Vector2 = Vector2((node_variant as Dictionary).get("world_position", Vector2.ZERO))
+			if position.y >= lower_band_floor:
+				lower_band_visible_count += 1
+		assert(
+			lower_band_visible_count >= 2,
+			"Expected late-route layout to keep at least two visible nodes materially inside the lower portrait band so the board does not read as a top-only cluster. Seed=%d lower_band_visible_count=%d." % [seed, lower_band_visible_count]
+		)
+
+
+func test_map_board_composer_keeps_late_routes_off_the_top_edge_knot() -> void:
+	var composer: RefCounted = MapBoardComposerV2Script.new()
+	var board_size := Vector2(920, 1180)
+	var playable_rect: Rect2 = MapBoardComposerV2Script.build_playable_rect(board_size)
+	var top_edge_band_y: float = playable_rect.position.y + 24.0
+	for seed in [11, 29, 41]:
+		var run_state: RunState = RunState.new()
+		run_state.reset_for_new_run()
+		run_state.configure_run_seed(seed)
+		_advance_visible_branch(run_state, 5)
+		var composition: Dictionary = composer.call("compose", run_state, board_size, Vector2(0.5, 0.58), Vector2(148, 212))
+		var world_positions: Dictionary = composition.get("world_positions", {})
+		var depth_by_node_id: Dictionary = _build_depth_by_node_id_from_snapshot(run_state.map_runtime_state.build_realized_graph_snapshots())
+		var top_edge_count: int = 0
+		for node_variant in composition.get("visible_nodes", []):
+			if typeof(node_variant) != TYPE_DICTIONARY:
+				continue
+			var node_entry: Dictionary = node_variant
+			var node_id: int = int(node_entry.get("node_id", -1))
+			if int(depth_by_node_id.get(node_id, 0)) <= 2:
+				continue
+			var position: Vector2 = world_positions.get(node_id, Vector2.ZERO)
+			if position.y <= top_edge_band_y:
+				top_edge_count += 1
+		assert(
+			top_edge_count <= 1,
+			"Expected late-route layout to avoid collapsing multiple deeper nodes into one top-edge knot. Seed=%d top_edge_count=%d." % [seed, top_edge_count]
+		)
+
+
+func test_map_board_composer_separates_late_route_adjacent_choices_into_distinct_lanes() -> void:
+	var composer: RefCounted = MapBoardComposerV2Script.new()
+	var board_size := Vector2(920, 1180)
+	for seed in [11, 29, 41]:
+		var run_state: RunState = RunState.new()
+		run_state.reset_for_new_run()
+		run_state.configure_run_seed(seed)
+		_advance_visible_branch(run_state, 5)
+		var composition: Dictionary = composer.call("compose", run_state, board_size, Vector2(0.5, 0.58), Vector2(148, 212))
+		var world_positions: Dictionary = composition.get("world_positions", {})
+		var current_node_id: int = int(run_state.map_runtime_state.current_node_id)
+		var current_position: Vector2 = world_positions.get(current_node_id, Vector2.ZERO)
+		var adjacent_angles: Array[float] = []
+		for adjacent_node_id in run_state.map_runtime_state.get_adjacent_node_ids():
+			if String(run_state.map_runtime_state.get_node_state(int(adjacent_node_id))) == "resolved":
+				continue
+			var target_position: Vector2 = world_positions.get(int(adjacent_node_id), Vector2.ZERO)
+			if target_position == Vector2.ZERO or target_position == current_position:
+				continue
+			var delta: Vector2 = target_position - current_position
+			adjacent_angles.append(_normalize_angle_degrees(rad_to_deg(atan2(delta.y, delta.x))))
+		if adjacent_angles.size() < 2:
+			continue
+		adjacent_angles.sort()
+		var minimum_gap: float = _minimum_sorted_angle_gap_degrees(adjacent_angles)
+		assert(
+			minimum_gap >= 22.0,
+			"Expected late-route adjacent choices to separate into distinct board lanes instead of one stacked visual corridor. Seed=%d min_gap=%.2f." % [seed, minimum_gap]
+		)
+
+
+func test_map_board_composer_spreads_late_routes_across_distinct_cardinal_sectors() -> void:
+	var composer: RefCounted = MapBoardComposerV2Script.new()
+	var board_size := Vector2(920, 1180)
+	var sector_threshold_x: float = board_size.x * 0.08
+	var sector_threshold_y: float = board_size.y * 0.07
+	for seed in [11, 29, 41]:
+		var run_state: RunState = RunState.new()
+		run_state.reset_for_new_run()
+		run_state.configure_run_seed(seed)
+		_advance_visible_branch(run_state, 5)
+		var composition: Dictionary = composer.call("compose", run_state, board_size, Vector2(0.5, 0.58), Vector2(148, 212))
+		var world_positions: Dictionary = composition.get("world_positions", {})
+		var start_position: Vector2 = world_positions.get(0, Vector2.ZERO)
+		var occupied_sectors: Dictionary = {}
+		for node_variant in composition.get("visible_nodes", []):
+			if typeof(node_variant) != TYPE_DICTIONARY:
+				continue
+			var node_entry: Dictionary = node_variant
+			var node_id: int = int(node_entry.get("node_id", -1))
+			if node_id == 0:
+				continue
+			var position: Vector2 = world_positions.get(node_id, Vector2.ZERO)
+			if position == Vector2.ZERO:
+				continue
+			var delta: Vector2 = position - start_position
+			if absf(delta.x) < sector_threshold_x and absf(delta.y) < sector_threshold_y:
+				continue
+			var horizontal_label: String = "center"
+			if delta.x <= -sector_threshold_x:
+				horizontal_label = "left"
+			elif delta.x >= sector_threshold_x:
+				horizontal_label = "right"
+			var vertical_label: String = "mid"
+			if delta.y <= -sector_threshold_y:
+				vertical_label = "upper"
+			elif delta.y >= sector_threshold_y:
+				vertical_label = "lower"
+			occupied_sectors["%s_%s" % [horizontal_label, vertical_label]] = true
+		assert(
+			occupied_sectors.size() >= 4,
+			"Expected late-route board layout to occupy at least four distinct directional sectors so the footprint reads as a whole tabletop world. Seed=%d sectors=%s." % [seed, JSON.stringify(occupied_sectors.keys())]
 		)
 
 
@@ -426,6 +573,7 @@ func test_map_board_composer_keeps_visible_nodes_portrait_safe_without_overlap()
 	run_state.configure_run_seed(29)
 	_advance_visible_branch(run_state, 4)
 	var board_size := Vector2(920, 1180)
+	var playable_rect: Rect2 = MapBoardComposerV2Script.build_playable_rect(board_size)
 	var composition: Dictionary = composer.call("compose", run_state, board_size, Vector2(0.5, 0.58), Vector2(148, 212))
 	var world_positions: Dictionary = composition.get("world_positions", {})
 	for node_variant in composition.get("visible_nodes", []):
@@ -436,11 +584,11 @@ func test_map_board_composer_keeps_visible_nodes_portrait_safe_without_overlap()
 		var position: Vector2 = world_positions.get(node_id, Vector2.ZERO)
 		assert(position != Vector2.ZERO, "Expected every visible node to have a non-zero world position.")
 		assert(
-			position.x >= MapBoardComposerV2Script.MIN_BOARD_MARGIN.x and position.x <= board_size.x - MapBoardComposerV2Script.MIN_BOARD_MARGIN.x,
+			position.x >= playable_rect.position.x and position.x <= playable_rect.end.x,
 			"Expected visible node placement to stay inside portrait-safe horizontal margins."
 		)
 		assert(
-			position.y >= MapBoardComposerV2Script.MIN_BOARD_MARGIN.y and position.y <= board_size.y - MapBoardComposerV2Script.MIN_BOARD_MARGIN.y,
+			position.y >= playable_rect.position.y and position.y <= playable_rect.end.y,
 			"Expected visible node placement to stay inside portrait-safe vertical margins."
 		)
 	assert(
@@ -528,8 +676,13 @@ func test_map_board_composer_emits_deterministic_filler_shapes() -> void:
 	var composition_b: Dictionary = composer.call("compose", run_state, Vector2(920, 1180), Vector2(0.5, 0.58), Vector2(148, 212))
 	var filler_shapes_a: Array = composition_a.get("filler_shapes", [])
 	var filler_shapes_b: Array = composition_b.get("filler_shapes", [])
+	var ground_shapes: Array = composition_a.get("ground_shapes", [])
 	assert(filler_shapes_a.size() == filler_shapes_b.size(), "Expected repeated compose calls to emit the same number of filler shapes.")
 	assert(not filler_shapes_a.is_empty(), "Expected composed boards to emit a sparse deterministic filler/landmark payload.")
+	assert(not ground_shapes.is_empty(), "Expected ground shapes before checking filler negative-space restraint.")
+	var bed_shape: Dictionary = ground_shapes[0]
+	var bed_center: Vector2 = Vector2(bed_shape.get("center", Vector2.ZERO))
+	var bed_half_size: Vector2 = Vector2(bed_shape.get("half_size", Vector2.ZERO))
 	assert(
 		filler_shapes_a.size() <= MapBoardFillerBuilderScript.max_fillers_for_profile(String(composition_a.get("template_profile", "corridor"))),
 		"Expected filler payload to stay within the auditable sparse-density cap for the active board profile."
@@ -543,19 +696,131 @@ func test_map_board_composer_emits_deterministic_filler_shapes() -> void:
 		assert(shape_a.get("rotation_degrees", 0.0) == shape_b.get("rotation_degrees", -999.0), "Expected filler shape rotation metadata to stay deterministic.")
 		assert(shape_a.get("tone_shift", 0.0) == shape_b.get("tone_shift", 1.0), "Expected filler tone variation to stay deterministic.")
 		assert(shape_a.get("alpha_scale", 0.0) == shape_b.get("alpha_scale", -1.0), "Expected filler alpha variation to stay deterministic.")
+		assert(shape_a.get("texture_path", "") == shape_b.get("texture_path", ""), "Expected filler texture hookup to stay deterministic.")
+		assert(shape_a.get("texture_scale", 0.0) == shape_b.get("texture_scale", -1.0), "Expected filler texture scale metadata to stay deterministic.")
 		assert(not shape_a.has("node_family"), "Expected filler payload to stay free of node-family semantics.")
 		assert(not shape_a.has("adjacent_node_ids"), "Expected filler payload to stay free of route-logic semantics.")
+		assert(not String(shape_a.get("texture_path", "")).is_empty(), "Expected every filler shape family to expose a stable runtime texture path after the map-only asset hookup.")
 		var half_size: Vector2 = Vector2(shape_a.get("half_size", Vector2.ZERO))
 		var filler_center: Vector2 = Vector2(shape_a.get("center", Vector2.ZERO))
-		var nearest_node_clearance: float = _nearest_filler_node_clearance(filler_center, half_size, composition_a)
+		var family: String = String(shape_a.get("family", "rock"))
+		var nearest_node_clearance: float = _nearest_filler_node_clearance(filler_center, half_size, family, composition_a)
 		assert(
 			nearest_node_clearance >= 0.0,
-			"Expected filler shapes to respect the explicit node-exclusion contract."
+			"Expected filler shapes to respect the explicit textured node-exclusion contract."
 		)
-		var nearest_route_clearance: float = _nearest_filler_route_clearance(filler_center, half_size, composition_a)
+		var nearest_route_clearance: float = _nearest_filler_route_clearance(filler_center, half_size, family, composition_a)
 		assert(
 			nearest_route_clearance >= 0.0,
-			"Expected filler shapes to stay outside the explicit route-exclusion contract."
+			"Expected filler shapes to stay outside the explicit textured route-exclusion contract."
+		)
+		var filler_footprint: Vector2 = MapBoardFillerBuilderScript.footprint_half_size(half_size, family)
+		assert(
+			not _ellipse_contains_point(
+				filler_center,
+				bed_center,
+				Vector2(
+					bed_half_size.x + filler_footprint.x * 0.26,
+					bed_half_size.y + filler_footprint.y * 0.22
+				)
+			),
+			"Expected filler shapes to stay in negative space outside the main ground bed instead of reading like props pasted onto the central slab."
+		)
+
+
+func test_map_board_composer_centers_ground_bed_on_layout_action_bounds() -> void:
+	var composer: RefCounted = MapBoardComposerV2Script.new()
+	var run_state: RunState = RunState.new()
+	run_state.reset_for_new_run()
+	run_state.configure_run_seed(29)
+	_advance_visible_branch(run_state, 4)
+	var board_size := Vector2(920, 1180)
+	var composition: Dictionary = composer.call("compose", run_state, board_size, Vector2(0.5, 0.58), Vector2(148, 212))
+	var ground_shapes: Array = composition.get("ground_shapes", [])
+	assert(not ground_shapes.is_empty(), "Expected ground composition before checking action-bounds alignment.")
+	var bed_shape: Dictionary = ground_shapes[0]
+	var action_bounds: Rect2 = _action_bounds_from_composition(composition)
+	var action_center: Vector2 = action_bounds.position + action_bounds.size * 0.5
+	assert(
+		Vector2(bed_shape.get("center", Vector2.ZERO)).distance_to(action_center) <= 104.0,
+		"Expected the main ground bed to track the frozen node/path action bounds instead of drifting away from the playable board pocket."
+	)
+
+
+func test_map_board_composer_tames_corridor_ground_bed_footprint() -> void:
+	var composer: RefCounted = MapBoardComposerV2Script.new()
+	var board_size := Vector2(920, 1180)
+	for seed in [11, 29, 41]:
+		var run_state: RunState = RunState.new()
+		run_state.reset_for_new_run()
+		run_state.configure_run_seed(seed)
+		_advance_visible_branch(run_state, 4)
+		var composition: Dictionary = composer.call("compose", run_state, board_size, Vector2(0.5, 0.58), Vector2(148, 212))
+		assert(
+			String(composition.get("template_profile", "")) == "corridor",
+			"Expected this regression sweep to stay on the corridor profile seeds it was curated from."
+		)
+		var ground_shapes: Array = composition.get("ground_shapes", [])
+		assert(not ground_shapes.is_empty(), "Expected ground shapes before corridor bed tuning checks.")
+		var bed_shape: Dictionary = ground_shapes[0]
+		var bed_center: Vector2 = Vector2(bed_shape.get("center", Vector2.ZERO))
+		var bed_half_size: Vector2 = Vector2(bed_shape.get("half_size", Vector2.ZERO))
+		assert(
+			bed_half_size.x * 2.0 <= board_size.x * 0.72,
+			"Expected corridor ground beds to stay off the broad full-board mass look in late seeds. Seed=%d half_size=%s." % [seed, str(bed_half_size)]
+		)
+		assert(
+			bed_half_size.y * 2.0 <= board_size.y * 0.37,
+			"Expected corridor ground beds to avoid the older tall dark slab look in late seeds. Seed=%d half_size=%s." % [seed, str(bed_half_size)]
+		)
+		assert(
+			float(bed_shape.get("alpha_scale", 1.0)) <= 0.72,
+			"Expected corridor ground beds to keep a lighter alpha scale than the older heavier board-center mass. Seed=%d alpha=%.2f." % [seed, float(bed_shape.get("alpha_scale", 1.0))]
+		)
+		for shape_index in range(1, ground_shapes.size()):
+			var shape_entry: Dictionary = ground_shapes[shape_index]
+			var shape_center: Vector2 = Vector2(shape_entry.get("center", Vector2.ZERO))
+			assert(
+				absf(shape_center.x - bed_center.x) <= bed_half_size.x * 1.18
+					and absf(shape_center.y - bed_center.y) <= bed_half_size.y * 1.24,
+				"Expected corridor ground breakup patches to stay tied to the action bed instead of spreading into a broad board-center blob. Seed=%d shape=%s." % [seed, JSON.stringify(shape_entry)]
+			)
+
+
+func test_map_board_composer_keeps_forest_shapes_clear_of_route_action_pocket() -> void:
+	var composer: RefCounted = MapBoardComposerV2Script.new()
+	var run_state: RunState = RunState.new()
+	run_state.reset_for_new_run()
+	run_state.configure_run_seed(41)
+	_advance_visible_branch(run_state, 4)
+	var board_size := Vector2(920, 1180)
+	var composition: Dictionary = composer.call("compose", run_state, board_size, Vector2(0.5, 0.58), Vector2(148, 212))
+	var graph_snapshot: Array[Dictionary] = run_state.map_runtime_state.build_realized_graph_snapshots()
+	var world_positions: Dictionary = composition.get("world_positions", {})
+	for shape_variant in composition.get("forest_shapes", []):
+		if typeof(shape_variant) != TYPE_DICTIONARY:
+			continue
+		var shape: Dictionary = shape_variant
+		var center: Vector2 = Vector2(shape.get("center", Vector2.ZERO))
+		var radius: float = float(shape.get("radius", 0.0))
+		var family: String = String(shape.get("family", "decor"))
+		var nearest_node_clearance: float = INF
+		for node_entry in graph_snapshot:
+			var node_id: int = int(node_entry.get("node_id", -1))
+			var node_position: Vector2 = Vector2(world_positions.get(node_id, Vector2.ZERO))
+			if node_position == Vector2.ZERO:
+				continue
+			var node_radius: float = float(composer.call("build_clearing_radius", String(node_entry.get("node_family", "")), "open", board_size))
+			var required_node_clearance: float = MapBoardBackdropBuilderScript.node_clearance_radius(node_radius, radius, family)
+			nearest_node_clearance = min(nearest_node_clearance, center.distance_to(node_position) - required_node_clearance)
+		assert(
+			nearest_node_clearance >= 0.0,
+			"Expected %s world-fill shapes to stay out of node clearings after textured layout convergence." % family
+		)
+		var nearest_route_clearance: float = _nearest_forest_route_clearance(center, radius, family, composition)
+		assert(
+			nearest_route_clearance >= 0.0,
+			"Expected %s world-fill shapes to stay outside the frozen route pocket after textured layout convergence." % family
 		)
 
 
@@ -688,6 +953,7 @@ func test_map_board_composer_keeps_visible_edges_clear_of_other_node_clearings()
 func test_map_board_composer_keeps_visible_edges_inside_board_frame() -> void:
 	var composer: RefCounted = MapBoardComposerV2Script.new()
 	var board_size := Vector2(920, 1180)
+	var path_safe_rect: Rect2 = MapBoardComposerV2Script.build_path_safe_rect(board_size)
 	for seed in [11, 29, 41]:
 		var run_state: RunState = RunState.new()
 		run_state.reset_for_new_run()
@@ -699,15 +965,48 @@ func test_map_board_composer_keeps_visible_edges_inside_board_frame() -> void:
 				continue
 			var edge_entry: Dictionary = edge_variant
 			var points: PackedVector2Array = edge_entry.get("points", PackedVector2Array())
-			for point in points:
-				assert(
-					point.x >= -12.0 and point.x <= board_size.x + 12.0 and point.y >= -12.0 and point.y <= board_size.y + 12.0,
-					"Expected composed road fallback points to stay inside the compact board frame instead of jumping to far offscreen lanes. Seed=%d edge=%s point=%s." % [
-						seed,
-						JSON.stringify([int(edge_entry.get("from_node_id", -1)), int(edge_entry.get("to_node_id", -1))]),
-						str(point),
-					]
-				)
+			assert(
+				MapBoardGeometryScript.polyline_stays_inside_rect(points, path_safe_rect, 1.0),
+				"Expected composed road geometry to stay inside the fixed-board safe path rect instead of leaning on off-frame rescue lanes. Seed=%d edge=%s." % [
+					seed,
+					JSON.stringify([int(edge_entry.get("from_node_id", -1)), int(edge_entry.get("to_node_id", -1))]),
+				]
+			)
+
+
+func test_map_board_composer_exposes_fixed_board_safe_bounds_contract() -> void:
+	var board_size := Vector2(920.0, 1180.0)
+	var playable_rect: Rect2 = MapBoardComposerV2Script.build_playable_rect(board_size)
+	var path_safe_rect: Rect2 = MapBoardComposerV2Script.build_path_safe_rect(board_size)
+	var playable_margin: Vector2 = MapBoardComposerV2Script.build_playable_margin()
+	assert(
+		is_equal_approx(playable_margin.x, MapBoardComposerV2Script.MIN_BOARD_MARGIN.x)
+		and is_equal_approx(playable_margin.y, MapBoardComposerV2Script.MIN_BOARD_MARGIN.y),
+		"Expected the fixed-board playable margin helper to preserve the checked-in node-center envelope."
+	)
+	assert(
+		playable_rect.position == playable_margin and playable_rect.end == board_size - playable_margin,
+		"Expected the fixed-board playable rect to be derived directly from the explicit safe margin contract."
+	)
+	assert(
+		playable_margin.x >= MapBoardComposerV2Script.MAX_NODE_CLEARING_RADIUS + MapBoardComposerV2Script.OVERLAY_CLEARANCE.x
+		and playable_margin.y >= MapBoardComposerV2Script.MAX_NODE_CLEARING_RADIUS + MapBoardComposerV2Script.OVERLAY_CLEARANCE.y,
+		"Expected the playable rect to reserve explicit node plus overlay clearance instead of leaving it implicit."
+	)
+	assert(
+		path_safe_rect.position.x >= MapBoardComposerV2Script.PATH_STROKE_CLEARANCE
+		and path_safe_rect.position.y >= MapBoardComposerV2Script.PATH_STROKE_CLEARANCE,
+		"Expected the path-safe rect to reserve explicit trail stroke clearance at the board edge."
+	)
+	assert(
+		path_safe_rect.position.x >= MapBoardComposerV2Script.WALKER_FOOTPRINT_CLEARANCE * 0.5
+		and path_safe_rect.position.y >= MapBoardComposerV2Script.WALKER_FOOTPRINT_CLEARANCE * 0.5,
+		"Expected the path-safe rect to reserve walker footprint clearance at the board edge."
+	)
+	assert(
+		playable_rect.position.x > path_safe_rect.position.x and playable_rect.position.y > path_safe_rect.position.y,
+		"Expected node-center placement to stay inside a stricter safe envelope than the routed trail footprint."
+	)
 
 
 func test_map_board_composer_exposes_public_clearing_radius_helper() -> void:
@@ -796,6 +1095,47 @@ func test_map_board_composer_keeps_discovered_history_edges_visible() -> void:
 		assert(local_edge_count > 0, "Expected progressed map views to keep immediate actionable roads visible.")
 
 
+func test_map_board_composer_exposes_route_surface_semantics_for_visible_edges() -> void:
+	var composer: RefCounted = MapBoardComposerV2Script.new()
+	for seed in [11, 29, 41]:
+		var run_state: RunState = RunState.new()
+		run_state.reset_for_new_run()
+		run_state.configure_run_seed(seed)
+		_advance_visible_branch(run_state, 5)
+		var composition: Dictionary = composer.call("compose", run_state, Vector2(920, 1180), Vector2(0.5, 0.58), Vector2(148, 212))
+		var local_actionable_count: int = 0
+		var reconnect_history_count: int = 0
+		for edge_variant in composition.get("visible_edges", []):
+			if typeof(edge_variant) != TYPE_DICTIONARY:
+				continue
+			var edge_entry: Dictionary = edge_variant
+			var route_surface_semantic: String = String(edge_entry.get("route_surface_semantic", ""))
+			if bool(edge_entry.get("is_history", false)):
+				var expected_history_semantic: String = "history_reconnect" if bool(edge_entry.get("is_reconnect_edge", false)) else "history"
+				assert(
+					route_surface_semantic == expected_history_semantic,
+					"Expected visible history roads to expose a truthful secondary route-surface semantic. Seed=%d edge=%s semantic=%s." % [
+						seed,
+						JSON.stringify([int(edge_entry.get("from_node_id", -1)), int(edge_entry.get("to_node_id", -1))]),
+						route_surface_semantic,
+					]
+				)
+				if route_surface_semantic == "history_reconnect":
+					reconnect_history_count += 1
+			else:
+				local_actionable_count += 1
+				assert(
+					bool(edge_entry.get("is_local_actionable", false)) and route_surface_semantic == "local_actionable",
+					"Expected current-pocket roads to stay explicitly tagged as local actionable lanes. Seed=%d edge=%s semantic=%s." % [
+						seed,
+						JSON.stringify([int(edge_entry.get("from_node_id", -1)), int(edge_entry.get("to_node_id", -1))]),
+						route_surface_semantic,
+					]
+				)
+		assert(local_actionable_count > 0, "Expected visible compositions to expose at least one local actionable route semantic.")
+		assert(reconnect_history_count > 0, "Expected late-route history to keep at least one reconnect road tagged as secondary reconnect history.")
+
+
 func test_map_board_composer_keeps_one_visible_outer_reconnect_in_late_route_history() -> void:
 	var composer: RefCounted = MapBoardComposerV2Script.new()
 	for seed in [11, 29, 41]:
@@ -813,6 +1153,34 @@ func test_map_board_composer_keeps_one_visible_outer_reconnect_in_late_route_his
 		assert(
 			String(reconnect_edge.get("path_family", "")) == "outward_reconnecting_arc",
 			"Expected visible same-depth reconnects to use the dedicated outward reconnect family instead of blending back into the ordinary corridor curves. Seed=%d." % seed
+		)
+
+
+func test_map_board_composer_limits_same_depth_reconnect_detours_on_fixed_board() -> void:
+	var composer: RefCounted = MapBoardComposerV2Script.new()
+	var board_size := Vector2(920, 1180)
+	for seed in [11, 29, 41]:
+		var run_state: RunState = RunState.new()
+		run_state.reset_for_new_run()
+		run_state.configure_run_seed(seed)
+		_advance_visible_branch(run_state, 5)
+		var graph_snapshot: Array[Dictionary] = run_state.map_runtime_state.build_realized_graph_snapshots()
+		var composition: Dictionary = composer.call("compose", run_state, board_size, Vector2(0.5, 0.58), Vector2(148, 212))
+		var reconnect_edge: Dictionary = _find_visible_same_depth_edge(composition, graph_snapshot)
+		assert(
+			not reconnect_edge.is_empty(),
+			"Expected each seeded late-route map to expose a same-depth reconnect for the bounded-detour check. Seed=%d." % seed
+		)
+		var points: PackedVector2Array = reconnect_edge.get("points", PackedVector2Array())
+		var path_length: float = MapBoardGeometryScript.visible_edge_polyline_length({"points": points})
+		var direct_distance: float = points[0].distance_to(points[points.size() - 1])
+		assert(
+			path_length <= direct_distance * 1.60,
+			"Expected same-depth reconnect history roads to stay board-local instead of taking a giant outer-frame detour. Seed=%d ratio=%.3f." % [seed, path_length / maxf(1.0, direct_distance)]
+		)
+		assert(
+			_minimum_polyline_edge_clearance(points, board_size) >= 72.0,
+			"Expected same-depth reconnect history roads to stay off the portrait frame edge after convergence. Seed=%d." % seed
 		)
 
 
@@ -899,7 +1267,7 @@ func _min_visible_node_spacing(composition: Dictionary) -> float:
 	return minimum_spacing
 
 
-func _nearest_filler_node_clearance(center: Vector2, half_size: Vector2, composition: Dictionary) -> float:
+func _nearest_filler_node_clearance(center: Vector2, half_size: Vector2, family: String, composition: Dictionary) -> float:
 	var nearest_clearance: float = INF
 	for node_variant in composition.get("visible_nodes", []):
 		if typeof(node_variant) != TYPE_DICTIONARY:
@@ -908,13 +1276,14 @@ func _nearest_filler_node_clearance(center: Vector2, half_size: Vector2, composi
 		var node_center: Vector2 = Vector2(node_entry.get("world_position", Vector2.ZERO))
 		var required_clearance: float = MapBoardFillerBuilderScript.node_exclusion_radius(
 			float(node_entry.get("clearing_radius", 0.0)),
-			half_size
+			half_size,
+			family
 		)
 		nearest_clearance = min(nearest_clearance, center.distance_to(node_center) - required_clearance)
 	return nearest_clearance
 
 
-func _nearest_filler_route_clearance(center: Vector2, half_size: Vector2, composition: Dictionary) -> float:
+func _nearest_filler_route_clearance(center: Vector2, half_size: Vector2, family: String, composition: Dictionary) -> float:
 	var nearest_clearance: float = INF
 	for edge_variant in composition.get("layout_edges", []):
 		if typeof(edge_variant) != TYPE_DICTIONARY:
@@ -923,9 +1292,45 @@ func _nearest_filler_route_clearance(center: Vector2, half_size: Vector2, compos
 		var points: PackedVector2Array = edge_entry.get("points", PackedVector2Array())
 		if points.size() < 2:
 			continue
-		var required_clearance: float = MapBoardFillerBuilderScript.route_exclusion_radius(half_size)
+		var required_clearance: float = MapBoardFillerBuilderScript.route_exclusion_radius(half_size, family)
 		nearest_clearance = min(nearest_clearance, _polyline_distance_to_point(points, center) - required_clearance)
 	return nearest_clearance
+
+
+func _nearest_forest_route_clearance(center: Vector2, radius: float, family: String, composition: Dictionary) -> float:
+	var nearest_clearance: float = INF
+	for edge_variant in composition.get("layout_edges", []):
+		if typeof(edge_variant) != TYPE_DICTIONARY:
+			continue
+		var edge_entry: Dictionary = edge_variant
+		var points: PackedVector2Array = edge_entry.get("points", PackedVector2Array())
+		if points.size() < 2:
+			continue
+		var required_clearance: float = MapBoardBackdropBuilderScript.route_clearance_radius(radius, family)
+		nearest_clearance = min(nearest_clearance, _polyline_distance_to_point(points, center) - required_clearance)
+	return nearest_clearance
+
+
+func _action_bounds_from_composition(composition: Dictionary) -> Rect2:
+	var points: Array[Vector2] = []
+	for point_variant in (composition.get("world_positions", {}) as Dictionary).values():
+		var point: Vector2 = Vector2(point_variant)
+		if point != Vector2.ZERO:
+			points.append(point)
+	for edge_variant in composition.get("layout_edges", []):
+		if typeof(edge_variant) != TYPE_DICTIONARY:
+			continue
+		var edge_entry: Dictionary = edge_variant
+		for point in PackedVector2Array(edge_entry.get("points", PackedVector2Array())):
+			points.append(point)
+	if points.is_empty():
+		return Rect2()
+	var min_point: Vector2 = points[0]
+	var max_point: Vector2 = points[0]
+	for point in points:
+		min_point = Vector2(minf(min_point.x, point.x), minf(min_point.y, point.y))
+		max_point = Vector2(maxf(max_point.x, point.x), maxf(max_point.y, point.y))
+	return Rect2(min_point, max_point - min_point)
 
 
 func _visible_node_bounds(composition: Dictionary) -> Rect2:
@@ -965,6 +1370,39 @@ func _polyline_distance_to_point(points: PackedVector2Array, point: Vector2) -> 
 	return closest_distance
 
 
+func _minimum_polyline_edge_clearance(points: PackedVector2Array, board_size: Vector2) -> float:
+	if points.is_empty():
+		return 0.0
+	var nearest_clearance: float = INF
+	for point_index in range(1, max(1, points.size() - 1)):
+		var point: Vector2 = points[point_index]
+		nearest_clearance = min(
+			nearest_clearance,
+			minf(minf(point.x, board_size.x - point.x), minf(point.y, board_size.y - point.y))
+	)
+	return nearest_clearance if nearest_clearance < INF else 0.0
+
+
+func _normalize_angle_degrees(angle: float) -> float:
+	var normalized: float = fposmod(angle, 360.0)
+	if normalized < 0.0:
+		normalized += 360.0
+	return normalized
+
+
+func _minimum_sorted_angle_gap_degrees(sorted_angles: Array[float]) -> float:
+	if sorted_angles.size() < 2:
+		return 360.0
+	var minimum_gap: float = 360.0
+	for index in range(sorted_angles.size()):
+		var current_angle: float = float(sorted_angles[index])
+		var next_angle: float = float(sorted_angles[(index + 1) % sorted_angles.size()])
+		if next_angle <= current_angle:
+			next_angle += 360.0
+		minimum_gap = minf(minimum_gap, next_angle - current_angle)
+	return minimum_gap
+
+
 func _distance_point_to_segment(point: Vector2, start_point: Vector2, end_point: Vector2) -> float:
 	var segment: Vector2 = end_point - start_point
 	var segment_length_squared: float = segment.length_squared()
@@ -973,6 +1411,14 @@ func _distance_point_to_segment(point: Vector2, start_point: Vector2, end_point:
 	var t: float = clampf((point - start_point).dot(segment) / segment_length_squared, 0.0, 1.0)
 	var projection: Vector2 = start_point + segment * t
 	return point.distance_to(projection)
+
+
+func _ellipse_contains_point(point: Vector2, center: Vector2, half_size: Vector2) -> bool:
+	if half_size.x <= 0.001 or half_size.y <= 0.001:
+		return false
+	var normalized_x: float = (point.x - center.x) / half_size.x
+	var normalized_y: float = (point.y - center.y) / half_size.y
+	return normalized_x * normalized_x + normalized_y * normalized_y <= 1.0
 
 
 func _advance_visible_branch(run_state: RunState, steps: int) -> void:

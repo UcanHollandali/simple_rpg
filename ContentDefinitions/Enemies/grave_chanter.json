@@ -4,7 +4,7 @@
   "authoring_order": 150,
   "family": "Enemies",
   "encounter_tier": "minor",
-  "design_intent_question": "Can the player recognize a control-heavy caster as a tempo threat, saving recovery for the turn after the stun instead of treating the setup note as harmless chip?",
+  "design_intent_question": "Can the player survive the quiet setup turn, read the coming stun, and recover before the vault note lands?",
   "tags": [
     "enemy",
     "undead",
@@ -14,7 +14,7 @@
   ],
   "display": {
     "name": "Grave Chanter",
-    "short_description": "A tomb singer that rattles the player senseless before dropping a heavier echoing strike.",
+    "short_description": "A tomb singer that starts softly, steals one action, and then drops a heavier echo into the empty beat.",
     "icon_key": "enemy_grave_chanter"
   },
   "rules": {
@@ -24,6 +24,20 @@
     },
     "intent_pool": [
       {
+        "intent_id": "finger_tap",
+        "action_family": "attack",
+        "threat_level": "low",
+        "effects": [
+          {
+            "type": "deal_damage",
+            "params": {
+              "base": 1,
+              "damage_kind": "physical"
+            }
+          }
+        ]
+      },
+      {
         "intent_id": "dulling_dirge",
         "action_family": "attack",
         "threat_level": "medium",
@@ -31,7 +45,7 @@
           {
             "type": "deal_damage",
             "params": {
-              "base": 2,
+              "base": 1,
               "damage_kind": "arcane"
             }
           },
@@ -51,22 +65,8 @@
           {
             "type": "deal_damage",
             "params": {
-              "base": 5,
+              "base": 6,
               "damage_kind": "arcane"
-            }
-          }
-        ]
-      },
-      {
-        "intent_id": "finger_tap",
-        "action_family": "attack",
-        "threat_level": "low",
-        "effects": [
-          {
-            "type": "deal_damage",
-            "params": {
-              "base": 2,
-              "damage_kind": "physical"
             }
           }
         ]

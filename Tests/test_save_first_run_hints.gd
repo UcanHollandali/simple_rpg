@@ -121,6 +121,8 @@ func test_fresh_save_surfaces_hints_in_first_appearance_order() -> void:
 	for hint_id in [
 		"first_low_hunger_warning",
 		"first_combat_defend",
+		"first_combat_technique",
+		"first_combat_hand_swap",
 		"first_hamlet",
 		"first_roadside_encounter",
 		"first_key_required_route",
@@ -134,6 +136,8 @@ func test_fresh_save_surfaces_hints_in_first_appearance_order() -> void:
 			"first_belt_capacity",
 			"first_low_hunger_warning",
 			"first_combat_defend",
+			"first_combat_technique",
+			"first_combat_hand_swap",
 			"first_hamlet",
 			"first_roadside_encounter",
 			"first_key_required_route",
@@ -157,6 +161,8 @@ func test_restored_shown_hints_stay_suppressed_across_second_run() -> void:
 		"first_belt_capacity",
 		"first_low_hunger_warning",
 		"first_combat_defend",
+		"first_combat_technique",
+		"first_combat_hand_swap",
 		"first_hamlet",
 		"first_roadside_encounter",
 		"first_key_required_route",
@@ -184,6 +190,8 @@ func test_restored_shown_hints_stay_suppressed_across_second_run() -> void:
 
 	for hint_id in [
 		"first_combat_defend",
+		"first_combat_technique",
+		"first_combat_hand_swap",
 		"first_hamlet",
 		"first_roadside_encounter",
 		"first_key_required_route",

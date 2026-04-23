@@ -23,6 +23,7 @@ var stage_index: int = DEFAULT_STAGE_INDEX
 var gold: int = DEFAULT_GOLD
 var run_seed: int = DEFAULT_RUN_SEED
 var rng_stream_states: Dictionary = {}
+var equipped_technique_definition_id: String = ""
 var inventory_state: RefCounted = InventoryStateScript.new()
 var map_runtime_state: RefCounted = MapRuntimeStateScript.new()
 var character_perk_state: RefCounted = CharacterPerkStateScript.new()
@@ -77,6 +78,7 @@ func reset_for_new_run() -> void:
 	gold = DEFAULT_GOLD
 	run_seed = _generate_new_run_seed()
 	rng_stream_states = {}
+	equipped_technique_definition_id = ""
 	inventory_state.reset_for_new_run()
 	map_runtime_state.reset_for_new_run(stage_index, run_seed)
 	character_perk_state.reset_for_new_run()
@@ -121,6 +123,7 @@ func to_save_dict() -> Dictionary:
 		"gold": gold,
 		"run_seed": run_seed,
 		"rng_stream_states": _duplicate_stream_states(),
+		"equipped_technique_definition_id": equipped_technique_definition_id,
 		"character_perk_state": character_perk_state.to_save_dict(),
 	}.merged(inventory_state.to_save_dict(), true).merged(map_runtime_state.to_save_dict(), true)
 
@@ -135,6 +138,7 @@ func load_from_save_dict(save_data: Dictionary, save_schema_version: int = -1) -
 	gold = int(save_data.get("gold", DEFAULT_GOLD))
 	run_seed = _normalize_seed(int(save_data.get("run_seed", _derive_legacy_run_seed(save_data))))
 	rng_stream_states = _extract_rng_stream_states(save_data.get("rng_stream_states", {}))
+	equipped_technique_definition_id = String(save_data.get("equipped_technique_definition_id", "")).strip_edges()
 	inventory_state.load_from_flat_save_dict(save_data)
 	map_runtime_state.load_from_save_dict(save_data, stage_index)
 	if resolved_save_schema_version >= 7 and typeof(save_data.get("character_perk_state", null)) == TYPE_DICTIONARY:

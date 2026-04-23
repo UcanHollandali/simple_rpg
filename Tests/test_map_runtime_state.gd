@@ -26,7 +26,7 @@ func _run() -> void:
 	test_map_runtime_state_uses_scatter_template_profile_for_stage_one()
 	test_map_runtime_state_uses_scatter_template_profile_for_stage_two()
 	test_map_runtime_state_uses_scatter_template_profile_for_stage_three()
-	test_scatter_opening_shell_keeps_short_spur_as_combat_across_seed_sweep()
+	test_procedural_grammar_seed_sweep_keeps_family_placement_readable()
 	test_map_runtime_state_generation_is_deterministic_per_profile()
 	test_run_state_map_generation_varies_by_seed_but_stays_deterministic()
 	test_map_runtime_state_profile_graphs_stay_distinct()
@@ -61,6 +61,8 @@ func _run() -> void:
 	test_map_move_at_zero_hunger_costs_hp_and_can_end_the_run()
 	test_map_runtime_state_serializes_through_run_state()
 	test_pending_node_app_state_mirror_restores_owner_context()
+	test_save_snapshot_rejects_invalid_pending_node_app_state_mirror()
+	test_save_snapshot_rejects_invalid_hamlet_support_interaction_state()
 	test_legacy_save_snapshot_restores_fixed_template_path()
 	test_save_runtime_restore_rejects_disconnected_realized_graph_snapshot()
 	test_run_session_coordinator_builds_content_backed_combat_setup()
@@ -80,36 +82,38 @@ func test_map_runtime_state_uses_scatter_template_profile_for_stage_three() -> v
 	_assert_scatter_runtime_matches_template_profile("procedural_stage_loop_v1", 3)
 
 
-func test_scatter_opening_shell_keeps_short_spur_as_combat_across_seed_sweep() -> void:
+func test_procedural_grammar_seed_sweep_keeps_family_placement_readable() -> void:
 	for stage_index in [1, 2, 3]:
+		var expected_blueprint_ids: Dictionary = _expected_stage_blueprint_ids(stage_index)
+		var observed_blueprint_ids: Dictionary = {}
+		var support_layout: Dictionary = _expected_stage_support_layout(stage_index)
+		var expected_opening_support_family: String = String(support_layout.get("opening_support_family", "rest"))
+		var expected_late_support_family: String = String(support_layout.get("late_support_family", "merchant"))
 		for generation_seed in range(0, 32):
 			var map_runtime_state: RefCounted = MapRuntimeStateScript.new()
 			map_runtime_state.reset_for_new_run(stage_index, generation_seed)
-			var support_layout: Dictionary = _expected_stage_support_layout(stage_index)
-			var expected_opening_support_family: String = String(support_layout.get("opening_support_family", "rest"))
 			var family_counts: Dictionary = _build_family_counts(map_runtime_state)
 			var support_count: int = int(family_counts.get("rest", 0)) + int(family_counts.get("merchant", 0)) + int(family_counts.get("blacksmith", 0))
+			var blueprint_id: String = String(map_runtime_state.get_active_topology_blueprint_id())
+			assert(not blueprint_id.is_empty(), "Expected stage %d seed %d to publish an explicit topology blueprint id." % [stage_index, generation_seed])
+			assert(
+				bool(expected_blueprint_ids.get(blueprint_id, false)),
+				"Expected stage %d seed %d blueprint id %s to stay inside the stage-local grammar catalog." % [stage_index, generation_seed, blueprint_id]
+			)
 			assert(int(family_counts.get("combat", 0)) == 6, "Expected stage %d seed %d to keep 6 combat nodes." % [stage_index, generation_seed])
 			assert(int(family_counts.get("reward", 0)) == 1, "Expected stage %d seed %d to keep 1 reward node." % [stage_index, generation_seed])
 			assert(support_count == 2, "Expected stage %d seed %d to keep exactly 2 support nodes." % [stage_index, generation_seed])
-			var start_adjacent_families: Dictionary = {}
-			var start_adjacent_combat_count: int = 0
-			var start_adjacent_leaf_count: int = 0
-			var start_adjacent_leaf_family: String = ""
-			for adjacent_node_id in map_runtime_state.get_adjacent_node_ids(0):
-				var resolved_adjacent_node_id: int = int(adjacent_node_id)
-				var adjacent_family: String = String(map_runtime_state.get_node_family(resolved_adjacent_node_id))
-				start_adjacent_families[adjacent_family] = true
-				if adjacent_family == "combat":
-					start_adjacent_combat_count += 1
-				if int(map_runtime_state.get_adjacent_node_ids(resolved_adjacent_node_id).size()) == 1:
-					start_adjacent_leaf_count += 1
-					start_adjacent_leaf_family = adjacent_family
-			assert(bool(start_adjacent_families.get("reward", false)), "Expected stage %d seed %d to keep reward on a main opening branch." % [stage_index, generation_seed])
-			assert(bool(start_adjacent_families.get(expected_opening_support_family, false)), "Expected stage %d seed %d to keep support on a main opening branch." % [stage_index, generation_seed])
-			assert(start_adjacent_combat_count >= 2, "Expected stage %d seed %d to keep both the combat branch and the short combat spur." % [stage_index, generation_seed])
-			assert(start_adjacent_leaf_count == 1, "Expected stage %d seed %d to keep exactly one short opening spur." % [stage_index, generation_seed])
-			assert(start_adjacent_leaf_family == "combat", "Expected stage %d seed %d to keep the short opening spur as combat." % [stage_index, generation_seed])
+			assert(_are_all_nodes_reachable_from_start(map_runtime_state), "Expected stage %d seed %d grammar graph to stay connected." % [stage_index, generation_seed])
+			_assert_runtime_opening_shell_is_readable(map_runtime_state, expected_opening_support_family, "stage %d seed %d" % [stage_index, generation_seed])
+			_assert_runtime_family_placement_is_readable(
+				map_runtime_state,
+				expected_opening_support_family,
+				expected_late_support_family,
+				"stage %d seed %d" % [stage_index, generation_seed]
+			)
+			_assert_runtime_same_depth_reconnects_stay_local(map_runtime_state, "stage %d seed %d" % [stage_index, generation_seed])
+			observed_blueprint_ids[blueprint_id] = true
+		assert(observed_blueprint_ids.size() >= 2, "Expected stage %d seed sweep to exercise at least two explicit topology blueprints." % stage_index)
 
 
 func test_map_runtime_state_generation_is_deterministic_per_profile() -> void:
@@ -1027,10 +1031,35 @@ func test_hamlet_accept_marks_target_and_claims_reward() -> void:
 	var claimed_definition_id: String = String(claim_offer.get("definition_id", ""))
 	var claim_result: Dictionary = coordinator.call("choose_support_action", String(claim_offer.get("offer_id", "")))
 	assert(bool(claim_result.get("ok", false)), "Expected claiming a hamlet reward to succeed.")
-	assert(int(claim_result.get("target_state", -1)) == FlowStateScript.Type.MAP_EXPLORE, "Expected hamlet reward claim to return directly to the map.")
+	assert(int(claim_result.get("target_state", -1)) == FlowStateScript.Type.SUPPORT_INTERACTION, "Expected hamlet reward claim to stay in SupportInteraction for the training choice.")
 	assert(_inventory_contains_definition(run_state.inventory_state, claimed_definition_id), "Expected claimed hamlet gear to be added to the shared carried inventory.")
 	var claimed_side_mission_state: Dictionary = run_state.map_runtime_state.get_side_mission_node_runtime_state(side_mission_node_id)
 	assert(String(claimed_side_mission_state.get("mission_status", "")) == "claimed", "Expected hamlet runtime state to become claimed after reward pickup.")
+	assert(String(claimed_side_mission_state.get("training_step", "")) == SupportInteractionStateScript.TRAINING_STEP_TECHNIQUE_CHOICE, "Expected claimed hamlet state to persist the open training step until the player chooses.")
+	var training_support_state: RefCounted = coordinator.call("get_support_interaction_state")
+	assert(training_support_state != null, "Expected hamlet reward claim to keep the support interaction open for training.")
+	assert(String(training_support_state.title_text) == "Choose a Technique", "Expected hamlet training step to surface the explicit training title.")
+	assert(training_support_state.offers.size() == 3, "Expected hamlet training step to expose 2 technique offers plus skip.")
+	var skip_training_offer_id: String = ""
+	for offer_variant in training_support_state.offers:
+		if typeof(offer_variant) != TYPE_DICTIONARY:
+			continue
+		var typed_offer: Dictionary = offer_variant
+		if String(typed_offer.get("effect_type", "")) == "skip_training_choice":
+			skip_training_offer_id = String(typed_offer.get("offer_id", ""))
+			break
+	assert(not skip_training_offer_id.is_empty(), "Expected hamlet training step to keep an explicit skip action beside the 2 technique offers.")
+	var training_offer: Dictionary = training_support_state.offers[0]
+	assert(String(training_offer.get("effect_type", "")) == "equip_technique", "Expected the first hamlet training offer to equip a technique.")
+	var equipped_technique_definition_id: String = String(training_offer.get("definition_id", ""))
+	var training_result: Dictionary = coordinator.call("choose_support_action", String(training_offer.get("offer_id", "")))
+	assert(bool(training_result.get("ok", false)), "Expected taking a hamlet training offer to succeed.")
+	assert(int(training_result.get("target_state", -1)) == FlowStateScript.Type.MAP_EXPLORE, "Expected completing the training choice to return to MapExplore.")
+	assert(run_state.equipped_technique_definition_id == equipped_technique_definition_id, "Expected the selected hamlet training offer to persist as the equipped technique between combats.")
+	assert(coordinator.call("get_support_interaction_state") == null, "Expected the technique choice to close SupportInteraction immediately after resolution.")
+	var post_training_side_mission_state: Dictionary = run_state.map_runtime_state.get_side_mission_node_runtime_state(side_mission_node_id)
+	assert(String(post_training_side_mission_state.get("training_step", "")) == "", "Expected finishing the training choice to clear the transient hamlet training step.")
+	assert((post_training_side_mission_state.get("technique_offers", []) as Array).is_empty(), "Expected finishing the training choice to clear the transient hamlet technique offers.")
 
 	var adjacent_node_id: int = int(run_state.map_runtime_state.get_adjacent_node_ids(side_mission_node_id)[0])
 	run_state.map_runtime_state.mark_node_resolved(adjacent_node_id)
@@ -1571,6 +1600,127 @@ func test_pending_node_app_state_mirror_restores_owner_context() -> void:
 	_free_node(flow_manager)
 
 
+func test_save_snapshot_rejects_invalid_pending_node_app_state_mirror() -> void:
+	var flow_manager: Node = GameFlowManagerScript.new()
+	flow_manager.call("restore_state", FlowStateScript.Type.MAP_EXPLORE)
+	var run_state: RunState = RunStateScript.new()
+	run_state.reset_for_new_run()
+	var coordinator: RefCounted = RunSessionCoordinatorScript.new()
+	coordinator.call("setup", flow_manager, run_state)
+	var save_service: SaveService = SaveServiceScript.new()
+	var snapshot: Dictionary = save_service.create_snapshot(
+		"",
+		FlowStateScript.Type.MAP_EXPLORE,
+		run_state.to_save_dict(),
+		null,
+		null,
+		null,
+		{}
+	)
+	var invalid_node_app_state: Dictionary = {"pending_node_id": 9999, "pending_node_type": "combat"}
+	snapshot["app_state"] = invalid_node_app_state
+	var invalid_node_validation: Dictionary = save_service.validate_snapshot(snapshot)
+	assert(not bool(invalid_node_validation.get("ok", true)), "Expected snapshots with orphaned app_state pending-node ids to be rejected.")
+	assert(String(invalid_node_validation.get("error", "")) == "invalid_app_state_pending_node_id", "Expected orphaned pending-node ids to fail with invalid_app_state_pending_node_id.")
+
+	var valid_pending_node_id: int = _find_node_id_by_family(run_state.map_runtime_state, "combat")
+	assert(valid_pending_node_id != MapRuntimeStateScript.NO_PENDING_NODE_ID, "Expected a valid combat node for pending-node mirror validation coverage.")
+	snapshot["app_state"] = {"pending_node_id": valid_pending_node_id, "pending_node_type": "reward"}
+	var invalid_type_validation: Dictionary = save_service.validate_snapshot(snapshot)
+	assert(not bool(invalid_type_validation.get("ok", true)), "Expected snapshots with mismatched app_state pending-node family mirrors to be rejected.")
+	assert(String(invalid_type_validation.get("error", "")) == "invalid_app_state_pending_node_type", "Expected mismatched pending-node families to fail with invalid_app_state_pending_node_type.")
+
+	snapshot["app_state"] = {"pending_node_type": "combat"}
+	var orphaned_type_validation: Dictionary = save_service.validate_snapshot(snapshot)
+	assert(not bool(orphaned_type_validation.get("ok", true)), "Expected snapshots with pending-node type mirrors but no pending-node id to be rejected.")
+	assert(String(orphaned_type_validation.get("error", "")) == "invalid_app_state_pending_node_type", "Expected orphaned pending-node type mirrors to fail with invalid_app_state_pending_node_type.")
+	_free_node(flow_manager)
+
+
+func test_save_snapshot_rejects_invalid_hamlet_support_interaction_state() -> void:
+	var flow_manager: Node = GameFlowManagerScript.new()
+	flow_manager.call("restore_state", FlowStateScript.Type.MAP_EXPLORE)
+
+	var run_state: RunState = RunStateScript.new()
+	run_state.reset_for_new_run()
+	run_state.configure_run_seed(1)
+	var coordinator: RefCounted = RunSessionCoordinatorScript.new()
+	coordinator.call("setup", flow_manager, run_state)
+	var save_service: RefCounted = SaveServiceScript.new()
+	var save_runtime_bridge: RefCounted = SaveRuntimeBridgeScript.new()
+	save_runtime_bridge.call("setup", flow_manager, run_state, coordinator, save_service)
+
+	var hamlet_node_id: int = _find_node_id_by_family(run_state.map_runtime_state, "hamlet")
+	assert(hamlet_node_id >= 0, "Expected one hamlet node for support snapshot validation coverage.")
+
+	var support_state: SupportInteractionState = SupportInteractionStateScript.new()
+	support_state.setup_for_type("hamlet", hamlet_node_id, {
+		"mission_definition_id": "trail_contract_hunt",
+		"mission_type": "hunt_marked_enemy",
+		"mission_status": "completed",
+		"target_node_id": 1,
+		"target_enemy_definition_id": "barbed_hunter",
+		"reward_offers": [{
+			"offer_id": "claim_traveler_bread",
+			"label": "Claim Traveler Bread",
+			"effect_type": "claim_side_mission_reward",
+			"inventory_family": "consumable",
+			"definition_id": "traveler_bread",
+			"amount": 1,
+			"available": true,
+		}],
+	}, 1, run_state.inventory_state, run_state.map_runtime_state)
+
+	var invalid_definition_snapshot: Dictionary = save_service.call(
+		"create_snapshot",
+		"",
+		FlowStateScript.Type.SUPPORT_INTERACTION,
+		run_state.to_save_dict(),
+		null,
+		null,
+		support_state.to_save_dict(),
+		{}
+	)
+	var invalid_definition_support_state: Dictionary = (invalid_definition_snapshot.get("support_interaction_state", {}) as Dictionary).duplicate(true)
+	invalid_definition_support_state["mission_definition_id"] = ""
+	invalid_definition_snapshot["support_interaction_state"] = invalid_definition_support_state
+
+	var invalid_definition_validation: Dictionary = save_service.call("validate_snapshot", invalid_definition_snapshot)
+	assert(not bool(invalid_definition_validation.get("ok", true)), "Expected support snapshots with empty hamlet mission ids to be rejected.")
+	assert(String(invalid_definition_validation.get("error", "")) == "invalid_support_interaction_state", "Expected empty hamlet mission ids to fail with invalid_support_interaction_state.")
+
+	var invalid_definition_restore: Dictionary = save_runtime_bridge.call("restore_from_snapshot", invalid_definition_snapshot)
+	assert(not bool(invalid_definition_restore.get("ok", true)), "Expected direct snapshot restore to reject support snapshots with empty hamlet mission ids.")
+	assert(String(invalid_definition_restore.get("error", "")) == "invalid_support_interaction_state", "Expected restore to surface invalid_support_interaction_state for empty hamlet mission ids.")
+
+	var malformed_reward_snapshot: Dictionary = save_service.call(
+		"create_snapshot",
+		"",
+		FlowStateScript.Type.SUPPORT_INTERACTION,
+		run_state.to_save_dict(),
+		null,
+		null,
+		support_state.to_save_dict(),
+		{}
+	)
+	var malformed_reward_support_state: Dictionary = (malformed_reward_snapshot.get("support_interaction_state", {}) as Dictionary).duplicate(true)
+	malformed_reward_support_state["reward_offers"] = [{
+		"offer_id": "claim_traveler_bread",
+		"effect_type": "claim_side_mission_reward",
+		"inventory_family": "consumable",
+	}]
+	malformed_reward_snapshot["support_interaction_state"] = malformed_reward_support_state
+
+	var malformed_reward_validation: Dictionary = save_service.call("validate_snapshot", malformed_reward_snapshot)
+	assert(not bool(malformed_reward_validation.get("ok", true)), "Expected support snapshots with malformed hamlet reward offers to be rejected.")
+	assert(String(malformed_reward_validation.get("error", "")) == "invalid_support_interaction_state", "Expected malformed hamlet reward offers to fail with invalid_support_interaction_state.")
+
+	var malformed_reward_restore: Dictionary = save_runtime_bridge.call("restore_from_snapshot", malformed_reward_snapshot)
+	assert(not bool(malformed_reward_restore.get("ok", true)), "Expected direct snapshot restore to reject malformed hamlet reward offers.")
+	assert(String(malformed_reward_restore.get("error", "")) == "invalid_support_interaction_state", "Expected restore to surface invalid_support_interaction_state for malformed hamlet reward offers.")
+	_free_node(flow_manager)
+
+
 func test_legacy_save_snapshot_restores_fixed_template_path() -> void:
 	var flow_manager: Node = GameFlowManagerScript.new()
 	flow_manager.call("restore_state", FlowStateScript.Type.MAP_EXPLORE)
@@ -1769,7 +1919,11 @@ func _assert_scatter_runtime_matches_template_profile(template_id: String, stage
 	var map_runtime_state: RefCounted = MapRuntimeStateScript.new()
 	map_runtime_state.reset_for_new_run(stage_index)
 	var save_data: Dictionary = map_runtime_state.to_save_dict()
+	var blueprint_id: String = String(map_runtime_state.get_active_topology_blueprint_id())
+	var expected_blueprint_ids: Dictionary = _expected_stage_blueprint_ids(stage_index)
 	assert(String(save_data.get("active_map_template_id", "")) == template_id, "Expected MapRuntimeState to record the active scaffold id in save data.")
+	assert(not blueprint_id.is_empty(), "Expected stage %d default seed to publish an explicit topology blueprint id." % stage_index)
+	assert(bool(expected_blueprint_ids.get(blueprint_id, false)), "Expected stage %d default seed blueprint %s to stay inside the stage-local grammar catalog." % [stage_index, blueprint_id])
 	var support_layout: Dictionary = _expected_stage_support_layout(stage_index)
 	var expected_late_support_family: String = String(support_layout.get("late_support_family", "merchant"))
 	var expected_opening_support_family: String = String(support_layout.get("opening_support_family", "rest"))
@@ -1804,34 +1958,7 @@ func _assert_scatter_runtime_matches_template_profile(template_id: String, stage
 			"Expected controlled scatter runtime to publish the reserved %s slot for later family placement continuity." % role_name
 		)
 
-	var max_depth: int = 0
-	for depth in depth_by_node_id.values():
-		max_depth = max(max_depth, int(depth))
-
-	var start_adjacent_count: int = int(map_runtime_state.get_adjacent_node_ids(0).size())
-	assert(start_adjacent_count == 4, "Expected controlled scatter fallback topology to expose 3 main routes plus 1 short spur from the start.")
-	assert(int(_count_same_depth_reconnect_links(map_runtime_state)) >= 1, "Expected scatter topology to include at least one late reconnect link.")
-	assert(int(_count_same_depth_reconnect_links_at_or_beyond_depth(map_runtime_state, MapRuntimeStateScript.SCATTER_RECONNECT_DEPTH_LATE)) >= 1, "Expected scatter topology to keep at least one outer-ring reconnect link at the late reconnect depth.")
-	assert(int(_count_extra_edges_from_runtime(map_runtime_state)) >= 1 and int(_count_extra_edges_from_runtime(map_runtime_state)) <= 2, "Expected controlled scatter topology to keep reconnect budget inside [1, 2].")
-	var start_adjacent_families: Dictionary = {}
-	var start_adjacent_combat_count: int = 0
-	var start_adjacent_leaf_count: int = 0
-	var start_adjacent_leaf_family: String = ""
-	for adjacent_node_id in map_runtime_state.get_adjacent_node_ids(0):
-		var resolved_adjacent_node_id: int = int(adjacent_node_id)
-		var adjacent_family: String = String(map_runtime_state.get_node_family(resolved_adjacent_node_id))
-		start_adjacent_families[adjacent_family] = true
-		if adjacent_family == "combat":
-			start_adjacent_combat_count += 1
-		if int(map_runtime_state.get_adjacent_node_ids(resolved_adjacent_node_id).size()) == 1:
-			start_adjacent_leaf_count += 1
-			start_adjacent_leaf_family = adjacent_family
-	assert(bool(start_adjacent_families.get("combat", false)), "Expected start adjacency to preserve an early combat route.")
-	assert(bool(start_adjacent_families.get("reward", false)), "Expected start adjacency to preserve an early reward route.")
-	assert(bool(start_adjacent_families.get(expected_opening_support_family, false)), "Expected start adjacency to preserve an early support route.")
-	assert(start_adjacent_combat_count >= 2, "Expected the fallback opening shell to keep one main combat route plus one short combat spur.")
-	assert(start_adjacent_leaf_count == 1, "Expected the fallback opening shell to keep exactly one short leaf spur adjacent to the start.")
-	assert(start_adjacent_leaf_family == "combat", "Expected the short opening spur to remain a combat-family detour instead of stealing reward or support ownership.")
+	_assert_runtime_same_depth_reconnects_stay_local(map_runtime_state, "stage %d default seed" % stage_index)
 
 	var degree_counts: Dictionary = {}
 	for node_data in map_runtime_state.build_node_snapshots():
@@ -1844,8 +1971,6 @@ func _assert_scatter_runtime_matches_template_profile(template_id: String, stage
 	assert(int(degree_counts.get(3, 0)) >= 1, "Expected controlled scatter to include branched connectors.")
 
 	assert(_are_all_nodes_reachable_from_start(map_runtime_state), "Expected scatter graph to stay connected to the start node.")
-	var branch_root_by_node_id: Dictionary = _build_branch_root_map_from_runtime(map_runtime_state)
-	var reconnect_node_ids: Dictionary = _build_runtime_same_depth_reconnect_node_set(map_runtime_state)
 	var reward_node_id: int = _find_node_id_by_family(map_runtime_state, "reward")
 	var key_node_id: int = map_runtime_state.get_stage_key_node_id()
 	var boss_node_id: int = map_runtime_state.get_boss_node_id()
@@ -1866,16 +1991,13 @@ func _assert_scatter_runtime_matches_template_profile(template_id: String, stage
 	assert(side_mission_node_id >= 0, "Expected scatter maps to include a hamlet node.")
 	assert(late_support_node_id >= 0, "Expected scatter maps to include the late support placement.")
 	assert(opening_support_node_id >= 0, "Expected scatter maps to include the opening support placement.")
-	assert(branch_root_by_node_id.get(reward_node_id, -1) != branch_root_by_node_id.get(opening_support_node_id, -1), "Expected reward placement to stay on a different opening branch root than opening support.")
-	assert(int(depth_by_node_id.get(key_node_id, -1)) >= max(2, max_depth - 1), "Expected key placement to be biased to outer layers.")
-	assert(int(depth_by_node_id.get(boss_node_id, -1)) == max_depth, "Expected boss placement to be pinned near the outer-most layer.")
-	assert(branch_root_by_node_id.get(late_support_node_id, -1) == branch_root_by_node_id.get(opening_support_node_id, -1), "Expected late support placement to stay on the same support lineage as the opening support node.")
-	assert(map_runtime_state.get_adjacent_node_ids(opening_support_node_id).has(late_support_node_id), "Expected late support placement to stay directly adjacent to the opening support node.")
-	assert((_build_path_between_nodes(map_runtime_state, key_node_id, boss_node_id).size() - 1) >= 2, "Expected key-to-boss push not to collapse into an immediate adjacent click.")
-	assert(int(depth_by_node_id.get(side_mission_node_id, -1)) >= 3, "Expected side mission placement to stay on an optional late detour.")
-	assert(_is_runtime_leaf_like_node(map_runtime_state, side_mission_node_id) or int(map_runtime_state.get_adjacent_node_ids(side_mission_node_id).size()) <= 2, "Expected side mission placement to feel like an optional branch detour instead of a dense hub.")
-	assert(not map_runtime_state.get_adjacent_node_ids(0).has(event_node_id), "Expected event placement not to collapse into immediate start adjacency.")
-	assert(int(map_runtime_state.get_adjacent_node_ids(event_node_id).size()) >= 2 or reconnect_node_ids.has(event_node_id), "Expected event placement to stay on a connector or controlled detour pocket.")
+	_assert_runtime_opening_shell_is_readable(map_runtime_state, expected_opening_support_family, "stage %d default seed" % stage_index)
+	_assert_runtime_family_placement_is_readable(
+		map_runtime_state,
+		expected_opening_support_family,
+		expected_late_support_family,
+		"stage %d default seed" % stage_index
+	)
 
 
 func _expected_stage_support_layout(stage_index: int) -> Dictionary:
@@ -2057,6 +2179,88 @@ func _find_node_ids_by_family(map_runtime_state: RefCounted, node_family: String
 	return node_ids
 
 
+func _assert_runtime_opening_shell_is_readable(map_runtime_state: RefCounted, expected_opening_support_family: String, context_label: String) -> void:
+	var start_adjacent_ids: PackedInt32Array = map_runtime_state.get_adjacent_node_ids(0)
+	var opening_families: Dictionary = {}
+	var low_commitment_combat_count: int = 0
+	assert(
+		int(start_adjacent_ids.size()) >= 3 and int(start_adjacent_ids.size()) <= MapRuntimeStateScript.SCATTER_MAX_NODE_DEGREE,
+		"Expected %s to keep a bounded readable opening shell." % context_label
+	)
+	for adjacent_node_id in start_adjacent_ids:
+		var resolved_adjacent_node_id: int = int(adjacent_node_id)
+		var adjacent_family: String = String(map_runtime_state.get_node_family(resolved_adjacent_node_id))
+		var adjacent_degree: int = int(map_runtime_state.get_adjacent_node_ids(resolved_adjacent_node_id).size())
+		opening_families[adjacent_family] = true
+		assert(adjacent_family not in ["boss", "key", "event", "hamlet"], "Expected %s opening shell to avoid late-only families." % context_label)
+		if adjacent_family == "combat" and adjacent_degree <= 2:
+			low_commitment_combat_count += 1
+	assert(bool(opening_families.get("combat", false)), "Expected %s opening shell to expose an early combat route." % context_label)
+	assert(bool(opening_families.get("reward", false)), "Expected %s opening shell to expose an early reward route." % context_label)
+	assert(bool(opening_families.get(expected_opening_support_family, false)), "Expected %s opening shell to expose the stage opening support route." % context_label)
+	assert(low_commitment_combat_count >= 1, "Expected %s opening shell to keep at least one low-commitment combat push." % context_label)
+
+
+func _assert_runtime_family_placement_is_readable(
+	map_runtime_state: RefCounted,
+	expected_opening_support_family: String,
+	expected_late_support_family: String,
+	context_label: String
+) -> void:
+	var depth_by_node_id: Dictionary = _build_depth_map_from_start(map_runtime_state)
+	var max_depth: int = 0
+	for depth in depth_by_node_id.values():
+		max_depth = max(max_depth, int(depth))
+	var branch_root_by_node_id: Dictionary = _build_branch_root_map_from_runtime(map_runtime_state)
+	var reward_node_id: int = _find_node_id_by_family(map_runtime_state, "reward")
+	var key_node_id: int = map_runtime_state.get_stage_key_node_id()
+	var boss_node_id: int = map_runtime_state.get_boss_node_id()
+	var event_node_id: int = _find_node_id_by_family(map_runtime_state, "event")
+	var side_mission_node_id: int = _find_node_id_by_family(map_runtime_state, "hamlet")
+	var late_support_node_id: int = _find_node_id_by_family(map_runtime_state, expected_late_support_family)
+	var opening_support_node_id: int = _find_node_id_by_family(map_runtime_state, expected_opening_support_family)
+	var support_branch_root: int = int(branch_root_by_node_id.get(opening_support_node_id, -1))
+	assert(branch_root_by_node_id.get(reward_node_id, -1) != support_branch_root, "Expected %s reward placement to stay on a different opening branch root than opening support." % context_label)
+	assert(int(depth_by_node_id.get(key_node_id, -1)) >= max(2, max_depth - 1), "Expected %s key placement to stay biased to outer layers." % context_label)
+	assert(int(depth_by_node_id.get(boss_node_id, -1)) == max_depth, "Expected %s boss placement to stay pinned near the outer-most layer." % context_label)
+	assert(branch_root_by_node_id.get(late_support_node_id, -1) == support_branch_root, "Expected %s late support placement to stay on the same support lineage as the opening support node." % context_label)
+	assert(map_runtime_state.get_adjacent_node_ids(opening_support_node_id).has(late_support_node_id), "Expected %s late support placement to stay directly adjacent to the opening support node." % context_label)
+	assert(int(depth_by_node_id.get(late_support_node_id, -1)) > int(depth_by_node_id.get(opening_support_node_id, -1)), "Expected %s late support route to continue deeper than the opening support stop." % context_label)
+	assert(branch_root_by_node_id.get(key_node_id, -1) != support_branch_root or branch_root_by_node_id.get(boss_node_id, -1) != support_branch_root, "Expected %s support lane to stay a route decision instead of absorbing the full key-boss pressure lane." % context_label)
+	assert((_build_path_between_nodes(map_runtime_state, key_node_id, boss_node_id).size() - 1) >= 2, "Expected %s key-to-boss push not to collapse into an immediate adjacent click." % context_label)
+	assert(int(depth_by_node_id.get(side_mission_node_id, -1)) >= 3, "Expected %s side mission placement to stay on an optional late detour." % context_label)
+	assert(_is_runtime_leaf_like_node(map_runtime_state, side_mission_node_id) or int(map_runtime_state.get_adjacent_node_ids(side_mission_node_id).size()) <= 2, "Expected %s side mission placement to feel like an optional branch detour instead of a dense hub." % context_label)
+	assert(not map_runtime_state.get_adjacent_node_ids(0).has(event_node_id), "Expected %s event placement not to collapse into immediate start adjacency." % context_label)
+	assert(int(map_runtime_state.get_adjacent_node_ids(event_node_id).size()) >= 2, "Expected %s event placement to stay on a connector or bounded detour pocket." % context_label)
+
+
+func _assert_runtime_same_depth_reconnects_stay_local(map_runtime_state: RefCounted, context_label: String) -> void:
+	var reconnect_path_lengths: Array[int] = _collect_same_depth_reconnect_path_lengths(map_runtime_state)
+	assert(reconnect_path_lengths.size() >= 1, "Expected %s to keep at least one same-depth reconnect edge." % context_label)
+	assert(_count_extra_edges_from_runtime(map_runtime_state) >= 1 and _count_extra_edges_from_runtime(map_runtime_state) <= 2, "Expected %s to keep reconnect budget inside [1, 2]." % context_label)
+	for reconnect_path_length in reconnect_path_lengths:
+		assert(reconnect_path_length >= MapRuntimeStateScript.SCATTER_MIN_RECONNECT_PATH_LENGTH, "Expected %s reconnect span %d to stay above the minimum local span floor." % [context_label, reconnect_path_length])
+		assert(reconnect_path_length <= MapRuntimeStateScript.SCATTER_MAX_RECONNECT_PATH_LENGTH, "Expected %s reconnect span %d to stay below the cross-map span cap." % [context_label, reconnect_path_length])
+
+
+func _expected_stage_blueprint_ids(stage_index: int) -> Dictionary:
+	match stage_index:
+		2:
+			return {
+				"procedural_stage_openfield_v1:fan": true,
+				"procedural_stage_openfield_v1:lane": true,
+			}
+		3:
+			return {
+				"procedural_stage_loop_v1:return": true,
+				"procedural_stage_loop_v1:crossback": true,
+			}
+	return {
+		"procedural_stage_corridor_v1:spine": true,
+		"procedural_stage_corridor_v1:switchback": true,
+	}
+
+
 func _build_depth_map_from_start(map_runtime_state: RefCounted) -> Dictionary:
 	var depth_by_node_id: Dictionary = {}
 	var visited: Dictionary = {}
@@ -2142,28 +2346,6 @@ func _is_runtime_leaf_like_node(map_runtime_state: RefCounted, node_id: int) -> 
 	return int(depth_by_node_id.get(node_id, 0)) >= 2 and int(children_count_by_node_id.get(node_id, 0)) == 0
 
 
-func _build_runtime_same_depth_reconnect_node_set(map_runtime_state: RefCounted) -> Dictionary:
-	var reconnect_node_ids: Dictionary = {}
-	var depth_by_node_id: Dictionary = _build_depth_map_from_start(map_runtime_state)
-	var seen_edges: Dictionary = {}
-	for node_snapshot in map_runtime_state.build_node_snapshots():
-		var node_id: int = int(node_snapshot.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
-		var node_depth: int = int(depth_by_node_id.get(node_id, -1))
-		for adjacent_node_id in map_runtime_state.get_adjacent_node_ids(node_id):
-			var adjacent_depth: int = int(depth_by_node_id.get(int(adjacent_node_id), -1))
-			var left_id: int = min(node_id, int(adjacent_node_id))
-			var right_id: int = max(node_id, int(adjacent_node_id))
-			var edge_key: String = "%d:%d" % [left_id, right_id]
-			if seen_edges.has(edge_key):
-				continue
-			seen_edges[edge_key] = true
-			if node_depth < 2 or adjacent_depth < 2 or node_depth != adjacent_depth:
-				continue
-			reconnect_node_ids[node_id] = true
-			reconnect_node_ids[int(adjacent_node_id)] = true
-	return reconnect_node_ids
-
-
 func _are_all_nodes_reachable_from_start(map_runtime_state: RefCounted) -> bool:
 	var all_node_ids: Dictionary = {}
 	for node_snapshot in map_runtime_state.build_node_snapshots():
@@ -2185,57 +2367,69 @@ func _are_all_nodes_reachable_from_start(map_runtime_state: RefCounted) -> bool:
 	return visited.size() == all_node_ids.size()
 
 
-func _count_same_depth_reconnect_links(map_runtime_state: RefCounted) -> int:
-	var link_count: int = 0
-	var depth_by_node_id: Dictionary = _build_depth_map_from_start(map_runtime_state)
-	var seen_edges: Dictionary = {}
-	for node_snapshot in map_runtime_state.build_node_snapshots():
-		var node_id: int = int(node_snapshot.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
-		var node_depth: int = int(depth_by_node_id.get(node_id, -1))
-		var adjacent_ids: PackedInt32Array = map_runtime_state.get_adjacent_node_ids(node_id)
-		for adjacent_node_id in adjacent_ids:
-			var adjacent_depth: int = int(depth_by_node_id.get(int(adjacent_node_id), -1))
-			var left_id: int = min(node_id, int(adjacent_node_id))
-			var right_id: int = max(node_id, int(adjacent_node_id))
-			var edge_key: String = "%d:%d" % [left_id, right_id]
-			if seen_edges.has(edge_key):
-				continue
-			seen_edges[edge_key] = true
-			if node_depth < 2 or adjacent_depth < 2:
-				continue
-			if node_depth != adjacent_depth:
-				continue
-			link_count += 1
-	return link_count
-
-
-func _count_same_depth_reconnect_links_at_or_beyond_depth(map_runtime_state: RefCounted, minimum_depth: int) -> int:
-	var link_count: int = 0
-	var depth_by_node_id: Dictionary = _build_depth_map_from_start(map_runtime_state)
-	var seen_edges: Dictionary = {}
-	for node_snapshot in map_runtime_state.build_node_snapshots():
-		var node_id: int = int(node_snapshot.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
-		var node_depth: int = int(depth_by_node_id.get(node_id, -1))
-		for adjacent_node_id in map_runtime_state.get_adjacent_node_ids(node_id):
-			var adjacent_depth: int = int(depth_by_node_id.get(int(adjacent_node_id), -1))
-			var left_id: int = min(node_id, int(adjacent_node_id))
-			var right_id: int = max(node_id, int(adjacent_node_id))
-			var edge_key: String = "%d:%d" % [left_id, right_id]
-			if seen_edges.has(edge_key):
-				continue
-			seen_edges[edge_key] = true
-			if node_depth < minimum_depth or adjacent_depth < minimum_depth or node_depth != adjacent_depth:
-				continue
-			link_count += 1
-	return link_count
-
-
 func _count_extra_edges_from_runtime(map_runtime_state: RefCounted) -> int:
 	var directed_edge_count: int = 0
 	for node_snapshot in map_runtime_state.build_node_snapshots():
 		var node_id: int = int(node_snapshot.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
 		directed_edge_count += map_runtime_state.get_adjacent_node_ids(node_id).size()
 	return max(0, int(directed_edge_count / 2) - (int(map_runtime_state.get_node_count()) - 1))
+
+
+func _build_runtime_path_length_without_edge(
+	map_runtime_state: RefCounted,
+	start_node_id: int,
+	target_node_id: int,
+	ignored_left_id: int,
+	ignored_right_id: int
+) -> int:
+	if start_node_id == target_node_id:
+		return 0
+	var visited: Dictionary = {start_node_id: true}
+	var queue: Array[Dictionary] = [{"node_id": start_node_id, "distance": 0}]
+	while not queue.is_empty():
+		var entry: Dictionary = queue.pop_front()
+		var node_id: int = int(entry.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
+		var distance: int = int(entry.get("distance", 0))
+		for adjacent_node_id in map_runtime_state.get_adjacent_node_ids(node_id):
+			var resolved_adjacent_node_id: int = int(adjacent_node_id)
+			var ignores_active_edge: bool = (
+				(node_id == ignored_left_id and resolved_adjacent_node_id == ignored_right_id)
+				or (node_id == ignored_right_id and resolved_adjacent_node_id == ignored_left_id)
+			)
+			if ignores_active_edge:
+				continue
+			if resolved_adjacent_node_id == target_node_id:
+				return distance + 1
+			if visited.has(resolved_adjacent_node_id):
+				continue
+			visited[resolved_adjacent_node_id] = true
+			queue.append({
+				"node_id": resolved_adjacent_node_id,
+				"distance": distance + 1,
+			})
+	return -1
+
+
+func _collect_same_depth_reconnect_path_lengths(map_runtime_state: RefCounted) -> Array[int]:
+	var reconnect_path_lengths: Array[int] = []
+	var depth_by_node_id: Dictionary = _build_depth_map_from_start(map_runtime_state)
+	var seen_edges: Dictionary = {}
+	for node_snapshot in map_runtime_state.build_node_snapshots():
+		var node_id: int = int(node_snapshot.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
+		var node_depth: int = int(depth_by_node_id.get(node_id, -1))
+		for adjacent_node_id in map_runtime_state.get_adjacent_node_ids(node_id):
+			var resolved_adjacent_node_id: int = int(adjacent_node_id)
+			var adjacent_depth: int = int(depth_by_node_id.get(resolved_adjacent_node_id, -1))
+			var left_id: int = min(node_id, resolved_adjacent_node_id)
+			var right_id: int = max(node_id, resolved_adjacent_node_id)
+			var edge_key: String = "%d:%d" % [left_id, right_id]
+			if seen_edges.has(edge_key):
+				continue
+			seen_edges[edge_key] = true
+			if node_depth < 2 or adjacent_depth < 2 or node_depth != adjacent_depth:
+				continue
+			reconnect_path_lengths.append(_build_runtime_path_length_without_edge(map_runtime_state, left_id, right_id, left_id, right_id))
+	return reconnect_path_lengths
 
 
 func _build_runtime_graph_signature(map_runtime_state: RefCounted) -> String:

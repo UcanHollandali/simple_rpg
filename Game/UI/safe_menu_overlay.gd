@@ -20,11 +20,13 @@ const LAUNCHER_CORNER_BOTTOM_LEFT := "bottom_left"
 signal save_requested
 signal load_requested
 signal return_to_main_menu_requested
+signal disable_tutorial_hints_requested
 
 var _title_text: String = "Settings"
 var _subtitle_text: String = "Save, load, return to menu, mute music, or quit."
 var _launcher_text: String = "Settings"
 var _load_available: bool = false
+var _tutorial_hints_available: bool = false
 var _status_text: String = ""
 var _menu_open: bool = false
 var _status_cycle_token: int = 0
@@ -39,6 +41,7 @@ var _title_label: Label
 var _subtitle_label: Label
 var _save_button: Button
 var _load_button: Button
+var _tutorial_hints_button: Button
 var _main_menu_button: Button
 var _music_toggle_button: Button
 var _quit_button: Button
@@ -76,14 +79,13 @@ func configure(title_text: String, subtitle_text: String, launcher_text: String 
 func set_load_available(is_available: bool) -> void:
 	_load_available = is_available
 	if _load_button != null: _load_button.disabled = not _load_available
-
-
+func set_tutorial_hints_available(is_available: bool) -> void:
+	_tutorial_hints_available = is_available
+	if _tutorial_hints_button != null: _tutorial_hints_button.visible = _tutorial_hints_available
 func set_status_text(text: String) -> void:
 	_status_text = text
 	if _status_label != null: _status_label.text = _status_text; _status_label.visible = not _status_text.is_empty()
 	_refresh_status_toast()
-
-
 func clear_status_text() -> void:
 	_status_text = ""
 	_status_cycle_token += 1
@@ -95,13 +97,9 @@ func clear_status_text() -> void:
 		_toast_panel.modulate = Color(1, 1, 1, 0)
 	if _toast_label != null:
 		_toast_label.text = ""
-
-
 func set_launcher_alignment_target(target: Control) -> void:
 	_launcher_alignment_target = target
 	if is_inside_tree(): _apply_viewport_layout()
-
-
 func set_launcher_corner(corner: String) -> void:
 	_launcher_corner = LAUNCHER_CORNER_TOP_LEFT
 	if corner == LAUNCHER_CORNER_BOTTOM_LEFT:
@@ -109,19 +107,13 @@ func set_launcher_corner(corner: String) -> void:
 	elif corner == LAUNCHER_CORNER_TOP_RIGHT:
 		_launcher_corner = LAUNCHER_CORNER_TOP_RIGHT
 	if is_inside_tree(): _apply_viewport_layout()
-
-
 func set_launcher_enabled(is_enabled: bool) -> void:
 	_launcher_enabled = is_enabled
 	if is_inside_tree(): _apply_launcher_interactivity()
 	if not _launcher_enabled and _menu_open: close_menu()
-
-
 func set_main_menu_enabled(is_enabled: bool) -> void:
 	_main_menu_enabled = is_enabled
 	if is_inside_tree(): _refresh()
-
-
 func open_menu() -> void:
 	if _menu_layer == null or _menu_panel == null or _menu_open:
 		return
@@ -143,8 +135,6 @@ func open_menu() -> void:
 		_main_menu_button.grab_focus()
 	elif _close_button != null:
 		_close_button.grab_focus()
-
-
 func close_menu() -> void:
 	if _menu_layer == null or _menu_panel == null or not _menu_open:
 		return
@@ -155,11 +145,7 @@ func close_menu() -> void:
 	tween.tween_property(_menu_layer, "modulate", Color(1, 1, 1, 0), 0.12)
 	tween.parallel().tween_property(_menu_panel, "scale", Vector2(0.98, 0.98), 0.12)
 	tween.finished.connect(Callable(self, "_finish_menu_close"), CONNECT_ONE_SHOT)
-
-
 func is_menu_open() -> bool: return _menu_open
-
-
 func _build_ui() -> void:
 	if _launcher_button != null: return
 	_launcher_button = Button.new()
@@ -305,6 +291,9 @@ func _build_ui() -> void:
 	_load_button = _build_menu_button("LoadRunButton", "Load Save", CONFIRM_ICON, "_emit_load_requested")
 	actions_vbox.add_child(_load_button)
 
+	_tutorial_hints_button = _build_menu_button("DisableTutorialHintsButton", "Disable Tutorial Hints", CANCEL_ICON, "_emit_disable_tutorial_hints_requested")
+	actions_vbox.add_child(_tutorial_hints_button)
+
 	_main_menu_button = _build_menu_button("ReturnToMainMenuButton", "Return to Main Menu", CONFIRM_ICON, "_emit_return_to_main_menu_requested")
 	actions_vbox.add_child(_main_menu_button)
 
@@ -321,8 +310,6 @@ func _build_ui() -> void:
 	_status_label.name = "StatusLabel"
 	_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	panel_vbox.add_child(_status_label)
-
-
 func _refresh() -> void:
 	if _launcher_button == null: return
 	_launcher_button.text = ""
@@ -337,6 +324,8 @@ func _refresh() -> void:
 		_status_label.visible = not _status_text.is_empty()
 	if _load_button != null:
 		_load_button.disabled = not _load_available
+	if _tutorial_hints_button != null:
+		_tutorial_hints_button.visible = _tutorial_hints_available
 	if _main_menu_button != null:
 		_main_menu_button.visible = true
 		_main_menu_button.disabled = not _main_menu_enabled
@@ -350,6 +339,7 @@ func _refresh() -> void:
 	TempScreenThemeScript.apply_label(_subtitle_label, "muted")
 	TempScreenThemeScript.apply_small_button(_save_button, TempScreenThemeScript.PANEL_BORDER_COLOR, false)
 	TempScreenThemeScript.apply_small_button(_load_button, TempScreenThemeScript.TEAL_ACCENT_COLOR, true)
+	TempScreenThemeScript.apply_small_button(_tutorial_hints_button, TempScreenThemeScript.PANEL_BORDER_COLOR, true)
 	TempScreenThemeScript.apply_small_button(_main_menu_button, TempScreenThemeScript.REWARD_ACCENT_COLOR, true)
 	TempScreenThemeScript.apply_small_button(
 		_music_toggle_button,
@@ -366,18 +356,12 @@ func _refresh() -> void:
 		TempScreenThemeScript.apply_label(_toast_label, "muted")
 	_apply_viewport_layout()
 	_apply_launcher_interactivity()
-
-
 func _on_launcher_pressed() -> void:
 	if _menu_open:
 		close_menu(); return
 	open_menu()
-
-
 func _on_dismiss_pressed() -> void:
 	close_menu()
-
-
 func _on_music_toggle_pressed() -> void:
 	var is_enabled: bool = AudioPreferencesScript.toggle_music_enabled()
 	set_status_text("Music %s." % ("enabled" if is_enabled else "muted"))
@@ -399,6 +383,7 @@ func _on_quit_pressed() -> void:
 
 func _emit_save_requested() -> void: emit_signal("save_requested")
 func _emit_load_requested() -> void: emit_signal("load_requested")
+func _emit_disable_tutorial_hints_requested() -> void: emit_signal("disable_tutorial_hints_requested")
 
 
 func _emit_return_to_main_menu_requested() -> void:
@@ -512,7 +497,7 @@ func _apply_viewport_layout() -> void:
 		actions_vbox.add_theme_constant_override("separation", 8 if large_layout else 7 if medium_layout else 5)
 
 	var button_height: float = 54.0 if large_layout else 50.0 if medium_layout else 42.0
-	for button in [_save_button, _load_button, _main_menu_button, _music_toggle_button, _quit_button, _close_button]:
+	for button in [_save_button, _load_button, _tutorial_hints_button, _main_menu_button, _music_toggle_button, _quit_button, _close_button]:
 		if button != null:
 			button.custom_minimum_size = Vector2(0.0, button_height)
 			button.add_theme_font_size_override("font_size", 17 if large_layout else 16 if medium_layout else 15)

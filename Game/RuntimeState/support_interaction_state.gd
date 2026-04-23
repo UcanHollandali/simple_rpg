@@ -35,6 +35,8 @@ const MISSION_TYPE_BRING_PROOF: String = "bring_proof"
 const HAMLET_PERSONALITY_FRONTIER: String = "frontier"
 const HAMLET_PERSONALITY_PILGRIM: String = "pilgrim"
 const HAMLET_PERSONALITY_TRADE: String = "trade"
+const TRAINING_STEP_NONE: String = ""
+const TRAINING_STEP_TECHNIQUE_CHOICE: String = "technique_choice"
 const MERCHANT_STOCK_IDS_BY_STAGE: Dictionary = {
 	1: ["basic_merchant_stock", "stage_1_merchant_stock_roadpack", "stage_1_merchant_stock_scout"],
 	2: ["stage_2_merchant_stock", "stage_2_merchant_stock_kit", "stage_2_merchant_stock_forgegear"],
@@ -60,6 +62,8 @@ var target_node_id: int = NO_SOURCE_NODE_ID
 var target_enemy_definition_id: String = ""
 var quest_item_definition_id: String = ""
 var reward_offers: Array[Dictionary] = []
+var training_step: String = TRAINING_STEP_NONE
+var technique_offers: Array[Dictionary] = []
 
 
 static func resolve_hamlet_personality_for_stage(stage_index: int) -> String:
@@ -100,6 +104,8 @@ func setup_for_type(
 	target_enemy_definition_id = ""
 	quest_item_definition_id = ""
 	reward_offers = []
+	training_step = TRAINING_STEP_NONE
+	technique_offers = []
 
 	match support_type:
 		TYPE_REST:
@@ -166,6 +172,8 @@ func to_save_dict() -> Dictionary:
 		"target_enemy_definition_id": target_enemy_definition_id,
 		"quest_item_definition_id": quest_item_definition_id,
 		"reward_offers": reward_offers.duplicate(true),
+		"training_step": training_step,
+		"technique_offers": technique_offers.duplicate(true),
 	}
 
 
@@ -185,6 +193,8 @@ func load_from_save_dict(save_data: Dictionary) -> void:
 	target_enemy_definition_id = String(save_data.get("target_enemy_definition_id", ""))
 	quest_item_definition_id = String(save_data.get("quest_item_definition_id", ""))
 	reward_offers = _extract_offer_array(save_data.get("reward_offers", []))
+	training_step = _normalize_training_step(String(save_data.get("training_step", TRAINING_STEP_NONE)))
+	technique_offers = _extract_offer_array(save_data.get("technique_offers", []))
 
 
 func build_persisted_node_state() -> Dictionary:
@@ -198,6 +208,8 @@ func build_persisted_node_state() -> Dictionary:
 			"target_enemy_definition_id": target_enemy_definition_id,
 			"quest_item_definition_id": quest_item_definition_id,
 			"reward_offers": reward_offers.duplicate(true),
+			"training_step": training_step,
+			"technique_offers": technique_offers.duplicate(true),
 		}
 	return {
 		"support_type": support_type,
@@ -296,6 +308,8 @@ func _setup_hamlet(
 	target_enemy_definition_id = String(persisted_node_state.get("target_enemy_definition_id", "")).strip_edges()
 	quest_item_definition_id = String(persisted_node_state.get("quest_item_definition_id", "")).strip_edges()
 	reward_offers = _extract_offer_array(persisted_node_state.get("reward_offers", []))
+	training_step = _normalize_training_step(String(persisted_node_state.get("training_step", TRAINING_STEP_NONE)))
+	technique_offers = _extract_offer_array(persisted_node_state.get("technique_offers", []))
 
 	var mission_definition: Dictionary = loader.load_definition(SIDE_MISSION_FAMILY, mission_definition_id)
 	var display: Dictionary = mission_definition.get("display", {})
@@ -304,6 +318,15 @@ func _setup_hamlet(
 	if quest_item_definition_id.is_empty():
 		quest_item_definition_id = String(rules.get("quest_item_definition_id", "")).strip_edges()
 	title_text = String(display.get("name", "Hamlet Request"))
+
+	if training_step == TRAINING_STEP_TECHNIQUE_CHOICE:
+		title_text = "Choose a Technique"
+		summary_text = _build_hamlet_personality_summary(
+			hamlet_personality,
+			"Claimed work can open one field lesson. Take one technique for the next fights, or skip it and leave."
+		)
+		offers = _build_hamlet_training_offers(loader, technique_offers)
+		return
 
 	match mission_status:
 		SIDE_MISSION_STATUS_OFFERED:
@@ -399,6 +422,42 @@ func _build_hamlet_reward_offers(loader: ContentLoader, authored_offers: Array[D
 	return result
 
 
+func _build_hamlet_training_offers(loader: ContentLoader, authored_offers: Array[Dictionary]) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for authored_offer in authored_offers:
+		var effect_type: String = String(authored_offer.get("effect_type", "")).strip_edges()
+		match effect_type:
+			"equip_technique":
+				var definition_id: String = String(authored_offer.get("definition_id", "")).strip_edges()
+				if definition_id.is_empty():
+					continue
+				var technique_definition: Dictionary = loader.load_definition("Techniques", definition_id)
+				if technique_definition.is_empty():
+					continue
+				var display_name: String = String(technique_definition.get("display", {}).get("name", definition_id))
+				var offer: Dictionary = {
+					"offer_id": String(authored_offer.get("offer_id", "equip_%s" % definition_id)),
+					"label": String(authored_offer.get("label", "Take %s" % display_name)),
+					"effect_type": "equip_technique",
+					"definition_id": definition_id,
+					"available": bool(authored_offer.get("available", true)),
+				}
+				var replaces_definition_id: String = String(authored_offer.get("replaces_definition_id", "")).strip_edges()
+				if not replaces_definition_id.is_empty():
+					offer["replaces_definition_id"] = replaces_definition_id
+				result.append(offer)
+			"skip_training_choice":
+				result.append({
+					"offer_id": String(authored_offer.get("offer_id", "skip_hamlet_training")),
+					"label": String(authored_offer.get("label", "Skip for now")),
+					"effect_type": "skip_training_choice",
+					"available": bool(authored_offer.get("available", true)),
+				})
+			_:
+				continue
+	return result
+
+
 func _normalize_legacy_rest_offers() -> void:
 	if support_type == TYPE_REST:
 		title_text = "Campfire"
@@ -433,6 +492,13 @@ func _normalize_mission_type(type_name: String) -> String:
 	]:
 		return normalized_type
 	return MISSION_TYPE_HUNT_MARKED_ENEMY
+
+
+func _normalize_training_step(step_name: String) -> String:
+	var normalized_step: String = String(step_name).strip_edges()
+	if normalized_step == TRAINING_STEP_TECHNIQUE_CHOICE:
+		return normalized_step
+	return TRAINING_STEP_NONE
 
 
 func _resolve_hamlet_target_families(rules: Dictionary, resolved_mission_type: String) -> PackedStringArray:

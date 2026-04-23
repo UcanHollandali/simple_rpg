@@ -4,7 +4,7 @@
   "authoring_order": 160,
   "family": "Enemies",
   "encounter_tier": "minor",
-  "design_intent_question": "Can the player save Defend for the clearly telegraphed impale turn instead of spending it on safer chip hits that only set up the real punish?",
+  "design_intent_question": "Can the player keep Defend for the real impale turn instead of spending it on the pokes and hooks that only set it up?",
   "tags": [
     "enemy",
     "soldier",
@@ -14,7 +14,7 @@
   ],
   "display": {
     "name": "Dusk Pikeman",
-    "short_description": "A disciplined line-fighter who pokes for space before driving in with a long punishing impale.",
+    "short_description": "A disciplined line-fighter who probes for space, spoils the next swing, and only then commits to the killing drive.",
     "icon_key": "enemy_dusk_pikeman"
   },
   "rules": {
@@ -31,7 +31,7 @@
           {
             "type": "deal_damage",
             "params": {
-              "base": 3,
+              "base": 2,
               "damage_kind": "physical"
             }
           }
@@ -45,7 +45,7 @@
           {
             "type": "deal_damage",
             "params": {
-              "base": 4,
+              "base": 3,
               "damage_kind": "physical"
             }
           },
@@ -65,7 +65,7 @@
           {
             "type": "deal_damage",
             "params": {
-              "base": 7,
+              "base": 8,
               "damage_kind": "physical"
             }
           }

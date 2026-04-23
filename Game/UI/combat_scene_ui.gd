@@ -11,8 +11,10 @@ const PLAYER_RUN_SUMMARY_LABEL_PATH := "Margin/VBox/BattleCardsRow/PlayerCard/HB
 const ACTION_CARDS_ROW_PATH := "Margin/VBox/Buttons/ActionCardsRow"
 const ATTACK_ACTION_CARD_PATH := "Margin/VBox/Buttons/ActionCardsRow/AttackActionCard"
 const DEFENSE_ACTION_CARD_PATH := "Margin/VBox/Buttons/ActionCardsRow/DefenseActionCard"
+const TECHNIQUE_ACTION_CARD_PATH := "Margin/VBox/Buttons/ActionCardsRow/TechniqueActionCard"
 const ATTACK_BUTTON_PATH := "Margin/VBox/Buttons/ActionCardsRow/AttackActionCard/AttackActionVBox/AttackButton"
 const DEFENSE_BUTTON_PATH := "Margin/VBox/Buttons/ActionCardsRow/DefenseActionCard/DefenseActionVBox/DefenseActionButton"
+const TECHNIQUE_BUTTON_PATH := "Margin/VBox/Buttons/ActionCardsRow/TechniqueActionCard/TechniqueActionVBox/TechniqueActionButton"
 const ENEMY_HP_BAR_NAME := "EnemyHpBar"
 const COMBAT_SECONDARY_SCROLL_PATH := "Margin/VBox/SecondaryScroll"
 const COMBAT_SECONDARY_SCROLL_CONTENT_PATH := "Margin/VBox/SecondaryScroll/SecondaryScrollContent"
@@ -45,6 +47,7 @@ const ACCENT_LABEL_PATHS := [
 	"Margin/VBox/Buttons/ActionSectionTitleLabel",
 	"Margin/VBox/Buttons/ActionCardsRow/AttackActionCard/AttackActionVBox/AttackActionEyebrowLabel",
 	"Margin/VBox/Buttons/ActionCardsRow/DefenseActionCard/DefenseActionVBox/DefenseActionEyebrowLabel",
+	"Margin/VBox/Buttons/ActionCardsRow/TechniqueActionCard/TechniqueActionVBox/TechniqueActionEyebrowLabel",
 ]
 const REWARD_LABEL_PATHS := [
 	"Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentCard/IntentVBox/IntentTitleLabel",
@@ -52,6 +55,7 @@ const REWARD_LABEL_PATHS := [
 	"Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/ForecastCard/ForecastVBox/ForecastTitleLabel",
 	"Margin/VBox/Buttons/ActionCardsRow/AttackActionCard/AttackActionVBox/AttackActionPreviewLabel",
 	"Margin/VBox/Buttons/ActionCardsRow/DefenseActionCard/DefenseActionVBox/DefenseActionPreviewLabel",
+	"Margin/VBox/Buttons/ActionCardsRow/TechniqueActionCard/TechniqueActionVBox/TechniqueActionPreviewLabel",
 ]
 const BODY_LABEL_PATHS := [
 	"Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/EnemyHpLabel",
@@ -85,11 +89,13 @@ const BODY_FONT_LABEL_PATHS := [
 	"Margin/VBox/Buttons/ActionSectionTitleLabel",
 	"Margin/VBox/Buttons/ActionCardsRow/AttackActionCard/AttackActionVBox/AttackActionEyebrowLabel",
 	"Margin/VBox/Buttons/ActionCardsRow/DefenseActionCard/DefenseActionVBox/DefenseActionEyebrowLabel",
+	"Margin/VBox/Buttons/ActionCardsRow/TechniqueActionCard/TechniqueActionVBox/TechniqueActionEyebrowLabel",
 	"Margin/VBox/Buttons/ActionCardsRow/AttackActionCard/AttackActionVBox/AttackActionPreviewLabel",
 	"Margin/VBox/Buttons/ActionCardsRow/DefenseActionCard/DefenseActionVBox/DefenseActionPreviewLabel",
+	"Margin/VBox/Buttons/ActionCardsRow/TechniqueActionCard/TechniqueActionVBox/TechniqueActionPreviewLabel",
 	"QuickItemSection/InventoryTitleLabel",
 ]
-const ACTION_BUTTON_PATHS := [ATTACK_BUTTON_PATH, DEFENSE_BUTTON_PATH]
+const ACTION_BUTTON_PATHS := [ATTACK_BUTTON_PATH, DEFENSE_BUTTON_PATH, TECHNIQUE_BUTTON_PATH]
 
 
 static func apply_temp_theme(scene: Control, secondary_node_getter: Callable) -> void:
@@ -99,6 +105,7 @@ static func apply_temp_theme(scene: Control, secondary_node_getter: Callable) ->
 	TempScreenThemeScript.apply_panel(scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard") as PanelContainer)
 	TempScreenThemeScript.apply_choice_card_shell(scene.get_node_or_null(ATTACK_ACTION_CARD_PATH) as PanelContainer, TempScreenThemeScript.RUST_ACCENT_COLOR)
 	TempScreenThemeScript.apply_choice_card_shell(scene.get_node_or_null(DEFENSE_ACTION_CARD_PATH) as PanelContainer, TempScreenThemeScript.TEAL_ACCENT_COLOR)
+	TempScreenThemeScript.apply_choice_card_shell(scene.get_node_or_null(TECHNIQUE_ACTION_CARD_PATH) as PanelContainer, TempScreenThemeScript.REWARD_ACCENT_COLOR)
 	TempScreenThemeScript.apply_compact_status_area(scene.get_node_or_null(PLAYER_RUN_SUMMARY_CARD_PATH) as PanelContainer, TempScreenThemeScript.TEAL_ACCENT_COLOR)
 	TempScreenThemeScript.apply_panel(_secondary_node(secondary_node_getter, "CombatLogCard") as PanelContainer, TempScreenThemeScript.TEAL_ACCENT_COLOR, 16, 0.72)
 	TempScreenThemeScript.apply_panel(scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/HBox/PlayerBustFrame") as PanelContainer, TempScreenThemeScript.TEAL_ACCENT_COLOR, 14, 0.34)
@@ -149,6 +156,7 @@ static func apply_temp_theme(scene: Control, secondary_node_getter: Callable) ->
 	)
 	TempScreenThemeScript.apply_button(scene.get_node_or_null(ATTACK_BUTTON_PATH) as Button, TempScreenThemeScript.RUST_ACCENT_COLOR)
 	TempScreenThemeScript.apply_button(scene.get_node_or_null(DEFENSE_BUTTON_PATH) as Button, TempScreenThemeScript.TEAL_ACCENT_COLOR)
+	TempScreenThemeScript.apply_button(scene.get_node_or_null(TECHNIQUE_BUTTON_PATH) as Button, TempScreenThemeScript.REWARD_ACCENT_COLOR)
 	SceneLayoutHelperScript.apply_control_overrides(scene, {}, [
 		{"path": "Margin/VBox/HeaderStack/ScreenTitleLabel", "font_size": 48},
 		{"path": "Margin/VBox/HeaderStack/TurnLabel", "font_size": 28},

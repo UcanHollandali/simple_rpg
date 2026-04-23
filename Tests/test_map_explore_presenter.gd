@@ -7,6 +7,7 @@ const MapExploreSceneScript = preload("res://scenes/map_explore.gd")
 const MapExplorePackedScene: PackedScene = preload("res://scenes/map_explore.tscn")
 const MapFocusHelperScript = preload("res://Game/UI/map_focus_helper.gd")
 const MapRouteBindingScript = preload("res://Game/UI/map_route_binding.gd")
+const MapRouteMotionHelperScript = preload("res://Game/UI/map_route_motion_helper.gd")
 const MapBoardComposerV2Script = preload("res://Game/UI/map_board_composer_v2.gd")
 const EventScenePacked: PackedScene = preload("res://scenes/event.tscn")
 const EventStateScript = preload("res://Game/RuntimeState/event_state.gd")
@@ -26,15 +27,17 @@ func _run() -> void:
 	test_map_scene_builds_route_move_path_from_composed_edge_geometry()
 	test_map_scene_builds_pending_roadside_visual_sample_from_edge_geometry()
 	test_map_scene_accepts_deferred_roadside_transition_for_destination_restore()
-	test_map_scene_keeps_focus_offset_quiet_inside_deadzone()
-	test_map_scene_blends_focus_toward_visible_cluster_context()
-	test_map_scene_clamps_focus_offset_to_keep_visible_routes_inside_frame()
+	test_map_scene_reports_zero_fixed_board_offset_for_focus_requests()
+	test_map_route_binding_keeps_fixed_board_offset_after_refresh()
+	test_map_scene_keeps_roadside_visual_offset_fixed()
+	test_map_route_binding_places_idle_walker_below_current_node_center()
+	test_map_route_motion_helper_emits_grounded_stride_sway()
 	test_map_route_binding_recomposes_board_positions_after_route_grid_resize()
 	test_map_route_binding_refreshes_cached_node_radii_after_moderate_resize()
 	test_map_route_buttons_suppress_default_tooltip_copy()
 	test_map_scene_does_not_spawn_legacy_line2d_roads()
 	test_event_overlay_uses_stable_offers_shell()
-	test_map_scene_delays_camera_follow_until_after_departure()
+	test_map_scene_retires_camera_follow_progress_by_default()
 	test_map_scene_queues_recompose_when_route_grid_resizes_during_refresh()
 	test_map_route_binding_reconciles_route_buttons_after_selection_finishes()
 	print("test_map_explore_presenter: all assertions passed")
@@ -158,7 +161,7 @@ func test_map_presenter_builds_runtime_graph_labels() -> void:
 		"Expected hamlet routes to expose the canonical settlement label."
 	)
 	assert(
-		presenter.call("build_route_icon_texture_path", "combat") == "res://Assets/Icons/icon_attack.svg",
+		presenter.call("build_route_icon_texture_path", "combat") == "res://Assets/Icons/icon_map_combat.svg",
 		"Expected combat routes to resolve to the dedicated combat icon floor."
 	)
 	assert(
@@ -186,11 +189,11 @@ func test_map_presenter_builds_runtime_graph_labels() -> void:
 		"Expected hamlet routes to use the dedicated settlement-contract icon floor."
 	)
 	assert(
-		presenter.call("build_route_icon_texture_path", "key") == "res://Assets/Icons/icon_confirm.svg",
+		presenter.call("build_route_icon_texture_path", "key") == "res://Assets/Icons/icon_map_key.svg",
 		"Expected key routes to use the dedicated key marker icon treatment."
 	)
 	assert(
-		presenter.call("build_route_icon_texture_path", "boss") == "res://Assets/Icons/icon_enemy_intent_heavy.svg",
+		presenter.call("build_route_icon_texture_path", "boss") == "res://Assets/Icons/icon_map_boss.svg",
 		"Expected boss routes to use the dedicated boss marker icon treatment."
 	)
 	var route_models: Array[Dictionary] = presenter.call("build_route_view_models", run_state, 6)
@@ -493,7 +496,7 @@ func test_map_scene_accepts_deferred_roadside_transition_for_destination_restore
 	_free_control(scene)
 
 
-func test_map_scene_keeps_focus_offset_quiet_inside_deadzone() -> void:
+func test_map_scene_reports_zero_fixed_board_offset_for_focus_requests() -> void:
 	var scene: Control = MapExploreSceneScript.new()
 	var margin := MarginContainer.new()
 	margin.name = "Margin"
@@ -506,133 +509,131 @@ func test_map_scene_keeps_focus_offset_quiet_inside_deadzone() -> void:
 	route_grid.custom_minimum_size = Vector2(1080.0, 1920.0)
 	route_grid.size = Vector2(1080.0, 1920.0)
 	vbox.add_child(route_grid)
-	scene.set("_route_layout_offset", Vector2.ZERO)
+	scene.set("_route_layout_offset", Vector2(42.0, -18.0))
 	var centered_offset: Vector2 = scene.call("_desired_focus_offset_for_world_position", Vector2(540.0, 960.0))
 	assert(
 		centered_offset == Vector2.ZERO,
-		"Expected the board focus deadzone to keep the map quiet when the current node is already inside the readable center envelope."
+		"Expected the fixed-board model to keep the board offset at zero for centered current-node requests."
 	)
 	var edge_offset: Vector2 = scene.call("_desired_focus_offset_for_world_position", Vector2(140.0, 180.0))
 	assert(
-		edge_offset.length() > 0.0,
-		"Expected the board focus deadzone still to allow a limited corrective offset for extreme edge positions."
-	)
-	assert(
-		edge_offset.y >= route_grid.size.y * 0.10,
-		"Expected extreme upper-edge positions to pull the board downward enough to keep the current node and walker out of the crowded top band."
-	)
-	assert(
-		edge_offset.length() < Vector2(540.0, 780.0).length(),
-		"Expected corrective map focus movement to stay damped instead of fully re-centering the board every step."
+		edge_offset == Vector2.ZERO,
+		"Expected the fixed-board model not to recenter the board even for edge-biased node positions."
 	)
 	_free_control(scene)
 
 
-func test_map_scene_blends_focus_toward_visible_cluster_context() -> void:
-	var scene: Control = MapExploreSceneScript.new()
+func test_map_route_binding_keeps_fixed_board_offset_after_refresh() -> void:
+	var owner := Control.new()
 	var margin := MarginContainer.new()
 	margin.name = "Margin"
-	scene.add_child(margin)
+	owner.add_child(margin)
 	var vbox := VBoxContainer.new()
 	vbox.name = "VBox"
 	margin.add_child(vbox)
 	var route_grid := Control.new()
 	route_grid.name = "RouteGrid"
-	route_grid.custom_minimum_size = Vector2(1080.0, 1920.0)
-	route_grid.size = Vector2(1080.0, 1920.0)
+	route_grid.size = Vector2(1052.0, 1008.0)
+	route_grid.custom_minimum_size = route_grid.size
 	vbox.add_child(route_grid)
-	scene.set("_route_layout_offset", Vector2.ZERO)
-	scene.set("_board_composition_cache", {
-		"visible_nodes": [
-			{"node_id": 0, "is_current": true, "is_adjacent": false, "state_semantic": "current", "world_position": Vector2(860.0, 980.0)},
-			{"node_id": 1, "is_current": false, "is_adjacent": true, "state_semantic": "open", "world_position": Vector2(720.0, 940.0)},
-			{"node_id": 2, "is_current": false, "is_adjacent": false, "state_semantic": "resolved", "world_position": Vector2(650.0, 900.0)},
-		],
-	})
-	var current_world_position := Vector2(860.0, 980.0)
-	var raw_offset: Vector2 = MapFocusHelperScript.desired_focus_offset(
-		route_grid,
-		Vector2.ZERO,
-		current_world_position,
-		MapRouteBindingScript.BOARD_FOCUS_ANCHOR_FACTOR,
-		MapRouteBindingScript.BOARD_MAX_OFFSET_FACTOR,
-		MapRouteBindingScript.BOARD_FOCUS_DEADZONE_FACTOR,
-		MapRouteBindingScript.BOARD_FOCUS_DAMPING
-	)
-	var contextual_offset: Vector2 = scene.call("_desired_focus_offset_for_world_position", current_world_position)
+	var route_binding: RefCounted = MapRouteBindingScript.new()
+	route_binding.call("configure", owner, Callable(owner, "get_node_or_null"), MapBoardComposerV2Script.new())
+	var run_state: RunState = RunState.new()
+	run_state.reset_for_new_run()
+	run_state.configure_run_seed(7)
+	route_binding.set("_route_layout_offset", Vector2(84.0, -46.0))
+	route_binding.call("prepare_for_refresh", run_state)
 	assert(
-		absf(contextual_offset.x) < absf(raw_offset.x),
-		"Expected map focus to preserve more visible-cluster context instead of pulling the board fully toward the current node."
+		route_binding.get("_route_layout_offset") == Vector2.ZERO,
+		"Expected board refresh to reset route-layout offset back to the fixed-board zero point."
 	)
-	_free_control(scene)
+	var next_node_id: int = int(run_state.map_runtime_state.get_adjacent_node_ids()[0])
+	run_state.map_runtime_state.move_to_node(next_node_id)
+	route_binding.call("prepare_for_refresh", run_state)
+	assert(
+		route_binding.get("_route_layout_offset") == Vector2.ZERO,
+		"Expected route refresh after movement to keep the board fixed instead of recentering around the new current node."
+	)
+	_free_control(owner)
 
 
-func test_map_scene_clamps_focus_offset_to_keep_visible_routes_inside_frame() -> void:
+func test_map_scene_keeps_roadside_visual_offset_fixed() -> void:
 	var scene: Control = MapExploreSceneScript.new()
-	var margin := MarginContainer.new()
-	margin.name = "Margin"
-	scene.add_child(margin)
-	var vbox := VBoxContainer.new()
-	vbox.name = "VBox"
-	margin.add_child(vbox)
-	var route_grid := Control.new()
-	route_grid.name = "RouteGrid"
-	route_grid.custom_minimum_size = Vector2(1080.0, 1920.0)
-	route_grid.size = Vector2(1080.0, 1920.0)
-	vbox.add_child(route_grid)
-	scene.set("_route_layout_offset", Vector2.ZERO)
 	scene.set("_board_composition_cache", {
-		"visible_nodes": [
-			{"node_id": 0, "is_current": true, "is_adjacent": false, "state_semantic": "current", "world_position": Vector2(180.0, 180.0), "clearing_radius": 56.0},
-			{"node_id": 1, "is_current": false, "is_adjacent": true, "state_semantic": "open", "world_position": Vector2(760.0, 1690.0), "clearing_radius": 60.0},
-			{"node_id": 2, "is_current": false, "is_adjacent": false, "state_semantic": "resolved", "world_position": Vector2(620.0, 1380.0), "clearing_radius": 52.0},
-		],
+		"current_node_id": 0,
+		"world_positions": {
+			0: Vector2(180.0, 520.0),
+			4: Vector2(520.0, 220.0),
+		},
 		"visible_edges": [
 			{
 				"from_node_id": 0,
-				"to_node_id": 1,
+				"to_node_id": 4,
 				"points": PackedVector2Array([
-					Vector2(220.0, 244.0),
-					Vector2(314.0, 522.0),
-					Vector2(432.0, 918.0),
-					Vector2(586.0, 1322.0),
-					Vector2(720.0, 1608.0),
+					Vector2(248.0, 470.0),
+					Vector2(324.0, 392.0),
+					Vector2(416.0, 302.0),
 				]),
 			},
 		],
 	})
-	var current_world_position := Vector2(180.0, 180.0)
-	var context_world_position: Vector2 = MapFocusHelperScript.focus_context_world_position(scene.get("_board_composition_cache"), current_world_position)
-	var context_blend: float = MapFocusHelperScript.context_blend_for_positions(route_grid, current_world_position, context_world_position, MapRouteBindingScript.BOARD_FOCUS_CONTEXT_BLEND_MIN, MapRouteBindingScript.BOARD_FOCUS_CONTEXT_BLEND_MAX)
-	var unclamped_offset: Vector2 = MapFocusHelperScript.desired_focus_offset(
-		route_grid,
-		Vector2.ZERO,
-		current_world_position,
-		MapRouteBindingScript.BOARD_FOCUS_ANCHOR_FACTOR,
-		MapRouteBindingScript.BOARD_MAX_OFFSET_FACTOR,
-		MapRouteBindingScript.BOARD_FOCUS_DEADZONE_FACTOR,
-		MapRouteBindingScript.BOARD_FOCUS_DAMPING,
-		context_world_position,
-		context_blend
-	)
-	var clamped_offset: Vector2 = scene.call("_desired_focus_offset_for_world_position", current_world_position)
+	scene.set("_route_layout_offset", Vector2(30.0, -14.0))
+	scene.call("_prime_roadside_visual_state", 0, 4)
+	var roadside_visual_state: Dictionary = scene.get("_roadside_visual_state")
 	assert(
-		clamped_offset.y < unclamped_offset.y,
-		"Expected live map focus to clamp large downward drift once the visible route cluster already fills the board height."
-	)
-	var visible_bounds: Rect2 = MapFocusHelperScript.visible_content_bounds(scene.get("_board_composition_cache"))
-	var translated_bounds := Rect2(visible_bounds.position + clamped_offset, visible_bounds.size)
-	assert(
-		translated_bounds.position.x >= MapRouteBindingScript.BOARD_VISIBLE_CONTENT_PADDING.x - 0.01
-		and translated_bounds.position.y >= MapRouteBindingScript.BOARD_VISIBLE_CONTENT_PADDING.y - 0.01,
-		"Expected focus clamping to keep the visible route cluster inside the padded board frame."
+		Vector2(roadside_visual_state.get("offset", Vector2.ONE)) == Vector2.ZERO,
+		"Expected roadside interruption previews to keep the board offset fixed instead of carrying a recenter preview offset."
 	)
 	assert(
-		translated_bounds.end.x <= route_grid.size.x - MapRouteBindingScript.BOARD_VISIBLE_CONTENT_PADDING.x + 0.01
-		and translated_bounds.end.y <= route_grid.size.y - MapRouteBindingScript.BOARD_VISIBLE_CONTENT_PADDING.y + 0.01,
-		"Expected focus clamping not to push visible roads or clearings beyond the opposite frame edge."
+		Vector2(roadside_visual_state.get("target_offset", Vector2.ONE)) == Vector2.ZERO,
+		"Expected roadside interruption previews to keep the target board offset fixed in the fixed-board model."
 	)
+	var sample: Dictionary = scene.call("_build_pending_roadside_visual_sample")
+	assert(Vector2(sample.get("offset", Vector2.ONE)) == Vector2.ZERO, "Expected pending roadside visual samples to keep a zero board offset during the interrupted route beat.")
 	_free_control(scene)
+
+
+func test_map_route_binding_places_idle_walker_below_current_node_center() -> void:
+	var owner := Control.new()
+	var margin := MarginContainer.new()
+	margin.name = "Margin"
+	owner.add_child(margin)
+	var vbox := VBoxContainer.new()
+	vbox.name = "VBox"
+	margin.add_child(vbox)
+	var route_grid := Control.new()
+	route_grid.name = "RouteGrid"
+	route_grid.size = Vector2(1052.0, 1008.0)
+	route_grid.custom_minimum_size = route_grid.size
+	vbox.add_child(route_grid)
+	var route_binding: RefCounted = MapRouteBindingScript.new()
+	route_binding.call("configure", owner, Callable(owner, "get_node_or_null"), MapBoardComposerV2Script.new())
+	route_binding.call("ensure_runtime_board_nodes")
+	var current_marker: TextureRect = route_binding.get("_current_marker") as TextureRect
+	var walker_root: Control = route_binding.get("_walker_root") as Control
+	var walker_sprite: TextureRect = route_binding.get("_walker_sprite") as TextureRect
+	assert(current_marker != null and walker_root != null and walker_sprite != null, "Expected runtime board nodes before idle walker placement coverage.")
+	current_marker.visible = true
+	current_marker.size = MapRouteBindingScript.CURRENT_MARKER_SIZE
+	current_marker.position = Vector2(420.0, 340.0)
+	route_binding.call("_sync_walker_to_current_marker")
+	var current_center: Vector2 = current_marker.position + current_marker.size * 0.5
+	var walker_sprite_bottom: float = walker_root.position.y + walker_sprite.position.y + walker_sprite.size.y
+	assert(bool(walker_root.visible), "Expected idle walker placement to keep the walker visible on the fixed board.")
+	assert(
+		walker_sprite_bottom >= current_center.y + 18.0,
+		"Expected idle walker placement to sit on the lower rim of the current clearing instead of covering the center icon."
+	)
+	_free_control(owner)
+
+
+func test_map_route_motion_helper_emits_grounded_stride_sway() -> void:
+	var start_offset: Vector2 = MapRouteMotionHelperScript.walker_stride_offset(0.0, 320.0, 2.25, 6.0)
+	var mid_offset: Vector2 = MapRouteMotionHelperScript.walker_stride_offset(0.33, 320.0, 2.25, 6.0)
+	var end_offset: Vector2 = MapRouteMotionHelperScript.walker_stride_offset(1.0, 320.0, 2.25, 6.0)
+	assert(start_offset.length() <= 0.001 and end_offset.length() <= 0.001, "Expected walker stride offsets to settle back to zero at route endpoints.")
+	assert(mid_offset.y < -0.1, "Expected walker stride sampling to keep a lifted foot bob during in-flight board motion.")
+	assert(absf(mid_offset.x) >= 0.5, "Expected walker stride sampling to add a small lateral sway so route motion does not read as a pure vertical bob.")
 
 
 func test_map_route_binding_recomposes_board_positions_after_route_grid_resize() -> void:
@@ -892,16 +893,16 @@ func test_event_overlay_uses_stable_offers_shell() -> void:
 	_free_control(roadside_host)
 
 
-func test_map_scene_delays_camera_follow_until_after_departure() -> void:
+func test_map_scene_retires_camera_follow_progress_by_default() -> void:
 	var scene: Control = MapExploreSceneScript.new()
 	var early_progress: float = scene.call("_route_camera_follow_progress", 0.10)
 	var mid_progress: float = scene.call("_route_camera_follow_progress", 0.50)
 	var late_progress: float = scene.call("_route_camera_follow_progress", 0.85)
 	var final_progress: float = scene.call("_route_camera_follow_progress", 1.0)
-	assert(is_equal_approx(early_progress, 0.0), "Expected board follow to hold briefly at departure so the walker can leave the current node before the board recenters.")
-	assert(mid_progress < 0.5, "Expected board follow to lag behind raw route progress through the middle of the travel beat.")
-	assert(late_progress > mid_progress, "Expected board follow to keep catching up through the late route phase.")
-	assert(is_equal_approx(final_progress, 1.0), "Expected board follow to settle fully onto the target focus by the end of the route.")
+	assert(is_equal_approx(early_progress, 0.0), "Expected the fixed-board model to retire early traversal camera follow.")
+	assert(is_equal_approx(mid_progress, 0.0), "Expected the fixed-board model to keep the board still through the middle of route travel.")
+	assert(is_equal_approx(late_progress, 0.0), "Expected the fixed-board model to keep the board still through the late route phase.")
+	assert(is_equal_approx(final_progress, 0.0), "Expected the fixed-board model not to settle onto a target focus at route end.")
 	_free_control(scene)
 
 

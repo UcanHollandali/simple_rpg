@@ -97,10 +97,14 @@ static func polyline_hits_other_visible_nodes(
 
 
 static func polyline_stays_inside_board_frame(points: PackedVector2Array, board_size: Vector2, tolerance: float = 12.0) -> bool:
+	return polyline_stays_inside_rect(points, Rect2(Vector2.ZERO, board_size), tolerance)
+
+
+static func polyline_stays_inside_rect(points: PackedVector2Array, bounds: Rect2, tolerance: float = 0.0) -> bool:
 	for point in points:
-		if point.x < -tolerance or point.x > board_size.x + tolerance:
+		if point.x < bounds.position.x - tolerance or point.x > bounds.end.x + tolerance:
 			return false
-		if point.y < -tolerance or point.y > board_size.y + tolerance:
+		if point.y < bounds.position.y - tolerance or point.y > bounds.end.y + tolerance:
 			return false
 	return true
 

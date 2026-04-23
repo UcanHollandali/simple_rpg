@@ -121,6 +121,19 @@ Current repo truth:
   - `merchant`
   - `blacksmith`
   - `hamlet`
+- Approved Prompt `27` target note:
+  - first-pass training acquisition stays inside the existing `MapExplore -> SupportInteraction` hamlet route
+  - using a technique stays inside the existing `Combat` state
+  - no `Training`, `TechniqueSelect`, or equivalent new main flow state is approved
+- Approved Prompt `29` target note:
+  - hand-slot swap stays inside the existing `Combat` state
+  - no `SwapMenu`, `EquipmentMenu`, or equivalent new main flow state is approved
+  - a compact anchored swap tray or inline swap strip inside combat does not become a main flow state
+- Approved Prompt `30` target note:
+  - advanced enemy intents stay inside the existing `Combat` state
+  - no `EnemyPrep`, `EnemyBuff`, `EnemyStatus`, or equivalent new main flow state is approved
+  - setup/pass windows, multi-hit packet resolution, enemy self-buff windows, and enemy-owned status windows are combat-local substates only
+  - later implementation may add new combat-local domain events for feedback/telegraphing, but not a new main flow state
 - Resolved event nodes must stay traversable without reopening `Event` or minting a second primary outcome.
 - Re-entering a resolved node must not create repeat payout just because the player revisited it.
 - Resolved reward nodes and cleared combat nodes must not produce repeat primary value on revisit.

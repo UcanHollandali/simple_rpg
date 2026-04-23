@@ -96,9 +96,9 @@ static func resolve_hunger_threshold(hunger_value: int) -> int:
 static func build_hunger_threshold_warning_text(threshold: int) -> String:
 	match threshold:
 		HUNGER_THRESHOLD_HUNGRY:
-			return "Hungry — saldırı gücün -1"
+			return "Hungry - attack power -1"
 		HUNGER_THRESHOLD_STARVING:
-			return "Starving — saldırı gücün -2"
+			return "Starving - attack power -2"
 		HUNGER_THRESHOLD_STARVATION:
 			return "Starvation damage!"
 		_:

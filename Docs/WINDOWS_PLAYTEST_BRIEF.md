@@ -4,6 +4,8 @@
 
 - Keep `simple_rpg_playtest.exe` and `simple_rpg_playtest.pck` in the same folder.
 - Open `simple_rpg_playtest.exe`.
+- Optional developer telemetry capture: launch from a terminal with `simple_rpg_playtest.exe --playtest-log` when a JSONL session trace is explicitly needed.
+- Explicit telemetry capture now writes a `session_start` header plus a stable `session_id` so repeated local playtests can share one JSONL file without losing per-session boundaries.
 - Use `Start New Run` to enter the current prototype slice.
 - `Load Saved Run` only unlocks after the first safe-state save.
 - Save/load is intentionally bounded to the current safe screens. Mid-combat restore is not part of this playtest pass.
@@ -19,7 +21,12 @@
 
 - Main menu clarity and first-run comprehension.
 - Map readability, route-choice clarity, and safe-screen save/load expectations.
-- Combat, event, reward, and support pacing inside the current compact loop.
+- Combat pacing inside the current compact loop, especially:
+  - whether `Defend` feels worth its `2` hunger turn cost when spike turns are readable
+  - whether enemy telegraphs create real decisions instead of noise
+  - whether `Technique` choices feel distinct and worth carrying between combats
+  - whether `SwapHand` feels useful mainly as broken-weapon recovery or also produces proactive decisions
+- Event, reward, and support pacing inside the same compact run slice.
 - Confusion, friction, or dead-end moments in the current prototype flow.
 
 ## Temporary Floor

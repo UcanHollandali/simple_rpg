@@ -23,6 +23,8 @@ var boss_phase_definitions: Array[Dictionary] = []
 var boss_phase_index: int = -1
 var boss_phase_id: String = ""
 var boss_phase_display_name: String = ""
+var backpack_slots: Array[Dictionary] = []
+var backpack_next_slot_id: int = 1
 var inventory_slot_order: Array[int] = []
 var active_weapon_slot_id: int = -1
 var active_left_hand_slot_id: int = -1
@@ -36,6 +38,10 @@ var consumable_slots: Array[Dictionary] = []
 var player_statuses: Array[Dictionary] = []
 var enemy_statuses: Array[Dictionary] = []
 var current_guard: int = 0
+var equipped_technique_definition_id: String = ""
+var equipped_technique_definition: Dictionary = {}
+var technique_spent: bool = false
+var queued_attack_multiplier: int = 1
 var enemy_definition: Dictionary = {}
 var encounter_node_family: String = ""
 var is_boss_combat: bool = false
@@ -49,11 +55,14 @@ var combat_result: String = ""
 
 func setup_from_run_state(run_state: RunState, enemy_def: Dictionary, combat_setup_data: Dictionary = {}) -> void:
 	var inventory_state: RefCounted = run_state.inventory_state
+	var loader: ContentLoader = ContentLoaderScript.new()
 	enemy_definition = enemy_def.duplicate(true)
 	encounter_node_family = String(combat_setup_data.get("encounter_node_family", ""))
 	is_boss_combat = bool(combat_setup_data.get("is_boss_combat", encounter_node_family == "boss"))
 	player_hp = run_state.player_hp
 	player_hunger = clamp(int(run_state.hunger), 0, RunState.DEFAULT_HUNGER)
+	backpack_slots = inventory_state.inventory_slots.duplicate(true)
+	backpack_next_slot_id = max(1, int(inventory_state.next_slot_id))
 	inventory_slot_order = _extract_inventory_slot_order(inventory_state)
 	active_weapon_slot_id = int(inventory_state.active_weapon_slot_id)
 	active_left_hand_slot_id = int(inventory_state.active_left_hand_slot_id)
@@ -68,6 +77,14 @@ func setup_from_run_state(run_state: RunState, enemy_def: Dictionary, combat_set
 	player_statuses = []
 	enemy_statuses = []
 	current_guard = 0
+	equipped_technique_definition_id = String(run_state.equipped_technique_definition_id).strip_edges()
+	equipped_technique_definition = {}
+	if not equipped_technique_definition_id.is_empty():
+		equipped_technique_definition = loader.load_definition("Techniques", equipped_technique_definition_id)
+		if equipped_technique_definition.is_empty():
+			equipped_technique_definition_id = ""
+	technique_spent = false
+	queued_attack_multiplier = 1
 	enemy_hp = int(_extract_enemy_stats(enemy_definition).get("base_hp", 0))
 	enemy_max_hp = enemy_hp
 	boss_phase_definitions = _extract_enemy_boss_phases(enemy_definition)
@@ -96,7 +113,11 @@ func build_inventory_projection(inventory_state: InventoryState) -> InventorySta
 		return null
 
 	var projected_inventory: InventoryState = InventoryStateScript.new()
-	projected_inventory.load_from_flat_save_dict(inventory_state.to_save_dict())
+	var inventory_snapshot: Dictionary = inventory_state.to_save_dict()
+	if not backpack_slots.is_empty() or backpack_next_slot_id > 1:
+		inventory_snapshot["backpack_slots"] = backpack_slots.duplicate(true)
+		inventory_snapshot["inventory_next_slot_id"] = max(1, backpack_next_slot_id)
+	projected_inventory.load_from_flat_save_dict(inventory_snapshot)
 	_apply_inventory_slot_order(projected_inventory)
 	projected_inventory.set_weapon_instance(
 		_build_projected_equipment_slot(
@@ -146,6 +167,8 @@ func apply_inventory_projection(projected_inventory: InventoryState) -> void:
 	active_left_hand_slot_id = int(projected_inventory.active_left_hand_slot_id)
 	active_armor_slot_id = int(projected_inventory.active_armor_slot_id)
 	active_belt_slot_id = int(projected_inventory.active_belt_slot_id)
+	backpack_slots = projected_inventory.inventory_slots.duplicate(true)
+	backpack_next_slot_id = max(1, int(projected_inventory.next_slot_id))
 	inventory_slot_order = _extract_inventory_slot_order(projected_inventory)
 	weapon_instance = projected_inventory.weapon_instance.duplicate(true)
 	left_hand_instance = projected_inventory.left_hand_instance.duplicate(true)
@@ -277,6 +300,24 @@ func resolve_player_turn_end_statuses() -> Dictionary:
 	}
 
 
+func clear_player_statuses() -> PackedStringArray:
+	var removed_definition_ids: PackedStringArray = []
+	for status_value in player_statuses:
+		if typeof(status_value) != TYPE_DICTIONARY:
+			continue
+		var status: Dictionary = status_value
+		var definition_id: String = String(status.get("definition_id", "")).strip_edges()
+		if definition_id.is_empty() or removed_definition_ids.has(definition_id):
+			continue
+		removed_definition_ids.append(definition_id)
+	player_statuses = []
+	return removed_definition_ids
+
+
+func has_equipped_technique() -> bool:
+	return not equipped_technique_definition_id.is_empty() and not equipped_technique_definition.is_empty()
+
+
 func _extract_enemy_stats(definition: Dictionary) -> Dictionary:
 	var rules: Dictionary = definition.get("rules", {})
 	return rules.get("stats", {})
@@ -356,6 +397,10 @@ func _rebuild_player_runtime_state(passive_slot_list: Array[Dictionary]) -> void
 		"consumable_slots": consumable_slots.duplicate(true),
 		"guard_points": current_guard,
 		"random_roll_percent": random_roll_percent,
+		"equipped_technique_definition_id": equipped_technique_definition_id,
+		"equipped_technique_definition": equipped_technique_definition.duplicate(true),
+		"technique_spent": technique_spent,
+		"queued_attack_multiplier": max(1, queued_attack_multiplier),
 	}
 	if String(left_hand_instance.get("inventory_family", "")) == InventoryStateScript.INVENTORY_FAMILY_SHIELD:
 		_apply_equipped_item_effect("Shields", left_hand_instance)

@@ -4,7 +4,7 @@
   "authoring_order": 140,
   "family": "Enemies",
   "encounter_tier": "minor",
-  "design_intent_question": "Can the player spot that the trapper is not racing for raw damage, but trying to foul preparation turns until one chained punish lands clean?",
+  "design_intent_question": "Can the player see the trapper's full setup line and refuse to hand over one clean punish window?",
   "tags": [
     "enemy",
     "raider",
@@ -15,24 +15,24 @@
   ],
   "display": {
     "name": "Chain Trapper",
-    "short_description": "A path hunter who ruins clean tempo with hook drags and snagged chain before cashing in with one bleeding rake.",
+    "short_description": "A raider who drags tempo sideways with hooks and snarled chain before cashing in with one bleeding rake.",
     "icon_key": "enemy_chain_trapper"
   },
   "rules": {
     "stats": {
-      "base_hp": 24,
+      "base_hp": 26,
       "base_damage": 4
     },
     "intent_pool": [
       {
         "intent_id": "hook_drag",
         "action_family": "attack",
-        "threat_level": "medium",
+        "threat_level": "low",
         "effects": [
           {
             "type": "deal_damage",
             "params": {
-              "base": 2,
+              "base": 1,
               "damage_kind": "physical"
             }
           },
@@ -72,7 +72,7 @@
           {
             "type": "deal_damage",
             "params": {
-              "base": 5,
+              "base": 6,
               "damage_kind": "physical"
             }
           },

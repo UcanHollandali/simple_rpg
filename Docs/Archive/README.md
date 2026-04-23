@@ -4,6 +4,7 @@
 
 What stays here now:
 - dated architecture reviews that still have historical value
+- closed-green prompt-pack batches such as `Docs/Archive/Prompts/2026-04-23-closed-green-prompt-packs/`
 - archive contents are intentionally sparse right now; if a dated review is archived later, read it as historical context only, not current repo truth
 
 What was intentionally removed on `2026-04-12`:

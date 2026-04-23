@@ -20,8 +20,44 @@ Top-level action buttons:
 
 Current player-facing combat inventory rules:
 - direct consumable card click is allowed and consumes the turn when the item would change HP or hunger
-- gear swaps are locked during combat
+- exactly `1` narrow combat-time `SwapHand` action is legal per player turn:
+  - only `right_hand` and `left_hand`
+  - only when that hand has an eligible carried spare candidate
+  - confirming the swap spends the full turn
+  - `armor` and `belt` stay locked
 - backpack reorder is locked during combat
+
+## Technique MVP (Live Prompt 27 Surface)
+
+- Combat now includes exactly `1` additional combat command family: `Technique`.
+- `Technique` is a conditional main-action surface, not a persistent `2`-slot skill bar.
+- The player keeps exactly `1` equipped technique between combats in the current run until a later training choice replaces it.
+- If no technique is equipped, combat keeps the current `Attack` / `Defend` baseline plus direct consumable click behavior.
+- If a technique is equipped, combat must expose one explicit tap target for it in the main combat action area.
+- That tap target must not hide in the log, tooltip, or inventory drawer.
+- The current live first-pass technique set is:
+  - `cleanse_pulse` via `remove_statuses` plus a small guard pulse
+  - `sundering_strike` via `attack_ignore_armor`
+  - `blood_draw` via `attack_lifesteal`
+  - `echo_strike` via `prime_next_attack`
+- First-pass techniques stay constrained to the current combat identity:
+  - single-target
+  - turn-spending
+  - readable without exact prediction math
+  - no hand-slot swap dependency
+- First-pass usage-limit policy is `once_per_combat`.
+- Using a technique spends the turn and marks that technique spent for the rest of the current combat.
+- The once-per-combat spent flag resets at combat start.
+- Technique definitions are authored under `ContentDefinitions/Techniques/*.json`.
+- `CombatResolver` owns technique effect resolution.
+- `CombatFlow` owns technique availability, once-per-combat consumption, and turn-spend orchestration.
+- UI and presenter surfaces may only format existing technique truth; they must not resolve legality, effect math, or command ownership.
+- Still deferred from this MVP:
+  - `stun`
+  - multiple simultaneously carried techniques
+  - a persistent top-level skill bar
+  - broader loadout/save continuity
+  - hand-slot swap dependent technique lanes
 
 ## Turn Order
 
@@ -98,6 +134,70 @@ This order is the only truthful live baseline.
   - intent rotation resets to the first intent in that new phase
   - a dedicated `BossPhaseChanged` feedback signal is emitted for presentation/audio hooks
 
+## Current Enemy Pattern Slice
+
+- Current live enemy authoring still stays inside ordered sequential `intent_pool` lines plus boss-only optional phase-local intent pools.
+- Prompt 24 Pattern Pack A now uses that narrow slice to ask clearer authored questions without opening a broader enemy-intent system:
+  - `light -> heavy` timing reads through enemies such as `mossback_ram` and `dusk_pikeman`
+  - `status pressure -> punish` reads through enemies such as `skeletal_hound` and `grave_chanter`
+  - `greed / resource punish` reads through enemies such as `ashen_sapper` and `chain_trapper`
+  - `boss phase spike` reads through `tollhouse_captain`
+- These patterns are authored through ordered intent lines, threat tiers, and boss-phase swaps only.
+- Current combat truth still does not include:
+  - weighted intent selection
+  - true multi-hit packets
+  - enemy self-buff / self-guard / armor-up runtime
+  - enemy-side status ownership
+  - reactive trigger-based enemy routing
+
+## Advanced Enemy Intent Expansion Target (Prompt 30, Not Live Yet)
+
+This section records the approved advanced-intent spec target.
+It is not current live runtime truth yet.
+
+- Advanced enemy intents are a new combat rule surface, not a content-only continuation.
+- Intended new advanced intent families are:
+  - `setup_pass`
+    - spends the current enemy action on preparation rather than immediate damage
+    - may arm exactly `1` combat-local prepared follow-up payload on `enemy_self`
+    - must author an explicit expiry window for that prepared follow-up
+  - `multi_hit`
+    - resolves an authored ordered packet list inside one enemy action
+    - each packet re-runs the normal damage order independently
+  - `self_state`
+    - applies enemy-self guard, armor-up, or temporary stat-up changes
+    - does not widen target routing beyond `enemy_self`
+  - `enemy_status`
+    - applies, refreshes, or removes enemy-owned statuses on `enemy_self`
+- Intended target routing remains narrow even after this expansion:
+  - `player`
+  - `enemy_self`
+- No ally, random-target, or route-wide targeting is part of this first advanced-intent target.
+- Intended runtime owners are explicit:
+  - `CombatState` owns combat-local enemy prepared-follow-up truth, enemy guard, enemy temporary armor/stat modifiers, enemy status instances, and any revealed packet-plan truth that survives across turns
+  - `CombatResolver` owns packet-by-packet enemy-action resolution plus enemy-self guard / buff / armor / status application
+  - `CombatFlow` owns lifetime ticking, expiry, reveal snapshot assembly, boss-phase interaction, and advanced combat domain-event emission
+  - UI / presenter surfaces remain formatting-only; they do not own advanced intent legality or effect math
+- Intended boss-phase behavior stays explicit:
+  - an already revealed current intent still does not mutate mid-turn
+  - boss-phase checks still happen during next-intent preparation after the full turn resolves
+  - prepared follow-up state, enemy guard, enemy temporary armor/stat modifiers, and enemy-owned statuses persist across a boss-phase change only through their authored remaining duration
+  - a boss-phase change alone does not silently clear or rewrite those combat-local enemy states
+- Intended telegraph requirements are explicit:
+  - text and icon truth remain primary
+  - `setup_pass` must telegraph both the current setup turn and the prepared follow-up family/window
+  - `multi_hit` must telegraph hit count and ordered pressure; it must not fake mitigation math the runtime does not own yet
+  - `self_state` must visibly expose gained enemy guard / armor / attack-up truth on the enemy card and subsequent intent read
+  - `enemy_status` must visibly expose active enemy-status chips/badges and remaining duration/stack truth once runtime owns that information
+- Intended combat-domain-event prerequisite is explicit:
+  - later implementation is expected to add at least one new combat-local domain-event family for enemy self-state changes
+  - later implementation is expected to add at least one new combat-local domain-event family for multi-hit packet progression
+- Still deferred even with this advanced-intent target:
+  - weighted intent selection
+  - reactive routing based on the player's just-chosen action
+  - broader target routing beyond `player` / `enemy_self`
+  - combat save-safe continuation
+
 ## Durability Rule
 
 - a valid attack attempt that starts resolving consumes durability
@@ -145,15 +245,17 @@ Current live forge integration:
 - Everyone can `Defend`.
 - `Defend` raises temporary `Guard`.
 - Current live config-driven baseline:
-  - base defend guard: `2`
+  - base defend guard: `3`
   - shield defend bonus: `+2`
   - dual-wield defend penalty: `-1`
+  - defend extra hunger cost: `+1`
   - guard decay rate: `0.75`
 - `Guard` is combat-local only.
 - `Guard` is consumed by incoming damage after armor reduction and before HP loss.
 - `Defend` adds new guard on top of any carried remainder from the previous turn.
 - `Guard` decays during the normal turn-end pass instead of clearing outright.
 - current live turn-end carryover keeps roughly `25%` of the remaining guard; fractional carryover rounds to the nearest whole guard.
+- a full `Defend` turn now spends the normal `1` hunger tick plus `+1` extra hunger as its explicit tempo cost.
 - `Guard` is not a content-authored status and does not require a `Statuses` definition.
 
 ## Left-Hand Rules
@@ -172,11 +274,59 @@ Current live config-driven dual-wield baseline:
 - `+1` attack power on player attacks
 - `-1` guard generated by `Defend`
 
-## Equipment Lock Rule
+## Combat Inventory Legality Rule
 
-- Combat-time gear swapping is no longer part of the canonical combat loop.
-- Combat-time backpack reorder is no longer part of the canonical combat loop.
-- Scenes may still show the equipment and backpack strips as live read surfaces, but not as combat-time gear-management actions.
+- Combat keeps the equipment and backpack strips as live read surfaces.
+- Direct consumable click remains legal when the item would change HP or hunger.
+- Narrow `SwapHand` is now legal for eligible `right_hand` or `left_hand` spares only.
+- `armor`, `belt`, and backpack reorder remain locked during combat.
+- Scenes must not turn the combat equipment strip into a full backpack or broad gear-management surface.
+
+## Hand-Slot Swap (Live Prompt 29 Surface)
+
+- Combat now includes exactly `1` additional combat command family: `SwapHand`.
+- `SwapHand` stays inside the existing `Combat` state. It does not add a new main flow state, modal equipment scene, or backpack-management mode.
+- Opening or closing the narrow swap surface is UI-only. Confirming a swap candidate is the turn-consuming action.
+- Exactly `1` hand-slot swap may resolve per player turn.
+- A confirmed hand-slot swap spends the full turn:
+  - enemy action still resolves if combat is not already over
+  - turn-end hunger and intent prep still happen normally
+- Approved slot coverage is narrow:
+  - `right_hand`
+  - `left_hand`
+- Explicitly excluded from the first pass:
+  - `armor`
+  - `belt`
+  - backpack reorder
+  - multi-slot-in-one-action swap
+- Candidate-source rules are explicit:
+  - `right_hand` candidates may only come from carried backpack `weapon` slots that are valid for `right_hand`
+  - `left_hand` candidates may only come from carried backpack `shield` slots or carried backpack `weapon` slots that are valid for `left_hand`
+- No combat swap affordance should appear for a slot when that slot has no eligible spare candidate in the carried backpack.
+- The swap surface must stay narrow:
+  - visually tied to the main combat action area or the equipment strip
+  - may use a compact anchored tray, inline row, or anchored drawer
+  - must not expand into a full backpack manager, freeform gear screen, or second modal
+- Choosing a swap candidate swaps that backpack entry into the targeted hand slot and returns the displaced equipped hand item to the backpack through the existing inventory-owner legality rules.
+- Broken-weapon timing is explicit:
+  - an attack that causes a weapon to break still resolves first
+  - if the right-hand weapon breaks during that attack, the broken state matters on the following player turn
+  - fallback attack and swap availability are evaluated on that following turn, not during the already-resolving attack
+- Once a swap resolves, the newly equipped hand item becomes the active combat truth immediately for:
+  - subsequent enemy-action resolution in that same turn
+  - combat previews and legality checks
+  - later turns
+- Shield and dual-wield consequences stay inside the current rule contract:
+  - swapping a `shield` into `left_hand` only changes the existing shield defend bonus lane
+  - swapping an offhand-capable `weapon` into `left_hand` only changes the existing dual-wield attack/defend modifier lane
+  - no second attack packet
+  - no second durability-spending engine
+  - no broader stance system
+- Combat UI wording expectations are explicit:
+  - say which hand is being swapped
+  - say when the current right-hand weapon is broken and the fallback hit is `1`
+  - keep `armor`, `belt`, and backpack order plainly locked in combat copy
+  - do not hide swap access behind tooltip-only or log-only messaging
 
 ## Attack Rules
 

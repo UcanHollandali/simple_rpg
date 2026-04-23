@@ -15,12 +15,30 @@ static func build_world_positions(
 ) -> Dictionary:
 	var base_center_factor: Vector2 = config.get("base_center_factor", Vector2(0.50, 0.60))
 	var min_board_margin: Vector2 = config.get("min_board_margin", Vector2(96.0, 108.0))
+	var playable_rect: Rect2 = config.get(
+		"playable_rect",
+		Rect2(
+			min_board_margin,
+			Vector2(
+				maxf(0.0, board_size.x - min_board_margin.x * 2.0),
+				maxf(0.0, board_size.y - min_board_margin.y * 2.0)
+			)
+		)
+	)
 	var depth_step_factors: Array = config.get("depth_step_factors", [])
 	var depth_spread_factors: Array = config.get("depth_spread_factors", [])
 	var depth_direction_pull_factors: Array = config.get("depth_direction_pull_factors", [])
 	var depth_lateral_spread_scale_factors: Array = config.get("depth_lateral_spread_scale_factors", [])
 	var depth_downward_bias_factors: Array = config.get("depth_downward_bias_factors", [])
 	var depth_center_pull_factors: Array = config.get("depth_center_pull_factors", [])
+	var depth_sector_pull_factors: Array = config.get("depth_sector_pull_factors", [])
+	var depth_sector_horizontal_factors: Array = config.get("depth_sector_horizontal_factors", [])
+	var depth_sector_vertical_factors: Array = config.get("depth_sector_vertical_factors", [])
+	var depth_outer_pocket_pull_factors: Array = config.get("depth_outer_pocket_pull_factors", [])
+	var depth_outer_pocket_horizontal_factors: Array = config.get("depth_outer_pocket_horizontal_factors", [])
+	var depth_outer_pocket_vertical_factors: Array = config.get("depth_outer_pocket_vertical_factors", [])
+	var depth_sibling_radial_stagger_factors: Array = config.get("depth_sibling_radial_stagger_factors", [])
+	var depth_top_edge_relief_factors: Array = config.get("depth_top_edge_relief_factors", [])
 	var clearing_radius_by_node_id: Dictionary = config.get("clearing_radius_by_node_id", {})
 	var origin: Vector2 = board_size * base_center_factor
 	var board_min_dimension: float = min(board_size.x, board_size.y)
@@ -71,7 +89,15 @@ static func build_world_positions(
 				depth_direction_pull_factors,
 				depth_lateral_spread_scale_factors,
 				depth_downward_bias_factors,
-				depth_center_pull_factors
+				depth_center_pull_factors,
+				depth_sector_pull_factors,
+				depth_sector_horizontal_factors,
+				depth_sector_vertical_factors,
+				depth_outer_pocket_pull_factors,
+				depth_outer_pocket_horizontal_factors,
+				depth_outer_pocket_vertical_factors,
+				playable_rect,
+				depth_top_edge_relief_factors
 			)
 		else:
 			var sibling_ids: Array[int] = int_array_from_variant(child_ids_by_parent.get(primary_parent_id, []))
@@ -92,10 +118,43 @@ static func build_world_positions(
 			var outward_jitter: float = node_seed_rng.randf_range(-board_min_dimension * 0.008, board_min_dimension * 0.020)
 			var branch_curve_bias: float = node_seed_rng.randf_range(-board_min_dimension * 0.010, board_min_dimension * 0.010) * _depth_lateral_random_scale(lateral_spread_scale)
 			var lateral_offset: float = spread_length * sibling_offset_units + tangent_jitter + branch_curve_bias
+			var radial_sibling_stagger: float = board_min_dimension * _depth_config_factor(node_depth, depth_sibling_radial_stagger_factors, 0.0) * sibling_offset_units
 			position = parent_position + outward_direction * (step_length + outward_jitter) + tangent_direction * lateral_offset
+			position += outward_direction * radial_sibling_stagger
 			position += _depth_downward_bias(node_depth, branch_direction, board_size, template_profile, depth_downward_bias_factors)
 			position = _apply_depth_center_pull(position, origin, node_depth, branch_direction, template_profile, depth_center_pull_factors)
-		world_positions[node_id] = _clamp_to_board(position, board_size, min_board_margin)
+			position = _apply_depth_sector_pull(
+				position,
+				origin,
+				node_depth,
+				branch_direction,
+				board_size,
+				template_profile,
+				depth_sector_pull_factors,
+				depth_sector_horizontal_factors,
+				depth_sector_vertical_factors
+			)
+			position = _apply_depth_outer_pocket_pull(
+				position,
+				origin,
+				node_depth,
+				branch_direction,
+				board_size,
+				template_profile,
+				depth_outer_pocket_pull_factors,
+				depth_outer_pocket_horizontal_factors,
+				depth_outer_pocket_vertical_factors
+			)
+			position = _apply_downward_branch_sink_relief(position, origin, node_depth, branch_direction, board_size)
+			position = _apply_depth_top_edge_relief(
+				position,
+				node_depth,
+				branch_direction,
+				board_size,
+				playable_rect,
+				depth_top_edge_relief_factors
+			)
+		world_positions[node_id] = _clamp_to_playable_rect(position, playable_rect)
 
 	_relax_collisions(
 		world_positions,
@@ -103,16 +162,32 @@ static func build_world_positions(
 		board_size,
 		layout_context,
 		clearing_radius_by_node_id,
-		min_board_margin
+		playable_rect
 	)
-	_reduce_edge_crossings(world_positions, graph_snapshot, board_size, layout_context, min_board_margin)
+	_reduce_edge_crossings(world_positions, graph_snapshot, board_size, layout_context, playable_rect)
 	_relax_collisions(
 		world_positions,
 		graph_snapshot,
 		board_size,
 		layout_context,
 		clearing_radius_by_node_id,
-		min_board_margin
+		playable_rect
+	)
+	_reapply_depth_silhouette_bands(
+		world_positions,
+		graph_snapshot,
+		board_size,
+		layout_context,
+		playable_rect,
+		origin,
+		template_profile,
+		depth_sector_pull_factors,
+		depth_sector_horizontal_factors,
+		depth_sector_vertical_factors,
+		depth_outer_pocket_pull_factors,
+		depth_outer_pocket_horizontal_factors,
+		depth_outer_pocket_vertical_factors,
+		depth_top_edge_relief_factors
 	)
 	return world_positions
 
@@ -172,7 +247,15 @@ static func _position_reconnect_node(
 	depth_direction_pull_factors: Array,
 	depth_lateral_spread_scale_factors: Array,
 	depth_downward_bias_factors: Array,
-	depth_center_pull_factors: Array
+	depth_center_pull_factors: Array,
+	depth_sector_pull_factors: Array,
+	depth_sector_horizontal_factors: Array,
+	depth_sector_vertical_factors: Array,
+	depth_outer_pocket_pull_factors: Array,
+	depth_outer_pocket_horizontal_factors: Array,
+	depth_outer_pocket_vertical_factors: Array,
+	playable_rect: Rect2,
+	depth_top_edge_relief_factors: Array
 ) -> Vector2:
 	var board_unit: float = min(board_size.x, board_size.y)
 	var parent_positions: Array[Vector2] = []
@@ -198,18 +281,18 @@ static func _position_reconnect_node(
 	var tangent_direction: Vector2 = Vector2(-outward_direction.y, outward_direction.x)
 	var reconnect_rng := RandomNumberGenerator.new()
 	reconnect_rng.seed = derive_seed(board_seed, "reconnect-layout:%d" % node_id)
-	var outward_distance: float = board_unit * 0.072
-	var tangent_distance: float = board_unit * 0.036
+	var outward_distance: float = board_unit * 0.060
+	var tangent_distance: float = board_unit * 0.048
 	match template_profile:
 		"corridor":
-			outward_distance = board_unit * 0.062
-			tangent_distance = board_unit * 0.028
-		"openfield":
-			outward_distance = board_unit * 0.080
-			tangent_distance = board_unit * 0.042
-		"loop":
-			outward_distance = board_unit * 0.076
+			outward_distance = board_unit * 0.054
 			tangent_distance = board_unit * 0.040
+		"openfield":
+			outward_distance = board_unit * 0.068
+			tangent_distance = board_unit * 0.054
+		"loop":
+			outward_distance = board_unit * 0.064
+			tangent_distance = board_unit * 0.050
 	var lateral_spread_scale: float = _depth_lateral_spread_scale(
 		node_depth,
 		branch_direction,
@@ -221,7 +304,27 @@ static func _position_reconnect_node(
 	var outward_jitter: float = reconnect_rng.randf_range(-board_unit * 0.008, board_unit * 0.014)
 	var position: Vector2 = midpoint + outward_direction * (outward_distance + outward_jitter) + tangent_direction * (tangent_distance * tangent_sign + tangent_jitter)
 	position += _depth_downward_bias(node_depth, branch_direction, board_size, template_profile, depth_downward_bias_factors)
-	return _apply_depth_center_pull(position, origin, node_depth, branch_direction, template_profile, depth_center_pull_factors)
+	position = _apply_depth_center_pull(position, origin, node_depth, branch_direction, template_profile, depth_center_pull_factors)
+	position = _apply_depth_sector_pull(
+		position,
+		origin,
+		node_depth,
+		branch_direction,
+		board_size,
+		template_profile,
+		depth_sector_pull_factors,
+		depth_sector_horizontal_factors,
+		depth_sector_vertical_factors
+	)
+	position = _apply_downward_branch_sink_relief(position, origin, node_depth, branch_direction, board_size)
+	return _apply_depth_top_edge_relief(
+		position,
+		node_depth,
+		branch_direction,
+		board_size,
+		playable_rect,
+		depth_top_edge_relief_factors
+	)
 
 
 static func _symmetric_offset_for_index(index: int, count: int) -> float:
@@ -259,7 +362,7 @@ static func _profile_layout_scale(template_profile: String) -> float:
 static func _profile_spread_scale(template_profile: String) -> float:
 	match template_profile:
 		"corridor":
-			return 0.96
+			return 1.04
 		"openfield":
 			return 1.18
 		"loop":
@@ -280,16 +383,16 @@ static func _apply_depth_direction_pull(
 	var base_pull: float = _depth_config_factor(node_depth, depth_direction_pull_factors, 0.0)
 	match template_profile:
 		"corridor":
-			base_pull *= 1.06
+			base_pull *= 1.10
 		"openfield":
-			base_pull *= 0.94
+			base_pull *= 0.92
 		"loop":
-			base_pull *= 1.00
+			base_pull *= 0.98
 	var upward_pull: float = maxf(0.0, -branch_direction.y)
 	var lateral_pull: float = 1.0 - absf(branch_direction.y)
 	var downward_relief: float = maxf(0.0, branch_direction.y)
-	var pull_weight: float = clampf(0.46 + lateral_pull * 0.54 + upward_pull * 0.28 - downward_relief * 0.04, 0.0, 1.0)
-	var effective_pull: float = clampf(base_pull * pull_weight, 0.0, 0.64)
+	var pull_weight: float = clampf(0.28 + lateral_pull * 0.44 + upward_pull * 0.18 - downward_relief * 0.16, 0.0, 0.86)
+	var effective_pull: float = clampf(base_pull * pull_weight, 0.0, 0.42)
 	return (outward_direction * (1.0 - effective_pull) + Vector2.DOWN * effective_pull).normalized()
 
 
@@ -314,19 +417,151 @@ static func _apply_depth_center_pull(
 	if node_depth <= 1:
 		return position
 	var base_pull: float = _depth_config_factor(node_depth, depth_center_pull_factors, 0.0)
+	var horizontal_pull_scale: float = 1.0
+	var vertical_pull_scale: float = 1.0
 	match template_profile:
 		"corridor":
-			base_pull *= 1.04
+			base_pull *= 1.06
+			horizontal_pull_scale = 0.82
+			vertical_pull_scale = 1.28
+		"openfield":
+			base_pull *= 0.92
+		"loop":
+			base_pull *= 0.98
+	var lateral_pull: float = 1.0 - absf(branch_direction.y)
+	var pull_weight: float = clampf(0.18 + lateral_pull * 0.56, 0.0, 0.80)
+	var effective_pull: float = clampf(base_pull * pull_weight, 0.0, 0.22)
+	var vertical_recenter_factor: float = 0.42 if position.y < origin.y else 0.0
+	var horizontal_pull: float = clampf(effective_pull * horizontal_pull_scale, 0.0, 0.22)
+	var vertical_pull: float = clampf(effective_pull * vertical_recenter_factor * vertical_pull_scale, 0.0, 0.12)
+	return Vector2(lerpf(position.x, origin.x, horizontal_pull), lerpf(position.y, origin.y, vertical_pull))
+
+
+static func _apply_depth_sector_pull(
+	position: Vector2,
+	origin: Vector2,
+	node_depth: int,
+	branch_direction: Vector2,
+	board_size: Vector2,
+	template_profile: String,
+	depth_sector_pull_factors: Array,
+	depth_sector_horizontal_factors: Array,
+	depth_sector_vertical_factors: Array
+) -> Vector2:
+	if node_depth <= 1 or branch_direction.length_squared() <= 0.001:
+		return position
+	var base_pull: float = _depth_config_factor(node_depth, depth_sector_pull_factors, 0.0)
+	if base_pull <= 0.0:
+		return position
+	var horizontal_factor: float = _depth_config_factor(node_depth, depth_sector_horizontal_factors, 0.0)
+	var vertical_factor: float = _depth_config_factor(node_depth, depth_sector_vertical_factors, 0.0)
+	match template_profile:
+		"corridor":
+			base_pull *= 1.06
+			horizontal_factor *= 1.08
+			vertical_factor *= 0.96
 		"openfield":
 			base_pull *= 0.94
+			horizontal_factor *= 0.96
+			vertical_factor *= 1.02
 		"loop":
-			base_pull *= 1.00
+			base_pull *= 0.98
+			horizontal_factor *= 1.02
+			vertical_factor *= 0.98
+	var upward_pull: float = maxf(0.0, -branch_direction.y)
 	var lateral_pull: float = 1.0 - absf(branch_direction.y)
-	var pull_weight: float = clampf(0.30 + lateral_pull * 0.70, 0.0, 1.0)
-	var effective_pull: float = clampf(base_pull * pull_weight, 0.0, 0.32)
-	var vertical_pull_scale: float = 0.78 if position.y < origin.y else 0.0
-	var vertical_pull: float = clampf(effective_pull * vertical_pull_scale, 0.0, 0.13)
-	return Vector2(lerpf(position.x, origin.x, effective_pull), lerpf(position.y, origin.y, vertical_pull))
+	var downward_relief: float = maxf(0.0, branch_direction.y)
+	var pull_weight: float = clampf(0.30 + lateral_pull * 0.46 + upward_pull * 0.28 - downward_relief * 0.16, 0.0, 1.0)
+	var effective_pull: float = clampf(base_pull * pull_weight, 0.0, 0.38)
+	if effective_pull <= 0.001:
+		return position
+	var vertical_direction_scale: float = 1.0
+	if branch_direction.y > 0.0:
+		vertical_direction_scale = lerpf(1.0, 0.18, clampf(branch_direction.y, 0.0, 1.0))
+	var sector_target := origin + Vector2(
+		branch_direction.x * board_size.x * horizontal_factor,
+		branch_direction.y * board_size.y * vertical_factor * vertical_direction_scale
+	)
+	return position.lerp(sector_target, effective_pull)
+
+
+static func _apply_depth_outer_pocket_pull(
+	position: Vector2,
+	origin: Vector2,
+	node_depth: int,
+	branch_direction: Vector2,
+	board_size: Vector2,
+	template_profile: String,
+	depth_outer_pocket_pull_factors: Array,
+	depth_outer_pocket_horizontal_factors: Array,
+	depth_outer_pocket_vertical_factors: Array
+) -> Vector2:
+	if node_depth <= 1:
+		return position
+	var lateral_bias: float = absf(branch_direction.x)
+	if lateral_bias <= 0.10:
+		return position
+	var base_pull: float = _depth_config_factor(node_depth, depth_outer_pocket_pull_factors, 0.0)
+	if base_pull <= 0.0:
+		return position
+	var horizontal_factor: float = _depth_config_factor(node_depth, depth_outer_pocket_horizontal_factors, 0.0)
+	var vertical_factor: float = _depth_config_factor(node_depth, depth_outer_pocket_vertical_factors, 0.0)
+	match template_profile:
+		"corridor":
+			base_pull *= 1.08
+			horizontal_factor *= 1.06
+		"openfield":
+			base_pull *= 0.92
+			vertical_factor *= 1.04
+		"loop":
+			base_pull *= 0.96
+	var deeper_weight: float = clampf(float(node_depth - 2) / 3.0, 0.0, 1.0)
+	var effective_pull: float = clampf(base_pull * clampf(0.34 + lateral_bias * 0.66, 0.0, 1.0) * deeper_weight, 0.0, 0.42)
+	if effective_pull <= 0.001:
+		return position
+	var horizontal_sign: float = -1.0 if branch_direction.x < 0.0 else 1.0
+	var pocket_target := origin + Vector2(
+		horizontal_sign * board_size.x * horizontal_factor,
+		board_size.y * vertical_factor
+	)
+	return position.lerp(pocket_target, effective_pull)
+
+
+static func _apply_downward_branch_sink_relief(
+	position: Vector2,
+	origin: Vector2,
+	node_depth: int,
+	branch_direction: Vector2,
+	board_size: Vector2
+) -> Vector2:
+	if node_depth <= 1 or branch_direction.y <= 0.0 or position.y <= origin.y:
+		return position
+	var downward_weight: float = clampf(branch_direction.y, 0.0, 1.0)
+	var maximum_y: float = origin.y - board_size.y * lerpf(0.02, 0.18, downward_weight)
+	if position.y <= maximum_y:
+		return position
+	var relief_weight: float = clampf(0.40 + downward_weight * 0.32, 0.0, 0.78)
+	return Vector2(position.x, lerpf(position.y, maximum_y, relief_weight))
+
+
+static func _apply_depth_top_edge_relief(
+	position: Vector2,
+	node_depth: int,
+	branch_direction: Vector2,
+	board_size: Vector2,
+	playable_rect: Rect2,
+	depth_top_edge_relief_factors: Array
+) -> Vector2:
+	if node_depth <= 2:
+		return position
+	var base_relief: float = _depth_config_factor(node_depth, depth_top_edge_relief_factors, 0.0)
+	if base_relief <= 0.0:
+		return position
+	var lateral_relief: float = (1.0 - absf(branch_direction.y)) * board_size.y * 0.018
+	var minimum_y: float = playable_rect.position.y + maxf(0.0, board_size.y * base_relief - lateral_relief)
+	if position.y >= minimum_y:
+		return position
+	return Vector2(position.x, lerpf(position.y, minimum_y, 0.94))
 
 
 static func _depth_downward_bias(
@@ -342,15 +577,15 @@ static func _depth_downward_bias(
 	var base_bias: float = board_unit * _depth_config_factor(node_depth, depth_downward_bias_factors, 0.0)
 	match template_profile:
 		"corridor":
-			base_bias *= 1.08
+			base_bias *= 1.18
 		"openfield":
-			base_bias *= 0.94
+			base_bias *= 0.90
 		"loop":
-			base_bias *= 1.00
+			base_bias *= 0.96
 	var upward_pull: float = maxf(0.0, -branch_direction.y)
 	var lateral_pull: float = 1.0 - absf(branch_direction.y)
 	var downward_relief: float = maxf(0.0, branch_direction.y)
-	var bias_weight: float = clampf(0.54 + upward_pull * 0.48 + lateral_pull * 0.18 - downward_relief * 0.02, 0.0, 1.0)
+	var bias_weight: float = clampf(0.24 + upward_pull * 0.32 + lateral_pull * 0.12 - downward_relief * 0.20, 0.0, 0.72)
 	return Vector2.DOWN * base_bias * bias_weight
 
 
@@ -370,10 +605,10 @@ static func _average_vector2_array(values: Array[Vector2]) -> Vector2:
 	return total / float(values.size())
 
 
-static func _clamp_to_board(position: Vector2, board_size: Vector2, min_board_margin: Vector2) -> Vector2:
+static func _clamp_to_playable_rect(position: Vector2, playable_rect: Rect2) -> Vector2:
 	return Vector2(
-		clampf(position.x, min_board_margin.x, board_size.x - min_board_margin.x),
-		clampf(position.y, min_board_margin.y, board_size.y - min_board_margin.y)
+		clampf(position.x, playable_rect.position.x, playable_rect.end.x),
+		clampf(position.y, playable_rect.position.y, playable_rect.end.y)
 	)
 
 
@@ -383,7 +618,7 @@ static func _relax_collisions(
 	board_size: Vector2,
 	layout_context: Dictionary,
 	clearing_radius_by_node_id: Dictionary,
-	min_board_margin: Vector2
+	playable_rect: Rect2
 ) -> void:
 	var ordered_node_ids: Array[int] = []
 	for node_entry in graph_snapshot:
@@ -406,14 +641,18 @@ static func _relax_collisions(
 				var right_depth: int = int(depth_by_node_id.get(right_node_id, 0))
 				var left_radius: float = float(clearing_radius_by_node_id.get(left_node_id, 42.0))
 				var right_radius: float = float(clearing_radius_by_node_id.get(right_node_id, 42.0))
+				var same_branch: bool = int(branch_root_by_node_id.get(left_node_id, left_node_id)) == int(branch_root_by_node_id.get(right_node_id, right_node_id))
 				var minimum_spacing: float = left_radius + right_radius + clampf(board_unit * 0.066, 58.0, 82.0)
 				if left_depth <= 1 or right_depth <= 1:
 					minimum_spacing += 26.0
 				elif left_depth == 2 and right_depth == 2:
 					minimum_spacing += 18.0
+				elif left_depth == right_depth:
+					minimum_spacing += 12.0
+				if same_branch and max(left_depth, right_depth) >= 3:
+					minimum_spacing += 10.0
 				if distance >= minimum_spacing:
 					continue
-				var same_branch: bool = int(branch_root_by_node_id.get(left_node_id, left_node_id)) == int(branch_root_by_node_id.get(right_node_id, right_node_id))
 				var push_direction: Vector2 = Vector2.RIGHT if distance <= 0.001 else delta / distance
 				if same_branch:
 					var branch_direction: Vector2 = branch_direction_for_root(layout_context, int(branch_root_by_node_id.get(left_node_id, left_node_id)))
@@ -422,9 +661,9 @@ static func _relax_collisions(
 					push_direction = tangent_direction * tangent_sign
 				var push_amount: float = (minimum_spacing - max(distance, 0.001)) * 0.5
 				if left_node_id != 0:
-					world_positions[left_node_id] = _clamp_to_board(left_position - push_direction * push_amount, board_size, min_board_margin)
+					world_positions[left_node_id] = _clamp_to_playable_rect(left_position - push_direction * push_amount, playable_rect)
 				if right_node_id != 0:
-					world_positions[right_node_id] = _clamp_to_board(right_position + push_direction * push_amount, board_size, min_board_margin)
+					world_positions[right_node_id] = _clamp_to_playable_rect(right_position + push_direction * push_amount, playable_rect)
 
 
 static func _reduce_edge_crossings(
@@ -432,7 +671,7 @@ static func _reduce_edge_crossings(
 	graph_snapshot: Array[Dictionary],
 	board_size: Vector2,
 	layout_context: Dictionary,
-	min_board_margin: Vector2
+	playable_rect: Rect2
 ) -> void:
 	var board_unit: float = min(board_size.x, board_size.y)
 	var depth_by_node_id: Dictionary = layout_context.get("depth_by_node_id", {})
@@ -468,15 +707,13 @@ static func _reduce_edge_crossings(
 					push_direction = Vector2.RIGHT
 				push_direction = push_direction.normalized()
 				var push_amount: float = board_unit * 0.046
-				world_positions[left_move_node_id] = _clamp_to_board(
+				world_positions[left_move_node_id] = _clamp_to_playable_rect(
 					Vector2(world_positions.get(left_move_node_id, Vector2.ZERO)) - push_direction * push_amount,
-					board_size,
-					min_board_margin
+					playable_rect
 				)
-				world_positions[right_move_node_id] = _clamp_to_board(
+				world_positions[right_move_node_id] = _clamp_to_playable_rect(
 					Vector2(world_positions.get(right_move_node_id, Vector2.ZERO)) + push_direction * push_amount,
-					board_size,
-					min_board_margin
+					playable_rect
 				)
 				adjusted = true
 		if not adjusted:
@@ -504,6 +741,66 @@ static func _build_layout_edge_entries(graph_snapshot: Array[Dictionary], world_
 				"to_position": to_position,
 			})
 	return edge_entries
+
+
+static func _reapply_depth_silhouette_bands(
+	world_positions: Dictionary,
+	graph_snapshot: Array[Dictionary],
+	board_size: Vector2,
+	layout_context: Dictionary,
+	playable_rect: Rect2,
+	origin: Vector2,
+	template_profile: String,
+	depth_sector_pull_factors: Array,
+	depth_sector_horizontal_factors: Array,
+	depth_sector_vertical_factors: Array,
+	depth_outer_pocket_pull_factors: Array,
+	depth_outer_pocket_horizontal_factors: Array,
+	depth_outer_pocket_vertical_factors: Array,
+	depth_top_edge_relief_factors: Array
+) -> void:
+	var depth_by_node_id: Dictionary = layout_context.get("depth_by_node_id", {})
+	var branch_root_by_node_id: Dictionary = layout_context.get("branch_root_by_node_id", {})
+	for node_entry in graph_snapshot:
+		var node_id: int = int(node_entry.get("node_id", -1))
+		if node_id == int(layout_context.get("start_node_id", 0)):
+			continue
+		var node_depth: int = int(depth_by_node_id.get(node_id, 0))
+		var branch_root_id: int = int(branch_root_by_node_id.get(node_id, node_id))
+		var branch_direction: Vector2 = branch_direction_for_root(layout_context, branch_root_id)
+		var position: Vector2 = Vector2(world_positions.get(node_id, origin))
+		position = _apply_depth_sector_pull(
+			position,
+			origin,
+			node_depth,
+			branch_direction,
+			board_size,
+			template_profile,
+			depth_sector_pull_factors,
+			depth_sector_horizontal_factors,
+			depth_sector_vertical_factors
+		)
+		position = _apply_depth_outer_pocket_pull(
+			position,
+			origin,
+			node_depth,
+			branch_direction,
+			board_size,
+			template_profile,
+			depth_outer_pocket_pull_factors,
+			depth_outer_pocket_horizontal_factors,
+			depth_outer_pocket_vertical_factors
+		)
+		position = _apply_downward_branch_sink_relief(position, origin, node_depth, branch_direction, board_size)
+		position = _apply_depth_top_edge_relief(
+			position,
+			node_depth,
+			branch_direction,
+			board_size,
+			playable_rect,
+			depth_top_edge_relief_factors
+		)
+		world_positions[node_id] = _clamp_to_playable_rect(position, playable_rect)
 
 
 static func _layout_edges_share_node(left_edge: Dictionary, right_edge: Dictionary) -> bool:

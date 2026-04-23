@@ -22,6 +22,9 @@ Current prototype note:
 
 These are implemented methods, not generic command messages:
 - `AppBootstrap.choose_move_to_node`
+- `AppBootstrap.toggle_inventory_equipment`
+- `AppBootstrap.move_inventory_slot`
+- `AppBootstrap.use_inventory_consumable`
 - `AppBootstrap.resolve_pending_node`
 - `AppBootstrap.resolve_combat_result`
 - `AppBootstrap.choose_reward_option`
@@ -33,6 +36,17 @@ These are implemented methods, not generic command messages:
   - optional overflow-resolution args: `discard_slot_id`, `leave_item`
 - `AppBootstrap.save_game`
 - `AppBootstrap.load_game`
+- `AppBootstrap.has_save_game`
+- `AppBootstrap.delete_save_game`
+
+### Current Combat Action Identifiers
+
+These are live action strings inside `CombatFlow`, not formal command-bus names:
+- `Attack`
+- `Defend`
+- `Technique`
+- `Use Item`
+- `SwapHand`
 
 ### Implemented Runtime Signals and Emitted Event Names
 
@@ -45,6 +59,7 @@ Implemented now:
 Current emitted `domain_event_emitted` names:
 - `CombatStarted`
 - `PlayerActionChosen`
+- `TechniqueUsed`
 - `EnemyIntentRevealed`
 - `BossPhaseChanged`
 - `DamageApplied`
@@ -87,7 +102,9 @@ They are not active runtime surface, not proof of a generic command bus, and not
 
 - `ChooseAttack`
 - `ChooseDefend`
+- `ChooseTechnique`
 - `ChooseUseItem`
+- `ChooseSwapHand`
 
 ### Reserved Event Family Names
 

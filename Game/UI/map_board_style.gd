@@ -64,18 +64,20 @@ const CANOPY_FALLBACK_ALPHA_SCALES := [0.84, 0.68, 0.54]
 
 const TRAIL_STAMP_ALPHA_CAP := 0.34
 const TRAIL_STAMP_ALPHA_MULTIPLIER := 0.42
+const TRAIL_STAMP_ALPHA_MULTIPLIER_HISTORY := 0.24
+const TRAIL_STAMP_SIZE_SCALE_HISTORY := 0.84
 const ROAD_HIGHLIGHT_WIDTH_DEFAULT := 3.2
-const ROAD_HIGHLIGHT_WIDTH_HISTORY := 3.4
+const ROAD_HIGHLIGHT_WIDTH_HISTORY := 2.8
 const ROAD_HIGHLIGHT_WIDTH_CURRENT := 4.6
 const ROAD_HIGHLIGHT_WIDTH_TARGET := 5.8
 const ROAD_BASE_WIDTH_DEFAULT := 12.0
-const ROAD_BASE_WIDTH_HISTORY := 10.0
+const ROAD_BASE_WIDTH_HISTORY := 8.4
 const ROAD_BASE_WIDTH_CURRENT := 13.5
 const ROAD_BASE_WIDTH_TARGET := 16.0
 const ROAD_SHADOW_WIDTH_DEFAULT := 4.5
-const ROAD_SHADOW_WIDTH_HISTORY := 3.8
+const ROAD_SHADOW_WIDTH_HISTORY := 3.2
 const ROAD_SHADOW_ALPHA_DEFAULT := 0.22
-const ROAD_SHADOW_ALPHA_HISTORY := 0.16
+const ROAD_SHADOW_ALPHA_HISTORY := 0.12
 const ROAD_ENDPOINT_TRIM_DEFAULT := 4.0
 const ROAD_ENDPOINT_TRIM_CURRENT := 6.0
 const ROAD_ENDPOINT_TRIM_TARGET := 8.0
@@ -456,6 +458,18 @@ static func road_endpoint_trim(emphasis_level: int) -> float:
 	if emphasis_level == 1:
 		return ROAD_ENDPOINT_TRIM_CURRENT
 	return ROAD_ENDPOINT_TRIM_DEFAULT
+
+
+static func trail_stamp_alpha_multiplier(is_history: bool, emphasis_level: int) -> float:
+	if emphasis_level >= 1:
+		return TRAIL_STAMP_ALPHA_MULTIPLIER
+	return TRAIL_STAMP_ALPHA_MULTIPLIER_HISTORY if is_history else TRAIL_STAMP_ALPHA_MULTIPLIER
+
+
+static func trail_stamp_size_scale(is_history: bool, emphasis_level: int) -> float:
+	if emphasis_level >= 1:
+		return 1.0
+	return TRAIL_STAMP_SIZE_SCALE_HISTORY if is_history else 1.0
 
 
 static func clearing_plate_alpha(is_current: bool, is_resolved: bool) -> float:

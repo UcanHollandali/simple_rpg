@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "definition_id": "sundering_strike",
+  "family": "Techniques",
+  "tags": [
+    "technique",
+    "combat",
+    "offense",
+    "armor_break"
+  ],
+  "display": {
+    "name": "Sundering Strike",
+    "short_description": "Attack once and ignore armor on that hit."
+  },
+  "rules": {
+    "usage_limit": "once_per_combat",
+    "action_target": "enemy",
+    "effect": {
+      "type": "attack_ignore_armor",
+      "params": {}
+    }
+  }
+}

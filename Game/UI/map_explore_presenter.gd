@@ -5,6 +5,7 @@ class_name MapExplorePresenter
 const MapRuntimeStateScript = preload("res://Game/RuntimeState/map_runtime_state.gd")
 const LevelUpStateScript = preload("res://Game/RuntimeState/level_up_state.gd")
 const MapDisplayNameHelperScript = preload("res://Game/UI/map_display_name_helper.gd")
+const MapQuestLogModelBuilderScript = preload("res://Game/UI/map_quest_log_model_builder.gd")
 const RunStatusPresenterScript = preload("res://Game/UI/run_status_presenter.gd")
 const UiAssetPathsScript = preload("res://Game/UI/ui_asset_paths.gd")
 const UiFormattingScript = preload("res://Game/UI/ui_formatting.gd")
@@ -121,6 +122,10 @@ func build_inventory_pressure_text(run_state: RunState) -> String:
 	return "%s | %s" % [pressure_text, weapon_summary]
 
 
+func build_quest_log_model(run_state: RunState) -> Dictionary:
+	return MapQuestLogModelBuilderScript.build_model(run_state)
+
+
 func build_focus_panel_model(run_state: RunState, focused_node_id: int = MapRuntimeStateScript.NO_PENDING_NODE_ID) -> Dictionary:
 	if run_state == null:
 		return {
@@ -210,7 +215,7 @@ func build_route_icon_texture_path(node_family: String) -> String:
 		"start":
 			return UiAssetPathsScript.START_ICON_TEXTURE_PATH
 		"combat":
-			return UiAssetPathsScript.ATTACK_ICON_TEXTURE_PATH
+			return UiAssetPathsScript.MAP_COMBAT_ICON_TEXTURE_PATH
 		"event":
 			return UiAssetPathsScript.EVENT_ICON_TEXTURE_PATH
 		"reward":
@@ -224,9 +229,9 @@ func build_route_icon_texture_path(node_family: String) -> String:
 		"blacksmith":
 			return UiAssetPathsScript.BLACKSMITH_ICON_TEXTURE_PATH
 		"key":
-			return UiAssetPathsScript.KEY_ICON_TEXTURE_PATH
+			return UiAssetPathsScript.MAP_KEY_ICON_TEXTURE_PATH
 		"boss":
-			return UiAssetPathsScript.BOSS_ICON_TEXTURE_PATH
+			return UiAssetPathsScript.MAP_BOSS_ICON_TEXTURE_PATH
 	if FAMILY_SORT_ORDER.has(node_family):
 		return UiAssetPathsScript.ROUTE_ICON_TEXTURE_PATH
 	return ""

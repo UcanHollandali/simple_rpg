@@ -2,6 +2,7 @@
 extends RefCounted
 class_name MapBoardFillerBuilder
 
+const UiAssetPathsScript = preload("res://Game/UI/ui_asset_paths.gd")
 const MapBoardGeometryScript = preload("res://Game/UI/map_board_geometry.gd")
 const MapBoardLayoutSolverScript = preload("res://Game/UI/map_board_layout_solver.gd")
 
@@ -44,12 +45,22 @@ const FILLER_MAX_ACCEPTED_BY_PROFILE := {
 	"loop": 4,
 }
 const FILLER_REGION_ATTEMPTS := 5
-const FILLER_ZONE_OFFSET_X_FACTOR := 0.05
-const FILLER_ZONE_OFFSET_Y_FACTOR := 0.04
-const FILLER_BOARD_MARGIN_EXTRA := Vector2(72.0, 60.0)
-const FILLER_NODE_EXCLUSION_PADDING := 44.0
-const FILLER_ROUTE_EXCLUSION_PADDING := 30.0
-const FILLER_SHAPE_EXCLUSION_PADDING := 26.0
+const FILLER_ZONE_OFFSET_X_FACTOR := 0.028
+const FILLER_ZONE_OFFSET_Y_FACTOR := 0.024
+const FILLER_BOARD_MARGIN_EXTRA := Vector2(96.0, 84.0)
+const FILLER_NODE_EXCLUSION_PADDING := 60.0
+const FILLER_ROUTE_EXCLUSION_PADDING := 46.0
+const FILLER_SHAPE_EXCLUSION_PADDING := 36.0
+const FILLER_ACTION_BOUNDS_TRIM_BY_PROFILE := {
+	"corridor": Vector2(0.16, 0.18),
+	"openfield": Vector2(0.10, 0.12),
+	"loop": Vector2(0.12, 0.14),
+}
+const FILLER_ACTION_POCKET_PADDING_BY_PROFILE := {
+	"corridor": Vector2(104.0, 112.0),
+	"openfield": Vector2(92.0, 100.0),
+	"loop": Vector2(96.0, 104.0),
+}
 
 
 # Contract:
@@ -74,17 +85,20 @@ static func build_filler_shapes(
 		return []
 
 	var board_center: Vector2 = board_size * base_center_factor
+	var action_bounds: Rect2 = _trimmed_action_bounds_for_inputs(ordered_nodes, layout_edges, template_profile)
 	var accepted_shapes: Array[Dictionary] = []
-	var zone_factors: Array = FILLER_ZONE_FACTORS_BY_PROFILE.get(
+	var zone_anchors: Array[Vector2] = _zone_anchors_for_profile(
+		board_size,
+		action_bounds,
 		template_profile,
-		FILLER_ZONE_FACTORS_BY_PROFILE["corridor"]
+		base_center_factor,
+		min_board_margin
 	)
 	var max_accepted: int = max_fillers_for_profile(template_profile)
-	for zone_index in range(zone_factors.size()):
+	for zone_index in range(zone_anchors.size()):
 		if accepted_shapes.size() >= max_accepted:
 			break
-		var zone_factor: Vector2 = zone_factors[zone_index]
-		var zone_anchor: Vector2 = (board_size * zone_factor).lerp(board_center, 0.06)
+		var zone_anchor: Vector2 = zone_anchors[zone_index].lerp(board_center, 0.02)
 		var family: String = _family_for_zone(template_profile, zone_index, board_seed)
 		for attempt_index in range(FILLER_REGION_ATTEMPTS):
 			var candidate_rng := RandomNumberGenerator.new()
@@ -92,12 +106,13 @@ static func build_filler_shapes(
 			var half_size: Vector2 = _half_size_for_family(family, board_size, template_profile, candidate_rng)
 			var candidate_center: Vector2 = _candidate_center_for_zone(
 				zone_anchor,
+				family,
 				half_size,
 				board_size,
 				min_board_margin,
 				candidate_rng
 			)
-			if not _is_candidate_clear(candidate_center, half_size, ordered_nodes, layout_edges, accepted_shapes):
+			if not _is_candidate_clear(candidate_center, family, half_size, ordered_nodes, layout_edges, accepted_shapes, action_bounds, template_profile):
 				continue
 			accepted_shapes.append({
 				"family": family,
@@ -106,6 +121,8 @@ static func build_filler_shapes(
 				"rotation_degrees": candidate_rng.randf_range(-26.0, 26.0),
 				"tone_shift": _tone_shift_for_family(family, candidate_rng),
 				"alpha_scale": _alpha_scale_for_family(family, candidate_rng),
+				"texture_path": _texture_path_for_family(family, board_seed, zone_index, accepted_shapes.size()),
+				"texture_scale": _texture_scale_for_family(family),
 			})
 			break
 	if accepted_shapes.is_empty():
@@ -116,7 +133,8 @@ static func build_filler_shapes(
 			template_profile,
 			board_seed,
 			min_board_margin,
-			max_accepted
+			max_accepted,
+			action_bounds
 		)
 	return accepted_shapes
 
@@ -125,16 +143,26 @@ static func max_fillers_for_profile(template_profile: String) -> int:
 	return int(FILLER_MAX_ACCEPTED_BY_PROFILE.get(template_profile, FILLER_MAX_ACCEPTED_BY_PROFILE["corridor"]))
 
 
-static func node_exclusion_radius(clearing_radius: float, half_size: Vector2) -> float:
-	return clearing_radius + maxf(half_size.x, half_size.y) + FILLER_NODE_EXCLUSION_PADDING
+static func footprint_half_size(half_size: Vector2, family: String = "") -> Vector2:
+	if family.is_empty():
+		return half_size
+	var texture_scale: float = maxf(1.0, _texture_scale_for_family(family))
+	return Vector2(half_size.x * texture_scale, half_size.y * texture_scale)
 
 
-static func route_exclusion_radius(half_size: Vector2) -> float:
-	return maxf(half_size.x, half_size.y) * 0.82 + FILLER_ROUTE_EXCLUSION_PADDING
+static func node_exclusion_radius(clearing_radius: float, half_size: Vector2, family: String = "") -> float:
+	var clearance_half_size: Vector2 = footprint_half_size(half_size, family)
+	return clearing_radius + maxf(clearance_half_size.x, clearance_half_size.y) + FILLER_NODE_EXCLUSION_PADDING
 
 
-static func filler_spacing_radius(half_size: Vector2) -> float:
-	return maxf(half_size.x, half_size.y) * 1.14 + FILLER_SHAPE_EXCLUSION_PADDING
+static func route_exclusion_radius(half_size: Vector2, family: String = "") -> float:
+	var clearance_half_size: Vector2 = footprint_half_size(half_size, family)
+	return maxf(clearance_half_size.x, clearance_half_size.y) * 0.82 + FILLER_ROUTE_EXCLUSION_PADDING
+
+
+static func filler_spacing_radius(half_size: Vector2, family: String = "") -> float:
+	var clearance_half_size: Vector2 = footprint_half_size(half_size, family)
+	return maxf(clearance_half_size.x, clearance_half_size.y) * 1.14 + FILLER_SHAPE_EXCLUSION_PADDING
 
 
 static func _ordered_graph_nodes(graph_nodes: Array[Dictionary]) -> Array[Dictionary]:
@@ -188,6 +216,7 @@ static func _half_size_for_family(
 
 static func _candidate_center_for_zone(
 	zone_anchor: Vector2,
+	family: String,
 	half_size: Vector2,
 	board_size: Vector2,
 	min_board_margin: Vector2,
@@ -198,22 +227,26 @@ static func _candidate_center_for_zone(
 		rng.randf_range(-board_size.y * FILLER_ZONE_OFFSET_Y_FACTOR, board_size.y * FILLER_ZONE_OFFSET_Y_FACTOR)
 	)
 	var board_margin: Vector2 = min_board_margin + FILLER_BOARD_MARGIN_EXTRA
+	var clearance_half_size: Vector2 = footprint_half_size(half_size, family)
 	return Vector2(
-		clampf(candidate_center.x, board_margin.x + half_size.x, board_size.x - board_margin.x - half_size.x),
-		clampf(candidate_center.y, board_margin.y + half_size.y, board_size.y - board_margin.y - half_size.y)
+		clampf(candidate_center.x, board_margin.x + clearance_half_size.x, board_size.x - board_margin.x - clearance_half_size.x),
+		clampf(candidate_center.y, board_margin.y + clearance_half_size.y, board_size.y - board_margin.y - clearance_half_size.y)
 	)
 
 
 static func _is_candidate_clear(
 	candidate_center: Vector2,
+	family: String,
 	half_size: Vector2,
 	graph_nodes: Array[Dictionary],
 	layout_edges: Array,
-	accepted_shapes: Array[Dictionary]
+	accepted_shapes: Array[Dictionary],
+	action_bounds: Rect2,
+	template_profile: String
 ) -> bool:
 	for node_entry in graph_nodes:
 		var node_center: Vector2 = Vector2(node_entry.get("world_position", Vector2.ZERO))
-		var node_clearance: float = node_exclusion_radius(float(node_entry.get("clearing_radius", 0.0)), half_size)
+		var node_clearance: float = node_exclusion_radius(float(node_entry.get("clearing_radius", 0.0)), half_size, family)
 		if candidate_center.distance_to(node_center) < node_clearance:
 			return false
 	for edge_variant in layout_edges:
@@ -223,14 +256,21 @@ static func _is_candidate_clear(
 		var route_points: PackedVector2Array = edge_entry.get("points", PackedVector2Array())
 		if route_points.size() < 2:
 			continue
-		if MapBoardGeometryScript.polyline_distance_to_point(route_points, candidate_center) < route_exclusion_radius(half_size):
+		if MapBoardGeometryScript.polyline_distance_to_point(route_points, candidate_center) < route_exclusion_radius(half_size, family):
 			return false
 	for shape_entry in accepted_shapes:
 		var other_center: Vector2 = Vector2(shape_entry.get("center", Vector2.ZERO))
 		var other_half_size: Vector2 = Vector2(shape_entry.get("half_size", Vector2.ZERO))
-		var spacing_floor: float = maxf(filler_spacing_radius(half_size), filler_spacing_radius(other_half_size))
+		var other_family: String = String(shape_entry.get("family", ""))
+		var spacing_floor: float = maxf(
+			filler_spacing_radius(half_size, family),
+			filler_spacing_radius(other_half_size, other_family)
+		)
 		if candidate_center.distance_to(other_center) < spacing_floor:
 			return false
+	var pocket_exclusion_rect: Rect2 = _action_pocket_exclusion_rect(action_bounds, half_size, family, template_profile)
+	if pocket_exclusion_rect.has_area() and pocket_exclusion_rect.has_point(candidate_center):
+		return false
 	return true
 
 
@@ -261,7 +301,8 @@ static func _build_corner_fallback_shapes(
 	template_profile: String,
 	board_seed: int,
 	min_board_margin: Vector2,
-	max_accepted: int
+	max_accepted: int,
+	action_bounds: Rect2
 ) -> Array[Dictionary]:
 	var fallback_shapes: Array[Dictionary] = []
 	for zone_index in range(FILLER_FALLBACK_ZONE_FACTORS.size()):
@@ -273,12 +314,13 @@ static func _build_corner_fallback_shapes(
 		var half_size: Vector2 = _half_size_for_family(family, board_size, template_profile, attempt_rng) * 0.82
 		var candidate_center: Vector2 = _candidate_center_for_zone(
 			board_size * FILLER_FALLBACK_ZONE_FACTORS[zone_index],
+			family,
 			half_size,
 			board_size,
 			min_board_margin,
 			attempt_rng
 		)
-		if not _is_candidate_clear(candidate_center, half_size, graph_nodes, layout_edges, fallback_shapes):
+		if not _is_candidate_clear(candidate_center, family, half_size, graph_nodes, layout_edges, fallback_shapes, action_bounds, template_profile):
 			continue
 		fallback_shapes.append({
 			"family": family,
@@ -287,8 +329,138 @@ static func _build_corner_fallback_shapes(
 			"rotation_degrees": attempt_rng.randf_range(-18.0, 18.0),
 			"tone_shift": _tone_shift_for_family(family, attempt_rng),
 			"alpha_scale": _alpha_scale_for_family(family, attempt_rng),
+			"texture_path": _texture_path_for_family(family, board_seed, zone_index, fallback_shapes.size()),
+			"texture_scale": _texture_scale_for_family(family),
 		})
 	return fallback_shapes
+
+
+static func _texture_path_for_family(family: String, board_seed: int, zone_index: int, accepted_index: int) -> String:
+	var texture_paths: Array = UiAssetPathsScript.MAP_FILLER_TEXTURE_PATHS_BY_FAMILY.get(family, [])
+	if texture_paths.is_empty():
+		return ""
+	var salt: String = "filler-texture:%s:%d:%d" % [family, zone_index, accepted_index]
+	var texture_index: int = abs(_derive_seed(board_seed, salt)) % texture_paths.size()
+	return String(texture_paths[texture_index])
+
+
+static func _texture_scale_for_family(family: String) -> float:
+	match family:
+		"ruin":
+			return 1.40
+		"water_patch":
+			return 1.48
+		_:
+			return 1.32
+
+
+static func _trimmed_action_bounds_for_inputs(graph_nodes: Array[Dictionary], layout_edges: Array, template_profile: String) -> Rect2:
+	var points: Array[Vector2] = []
+	for node_entry in graph_nodes:
+		points.append(Vector2(node_entry.get("world_position", Vector2.ZERO)))
+	for edge_variant in layout_edges:
+		if typeof(edge_variant) != TYPE_DICTIONARY:
+			continue
+		var edge_entry: Dictionary = edge_variant
+		var route_points: PackedVector2Array = edge_entry.get("points", PackedVector2Array())
+		if route_points.is_empty():
+			continue
+		points.append(route_points[0])
+		points.append(route_points[route_points.size() - 1])
+		if route_points.size() >= 2:
+			points.append(route_points[int(floor(float(route_points.size() - 1) * 0.5))])
+	if points.size() < 5:
+		return Rect2()
+	return _trimmed_bounds_for_points(
+		points,
+		FILLER_ACTION_BOUNDS_TRIM_BY_PROFILE.get(template_profile, FILLER_ACTION_BOUNDS_TRIM_BY_PROFILE["corridor"])
+	)
+
+
+static func _zone_anchors_for_profile(
+	board_size: Vector2,
+	action_bounds: Rect2,
+	template_profile: String,
+	base_center_factor: Vector2,
+	min_board_margin: Vector2
+) -> Array[Vector2]:
+	if not action_bounds.has_area():
+		var fallback_anchors: Array[Vector2] = []
+		for zone_factor in FILLER_ZONE_FACTORS_BY_PROFILE.get(template_profile, FILLER_ZONE_FACTORS_BY_PROFILE["corridor"]):
+			fallback_anchors.append(board_size * Vector2(zone_factor))
+		return fallback_anchors
+	var pocket_padding: Vector2 = FILLER_ACTION_POCKET_PADDING_BY_PROFILE.get(
+		template_profile,
+		FILLER_ACTION_POCKET_PADDING_BY_PROFILE["corridor"]
+	)
+	var board_center: Vector2 = board_size * base_center_factor
+	var left_x: float = maxf(min_board_margin.x + 24.0, action_bounds.position.x - pocket_padding.x)
+	var right_x: float = minf(board_size.x - min_board_margin.x - 24.0, action_bounds.end.x + pocket_padding.x)
+	var upper_y: float = maxf(min_board_margin.y + 24.0, action_bounds.position.y - pocket_padding.y * 0.46)
+	var middle_y: float = lerpf(action_bounds.position.y, action_bounds.end.y, 0.42)
+	var lower_y: float = minf(board_size.y - min_board_margin.y - 24.0, action_bounds.end.y + pocket_padding.y)
+	match template_profile:
+		"openfield":
+			return [
+				Vector2(left_x, lerpf(upper_y, middle_y, 0.38)),
+				Vector2(right_x, lerpf(upper_y, middle_y, 0.38)),
+				Vector2(left_x, lower_y),
+				Vector2(right_x, lower_y),
+				Vector2(board_center.x, minf(board_size.y - min_board_margin.y - 24.0, action_bounds.end.y + pocket_padding.y * 1.14)),
+			]
+		"loop":
+			return [
+				Vector2(left_x, upper_y),
+				Vector2(right_x, upper_y),
+				Vector2(left_x, lower_y),
+				Vector2(right_x, lower_y),
+				Vector2(board_center.x, minf(board_size.y - min_board_margin.y - 24.0, action_bounds.end.y + pocket_padding.y * 1.08)),
+			]
+		_:
+			return [
+				Vector2(left_x, middle_y),
+				Vector2(right_x, middle_y),
+				Vector2(lerpf(action_bounds.position.x, board_center.x, 0.42), lower_y),
+				Vector2(lerpf(board_center.x, action_bounds.end.x, 0.58), lower_y),
+			]
+
+
+static func _trimmed_bounds_for_points(points: Array[Vector2], trim_ratio: Vector2) -> Rect2:
+	var sorted_x: Array[float] = []
+	var sorted_y: Array[float] = []
+	for point in points:
+		sorted_x.append(point.x)
+		sorted_y.append(point.y)
+	sorted_x.sort()
+	sorted_y.sort()
+	var trim_count_x: int = int(floor(float(points.size() - 1) * clampf(trim_ratio.x, 0.0, 0.30)))
+	var trim_count_y: int = int(floor(float(points.size() - 1) * clampf(trim_ratio.y, 0.0, 0.30)))
+	var min_index_x: int = clamp(trim_count_x, 0, sorted_x.size() - 1)
+	var max_index_x: int = clamp(sorted_x.size() - 1 - trim_count_x, 0, sorted_x.size() - 1)
+	var min_index_y: int = clamp(trim_count_y, 0, sorted_y.size() - 1)
+	var max_index_y: int = clamp(sorted_y.size() - 1 - trim_count_y, 0, sorted_y.size() - 1)
+	if max_index_x <= min_index_x or max_index_y <= min_index_y:
+		return Rect2()
+	return Rect2(
+		Vector2(sorted_x[min_index_x], sorted_y[min_index_y]),
+		Vector2(sorted_x[max_index_x] - sorted_x[min_index_x], sorted_y[max_index_y] - sorted_y[min_index_y])
+	)
+
+
+static func _action_pocket_exclusion_rect(action_bounds: Rect2, half_size: Vector2, family: String, template_profile: String) -> Rect2:
+	if not action_bounds.has_area():
+		return Rect2()
+	var pocket_padding: Vector2 = FILLER_ACTION_POCKET_PADDING_BY_PROFILE.get(
+		template_profile,
+		FILLER_ACTION_POCKET_PADDING_BY_PROFILE["corridor"]
+	)
+	var clearance_half_size: Vector2 = footprint_half_size(half_size, family)
+	return action_bounds.grow_individual(
+		clearance_half_size.x * 0.72 + pocket_padding.x * 0.26,
+		clearance_half_size.y * 0.64 + pocket_padding.y * 0.18,
+		clearance_half_size.x * 0.72 + pocket_padding.x * 0.26,
+		clearance_half_size.y * 0.82 + pocket_padding.y * 0.24
+	)
 
 
 static func _derive_seed(board_seed: int, salt: String) -> int:

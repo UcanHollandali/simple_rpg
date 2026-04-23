@@ -4,6 +4,7 @@ class_name TestFirstRunHintSceneHooks
 
 const AppBootstrapScript = preload("res://Game/Application/app_bootstrap.gd")
 const SceneRouterScript = preload("res://Game/Infrastructure/scene_router.gd")
+const InventoryStateScript = preload("res://Game/RuntimeState/inventory_state.gd")
 const FlowStateScript = preload("res://Game/Application/flow_state.gd")
 const RunSessionCoordinatorScript = preload("res://Game/Application/run_session_coordinator.gd")
 const EventStateScript = preload("res://Game/RuntimeState/event_state.gd")
@@ -14,6 +15,8 @@ const EventPackedScene: PackedScene = preload("res://scenes/event.tscn")
 const SupportInteractionPackedScene: PackedScene = preload("res://scenes/support_interaction.tscn")
 
 const COMBAT_DEFENSE_BUTTON_PATH := "Margin/VBox/Buttons/ActionCardsRow/DefenseActionCard/DefenseActionVBox/DefenseActionButton"
+const COMBAT_TECHNIQUE_BUTTON_PATH := "Margin/VBox/Buttons/ActionCardsRow/TechniqueActionCard/TechniqueActionVBox/TechniqueActionButton"
+const COMBAT_RIGHT_HAND_SWAP_BUTTON_PATH := "Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/HandSwapPanel/HandSwapVBox/HandSwapSlotButtonsRow/RightHandSwapButton"
 const FIRST_RUN_HINT_PANEL_PATH := "FirstRunHintPanel"
 const EVENT_CHOICE_BUTTON_NAMES := ["ChoiceAButton", "ChoiceBButton"]
 const SUPPORT_ACTION_BUTTON_NAMES := ["ActionAButton", "ActionBButton", "ActionCButton"]
@@ -42,6 +45,8 @@ func _init() -> void:
 func _run() -> void:
 	await test_map_scene_hints_trigger_once_without_retrigger()
 	await test_combat_scene_defend_hint_keeps_actions_clear()
+	await test_combat_scene_technique_hint_keeps_actions_clear()
+	await test_combat_scene_hand_swap_hint_keeps_actions_clear()
 	await test_map_scene_key_route_hint_triggers_once_without_retrigger()
 	await test_hamlet_hint_keeps_support_actions_clear()
 	await test_roadside_hint_keeps_event_choices_clear()
@@ -174,6 +179,127 @@ func test_combat_scene_defend_hint_keeps_actions_clear() -> void:
 	assert(
 		not controller.request_hint("first_combat_defend"),
 		"Expected the defend hint not to requeue after it was already shown once on this save."
+	)
+
+	await _clear_current_scene()
+	await _remove_runtime_nodes()
+
+
+func test_combat_scene_technique_hint_keeps_actions_clear() -> void:
+	var bootstrap: AppBootstrapScript = await _install_runtime_nodes()
+	bootstrap.get_flow_manager().restore_state(FlowStateScript.Type.MAP_EXPLORE)
+	bootstrap.reset_run_state_for_new_run()
+	bootstrap.ensure_run_state_initialized()
+	var controller: FirstRunHintController = _get_hint_controller(bootstrap)
+	controller.reset()
+	controller.mark_hint_shown("first_combat_defend")
+
+	var run_state: RunState = bootstrap.get_run_state()
+	run_state.equipped_technique_definition_id = "sundering_strike"
+	run_state.inventory_state.load_from_flat_save_dict({
+		"inventory_next_slot_id": 5,
+		"backpack_slots": [],
+		"equipped_right_hand_slot": {
+			"slot_id": 4,
+			"inventory_family": "weapon",
+			"definition_id": "iron_sword",
+			"current_durability": 11,
+		},
+		"equipped_left_hand_slot": {},
+		"equipped_armor_slot": {},
+		"equipped_belt_slot": {},
+	})
+
+	var combat_scene: Control = await _mount_scene(CombatPackedScene.instantiate() as Control)
+	assert(combat_scene != null, "Expected the combat scene for first-run technique-hint coverage.")
+	await _settle_frames(5)
+
+	assert(
+		controller.get_active_hint_id() == "first_combat_technique",
+		"Expected a first equipped technique to surface the technique hint once defend was already shown."
+	)
+	var hint_panel: PanelContainer = _find_first_run_hint_panel()
+	var technique_button: Button = combat_scene.get_node_or_null(COMBAT_TECHNIQUE_BUTTON_PATH) as Button
+	assert(hint_panel != null and hint_panel.visible, "Expected a visible first-run hint panel for the technique action.")
+	assert(technique_button != null and technique_button.visible and not technique_button.disabled, "Expected the technique action to stay enabled while the hint is visible.")
+	var technique_center: Vector2 = technique_button.get_global_rect().get_center()
+	assert(
+		not hint_panel.get_global_rect().has_point(technique_center),
+		"Expected the first-run technique hint panel not to cover the technique button's tap target."
+	)
+
+	controller.dismiss_active_hint()
+	assert(
+		not controller.request_hint("first_combat_technique"),
+		"Expected the technique hint not to requeue after it was already shown once on this save."
+	)
+
+	await _clear_current_scene()
+	await _remove_runtime_nodes()
+
+
+func test_combat_scene_hand_swap_hint_keeps_actions_clear() -> void:
+	var bootstrap: AppBootstrapScript = await _install_runtime_nodes()
+	bootstrap.get_flow_manager().restore_state(FlowStateScript.Type.MAP_EXPLORE)
+	bootstrap.reset_run_state_for_new_run()
+	bootstrap.ensure_run_state_initialized()
+	var controller: FirstRunHintController = _get_hint_controller(bootstrap)
+	controller.reset()
+	controller.mark_hint_shown("first_combat_defend")
+	controller.mark_hint_shown("first_combat_technique")
+
+	var run_state: RunState = bootstrap.get_run_state()
+	run_state.equipped_technique_definition_id = ""
+	run_state.inventory_state.load_from_flat_save_dict({
+		"inventory_next_slot_id": 13,
+		"backpack_slots": [
+			{
+				"slot_id": 12,
+				"inventory_family": "weapon",
+				"definition_id": "splitter_axe",
+				"current_durability": 14,
+			},
+		],
+		"equipped_right_hand_slot": {
+			"slot_id": 4,
+			"inventory_family": "weapon",
+			"definition_id": "iron_sword",
+			"current_durability": 11,
+		},
+		"equipped_left_hand_slot": {},
+		"equipped_armor_slot": {},
+		"equipped_belt_slot": {},
+	})
+
+	var combat_scene: Control = await _mount_scene(CombatPackedScene.instantiate() as Control)
+	assert(combat_scene != null, "Expected the combat scene for first-run hand-swap hint coverage.")
+	await _settle_frames(5)
+
+	assert(
+		controller.get_active_hint_id() == "first_combat_hand_swap",
+		"Expected a legal packed hand swap to surface the hand-swap hint once defend was already shown."
+	)
+	var hint_panel: PanelContainer = _find_first_run_hint_panel()
+	var right_hand_swap_button: Button = combat_scene.get_node_or_null(COMBAT_RIGHT_HAND_SWAP_BUTTON_PATH) as Button
+	assert(hint_panel != null and hint_panel.visible, "Expected a visible first-run hint panel for the hand-swap action.")
+	assert(right_hand_swap_button != null and right_hand_swap_button.visible and not right_hand_swap_button.disabled, "Expected the right-hand swap button to stay enabled while the hint is visible.")
+	var right_hand_swap_center: Vector2 = right_hand_swap_button.get_global_rect().get_center()
+	assert(
+		not hint_panel.get_global_rect().has_point(right_hand_swap_center),
+		"Expected the first-run hand-swap hint panel not to cover the swap button's tap target."
+	)
+
+	right_hand_swap_button.emit_signal("pressed")
+	await _settle_frames(2)
+	assert(
+		String(combat_scene.get("_selected_hand_swap_slot_name")) == InventoryStateScript.EQUIPMENT_SLOT_RIGHT_HAND,
+		"Expected the right-hand swap button to remain tappable while the hint is visible."
+	)
+
+	controller.dismiss_active_hint()
+	assert(
+		not controller.request_hint("first_combat_hand_swap"),
+		"Expected the hand-swap hint not to requeue after it was already shown once on this save."
 	)
 
 	await _clear_current_scene()

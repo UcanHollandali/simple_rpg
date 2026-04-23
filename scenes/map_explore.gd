@@ -4,6 +4,7 @@ extends Control
 const AppBootstrapScript = preload("res://Game/Application/app_bootstrap.gd")
 const RunSessionCoordinatorScript = preload("res://Game/Application/run_session_coordinator.gd")
 const MapExplorePresenterScript = preload("res://Game/UI/map_explore_presenter.gd")
+const MapQuestLogPanelScript = preload("res://Game/UI/map_quest_log_panel.gd")
 const RunInventoryPanelScript = preload("res://Game/UI/run_inventory_panel.gd")
 const MapOverlayDirectorScript = preload("res://Game/UI/map_overlay_director.gd")
 const MapRouteBindingScript = preload("res://Game/UI/map_route_binding.gd")
@@ -38,7 +39,8 @@ const STAGE_BADGE_LABEL_PATH := "Margin/VBox/TopRow/HeaderCard/HeaderRow/StageBa
 const RUN_SUMMARY_CARD_PATH := "Margin/VBox/TopRow/RunSummaryCard"
 const SETTINGS_MENU_ANCHOR_PATH := "Margin/VBox/TopRow/SettingsMenuAnchor"
 const WALKER_ARRIVAL_PAUSE := 0.08
-const ROADSIDE_CONTINUATION_CLOSE_LEAD_IN := 0.06
+const ROADSIDE_CONTINUATION_CLOSE_LEAD_IN := 0.14
+const ROADSIDE_CONTINUATION_RESUME_STATES := [FlowStateScript.Type.MAP_EXPLORE, FlowStateScript.Type.NODE_RESOLVE, FlowStateScript.Type.COMBAT, FlowStateScript.Type.REWARD, FlowStateScript.Type.SUPPORT_INTERACTION]
 const MAP_INVENTORY_DRAWER_TITLE := "Inventory + Equipment"
 
 var _status_lines: PackedStringArray = []
@@ -66,6 +68,7 @@ var _inventory_drawer_card: PanelContainer
 var _inventory_drawer_title_label: Label
 var _inventory_drawer_summary_label: Label
 var _inventory_drawer_toggle_button: Button
+var _quest_log_panel: MapQuestLogPanel
 var _first_run_hint_controller: FirstRunHintController
 
 @onready var _header_title_label: Label = _scene_node("%s/TitleLabel" % HEADER_STACK_PATH) as Label
@@ -138,7 +141,6 @@ func _ready() -> void:
 	_route_binding.apply_static_map_textures()
 	SceneAudioPlayersScript.configure_from_config(self, AUDIO_PLAYER_CONFIG)
 	_route_binding.ensure_runtime_board_nodes()
-	_ensure_inventory_hint_label()
 	_setup_overflow_prompt()
 	_apply_temp_theme()
 	_prime_inventory_drawer_preview()
@@ -147,6 +149,8 @@ func _ready() -> void:
 	_apply_text_density_pass()
 	SceneLayoutHelperScript.bind_viewport_size_changed(self, Callable(self, "_on_viewport_size_changed"))
 	_apply_portrait_safe_layout()
+	_quest_log_panel = MapQuestLogPanelScript.new()
+	_quest_log_panel.configure(self, Callable(self, "_before_quest_log_toggle"))
 	_setup_safe_menu()
 	SceneAudioPlayersScript.start_looping(self, "MapMusicPlayer")
 
@@ -205,7 +209,7 @@ func _on_route_button_pressed(button_node_name: String) -> void:
 	var target_node_id: int = _route_binding.resolve_target_node_id(button_node_name)
 	if target_node_id < 0:
 		return
-	var selection_end_progress: float = _resolve_route_selection_end_progress(target_node_id)
+	var selection_end_progress: float = MapRouteBindingScript.ROADSIDE_INTERRUPTION_PROGRESS if _would_open_roadside_encounter_preview(target_node_id) else 1.0
 	_route_binding.begin_selection()
 	SceneAudioPlayersScript.play(self, "NodeSelectSfxPlayer")
 	await _route_binding.animate_route_selection(
@@ -216,13 +220,6 @@ func _on_route_button_pressed(button_node_name: String) -> void:
 	)
 	var run_state: RunState = _get_run_state()
 	_route_binding.finish_selection_and_render(run_state)
-
-
-func _resolve_route_selection_end_progress(target_node_id: int) -> float:
-	if _would_open_roadside_encounter_preview(target_node_id):
-		return MapRouteBindingScript.ROADSIDE_INTERRUPTION_PROGRESS
-	return 1.0
-
 
 func _would_open_roadside_encounter_preview(target_node_id: int) -> bool:
 	var run_state: RunState = _get_run_state()
@@ -345,8 +342,7 @@ func _move_to_node(node_reference: Variant) -> void:
 
 	var result: Dictionary = bootstrap.choose_move_to_node(node_reference)
 	if not bool(result.get("ok", false)):
-		if _route_binding != null:
-			_route_binding.clear_pending_roadside_visual_state()
+		_clear_pending_roadside_visual_bridge()
 		_append_status_line("Move failed: %s" % String(result.get("error", "unknown")))
 		_refresh_ui()
 		return
@@ -356,15 +352,14 @@ func _move_to_node(node_reference: Variant) -> void:
 	var target_state: int = int(result.get("target_state", FlowState.Type.MAP_EXPLORE))
 	if _is_roadside_interruption_result(result):
 		var run_state: RunState = _get_run_state()
-		if _route_binding != null and run_state != null and run_state.map_runtime_state != null:
-			_route_binding.prime_roadside_visual_state(
+		if run_state != null and run_state.map_runtime_state != null:
+			_prime_pending_roadside_visual_bridge(
 				int(run_state.map_runtime_state.current_node_id),
 				int(result.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
 			)
 		_append_status_line("Roadside stop before the node.")
 	else:
-		if _route_binding != null:
-			_route_binding.clear_pending_roadside_visual_state()
+		_clear_pending_roadside_visual_bridge()
 	if target_state == FlowState.Type.NODE_RESOLVE:
 		_append_status_line("Entered %s node. Hunger: %d" % [node_type, int(result.get("hunger", 0))])
 	elif target_state == FlowState.Type.COMBAT:
@@ -376,8 +371,7 @@ func _move_to_node(node_reference: Variant) -> void:
 
 func _refresh_ui() -> void:
 	if _is_refreshing_ui:
-		_refresh_ui_pending = true
-		call_deferred("_consume_pending_refresh_ui")
+		_queue_refresh_ui()
 		return
 	_is_refreshing_ui = true
 
@@ -442,9 +436,13 @@ func _refresh_ui() -> void:
 	if status_card != null and status_label != null:
 		status_card.visible = status_label.visible
 
+	if _quest_log_panel != null:
+		_quest_log_panel.apply_model(_presenter.build_quest_log_model(run_state))
+
 	if _safe_menu != null:
 		var bootstrap = _get_app_bootstrap()
 		RunMenuSceneHelperScript.sync_load_available(_safe_menu, bootstrap)
+		RunMenuSceneHelperScript.sync_tutorial_hints_available(_safe_menu, _first_run_hint_controller)
 		_sync_safe_menu_launcher_visibility()
 
 	if _route_binding == null or not _route_binding.is_selection_in_flight():
@@ -455,7 +453,7 @@ func _refresh_ui() -> void:
 
 	_is_refreshing_ui = false
 	if _refresh_ui_pending:
-		call_deferred("_consume_pending_refresh_ui")
+		_schedule_refresh_ui_consume()
 
 
 func _append_status_line(line: String) -> void:
@@ -475,7 +473,7 @@ func _refresh_inventory_cards(run_state: RunState) -> void:
 		"drawer_enabled": true,
 		"drawer_expanded": _map_inventory_drawer_expanded,
 		"drawer_title": MAP_INVENTORY_DRAWER_TITLE,
-		"drawer_summary": _build_map_inventory_drawer_summary(run_state, pressure_text),
+		"drawer_summary": inventory_presenter.build_inventory_drawer_summary_text(run_state.inventory_state if run_state != null else null),
 		"drawer_toggle_text": "Hide Cards" if _map_inventory_drawer_expanded else "Show Cards",
 		"equipment_title": inventory_presenter.build_equipment_title_text(),
 		"equipment_hint": inventory_presenter.build_equipment_hint_text(false),
@@ -489,15 +487,6 @@ func _refresh_inventory_cards(run_state: RunState) -> void:
 		"draggable_resolver": Callable(self, "_inventory_card_is_draggable"),
 	})
 	_scan_first_run_inventory_hints(run_state)
-
-
-func _build_map_inventory_drawer_summary(run_state: RunState, pressure_text: String) -> String:
-	var _unused_pressure_text := pressure_text
-	var inventory_presenter: InventoryPresenter = _run_inventory_panel.get_presenter() if _run_inventory_panel != null else null
-	if inventory_presenter == null:
-		return ""
-	return inventory_presenter.build_inventory_drawer_summary_text(run_state.inventory_state if run_state != null else null)
-
 
 func _inventory_card_is_clickable(card_model: Dictionary) -> bool:
 	var card_family: String = String(card_model.get("card_family", ""))
@@ -605,6 +594,7 @@ func _setup_first_run_hint_controller() -> void:
 	if _first_run_hint_controller == null:
 		return
 	_first_run_hint_controller.setup(self, TOP_ROW_PATH, 140)
+	RunMenuSceneHelperScript.sync_tutorial_hints_available(_safe_menu, _first_run_hint_controller)
 
 
 func _release_first_run_hint_controller_host() -> void:
@@ -612,6 +602,7 @@ func _release_first_run_hint_controller_host() -> void:
 		return
 	_first_run_hint_controller.release_host(self)
 	_first_run_hint_controller = null
+	RunMenuSceneHelperScript.sync_tutorial_hints_available(_safe_menu, _first_run_hint_controller)
 
 
 func _request_first_run_hint(hint_id: String) -> void:
@@ -637,6 +628,15 @@ func _resolve_first_run_hint_controller() -> FirstRunHintController:
 	if coordinator == null:
 		return null
 	return coordinator.get("_first_run_hint_controller") as FirstRunHintController
+
+func _on_disable_tutorial_hints_pressed() -> void:
+	_setup_first_run_hint_controller()
+	if _first_run_hint_controller == null:
+		return
+	var changed: bool = _first_run_hint_controller.mark_all_hints_shown()
+	RunMenuSceneHelperScript.sync_tutorial_hints_available(_safe_menu, _first_run_hint_controller)
+	if _safe_menu != null:
+		_safe_menu.set_status_text(RunMenuSceneHelperScript.build_tutorial_hints_status_text(changed))
 
 
 func _setup_overflow_prompt() -> void:
@@ -685,23 +685,64 @@ func _get_run_state() -> RunState:
 	return bootstrap.get_run_state()
 
 
+func _schedule_refresh_ui_consume() -> void:
+	call_deferred("_consume_pending_refresh_ui")
+
+
+func _queue_refresh_ui() -> void:
+	_refresh_ui_pending = true
+	_schedule_refresh_ui_consume()
+
+
+func _is_roadside_transition_in_flight() -> bool:
+	return _route_binding.is_roadside_transition_in_flight() if _route_binding != null else _roadside_transition_in_flight
+
+
+func _set_roadside_transition_in_flight(value: bool) -> void:
+	if _route_binding != null:
+		_route_binding.set_roadside_transition_in_flight(value)
+	else:
+		_roadside_transition_in_flight = value
+
+
+func _has_pending_roadside_visual_bridge() -> bool:
+	return _route_binding.has_pending_roadside_visual_state() if _route_binding != null else _has_pending_roadside_visual_state()
+
+
+func _prime_pending_roadside_visual_bridge(current_node_id: int, target_node_id: int) -> void:
+	if _route_binding != null:
+		_route_binding.prime_roadside_visual_state(current_node_id, target_node_id)
+	else:
+		_prime_roadside_visual_state(current_node_id, target_node_id)
+
+
+func _clear_pending_roadside_visual_bridge() -> void:
+	if _route_binding != null:
+		_route_binding.clear_pending_roadside_visual_state()
+	else:
+		_clear_pending_roadside_visual_state()
+
+
+func _close_roadside_source_overlay(old_state: int) -> void:
+	match old_state:
+		FlowStateScript.Type.EVENT:
+			close_overlay_for_state(FlowStateScript.Type.EVENT, false)
+		FlowStateScript.Type.LEVEL_UP:
+			close_overlay_for_state(FlowStateScript.Type.LEVEL_UP, false)
+
+
 func begin_deferred_scene_transition(new_state: int, old_state: int) -> bool:
-	var roadside_transition_in_flight: bool = _route_binding.is_roadside_transition_in_flight() if _route_binding != null else _roadside_transition_in_flight
-	var has_pending_roadside_visual: bool = _route_binding.has_pending_roadside_visual_state() if _route_binding != null else _has_pending_roadside_visual_state()
-	if roadside_transition_in_flight or not has_pending_roadside_visual:
+	if _is_roadside_transition_in_flight():
+		return _should_hold_roadside_transition_request(new_state)
+	if not _has_pending_roadside_visual_bridge():
 		return false
-	if new_state in [FlowStateScript.Type.REWARD, FlowStateScript.Type.COMBAT] and old_state in [FlowStateScript.Type.EVENT, FlowStateScript.Type.LEVEL_UP]:
-		if _route_binding != null:
-			_route_binding.set_roadside_transition_in_flight(true)
-		else:
-			_roadside_transition_in_flight = true
-		call_deferred("_run_roadside_continuation_transition", new_state, old_state)
+	if _should_defer_roadside_continuation_transition(new_state, old_state):
+		var deferred_target_state: int = _resolve_roadside_continuation_target_state(new_state)
+		_set_roadside_transition_in_flight(true)
+		call_deferred("_run_roadside_continuation_transition", deferred_target_state, old_state)
 		return true
 	if new_state not in [FlowStateScript.Type.EVENT, FlowStateScript.Type.LEVEL_UP]:
-		if _route_binding != null:
-			_route_binding.clear_pending_roadside_visual_state()
-		else:
-			_clear_pending_roadside_visual_state()
+		_clear_pending_roadside_visual_bridge()
 	return false
 
 
@@ -793,9 +834,8 @@ func _prime_roadside_visual_state(current_node_id: int, target_node_id: int) -> 
 	if current_node_id == MapRuntimeStateScript.NO_PENDING_NODE_ID or target_node_id == MapRuntimeStateScript.NO_PENDING_NODE_ID:
 		_clear_pending_roadside_visual_state()
 		return
-	var target_world_position: Vector2 = _get_node_world_position(target_node_id)
-	var target_offset: Vector2 = _desired_focus_offset_for_world_position(target_world_position)
-	var interruption_offset: Vector2 = _route_layout_offset.lerp(target_offset, _route_camera_follow_progress(MapRouteBindingScript.ROADSIDE_INTERRUPTION_PROGRESS))
+	var target_offset: Vector2 = _fixed_board_layout_offset()
+	var interruption_offset: Vector2 = _fixed_board_layout_offset()
 	_roadside_visual_state = {
 		"current_node_id": current_node_id,
 		"target_node_id": target_node_id,
@@ -815,18 +855,11 @@ func _has_pending_roadside_visual_state() -> bool:
 
 
 func _desired_focus_offset_for_world_position(world_position: Vector2) -> Vector2:
-	var route_grid: Control = _scene_node("Margin/VBox/RouteGrid") as Control
-	if route_grid == null:
-		return Vector2.ZERO
-	var context_world_position: Vector2 = MapFocusHelperScript.focus_context_world_position(_board_composition_cache, world_position)
-	var context_blend: float = MapFocusHelperScript.context_blend_for_positions(route_grid, world_position, context_world_position, MapRouteBindingScript.BOARD_FOCUS_CONTEXT_BLEND_MIN, MapRouteBindingScript.BOARD_FOCUS_CONTEXT_BLEND_MAX)
-	var desired_offset: Vector2 = MapFocusHelperScript.desired_focus_offset(route_grid, _route_layout_offset, world_position, MapRouteBindingScript.BOARD_FOCUS_ANCHOR_FACTOR, MapRouteBindingScript.BOARD_MAX_OFFSET_FACTOR, MapRouteBindingScript.BOARD_FOCUS_DEADZONE_FACTOR, MapRouteBindingScript.BOARD_FOCUS_DAMPING, context_world_position, context_blend)
-	return MapFocusHelperScript.clamp_focus_offset_to_visible_bounds(route_grid, _board_composition_cache, desired_offset, MapRouteBindingScript.BOARD_VISIBLE_CONTENT_PADDING)
+	return _fixed_board_layout_offset()
 
 
 func _route_camera_follow_progress(progress: float) -> float:
-	var delayed_progress: float = clampf((progress - MapRouteBindingScript.ROUTE_MOVE_CAMERA_DELAY_RATIO) / max(0.001, 1.0 - MapRouteBindingScript.ROUTE_MOVE_CAMERA_DELAY_RATIO), 0.0, 1.0)
-	return _ease_in_out_sine(delayed_progress)
+	return 0.0
 
 
 func _visible_edge_points_for_route(current_node_id: int, target_node_id: int) -> PackedVector2Array:
@@ -845,6 +878,10 @@ func _visible_edge_points_for_route(current_node_id: int, target_node_id: int) -
 				reversed_points.append(points[index])
 			return reversed_points
 	return PackedVector2Array()
+
+
+func _fixed_board_layout_offset() -> Vector2:
+	return Vector2.ZERO
 
 
 func _append_route_move_world_point(points: PackedVector2Array, point: Vector2) -> void:
@@ -914,21 +951,38 @@ func _is_roadside_interruption_result(result: Dictionary) -> bool:
 	return int(run_state.map_runtime_state.current_node_id) != int(result.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
 
 
+func _should_defer_roadside_continuation_transition(new_state: int, old_state: int) -> bool:
+	return old_state in [FlowStateScript.Type.EVENT, FlowStateScript.Type.LEVEL_UP] and ROADSIDE_CONTINUATION_RESUME_STATES.has(new_state)
+
+
+func _should_hold_roadside_transition_request(new_state: int) -> bool:
+	return ROADSIDE_CONTINUATION_RESUME_STATES.has(new_state)
+
+
+func _resolve_roadside_continuation_target_state(new_state: int) -> int:
+	if new_state != FlowStateScript.Type.MAP_EXPLORE:
+		return new_state
+	var bootstrap = _get_app_bootstrap()
+	var flow_manager = bootstrap.get_flow_manager() if bootstrap != null else null
+	if flow_manager == null:
+		return new_state
+	var live_flow_state: int = int(flow_manager.get_current_state())
+	if ROADSIDE_CONTINUATION_RESUME_STATES.has(live_flow_state) and live_flow_state != FlowStateScript.Type.MAP_EXPLORE:
+		return live_flow_state
+	return new_state
+
+
 func _run_roadside_continuation_transition(target_state: int, old_state: int) -> void:
 	await _play_roadside_continuation_transition(target_state, old_state)
 
 
 func _play_roadside_continuation_transition(target_state: int, old_state: int) -> void:
-	match old_state:
-		FlowStateScript.Type.EVENT:
-			close_overlay_for_state(FlowStateScript.Type.EVENT, false)
-		FlowStateScript.Type.LEVEL_UP:
-			close_overlay_for_state(FlowStateScript.Type.LEVEL_UP, false)
+	_close_roadside_source_overlay(old_state)
 	if is_inside_tree():
 		await get_tree().create_timer(ROADSIDE_CONTINUATION_CLOSE_LEAD_IN).timeout
 	if _route_binding != null:
 		await _route_binding.animate_pending_roadside_continuation()
-		_route_binding.clear_pending_roadside_visual_state()
+	_clear_pending_roadside_visual_bridge()
 	_refresh_ui()
 	var scene_router: Node = _scene_node("/root/SceneRouter")
 	if scene_router != null:
@@ -947,8 +1001,7 @@ func _on_route_grid_resized() -> void:
 	if _is_refreshing_ui:
 		if _route_binding != null:
 			_route_binding.request_next_refresh_full_recompose()
-		_refresh_ui_pending = true
-		call_deferred("_consume_pending_refresh_ui")
+		_queue_refresh_ui()
 		return
 	if _route_binding != null and _route_binding.is_selection_in_flight():
 		return
@@ -961,7 +1014,7 @@ func _on_route_grid_resized() -> void:
 
 func _consume_pending_refresh_ui() -> void:
 	if _is_refreshing_ui:
-		call_deferred("_consume_pending_refresh_ui")
+		_schedule_refresh_ui_consume()
 		return
 	if not _refresh_ui_pending:
 		return
@@ -975,12 +1028,12 @@ func _on_viewport_size_changed() -> void:
 		_run_inventory_panel.refresh_hovered_tooltip()
 	if _first_run_hint_controller != null:
 		_first_run_hint_controller.refresh_position()
-	_position_hunger_warning_toast()
+	if _hunger_warning_toast != null:
+		_hunger_warning_toast.position_toast()
 	_position_active_overlays()
 	if _route_binding != null:
 		_route_binding.request_next_refresh_full_recompose()
-	_refresh_ui_pending = true
-	call_deferred("_consume_pending_refresh_ui")
+	_queue_refresh_ui()
 
 
 func _sync_overlays_with_flow_state() -> void:
@@ -1001,8 +1054,7 @@ func _position_active_overlays() -> void:
 
 
 func _request_overlay_ui_refresh() -> void:
-	_refresh_ui_pending = true
-	call_deferred("_consume_pending_refresh_ui")
+	_queue_refresh_ui()
 
 
 func open_overlay_for_state(flow_state: int) -> void:
@@ -1025,6 +1077,8 @@ func close_all_overlays(immediate: bool = false) -> void:
 
 func _apply_portrait_safe_layout() -> void:
 	MapExploreSceneUiScript.apply_portrait_safe_layout(self, PORTRAIT_SAFE_MAX_WIDTH, PORTRAIT_SAFE_MIN_SIDE_MARGIN)
+	if _quest_log_panel != null:
+		_quest_log_panel.refresh_layout()
 
 
 func _prime_inventory_drawer_preview() -> void:
@@ -1051,7 +1105,6 @@ func _prime_inventory_drawer_preview() -> void:
 		_inventory_title_label.visible = false
 	if _inventory_hint_label != null:
 		_inventory_hint_label.visible = false
-
 func _setup_safe_menu() -> void:
 	var menu_config: Dictionary = RunMenuSceneHelperScript.shared_menu_config()
 	_safe_menu = RunMenuSceneHelperScript.ensure_safe_menu(
@@ -1062,7 +1115,8 @@ func _setup_safe_menu() -> void:
 		String(menu_config.get("launcher_text", RunMenuSceneHelperScript.SHARED_LAUNCHER_TEXT)),
 		Callable(self, "_on_save_run_pressed"),
 		Callable(self, "_on_load_run_pressed"),
-		Callable(self, "_on_return_to_main_menu_pressed")
+		Callable(self, "_on_return_to_main_menu_pressed"),
+		Callable(self, "_on_disable_tutorial_hints_pressed")
 	)
 	if _safe_menu != null:
 		_safe_menu.set_launcher_enabled(false)
@@ -1070,33 +1124,41 @@ func _setup_safe_menu() -> void:
 	_sync_safe_menu_launcher_visibility()
 
 func _open_safe_menu() -> void:
-	if _safe_menu != null:
-		_safe_menu.open_menu()
+	if _quest_log_panel != null: _quest_log_panel.close()
+	if _safe_menu != null: _safe_menu.open_menu()
+	_sync_safe_menu_launcher_visibility()
+
+
+func _before_quest_log_toggle() -> void:
+	if _safe_menu != null and _safe_menu.is_menu_open():
+		_safe_menu.close_menu()
+	call_deferred("_sync_safe_menu_launcher_visibility")
 
 
 func _sync_safe_menu_launcher_visibility() -> void:
 	var has_overlay: bool = _overlay_director != null and _overlay_director.has_active_overlay()
+	var quest_log_open: bool = _quest_log_panel != null and _quest_log_panel.is_open()
 	var settings_button: Button = _scene_node("%s/SettingsButton" % SETTINGS_MENU_ANCHOR_PATH) as Button
 	if settings_button != null:
-		settings_button.visible = not has_overlay
-		settings_button.focus_mode = Control.FOCUS_ALL if not has_overlay else Control.FOCUS_NONE
-		settings_button.mouse_filter = Control.MOUSE_FILTER_STOP if not has_overlay else Control.MOUSE_FILTER_IGNORE
+		var settings_interaction_enabled: bool = not has_overlay and not quest_log_open
+		settings_button.visible = settings_interaction_enabled
+		settings_button.focus_mode = Control.FOCUS_ALL if settings_interaction_enabled else Control.FOCUS_NONE
+		settings_button.mouse_filter = Control.MOUSE_FILTER_STOP if settings_interaction_enabled else Control.MOUSE_FILTER_IGNORE
+	if _quest_log_panel != null: _quest_log_panel.set_interaction_enabled(not has_overlay)
 	if _safe_menu != null:
 		_safe_menu.set_launcher_enabled(false)
-		if has_overlay and _safe_menu.is_menu_open():
-			_safe_menu.close_menu()
-
+		if has_overlay and _safe_menu.is_menu_open(): _safe_menu.close_menu()
 func _ensure_hunger_warning_toast() -> void:
 	if _hunger_warning_toast == null:
 		_hunger_warning_toast = HungerWarningToastScript.new()
 	_hunger_warning_toast.setup(self, TOP_ROW_PATH, 130)
-
-
 func _on_hunger_threshold_crossed(_old_threshold: int, new_threshold: int) -> void:
 	var warning_text: String = RunStatusStripScript.build_hunger_threshold_warning_text(new_threshold)
 	if warning_text.is_empty():
 		return
-	_show_hunger_warning(warning_text, new_threshold)
+	_ensure_hunger_warning_toast()
+	if _hunger_warning_toast != null:
+		_hunger_warning_toast.show_warning(warning_text, new_threshold)
 	_request_first_run_hint("first_low_hunger_warning")
 
 
@@ -1121,36 +1183,3 @@ func _has_key_required_route_hint_context(run_state: RunState) -> bool:
 		if String(node_snapshot.get("node_state", "")) == MapRuntimeStateScript.NODE_STATE_LOCKED:
 			return true
 	return false
-
-
-func _show_hunger_warning(warning_text: String, threshold: int) -> void:
-	_ensure_hunger_warning_toast()
-	if _hunger_warning_toast == null:
-		return
-	_hunger_warning_toast.show_warning(warning_text, threshold)
-
-
-func _position_hunger_warning_toast() -> void:
-	if _hunger_warning_toast == null:
-		return
-	_hunger_warning_toast.position_toast()
-
-
-func _finish_hiding_hunger_warning() -> void:
-	if _hunger_warning_toast == null:
-		return
-	_hunger_warning_toast.finish_hide()
-
-
-func _ensure_inventory_hint_label() -> void:
-	var inventory_section: VBoxContainer = _inventory_section if _inventory_section != null and is_instance_valid(_inventory_section) else _scene_node("Margin/VBox/InventorySection") as VBoxContainer
-	if inventory_section == null:
-		return
-	var inventory_hint_label: Label = inventory_section.get_node_or_null("InventoryHintLabel") as Label
-	if inventory_hint_label == null:
-		inventory_hint_label = Label.new()
-		inventory_hint_label.name = "InventoryHintLabel"
-		inventory_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		inventory_hint_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		inventory_section.add_child(inventory_hint_label)
-		inventory_section.move_child(inventory_hint_label, 1)

@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "definition_id": "echo_strike",
+  "family": "Techniques",
+  "tags": [
+    "technique",
+    "combat",
+    "tempo",
+    "prime_attack"
+  ],
+  "display": {
+    "name": "Echo Strike",
+    "short_description": "Spend this turn to triple your next attack."
+  },
+  "rules": {
+    "usage_limit": "once_per_combat",
+    "action_target": "self",
+    "effect": {
+      "type": "prime_next_attack",
+      "params": {
+        "damage_multiplier": 3
+      }
+    }
+  }
+}

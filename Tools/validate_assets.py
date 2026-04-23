@@ -65,6 +65,11 @@ RUNTIME_TRACKED_EXTENSIONS = {
     ".woff",
     ".woff2",
 }
+SOURCE_ART_ROOT_PREFIX = "SourceArt/"
+SOURCE_ART_ARCHIVE_PREFIX = "SourceArt/Archive/"
+SOURCE_ART_GENERATED_PREFIX = "SourceArt/Generated/"
+SOURCE_ART_GENERATED_CANDIDATE_PACK_PREFIX = "SourceArt/Generated/new/"
+ACTIVE_SOURCE_PREVIEW_NAME_FRAGMENT = "_preview."
 
 
 @dataclass
@@ -84,6 +89,7 @@ def main(argv: list[str]) -> int:
     manifest_path = repo_root / "AssetManifest" / "asset_manifest.csv"
 
     errors, warnings = validate_manifest(repo_root, manifest_path)
+    warnings.extend(validate_active_source_lane_clutter(repo_root))
 
     if errors:
         for error in errors:
@@ -282,7 +288,7 @@ def validate_row(
 
     master_path = normalized_row.get("master_path", "")
     if master_path:
-        validate_master_path(repo_root, location, master_path, warnings)
+        validate_master_path(repo_root, location, master_path, errors, warnings)
 
     manifest_rows.append((row_number, normalized_row))
 
@@ -322,9 +328,30 @@ def validate_master_path(
     repo_root: Path,
     location: str,
     master_path: str,
+    errors: list[ValidationIssue],
     warnings: list[ValidationIssue],
 ) -> None:
     normalized = master_path.replace("\\", "/")
+    if not normalized.startswith(SOURCE_ART_ROOT_PREFIX):
+        errors.append(
+            ValidationIssue(
+                location,
+                "invalid_master_path_root",
+                "master_path should point inside SourceArt/ for provenance truth.",
+            )
+        )
+        return
+
+    if normalized.startswith(SOURCE_ART_ARCHIVE_PREFIX):
+        errors.append(
+            ValidationIssue(
+                location,
+                "archived_master_path",
+                "master_path must not point into SourceArt/Archive/; keep runtime-tracked assets linked to an active source/master lane.",
+            )
+        )
+        return
+
     full_path = repo_root / Path(normalized)
     if full_path.exists():
         return
@@ -336,6 +363,29 @@ def validate_master_path(
             f"master_path '{master_path}' does not exist.",
         )
     )
+
+
+def validate_active_source_lane_clutter(repo_root: Path) -> list[ValidationIssue]:
+    warnings: list[ValidationIssue] = []
+    edited_root = repo_root / "SourceArt" / "Edited"
+    if not edited_root.exists():
+        return warnings
+
+    for path in sorted(edited_root.rglob("*")):
+        if not path.is_file():
+            continue
+        name = path.name.lower()
+        if ACTIVE_SOURCE_PREVIEW_NAME_FRAGMENT not in name:
+            continue
+        warnings.append(
+            ValidationIssue(
+                str(path.relative_to(repo_root).as_posix()),
+                "active_source_preview_clutter",
+                "Preview-sheet clutter should not stay in SourceArt/Edited; move review previews into SourceArt/Archive once the active masters are chosen.",
+            )
+        )
+
+    return warnings
 
 
 def validate_manifest_policy_consistency(
@@ -395,6 +445,36 @@ def validate_manifest_policy_consistency(
                     location,
                     "runtime_asset_missing_master_path",
                     "Runtime-tracked assets should also record a master_path for provenance review.",
+                )
+            )
+
+        normalized_master_path = master_path.replace("\\", "/")
+        source_tool = row.get("source_tool", "")
+
+        if normalized_master_path.startswith(SOURCE_ART_GENERATED_CANDIDATE_PACK_PREFIX):
+            errors.append(
+                ValidationIssue(
+                    location,
+                    "candidate_pack_used_as_master",
+                    "master_path must not point into SourceArt/Generated/new/; choose or clean a real active master first.",
+                )
+            )
+
+        if status == "approved_for_prototype" and normalized_master_path.startswith(SOURCE_ART_GENERATED_PREFIX):
+            errors.append(
+                ValidationIssue(
+                    location,
+                    "approved_asset_still_on_generated_source",
+                    "approved_for_prototype assets must not point at SourceArt/Generated/; move the approved master into an active reviewed lane first.",
+                )
+            )
+
+        if source_tool == "repo_authored_reviewed_master" and normalized_master_path.startswith(SOURCE_ART_GENERATED_PREFIX):
+            errors.append(
+                ValidationIssue(
+                    location,
+                    "reviewed_master_points_to_generated_lane",
+                    "repo_authored_reviewed_master should not point into SourceArt/Generated/; keep reviewed masters in a cleaned active lane.",
                 )
             )
 

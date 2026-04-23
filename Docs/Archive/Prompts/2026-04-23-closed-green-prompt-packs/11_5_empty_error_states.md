@@ -1,10 +1,10 @@
-# Prompt 11.5 - Empty, Loading, And Error States
+﻿# Prompt 11.5 - Empty, Loading, And Error States
 
 Use this prompt pack only after Prompt 11 is closed green and Prompt 06.5 is closed green.
 This is a future-queue implementation pack. Do not start it while any earlier open 06-11 pack is still open.
 
 Checked-in filename note:
-- this pack lives at `Docs/Promts/11_5_empty_error_states.md`
+- this pack lives at `Docs/Archive/Prompts/2026-04-23-closed-green-prompt-packs/11_5_empty_error_states.md`
 - checked-in filename and logical queue position now match Prompt `11.5`
 
 Read first:

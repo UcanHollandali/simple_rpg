@@ -6,7 +6,9 @@ const FALLBACK_ATTACK_DAMAGE: int = 1
 const MAX_HUNGER: int = RunState.DEFAULT_HUNGER
 const HUNGRY_THRESHOLD: int = 6
 const STARVING_THRESHOLD: int = 2
-const BASE_DEFEND_GUARD: int = 2
+const BASE_TURN_END_HUNGER_COST: int = 1
+const DEFEND_EXTRA_HUNGER_COST: int = 1
+const BASE_DEFEND_GUARD: int = 3
 const SHIELD_DEFEND_BONUS: int = 2
 const DUAL_WIELD_ATTACK_POWER_BONUS: int = 1
 const DUAL_WIELD_DEFEND_GUARD_PENALTY: int = 1
@@ -21,6 +23,15 @@ const WEAPON_DURABILITY_PROFILE_MULTIPLIERS := {
 
 
 func resolve_player_attack(attacker_state: Dictionary, defender_state: Dictionary, weapon_def: Dictionary) -> Dictionary:
+	return resolve_player_attack_with_context(attacker_state, defender_state, weapon_def, {})
+
+
+func resolve_player_attack_with_context(
+	attacker_state: Dictionary,
+	defender_state: Dictionary,
+	weapon_def: Dictionary,
+	attack_context: Dictionary = {}
+) -> Dictionary:
 	var working_attacker: Dictionary = attacker_state.duplicate(true)
 	var working_defender: Dictionary = _prepare_combatant_state(defender_state)
 	var original_weapon_instance: Dictionary = _extract_weapon_instance(working_attacker)
@@ -28,12 +39,18 @@ func resolve_player_attack(attacker_state: Dictionary, defender_state: Dictionar
 	var used_fallback_attack: bool = _is_weapon_broken(updated_weapon_instance)
 	var base_damage: int = FALLBACK_ATTACK_DAMAGE
 	var bonus_damage: int = 0
+	var attack_multiplier: int = max(
+		1,
+		int(attack_context.get("damage_multiplier", int(working_attacker.get("queued_attack_multiplier", 1))))
+	)
+	var ignores_armor: bool = bool(attack_context.get("ignore_armor", false))
+	var lifesteal_percent: int = max(0, int(attack_context.get("heal_ratio_percent", 0)))
 	var attack_power_bonus: int = (
 		int(working_attacker.get("attack_power_bonus", 0))
 		+ _resolve_attack_power_bonus(working_attacker)
 		+ _resolve_dual_wield_attack_bonus(working_attacker)
 	)
-	var defense_reduction: int = int(working_defender.get("incoming_damage_flat_reduction", 0))
+	var defense_reduction: int = 0 if ignores_armor else int(working_defender.get("incoming_damage_flat_reduction", 0))
 	var dodge_chance: int = int(working_defender.get("dodge_chance", 0))
 	var dodged: bool = _roll_is_within_percent(working_attacker, dodge_chance)
 
@@ -49,14 +66,22 @@ func resolve_player_attack(attacker_state: Dictionary, defender_state: Dictionar
 			bonus_damage = _collect_bonus_damage(weapon_def, "on_hit", working_attacker, working_defender)
 
 	if not dodged:
-		base_damage = max(1, base_damage + attack_power_bonus - defense_reduction)
+		base_damage = max(1, ((base_damage + attack_power_bonus) * attack_multiplier) - defense_reduction)
+		bonus_damage = max(0, bonus_damage * attack_multiplier)
 		working_defender = apply_damage(working_defender, base_damage)
 
 		if bonus_damage > 0 and not check_defeat(working_defender):
 			working_defender = apply_damage(working_defender, bonus_damage)
 
 	working_attacker["weapon_instance"] = updated_weapon_instance.duplicate(true)
+	if attack_multiplier > 1:
+		working_attacker["queued_attack_multiplier"] = 1
 	var total_damage_applied: int = max(0, int(defender_state.get("hp", 0)) - int(working_defender.get("hp", 0)))
+	var healed_amount: int = 0
+	if lifesteal_percent > 0 and total_damage_applied > 0:
+		healed_amount = int(floor(float(total_damage_applied * lifesteal_percent) / 100.0))
+		if healed_amount > 0:
+			working_attacker["hp"] = min(RunState.DEFAULT_PLAYER_HP, int(working_attacker.get("hp", 0)) + healed_amount)
 	var events: Array[Dictionary] = [{
 		"type": "player_attack_resolved",
 		"damage_applied": total_damage_applied,
@@ -64,6 +89,9 @@ func resolve_player_attack(attacker_state: Dictionary, defender_state: Dictionar
 		"weapon_broke": (not used_fallback_attack) and int(original_weapon_instance.get("current_durability", 0)) > 0 and int(updated_weapon_instance.get("current_durability", 0)) <= 0,
 		"dodge_chance": dodge_chance,
 		"dodged": dodged,
+		"attack_multiplier": attack_multiplier,
+		"ignores_armor": ignores_armor,
+		"healed_amount": healed_amount,
 	}]
 
 	if bool(events[0]["weapon_broke"]):
@@ -78,13 +106,101 @@ func resolve_player_attack(attacker_state: Dictionary, defender_state: Dictionar
 		"updated_weapon_state": updated_weapon_instance,
 		"weapon_instance": updated_weapon_instance,
 		"damage_applied": total_damage_applied,
+		"healed_amount": healed_amount,
 		"used_fallback_attack": used_fallback_attack,
 		"weapon_broke": bool(events[0]["weapon_broke"]),
 		"enemy_defeated": check_defeat(working_defender),
 		"dodge_chance": dodge_chance,
 		"dodged": dodged,
+		"attack_multiplier": attack_multiplier,
+		"ignores_armor": ignores_armor,
 		"events": events,
 	}
+
+
+func resolve_player_technique(
+	attacker_state: Dictionary,
+	defender_state: Dictionary,
+	weapon_def: Dictionary,
+	technique_definition: Dictionary
+) -> Dictionary:
+	if technique_definition.is_empty():
+		return {
+			"skipped": true,
+			"error": "missing_technique_definition",
+		}
+
+	var rules: Dictionary = technique_definition.get("rules", {})
+	var effect: Dictionary = rules.get("effect", {})
+	var effect_type: String = String(effect.get("type", "")).strip_edges()
+	var params: Dictionary = effect.get("params", {})
+	var definition_id: String = String(technique_definition.get("definition_id", "")).strip_edges()
+	var display_name: String = String(technique_definition.get("display", {}).get("name", definition_id))
+
+	match effect_type:
+		"remove_statuses":
+			var working_attacker: Dictionary = attacker_state.duplicate(true)
+			var guard_gained: int = max(0, int(params.get("guard_gain", 0)))
+			if guard_gained > 0:
+				working_attacker["guard_points"] = max(0, int(working_attacker.get("guard_points", 0))) + guard_gained
+			return {
+				"updated_attacker_state": working_attacker,
+				"updated_defender_state": defender_state.duplicate(true),
+				"updated_player_statuses": [],
+				"technique_effect_type": effect_type,
+				"technique_definition_id": definition_id,
+				"technique_display_name": display_name,
+				"removed_status_count": int(attacker_state.get("player_status_count", 0)),
+				"guard_gained": guard_gained,
+				"events": [{
+					"type": "player_technique_resolved",
+					"technique_definition_id": definition_id,
+					"technique_effect_type": effect_type,
+				}],
+			}
+		"attack_ignore_armor":
+			var ignore_armor_result: Dictionary = resolve_player_attack_with_context(
+				attacker_state,
+				defender_state,
+				weapon_def,
+				{"ignore_armor": true}
+			)
+			ignore_armor_result["technique_effect_type"] = effect_type
+			ignore_armor_result["technique_definition_id"] = definition_id
+			ignore_armor_result["technique_display_name"] = display_name
+			return ignore_armor_result
+		"attack_lifesteal":
+			var lifesteal_result: Dictionary = resolve_player_attack_with_context(
+				attacker_state,
+				defender_state,
+				weapon_def,
+				{"heal_ratio_percent": int(params.get("heal_ratio_percent", 0))}
+			)
+			lifesteal_result["technique_effect_type"] = effect_type
+			lifesteal_result["technique_definition_id"] = definition_id
+			lifesteal_result["technique_display_name"] = display_name
+			return lifesteal_result
+		"prime_next_attack":
+			var working_attacker: Dictionary = attacker_state.duplicate(true)
+			working_attacker["queued_attack_multiplier"] = max(1, int(params.get("damage_multiplier", 2)))
+			return {
+				"updated_attacker_state": working_attacker,
+				"updated_defender_state": defender_state.duplicate(true),
+				"technique_effect_type": effect_type,
+				"technique_definition_id": definition_id,
+				"technique_display_name": display_name,
+				"queued_attack_multiplier": int(working_attacker.get("queued_attack_multiplier", 1)),
+				"events": [{
+					"type": "player_technique_resolved",
+					"technique_definition_id": definition_id,
+					"technique_effect_type": effect_type,
+				}],
+			}
+		_:
+			return {
+				"skipped": true,
+				"error": "unsupported_technique_effect",
+			}
 
 
 func resolve_enemy_action(enemy_state: Dictionary, player_state: Dictionary, intent: Dictionary) -> Dictionary:
@@ -149,8 +265,20 @@ static func resolve_turn_end_guard_carryover(current_guard: int) -> int:
 	return max(0, int(round(float(max(0, current_guard)) * retained_fraction)))
 
 
-static func apply_turn_end_hunger_tick(combat_state) -> void:
-	combat_state.player_hunger = max(0, int(combat_state.player_hunger) - 1)
+static func resolve_base_turn_hunger_cost() -> int:
+	return BASE_TURN_END_HUNGER_COST
+
+
+static func resolve_defend_extra_hunger_cost() -> int:
+	return DEFEND_EXTRA_HUNGER_COST
+
+
+static func resolve_defend_turn_hunger_cost() -> int:
+	return BASE_TURN_END_HUNGER_COST + DEFEND_EXTRA_HUNGER_COST
+
+
+static func apply_turn_end_hunger_tick(combat_state, hunger_cost: int = BASE_TURN_END_HUNGER_COST) -> void:
+	combat_state.player_hunger = max(0, int(combat_state.player_hunger) - max(0, hunger_cost))
 	combat_state.player_state["hunger"] = combat_state.player_hunger
 
 

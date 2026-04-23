@@ -4,7 +4,7 @@
   "authoring_order": 50,
   "family": "Enemies",
   "encounter_tier": "minor",
-  "design_intent_question": "Can the player keep a fast beast from turning chip bites into a bleed spiral once it starts running in circles around the guard line?",
+  "design_intent_question": "Can the player answer the hound's bleed bite before the next grave lunge cashes in on the opening?",
   "tags": [
     "enemy",
     "undead",
@@ -16,7 +16,7 @@
   ],
   "display": {
     "name": "Skeletal Hound",
-    "short_description": "A grave-hound from the treeline that chips with darting bites, worries at open legs, and grows bolder once blood is in the air.",
+    "short_description": "A grave-hound that circles with light bites, opens a bleed lane, and then lunges once the player starts to panic.",
     "icon_key": "enemy_skeletal_hound"
   },
   "rules": {
@@ -34,7 +34,7 @@
           {
             "type": "deal_damage",
             "params": {
-              "base": 3,
+              "base": 2,
               "damage_kind": "physical"
             }
           }
@@ -68,32 +68,13 @@
           {
             "type": "deal_damage",
             "params": {
-              "base": 4,
+              "base": 5,
               "damage_kind": "physical"
             }
           }
         ]
       }
     ],
-    "behaviors": [
-      {
-        "trigger": "passive",
-        "condition": {
-          "op": "lte",
-          "stat": "hp",
-          "value": 8
-        },
-        "target": "self",
-        "effects": [
-          {
-            "type": "modify_stat",
-            "params": {
-              "stat": "attack_power_bonus",
-              "amount": 1
-            }
-          }
-        ]
-      }
-    ]
+    "behaviors": []
   }
 }

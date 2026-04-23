@@ -31,6 +31,30 @@ function Invoke-GodotCheckWithLogRetry {
     throw "Godot did not produce a log file for $($Arguments -join ' ') after $MaxAttempts attempt(s): $LogFile"
 }
 
+function Assert-NoRunningGodotForSmoke {
+    param(
+        [string]$Reason = "waiting for smoke helper shutdown"
+    )
+
+    try {
+        Assert-NoRunningGodot -Reason $Reason
+        return
+    }
+    catch {
+        $staleProcesses = @(Get-RunningGodotProcesses)
+        if (-not $staleProcesses) {
+            throw
+        }
+
+        $details = $staleProcesses |
+            Sort-Object ProcessName, Id |
+            ForEach-Object { "$($_.ProcessName)#$($_.Id)" }
+        Write-Warning "Reaping stale repo-local Godot helper process(es) after bounded shutdown wait: $($details -join ', ')"
+        $staleProcesses | Stop-Process -Force -ErrorAction Stop
+        Assert-NoRunningGodot -Reason $Reason -WaitTimeoutMs 5000
+    }
+}
+
 function Invoke-Godot {
     param(
         [Parameter(Mandatory = $true)]
@@ -44,7 +68,7 @@ function Invoke-Godot {
         throw "Godot exited with code $LASTEXITCODE while running: $($Arguments -join ' ')"
     }
 
-    Assert-NoRunningGodot -Reason "waiting for smoke helper shutdown"
+    Assert-NoRunningGodotForSmoke -Reason "waiting for smoke helper shutdown"
 }
 
 function Invoke-GodotCheckOnly {
@@ -60,7 +84,7 @@ function Invoke-GodotCheckOnly {
         throw "Godot exited with code $LASTEXITCODE while running: $($Arguments -join ' ')"
     }
 
-    Assert-NoRunningGodot -Reason "waiting for smoke helper shutdown"
+    Assert-NoRunningGodotForSmoke -Reason "waiting for smoke helper shutdown"
 }
 
 try {

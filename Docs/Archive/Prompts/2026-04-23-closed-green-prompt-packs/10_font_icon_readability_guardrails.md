@@ -30,6 +30,8 @@ This is not the full token/theme cleanup pass.
 ## Preferred Owner Surfaces
 
 - `Game/UI/temp_screen_theme.gd`
+- `Game/UI/temp_screen_theme_tokens.gd` when the guardrail change is a token-table or shared readability-threshold concern
+- `Game/UI/temp_screen_theme_style_builder.gd` when the guardrail change is a shared panel/button/stylebox construction concern
 - `Game/UI/scene_layout_helper.gd`
 - `Game/UI/inventory_panel_layout.gd` (only for inventory-specific density / panel-height guardrails; do not move ownership)
 - narrow shared UI helpers as needed
@@ -76,6 +78,8 @@ Scope:
   - decorative font usage limits
 - Preferred file scope:
   - Game/UI/temp_screen_theme.gd
+  - Game/UI/temp_screen_theme_tokens.gd when the change belongs to shared readability tokens or thresholds
+  - Game/UI/temp_screen_theme_style_builder.gd when the change belongs to shared stylebox/button builder internals
   - Game/UI/scene_layout_helper.gd
   - Game/UI/inventory_panel_layout.gd (inventory-specific guardrails only)
   - narrow shared UI helpers only as needed

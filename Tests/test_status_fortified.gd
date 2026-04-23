@@ -19,8 +19,8 @@ func test_fortified_reduces_incoming_damage_and_expires() -> void:
 	assert(String(applied_status.get("definition_id", "")) == "fortified", "Expected fortified to apply through the combat-local status lane.")
 
 	var enemy_result: Dictionary = flow.process_enemy_action()
-	assert(int(enemy_result.get("damage_applied", -1)) == 1, "Expected fortified to reduce darting_bite from 3 to 1.")
-	assert(flow.combat_state.player_hp == 59, "Expected fortified to preserve 2 HP on the first hit.")
+	assert(int(enemy_result.get("damage_applied", -1)) == 0, "Expected fortified to reduce darting_bite from 2 to 0.")
+	assert(flow.combat_state.player_hp == 60, "Expected fortified to fully preserve HP on the first hit.")
 
 	var turn_end_result: Dictionary = flow.process_turn_end()
 	assert(int(turn_end_result.get("player_hunger", -1)) == RunState.DEFAULT_HUNGER - 1, "Expected turn end to remain intact while fortified is active.")

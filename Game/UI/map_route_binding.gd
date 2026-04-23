@@ -6,7 +6,6 @@ const MapRuntimeStateScript = preload("res://Game/RuntimeState/map_runtime_state
 const MapBoardStyleScript = preload("res://Game/UI/map_board_style.gd")
 const MapExploreSceneUiScript = preload("res://Game/UI/map_explore_scene_ui.gd")
 const SceneLayoutHelperScript = preload("res://Game/UI/scene_layout_helper.gd")
-const MapFocusHelperScript = preload("res://Game/UI/map_focus_helper.gd")
 const MapRouteLayoutHelperScript = preload("res://Game/UI/map_route_layout_helper.gd")
 const MapRouteMotionHelperScript = preload("res://Game/UI/map_route_motion_helper.gd")
 
@@ -14,7 +13,7 @@ const MAP_BOARD_BACKDROP_TEXTURE: Texture2D = preload("res://Assets/UI/Map/ui_ma
 const MAP_WALKER_IDLE_TEXTURE: Texture2D = preload("res://Assets/UI/Map/Walker/ui_map_walker_idle.svg")
 const MAP_WALKER_WALK_A_TEXTURE: Texture2D = preload("res://Assets/UI/Map/Walker/ui_map_walker_walk_a.svg")
 const MAP_WALKER_WALK_B_TEXTURE: Texture2D = preload("res://Assets/UI/Map/Walker/ui_map_walker_walk_b.svg")
-const KEY_MARKER_ICON_TEXTURE: Texture2D = preload("res://Assets/Icons/icon_confirm.svg")
+const KEY_MARKER_ICON_TEXTURE: Texture2D = preload("res://Assets/Icons/icon_map_key.svg")
 
 const ROUTE_GRID_PATH := "Margin/VBox/RouteGrid"
 const ROUTE_BUTTON_NODE_NAMES: PackedStringArray = [
@@ -55,6 +54,10 @@ const BOARD_LOWER_FILL_TARGET_FACTOR := 0.68
 const WALKER_ROOT_SIZE := Vector2(122, 150)
 const WALKER_SHADOW_SIZE := Vector2(40, 10)
 const WALKER_SPRITE_SIZE := Vector2(100, 120)
+const WALKER_IDLE_CENTER_OFFSET := Vector2(0.0, 18.0)
+const WALKER_TRAVEL_CENTER_OFFSET := Vector2(0.0, 10.0)
+const WALKER_DIRECTIONAL_LEAD_X := 5.0
+const WALKER_DIRECTIONAL_LEAD_Y_SCALE := 0.22
 const ROUTE_MOVE_MIN_DURATION := 0.30
 const ROUTE_MOVE_MAX_DURATION := 0.88
 const ROUTE_MOVE_BASE_DURATION := 0.20
@@ -172,26 +175,18 @@ func prepare_for_refresh(run_state) -> void:
 	_current_run_state = run_state
 	var route_grid: Control = get_route_grid()
 	var graph_signature: String = MapRouteLayoutHelperScript.build_board_graph_signature(run_state)
-	var stable_layout: Dictionary = {}
-	if not _force_next_layout_recompose and graph_signature == _board_graph_signature and not _board_composition_cache.is_empty():
-		stable_layout = {
-			"world_positions": (_board_composition_cache.get("world_positions", {}) as Dictionary).duplicate(true),
-			"ground_shapes": (_board_composition_cache.get("ground_shapes", []) as Array).duplicate(true),
-			"filler_shapes": (_board_composition_cache.get("filler_shapes", []) as Array).duplicate(true),
-			"forest_shapes": (_board_composition_cache.get("forest_shapes", []) as Array).duplicate(true),
-			"layout_edges": (_board_composition_cache.get("layout_edges", []) as Array).duplicate(true),
-		}
+	var stable_layout: Dictionary = MapRouteLayoutHelperScript.build_stable_layout_snapshot(
+		_board_composition_cache,
+		_force_next_layout_recompose,
+		graph_signature,
+		_board_graph_signature
+	)
 	_board_composition_cache = _build_board_composition(run_state, stable_layout)
-	_restore_visible_edge_continuity()
+	_board_composition_cache = MapRouteLayoutHelperScript.restore_visible_edge_continuity(_board_composition_cache)
 	_board_graph_signature = graph_signature
 	_force_next_layout_recompose = false
 	_composed_board_size = route_grid.size if route_grid != null else Vector2.ZERO
-	if not _route_selection_in_flight:
-		_route_layout_offset = _desired_focus_offset_for_world_position(
-			_get_node_world_position(int(run_state.map_runtime_state.current_node_id))
-		)
-	if has_pending_roadside_visual_state() and not _roadside_transition_in_flight:
-		_route_layout_offset = Vector2(_roadside_visual_state.get("offset", _route_layout_offset))
+	_sync_route_layout_offset_after_refresh(run_state)
 
 
 func refresh_layout_for_resize(run_state) -> void:
@@ -213,38 +208,17 @@ func refresh_layout_for_resize(run_state) -> void:
 		return
 	_allow_large_resize_recompose_once = false
 	_composed_board_size = route_grid.size
-	_refresh_cached_visible_node_radii(route_grid.size)
-	var current_node_id: int = int(run_state.map_runtime_state.current_node_id)
-	var current_world_position: Vector2 = _get_node_world_position(current_node_id)
-	if current_world_position != Vector2.ZERO:
-		_route_layout_offset = _desired_focus_offset_for_world_position(current_world_position)
-	if has_pending_roadside_visual_state() and not _roadside_transition_in_flight:
-		_route_layout_offset = Vector2(_roadside_visual_state.get("offset", _route_layout_offset))
+	_board_composition_cache = MapRouteLayoutHelperScript.refresh_cached_visible_node_radii(
+		_board_composition_cache,
+		_board_composer,
+		route_grid.size
+	)
+	_sync_route_layout_offset_after_refresh(run_state)
 
 
 func request_next_refresh_full_recompose() -> void:
 	_force_next_layout_recompose = true
 	_allow_large_resize_recompose_once = true
-
-
-func _refresh_cached_visible_node_radii(board_size: Vector2) -> void:
-	if _board_composition_cache.is_empty() or _board_composer == null:
-		return
-	var cached_visible_nodes: Array = _board_composition_cache.get("visible_nodes", [])
-	if cached_visible_nodes.is_empty():
-		return
-	var refreshed_visible_nodes: Array[Dictionary] = []
-	for node_variant in cached_visible_nodes:
-		if typeof(node_variant) != TYPE_DICTIONARY:
-			continue
-		var node_entry: Dictionary = (node_variant as Dictionary).duplicate(true)
-		node_entry["clearing_radius"] = _board_composer.build_clearing_radius(
-			String(node_entry.get("node_family", "")),
-			String(node_entry.get("state_semantic", "open")),
-			board_size
-		)
-		refreshed_visible_nodes.append(node_entry)
-	_board_composition_cache["visible_nodes"] = refreshed_visible_nodes
 
 
 func render(run_state) -> void:
@@ -307,7 +281,10 @@ func finish_selection_and_render(run_state) -> void:
 
 
 func has_pending_roadside_visual_state() -> bool:
-	return not _roadside_visual_state.is_empty() and int(_roadside_visual_state.get("target_node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID)) != MapRuntimeStateScript.NO_PENDING_NODE_ID
+	return MapRouteMotionHelperScript.has_pending_roadside_visual_state(
+		_roadside_visual_state,
+		MapRuntimeStateScript.NO_PENDING_NODE_ID
+	)
 
 
 func clear_pending_roadside_visual_state() -> void:
@@ -321,19 +298,16 @@ func prime_roadside_visual_state(current_node_id: int, target_node_id: int) -> v
 	if current_node_id == MapRuntimeStateScript.NO_PENDING_NODE_ID or target_node_id == MapRuntimeStateScript.NO_PENDING_NODE_ID:
 		clear_pending_roadside_visual_state()
 		return
-	var target_world_position: Vector2 = _get_node_world_position(target_node_id)
-	var target_offset: Vector2 = _desired_focus_offset_for_world_position(target_world_position)
-	var interruption_offset: Vector2 = _route_layout_offset_for_move_progress(
+	var target_offset: Vector2 = _fixed_board_layout_offset()
+	_roadside_visual_state = MapRouteMotionHelperScript.build_roadside_visual_state(
+		current_node_id,
+		target_node_id,
+		_fixed_board_layout_offset(),
 		target_offset,
-		ROADSIDE_INTERRUPTION_PROGRESS
+		ROADSIDE_INTERRUPTION_PROGRESS,
+		ROUTE_MOVE_CAMERA_DELAY_RATIO,
+		MapRuntimeStateScript.NO_PENDING_NODE_ID
 	)
-	_roadside_visual_state = {
-		"current_node_id": current_node_id,
-		"target_node_id": target_node_id,
-		"progress": ROADSIDE_INTERRUPTION_PROGRESS,
-		"offset": interruption_offset,
-		"target_offset": target_offset,
-	}
 
 
 func is_roadside_transition_in_flight() -> bool:
@@ -386,10 +360,14 @@ func _run_route_selection(
 		return
 
 	_set_walker_facing(target_center.x >= start_center.x)
-	var target_world_position: Vector2 = _get_node_world_position(target_node_id)
-	var target_offset: Vector2 = _desired_focus_offset_for_world_position(target_world_position)
+	var target_offset: Vector2 = _focus_offset_for_world_position(_get_node_world_position(target_node_id))
 	var end_progress: float = clampf(selection_end_progress, 0.0, 1.0)
-	var move_target_offset: Vector2 = _route_layout_offset_for_move_progress(target_offset, end_progress)
+	var move_target_offset: Vector2 = MapRouteMotionHelperScript.route_layout_offset_for_move_progress(
+		_route_layout_offset,
+		target_offset,
+		end_progress,
+		ROUTE_MOVE_CAMERA_DELAY_RATIO
+	)
 	await _animate_route_move_camera_follow(
 		start_center,
 		target_center,
@@ -659,81 +637,18 @@ func _build_board_composition(run_state, stable_layout: Dictionary = {}) -> Dict
 	if route_grid == null or _board_composer == null: return {}
 	return _board_composer.compose(run_state, route_grid.size, BOARD_FOCUS_ANCHOR_FACTOR, Vector2(route_grid.size.x * BOARD_MAX_OFFSET_FACTOR.x, route_grid.size.y * BOARD_MAX_OFFSET_FACTOR.y), stable_layout)
 
-func _restore_visible_edge_continuity() -> void:
-	var visible_nodes: Array = _board_composition_cache.get("visible_nodes", [])
-	var layout_edges: Array = _board_composition_cache.get("layout_edges", [])
-	var visible_edges: Array = (_board_composition_cache.get("visible_edges", []) as Array).duplicate(true)
-	var current_node_id: int = int(_board_composition_cache.get("current_node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
-	if visible_nodes.is_empty() or layout_edges.is_empty() or current_node_id == MapRuntimeStateScript.NO_PENDING_NODE_ID: return
-	var visible_node_ids: Dictionary = {}
-	var visible_node_by_id: Dictionary = {}
-	for node_variant in visible_nodes:
-		if typeof(node_variant) != TYPE_DICTIONARY: continue
-		var node_entry: Dictionary = node_variant
-		var node_id: int = int(node_entry.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
-		visible_node_ids[node_id] = true
-		visible_node_by_id[node_id] = node_entry
-	var connected_node_ids: Dictionary = _visible_edge_component_node_ids(visible_edges, current_node_id)
-	if connected_node_ids.size() >= visible_node_ids.size(): return
-	var accepted_edge_keys: Dictionary = {}
-	for edge_entry in visible_edges:
-		accepted_edge_keys["%d:%d" % [min(int(edge_entry.get("from_node_id", -1)), int(edge_entry.get("to_node_id", -1))), max(int(edge_entry.get("from_node_id", -1)), int(edge_entry.get("to_node_id", -1)))]] = true
-	for edge_variant in layout_edges:
-		if typeof(edge_variant) != TYPE_DICTIONARY or connected_node_ids.size() >= visible_node_ids.size():
-			continue
-		var edge_entry: Dictionary = edge_variant
-		var from_node_id: int = int(edge_entry.get("from_node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
-		var to_node_id: int = int(edge_entry.get("to_node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
-		var edge_key: String = "%d:%d" % [min(from_node_id, to_node_id), max(from_node_id, to_node_id)]
-		if accepted_edge_keys.has(edge_key) or not visible_node_ids.has(from_node_id) or not visible_node_ids.has(to_node_id) or connected_node_ids.has(from_node_id) == connected_node_ids.has(to_node_id):
-			continue
-		var extra_edge: Dictionary = edge_entry.duplicate(true)
-		var from_node: Dictionary = visible_node_by_id.get(from_node_id, {})
-		var to_node: Dictionary = visible_node_by_id.get(to_node_id, {})
-		extra_edge["state_semantic"] = "locked" if String(from_node.get("state_semantic", "")) == "locked" or String(to_node.get("state_semantic", "")) == "locked" else ("resolved" if String(from_node.get("node_state", "")) == MapRuntimeStateScript.NODE_STATE_RESOLVED and String(to_node.get("node_state", "")) == MapRuntimeStateScript.NODE_STATE_RESOLVED else "open")
-		extra_edge["is_history"] = not (from_node_id == current_node_id or to_node_id == current_node_id)
-		visible_edges.append(extra_edge)
-		accepted_edge_keys[edge_key] = true
-		connected_node_ids = _visible_edge_component_node_ids(visible_edges, current_node_id)
-	_board_composition_cache["visible_edges"] = visible_edges
-func _visible_edge_component_node_ids(edges: Array, start_node_id: int) -> Dictionary:
-	var adjacency: Dictionary = {}
-	for edge_entry in edges:
-		var from_node_id: int = int(edge_entry.get("from_node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
-		var to_node_id: int = int(edge_entry.get("to_node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
-		if from_node_id == MapRuntimeStateScript.NO_PENDING_NODE_ID or to_node_id == MapRuntimeStateScript.NO_PENDING_NODE_ID: continue
-		if not adjacency.has(from_node_id): adjacency[from_node_id] = []
-		if not adjacency.has(to_node_id): adjacency[to_node_id] = []
-		(adjacency[from_node_id] as Array).append(to_node_id)
-		(adjacency[to_node_id] as Array).append(from_node_id)
-	var component_node_ids: Dictionary = {start_node_id: true}
-	var open_node_ids: Array[int] = [start_node_id]
-	while not open_node_ids.is_empty():
-		var node_id: int = open_node_ids.pop_front()
-		for adjacent_node_id_variant in adjacency.get(node_id, []):
-			var adjacent_node_id: int = int(adjacent_node_id_variant)
-			if component_node_ids.has(adjacent_node_id):
-				continue
-			component_node_ids[adjacent_node_id] = true
-			open_node_ids.append(adjacent_node_id)
-	return component_node_ids
 func _get_node_world_position(node_id: int) -> Vector2:
 	return MapRouteLayoutHelperScript.get_node_world_position(_board_composition_cache, node_id)
-func _desired_focus_offset_for_world_position(world_position: Vector2) -> Vector2:
-	var route_grid: Control = get_route_grid()
-	var board_size: Vector2 = route_grid.size if route_grid != null else Vector2.ZERO
-	var context_world_position: Vector2 = MapFocusHelperScript.focus_context_world_position(_board_composition_cache, world_position)
-	var context_blend: float = MapFocusHelperScript.context_blend_for_positions(route_grid, world_position, context_world_position, BOARD_FOCUS_CONTEXT_BLEND_MIN, BOARD_FOCUS_CONTEXT_BLEND_MAX)
-	var desired_offset: Vector2 = MapFocusHelperScript.desired_focus_offset(route_grid, _route_layout_offset, world_position, BOARD_FOCUS_ANCHOR_FACTOR, BOARD_MAX_OFFSET_FACTOR, BOARD_FOCUS_DEADZONE_FACTOR, BOARD_FOCUS_DAMPING, context_world_position, context_blend)
-	var clamped_offset: Vector2 = MapFocusHelperScript.clamp_focus_offset_to_visible_bounds(route_grid, _board_composition_cache, desired_offset, BOARD_FOCUS_CLAMP_PADDING)
-	return MapRouteLayoutHelperScript.refine_focus_offset_for_visible_content(
-		_board_composition_cache,
-		board_size,
-		clamped_offset,
-		BOARD_VISIBLE_CONTENT_PADDING,
-		NODE_PLATE_SIZE * 0.5,
-		BOARD_LOWER_FILL_TARGET_FACTOR
-	)
+func _focus_offset_for_world_position(world_position: Vector2) -> Vector2:
+	return _fixed_board_layout_offset()
+
+func _sync_route_layout_offset_after_refresh(run_state) -> void:
+	if run_state == null or run_state.map_runtime_state == null:
+		return
+	if not _route_selection_in_flight:
+		_route_layout_offset = _fixed_board_layout_offset()
+	if has_pending_roadside_visual_state() and not _roadside_transition_in_flight:
+		_route_layout_offset = _fixed_board_layout_offset()
 func _active_target_node_id() -> int:
 	if _active_route_index < 0 or _active_route_index >= _route_models_cache.size(): return MapRuntimeStateScript.NO_PENDING_NODE_ID
 	return int(_route_models_cache[_active_route_index].get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
@@ -770,7 +685,7 @@ func _sync_walker_to_current_marker() -> void:
 	_set_walker_facing(_walker_facing_right)
 	_reset_walker_stride_visuals()
 	_walker_root.visible = true
-	_walker_root.position = _position_for_walker_center(_get_current_marker_center())
+	_walker_root.position = _position_for_walker_center(_walker_idle_center(_get_current_marker_center()))
 
 
 func _sync_walker_to_pending_roadside_visual() -> void:
@@ -793,11 +708,26 @@ func _sync_walker_to_pending_roadside_visual() -> void:
 	_walker_root.visible = true
 	var offset: Vector2 = Vector2(sample.get("offset", _route_layout_offset))
 	var point: Vector2 = Vector2(sample.get("point", Vector2.ZERO))
-	_walker_root.position = _position_for_walker_center(point + offset)
+	_walker_root.position = _position_for_walker_center(
+		_walker_travel_center(point + offset, direction, Vector2.ZERO)
+	)
 
 
 func _position_for_walker_center(center: Vector2) -> Vector2:
-	return center - Vector2(WALKER_ROOT_SIZE.x * 0.5, WALKER_ROOT_SIZE.y * 0.74)
+	return center - Vector2(WALKER_ROOT_SIZE.x * 0.5, WALKER_ROOT_SIZE.y * 0.66)
+
+
+func _walker_idle_center(anchor: Vector2) -> Vector2:
+	return anchor + WALKER_IDLE_CENTER_OFFSET
+
+
+func _walker_travel_center(anchor: Vector2, direction: Vector2, stride_offset: Vector2) -> Vector2:
+	var normalized_direction: Vector2 = direction.normalized() if direction.length_squared() > 0.001 else Vector2.ZERO
+	var directional_lead := Vector2(
+		WALKER_DIRECTIONAL_LEAD_X * signf(normalized_direction.x),
+		maxf(0.0, normalized_direction.y) * WALKER_DIRECTIONAL_LEAD_X * WALKER_DIRECTIONAL_LEAD_Y_SCALE
+	)
+	return anchor + WALKER_TRAVEL_CENTER_OFFSET + directional_lead + stride_offset
 
 
 func _set_walker_facing(facing_right: bool) -> void:
@@ -844,7 +774,7 @@ func _animate_route_move_camera_follow(
 	var segment_start: float = clampf(start_progress, 0.0, 1.0)
 	var segment_end: float = clampf(end_progress, 0.0, 1.0)
 	if _route_move_path_length <= 0.001 or is_equal_approx(segment_start, segment_end):
-		_route_layout_offset = target_offset
+		_route_layout_offset = _fixed_board_layout_offset()
 		_layout_route_grid()
 		_refresh_route_board_offset()
 		return
@@ -866,8 +796,8 @@ func _animate_route_move_camera_follow(
 		WALKER_FRAME_INTERVAL_MIN,
 		WALKER_FRAME_INTERVAL_MAX
 	)
-	_route_move_start_offset = _route_layout_offset
-	_route_move_target_offset = target_offset
+	_route_move_start_offset = _fixed_board_layout_offset()
+	_route_move_target_offset = _fixed_board_layout_offset()
 	_route_move_sample_start_progress = segment_start
 	_route_move_sample_end_progress = segment_end
 	if _walker_root != null:
@@ -899,11 +829,7 @@ func _update_route_move_progress(progress: float) -> void:
 		_route_move_sample_end_progress,
 		MapRouteMotionHelperScript.ease_in_out_sine(progress)
 	)
-	var camera_progress: float = MapRouteMotionHelperScript.route_camera_follow_progress(
-		progress,
-		ROUTE_MOVE_CAMERA_DELAY_RATIO
-	)
-	var current_offset: Vector2 = _route_move_start_offset.lerp(_route_move_target_offset, camera_progress)
+	var current_offset: Vector2 = _fixed_board_layout_offset()
 	_route_layout_offset = current_offset
 	_layout_route_grid()
 	_refresh_route_board_offset()
@@ -925,16 +851,8 @@ func _update_route_move_progress(progress: float) -> void:
 		WALKER_STRIDE_BOB_MAX
 	)
 	_apply_walker_stride_visuals(stride_offset)
-	_walker_root.position = _position_for_walker_center(world_point + current_offset + stride_offset)
-
-
-func _route_layout_offset_for_move_progress(target_offset: Vector2, progress: float) -> Vector2:
-	return _route_layout_offset.lerp(
-		target_offset,
-		MapRouteMotionHelperScript.route_camera_follow_progress(
-			progress,
-			ROUTE_MOVE_CAMERA_DELAY_RATIO
-		)
+	_walker_root.position = _position_for_walker_center(
+		_walker_travel_center(world_point + current_offset, direction, stride_offset)
 	)
 
 
@@ -977,3 +895,7 @@ func _scene_node(path: String) -> Node:
 	if not _scene_node_getter.is_valid():
 		return null
 	return _scene_node_getter.call(path)
+
+
+func _fixed_board_layout_offset() -> Vector2:
+	return Vector2.ZERO

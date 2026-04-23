@@ -168,6 +168,29 @@ Deferred from the prototype baseline:
   - `completed` -> may reopen for reward claim
   - `claimed` -> must not grant new value and later revisit must stay traversal-only
 
+### Hamlet Training Delivery (Live Prompt 27 Surface)
+
+- First-pass training delivery now uses the existing `hamlet` support surface.
+- `rest`, `merchant`, and `blacksmith` do not deliver first-pass technique acquisition.
+- Prompt `27` does not add a dedicated `trainer` node family.
+- Training stays inside the already-open `SupportInteraction` visit.
+- Prompt `27` does not add a new flow state, trainer screen, or standalone support-management scene.
+- Acquisition timing is explicit:
+  - the first-pass training choice appears only after the player claims a completed hamlet contract reward
+  - the training choice belongs to that same open hamlet visit
+  - accepted in-progress reminder revisits do not also mint a fresh training choice
+- Training acquisition UI stays lightweight:
+  - at most `2` technique offers
+  - a visible `Skip` action
+  - no deeper paging or management layer
+- Choosing a technique equips exactly `1` technique for future combats.
+- Choosing a new technique replaces the previously equipped technique.
+- Choosing `Skip` leaves the currently equipped technique unchanged.
+- Training does not spend `gold`.
+- Closing the visit after a claim-or-training decision keeps the current hamlet revisit rule unchanged:
+  - the already-claimed node later falls back to pure traversal
+- Dedicated trainer-node delivery, if still desired later, remains deferred behind Prompt `31`.
+
 ## Rest Rules
 
 - `rest` is included in the prototype baseline.
@@ -209,6 +232,9 @@ Deferred from the prototype baseline:
 - Hamlet interactions resolve in two phases:
   - accept phase
   - later claim phase after the marked objective resolves
+- Approved Prompt `27` target note:
+  - a claimed hamlet visit may add one lightweight in-visit `training choice` step after the contract reward is claimed
+  - that step still lives inside the same `SupportInteraction` visit and does not add a new flow state
 - The current runtime no longer inserts a separate `NodeResolve` bridge shell before the support screen opens.
 - Re-entering a fully resolved support node must not mint another support payout.
 - Re-entering a fully resolved support node must now stay in `MapExplore`; it is no longer an inert reopen shell.
@@ -227,6 +253,8 @@ Deferred from the prototype baseline:
   - blacksmith target-selection mode and current target page when that visit is active
   - hamlet request definition, mission type, marked target, quest item hook, and pending reward offers when that visit is active
   - whether the node has already consumed its one-shot action
+- Approved Prompt `27` target note:
+  - if a hamlet training choice is open, `SupportInteractionState` must also preserve the pending technique offers and the fact that the visit is currently in its training-choice step
 - Load inside an active visit must therefore preserve merchant stock and one-shot support consumption instead of reconstructing fresh actions.
 - This save-safe rule applies to the already-open `SupportInteraction` visit. It does not imply that a resolved support node may later reopen after the player has already returned to `MapExplore`.
 

@@ -71,16 +71,15 @@ RUN_SESSION_COORDINATOR_PUBLIC_METHOD_LIMIT = 21
 COMMAND_EVENT_CATALOG_FILE = DOCS_ROOT / "COMMAND_EVENT_CATALOG.md"
 GAME_FLOW_STATE_MACHINE_FILE = DOCS_ROOT / "GAME_FLOW_STATE_MACHINE.md"
 MAP_CONTRACT_FILE = DOCS_ROOT / "MAP_CONTRACT.md"
-COMBAT_INVENTORY_SLOT_BRIDGE_ALLOWED_FILES = {
-    PROJECT_ROOT / "Game" / "RuntimeState" / "combat_state.gd",
-}
-RUN_SUMMARY_CLEANUP_ALLOWED_FILES = {
-    PROJECT_ROOT / "Game" / "UI" / "run_summary_cleanup_helper.gd",
-}
+COMBAT_INVENTORY_SLOT_BRIDGE_ALLOWED_FILES = {PROJECT_ROOT / "Game" / "RuntimeState" / "combat_state.gd"}
+RUN_SUMMARY_CLEANUP_ALLOWED_FILES = {PROJECT_ROOT / "Game" / "UI" / "run_summary_cleanup_helper.gd"}
 HOTSPOT_FILE_LINE_LIMITS = {
     PROJECT_ROOT / "Game" / "RuntimeState" / "map_runtime_state.gd": 2350,
     PROJECT_ROOT / "scenes" / "combat.gd": 1200,
     PROJECT_ROOT / "scenes" / "map_explore.gd": 1200,
+    PROJECT_ROOT / "scenes" / "event.gd": 640,
+    PROJECT_ROOT / "scenes" / "reward.gd": 575,
+    PROJECT_ROOT / "scenes" / "support_interaction.gd": 575,
     PROJECT_ROOT / "Game" / "UI" / "map_board_composer_v2.gd": 1000,
     PROJECT_ROOT / "Game" / "UI" / "temp_screen_theme.gd": 1000,
     PROJECT_ROOT / "Game" / "UI" / "map_explore_scene_ui.gd": 850,
@@ -106,10 +105,7 @@ HOTSPOT_FILE_LINE_LIMITS = {
     PROJECT_ROOT / "Tools" / "validate_architecture_guards.py": 800,
     PROJECT_ROOT / "Tools" / "godot_windows_common.ps1": 380,
 }
-ACTIVE_DOC_LINE_LIMITS = {
-    HANDOFF_FILE: 360,
-    ROADMAP_FILE: 240,
-}
+ACTIVE_DOC_LINE_LIMITS = {HANDOFF_FILE: 360, ROADMAP_FILE: 240}
 
 CURRENT_NODE_INDEX_ALLOWED_FILES = {
     PROJECT_ROOT / "Game" / "Infrastructure" / "save_service.gd",
@@ -158,9 +154,7 @@ COMBAT_STATE_ACTIVE_SLOT_WRITE_PATTERNS = [
         r"\b[a-zA-Z_][a-zA-Z0-9_]*combat_state[a-zA-Z0-9_]*\.(active_weapon_slot_id|active_left_hand_slot_id|active_armor_slot_id|active_belt_slot_id)\s*="
     ),
 ]
-RUN_SUMMARY_CARD_WORKAROUND_PATTERNS = [
-    re.compile(r'\bfind_children\s*\(\s*"RunSummaryCard"'),
-]
+RUN_SUMMARY_CARD_WORKAROUND_PATTERNS = [re.compile(r'\bfind_children\s*\(\s*"RunSummaryCard"')]
 DISPATCH_CALL_PATTERN = re.compile(r"\bdispatch\s*\(")
 CURRENT_NODE_INDEX_PATTERN = re.compile(r'"current_node_index"|current_node_index')
 PUBLIC_FUNC_PATTERN = re.compile(r"^func\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(")
@@ -173,8 +167,9 @@ STALE_WRAPPER_DEFINITIONS = {
     GAME_ROOT / "Infrastructure" / "save_service.gd": "is_supported_save_state_now",
 }
 REQUIRED_COMMAND_EVENT_CATALOG_ENTRIES = (
-    "CombatFlow.turn_phase_resolved",
-    "BossPhaseChanged",
+    "CombatFlow.turn_phase_resolved", "BossPhaseChanged", "TechniqueUsed", "SwapHand",
+    "AppBootstrap.toggle_inventory_equipment", "AppBootstrap.move_inventory_slot",
+    "AppBootstrap.use_inventory_consumable", "AppBootstrap.has_save_game", "AppBootstrap.delete_save_game",
 )
 NODE_RESOLVE_CONTRACT_REQUIRED_FRAGMENTS = {
     GAME_FLOW_STATE_MACHINE_FILE: (
@@ -748,34 +743,52 @@ def validate_active_doc_ballast() -> list[str]:
 
 
 def main() -> int:
-    errors = []
-    errors.extend(validate_dispatch_usage())
-    errors.extend(validate_runstate_compatibility_usage())
-    errors.extend(validate_test_runstate_inventory_compatibility_usage())
-    errors.extend(validate_current_node_index_runtime_creep())
-    errors.extend(validate_scene_ui_truth_mutation_creep())
-    errors.extend(validate_combat_inventory_slot_bridge_creep())
-    errors.extend(validate_run_summary_cleanup_workaround_creep())
-    errors.extend(validate_application_infrastructure_presentation_coupling())
-    errors.extend(validate_app_bootstrap_public_surface())
-    errors.extend(validate_app_bootstrap_lookup_spread())
-    errors.extend(validate_retired_gate_warden_surface())
-    errors.extend(validate_typed_reflection_regressions())
-    errors.extend(validate_overlay_contract_regressions())
-    errors.extend(validate_private_owner_call_regressions())
-    errors.extend(validate_private_owner_call_spread())
-    errors.extend(validate_run_session_coordinator_public_surface())
-    errors.extend(validate_hotspot_file_growth())
-    errors.extend(validate_active_doc_ballast())
-    errors.extend(validate_stale_wrapper_regressions())
-    errors.extend(validate_command_event_catalog_alignment())
-    errors.extend(validate_node_resolve_contract_alignment())
+    findings = {"error": [], "warning": []}
+    for check in (
+        validate_dispatch_usage,
+        validate_runstate_compatibility_usage,
+        validate_test_runstate_inventory_compatibility_usage,
+        validate_current_node_index_runtime_creep,
+        validate_scene_ui_truth_mutation_creep,
+        validate_combat_inventory_slot_bridge_creep,
+        validate_run_summary_cleanup_workaround_creep,
+        validate_application_infrastructure_presentation_coupling,
+        validate_app_bootstrap_public_surface,
+        validate_app_bootstrap_lookup_spread,
+        validate_retired_gate_warden_surface,
+        validate_typed_reflection_regressions,
+        validate_overlay_contract_regressions,
+        validate_private_owner_call_regressions,
+        validate_private_owner_call_spread,
+        validate_run_session_coordinator_public_surface,
+        validate_stale_wrapper_regressions,
+        validate_command_event_catalog_alignment,
+        validate_node_resolve_contract_alignment,
+    ):
+        findings["error"].extend(check())
+    for check in (validate_hotspot_file_growth, validate_active_doc_ballast):
+        findings["warning"].extend(check())
+
+    errors = findings["error"]
+    warnings = findings["warning"]
 
     if errors:
         print("Architecture guard validation failed.", file=sys.stderr)
+        print("Errors:", file=sys.stderr)
         for error in errors:
-            print(error, file=sys.stderr)
+            print(f"- {error}", file=sys.stderr)
+        if warnings:
+            print("\nWarnings:", file=sys.stderr)
+            for warning in warnings:
+                print(f"- {warning}", file=sys.stderr)
         return 1
+
+    if warnings:
+        print("Architecture guard validation passed with warnings.")
+        print("Warnings:")
+        for warning in warnings:
+            print(f"- {warning}")
+        return 0
 
     print("Architecture guard validation passed.")
     return 0

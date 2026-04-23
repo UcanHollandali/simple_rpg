@@ -11,6 +11,7 @@ Use:
 - `Docs/DOC_PRECEDENCE.md` for topic routing and authority
 - `Docs/HANDOFF.md` for the current repo snapshot
 - the closest authority doc for actual gameplay and technical rules
+- workflow docs for orientation and discipline only; they do not override boundary-safe implementation work by themselves
 
 ## Project Identity
 
@@ -23,7 +24,7 @@ Use:
 
 ## Quick Reminders
 
-- Combat is intentionally small: `Attack`, `Defend`, `Use Item`.
+- Combat baseline is intentionally small: `Attack`, `Defend`, and direct consumable use, with conditional `Technique` and narrow `SwapHand` as the only live extensions.
 - Most new content should be definition-driven.
 - UI is presentation, not gameplay truth.
 - Save compatibility matters early.

@@ -174,45 +174,45 @@ These cases should not be solved by wording alone unless the required truth beco
 - Any copy that would predict post-action damage, exact mitigation, or exact outcome deltas.
 - Any run-end explanatory line that would depend on a finer-grained failure-cause model than the current shell exposes.
 
-## 9. Prompt 07-11.5 Handoff Plan
+## 9. Prompt 07-11.5 Historical Trace
 
-Recommended follow-up queue, aligned to the checked-in prompt files:
+These archived prompt packs are the execution trace for the landed UI wave:
 
-- `Docs/Promts/07_inventory_equipment_drawer.md`
+- `Docs/Archive/Prompts/2026-04-23-closed-green-prompt-packs/07_inventory_equipment_drawer.md`
   - own the map-facing inventory and equipment wording cleanup that depends on drawer hierarchy
   - preserve the explicit four-slot identity and belt-capacity truth
   - normalize map route versus inventory helper competition
 
-- `Docs/Promts/08_event_modal_choice_cards.md`
+- `Docs/Archive/Prompts/2026-04-23-closed-green-prompt-packs/08_event_modal_choice_cards.md`
   - own event title, body, choice-card, and compare-first wording cleanup
   - remove hover-first guidance from the final event presentation
   - surface disabled reasons only if the required truth exists by then
 
-- `Docs/Promts/09_combat_hierarchy.md`
+- `Docs/Archive/Prompts/2026-04-23-closed-green-prompt-packs/09_combat_hierarchy.md`
   - own combat action wording, guard feedback hierarchy, and local blocked-action phrasing
   - keep current truth surfaces; do not invent prediction copy
 
-- `Docs/Promts/10_font_icon_readability_guardrails.md`
+- `Docs/Archive/Prompts/2026-04-23-closed-green-prompt-packs/10_font_icon_readability_guardrails.md`
   - use this audit to decide which text surfaces must remain body-copy first
   - do not let decorative typography or icon-first treatment replace essential wording
 
-- `Docs/Promts/10_5_first_run_hints.md`
+- `Docs/Archive/Prompts/2026-04-23-closed-green-prompt-packs/10_5_first_run_hints.md`
   - teach the final UI hierarchy with short hints
   - do not use onboarding copy to patch missing gameplay truth
 
-- `Docs/Promts/11_ui_theme_token_cleanup.md`
+- `Docs/Archive/Prompts/2026-04-23-closed-green-prompt-packs/11_ui_theme_token_cleanup.md`
   - preserve the wording hierarchy established by Prompts 07-10.5
   - theme and token cleanup should not invent new microcopy families
 
-- `Docs/Promts/11_5_empty_error_states.md`
+- `Docs/Archive/Prompts/2026-04-23-closed-green-prompt-packs/11_5_empty_error_states.md`
   - own shared empty, unavailable, save/load, overflow, and fallback-message cleanup
   - standardize title/body/action patterns across shells once the structural UI wave is stable
 
-Queue recommendation:
+Historical takeaway:
 
-- Prompt 07 should treat this audit as wording guidance, not as permission to expand gameplay explanation.
-- Prompt 08 and Prompt 09 carry the highest wording payoff after Prompt 07 because the largest decision-pressure gaps live in event and combat surfaces.
-- Prompt 11.5 should be the shared-string consolidation pass after the higher-level structure is settled.
+- Prompt 07 was the structure-first lane and kept wording cleanup inside the landed drawer hierarchy.
+- Prompt 08 and Prompt 09 carried the highest wording payoff because the largest decision-pressure gaps lived in event and combat surfaces.
+- Prompt 11.5 was the shared-string consolidation lane after the higher-level structure settled.
 
 ## 10. Non-Goals
 

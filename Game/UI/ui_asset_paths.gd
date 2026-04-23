@@ -6,6 +6,9 @@ const PLAYER_BUST_TEXTURE_PATH := "res://Assets/Characters/player_bust.png"
 const START_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_map_start.svg"
 const ROUTE_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_node_marker.svg"
 const TRAIL_EVENT_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_map_trail_event.svg"
+const MAP_COMBAT_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_map_combat.svg"
+const MAP_KEY_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_map_key.svg"
+const MAP_BOSS_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_map_boss.svg"
 const EVENT_ICON_TEXTURE_PATH := TRAIL_EVENT_ICON_TEXTURE_PATH
 const ATTACK_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_attack.svg"
 const DEFEND_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_defend.svg"
@@ -44,6 +47,20 @@ const MAP_CLEARING_DECAL_BOSS_TEXTURE_PATH := "res://Assets/UI/Map/Clearings/ui_
 const MAP_NODE_PLATE_REACHABLE_TEXTURE_PATH := "res://Assets/UI/Map/NodePlates/ui_map_v2_node_plate_reachable.svg"
 const MAP_NODE_PLATE_RESOLVED_TEXTURE_PATH := "res://Assets/UI/Map/NodePlates/ui_map_v2_node_plate_resolved.svg"
 const MAP_NODE_PLATE_LOCKED_TEXTURE_PATH := "res://Assets/UI/Map/NodePlates/ui_map_v2_node_plate_locked.svg"
+const MAP_FILLER_TEXTURE_PATHS_BY_FAMILY := {
+	"rock": [
+		"res://Assets/UI/Map/Props/ui_map_v2_prop_stone_cluster_a.png",
+		"res://Assets/UI/Map/Props/ui_map_v2_prop_fallen_log_a.png",
+	],
+	"ruin": [
+		"res://Assets/UI/Map/Landmarks/ui_map_v2_landmark_waystone_a.png",
+		"res://Assets/UI/Map/Landmarks/ui_map_v2_landmark_cairn_a.png",
+	],
+	"water_patch": [
+		"res://Assets/UI/Map/Ground/ui_map_v2_ground_forest_floor_a.png",
+		"res://Assets/UI/Map/Ground/ui_map_v2_ground_forest_floor_b.png",
+	],
+}
 const ENEMY_BUST_FALLBACK_TEXTURE_PATHS := {
 	# The prototype only guarantees a small bust set; keep live enemies readable with
 	# the closest available family silhouette instead of showing a blank combat frame.

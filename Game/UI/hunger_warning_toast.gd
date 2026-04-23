@@ -14,21 +14,24 @@ const TOP_GAP := 12.0
 var _owner: Control
 var _anchor_path: String = ""
 var _z_index: int = 130
+var _compact_layout: bool = false
+var _current_threshold: int = RunStatusStripScript.HUNGER_THRESHOLD_HUNGRY
 var _panel: PanelContainer
 var _label: Label
 var _tween: Tween
 
 
-func setup(owner: Control, anchor_path: String, z_index: int = 130) -> void:
+func setup(owner: Control, anchor_path: String, z_index: int = 130, compact_layout: bool = false) -> void:
 	_owner = owner
 	_anchor_path = anchor_path
 	_z_index = z_index
+	_compact_layout = compact_layout
 	ensure_toast()
 
 
 func ensure_toast() -> void:
 	if _panel != null and is_instance_valid(_panel):
-		_apply_style(RunStatusStripScript.HUNGER_THRESHOLD_HUNGRY)
+		_apply_style(_current_threshold)
 		position_toast()
 		return
 	if _owner == null or not is_instance_valid(_owner):
@@ -51,7 +54,7 @@ func ensure_toast() -> void:
 	_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_panel.add_child(_label)
 
-	_apply_style(RunStatusStripScript.HUNGER_THRESHOLD_HUNGRY)
+	_apply_style(_current_threshold)
 	finish_hide()
 
 
@@ -62,6 +65,7 @@ func show_warning(warning_text: String, threshold: int) -> void:
 	if _tween != null and is_instance_valid(_tween):
 		_tween.kill()
 
+	_current_threshold = threshold
 	_label.text = warning_text
 	_apply_style(threshold)
 	_panel.custom_minimum_size = Vector2(max(220.0, min(_owner.get_viewport_rect().size.x - (MARGIN * 2.0), 420.0)), 0.0)
@@ -104,6 +108,11 @@ func position_toast() -> void:
 	_panel.global_position = Vector2(x_position, y_position)
 
 
+func set_compact_layout(compact_layout: bool) -> void:
+	_compact_layout = compact_layout
+	_apply_style(_current_threshold)
+
+
 func finish_hide() -> void:
 	if _panel == null or not is_instance_valid(_panel):
 		return
@@ -129,9 +138,9 @@ func _apply_style(threshold: int) -> void:
 	_label.add_theme_color_override("font_shadow_color", Color(0.02, 0.03, 0.04, 0.76))
 	_label.add_theme_constant_override("shadow_size", 2)
 	var viewport_height: float = _owner.get_viewport_rect().size.y
-	var font_size: int = 18
+	var font_size: int = 18 if not _compact_layout else 17
 	if viewport_height < 1400.0:
-		font_size = 16
-	elif viewport_height >= 1800.0:
+		font_size = 16 if not _compact_layout else 15
+	elif viewport_height >= 1800.0 and not _compact_layout:
 		font_size = 20
 	_label.add_theme_font_size_override("font_size", font_size)

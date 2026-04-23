@@ -6,7 +6,7 @@ Date: 2026-04-22
 
 Status:
 - Prompt 06 closed green on the current workspace
-- next active future-queue pack fed by this document: `Prompt 06.5`
+- the follow-up Prompt 06.5-12.5 execution wave is archived; this document remains reference-only
 
 Scope rule for this document:
 - docs-only
@@ -316,7 +316,7 @@ Icon finding:
 Uncertainty note:
 - Terminal inspection of some Turkish warning-copy output showed mojibake in shell text. That is not enough evidence to claim a live in-game rendering bug, so it is not treated as a confirmed readability defect in this audit.
 
-## 10. Recommended Prompt 06.5-12.5 Plan
+## 10. Archived Prompt 06.5-12.5 Plan
 
 ### Top 10 Decision-Visibility Problems
 

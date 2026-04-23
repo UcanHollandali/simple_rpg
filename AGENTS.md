@@ -11,6 +11,7 @@ Before changing code:
 
 Use `Docs/HANDOFF.md` as current-state context only.
 Use `Docs/DOC_PRECEDENCE.md` plus the closest authority doc for actual rules.
+Workflow docs route work and impose discipline. They do not veto boundary-safe extraction, helper moves, or guarded cleanup by themselves.
 
 Task-specific docs:
 - Combat work -> [Docs/COMBAT_RULE_CONTRACT.md](Docs/COMBAT_RULE_CONTRACT.md)
@@ -72,12 +73,14 @@ Fast-lane validation baseline:
 ### Medium-Risk Guarded Lane
 
 Use the guarded lane when the change stays inside existing authority boundaries but can still break orchestration or continuation confidence.
+`Guarded` means implementable with care, not blocked by default.
 
 Typical guarded-lane work in this repo:
 - `Game/Application` orchestration changes that keep the same owners
 - save/load orchestration changes that keep the same schema shape
 - mechanic tuning inside an existing contract
 - large-file extraction where ownership stays the same but fan-out risk is real
+- helper moves and cleanup passes that keep owner/save/flow/command-event boundaries intact
 
 Guarded-lane requirements:
 - update the closest authority doc in the same patch if behavior or interpretation changed
@@ -86,6 +89,11 @@ Guarded-lane requirements:
 - run smoke when boot, autoload, or scene wiring changed
 
 ### High-Risk Escalate-First Lane
+
+Use the high-risk lane only when the patch changes boundary meaning, compatibility policy, or authoritative ownership.
+- Do not treat file size alone as automatic high-risk.
+- Do not escalate purely because a file is large if the work is still an owner-preserving extraction or guarded cleanup.
+- Do not treat hotspot status as a veto on implementation when the requested change stays boundary-safe.
 
 Do not treat these as fast cleanup:
 - save-schema/version changes
@@ -109,14 +117,14 @@ Default low-risk areas:
 - doc truth-alignment patches
 - tests that move toward already-authoritative owners
 
-Default medium-risk areas:
+Default medium-sensitivity areas:
 - `Game/Application/app_bootstrap.gd`
 - `Game/Application/run_session_coordinator.gd`
 - `Game/Application/save_runtime_bridge.gd`
 - `Game/Application/combat_flow.gd`
 - `scenes/map_explore.gd` when the change is more than pure presentation extraction
 
-Default high-risk areas:
+Default high-sensitivity areas:
 - `Game/RuntimeState/run_state.gd`
 - `Game/RuntimeState/inventory_state.gd`
 - `Game/RuntimeState/map_runtime_state.gd`
@@ -124,6 +132,14 @@ Default high-risk areas:
 - `Game/Application/game_flow_manager.gd`
 - `Docs/SAVE_SCHEMA.md`
 - any patch that changes owner meaning rather than only improving wiring
+
+Extraction-first hotspots:
+- `scenes/combat.gd`
+- `scenes/map_explore.gd`
+- `Game/UI/map_board_composer_v2.gd`
+- `Game/UI/map_route_binding.gd`
+- hotspot status means "prefer small extraction/helper passes over additive growth"
+- hotspot status does not mean "automatic confirmed high-risk"
 
 Risk-map maintenance rules:
 - these lanes are workflow heuristics, not gameplay or technical authority
@@ -165,7 +181,7 @@ For content additions, reason using:
 
 ## Maintainability Guardrails
 
-- Large hotspot files over `500` lines should prefer extraction-first over additive growth.
+- Large hotspot files over `500` lines should prefer extraction-first over additive growth, not automatic escalation.
 - Do not add new `AppBootstrap` convenience gameplay methods without explicit escalation.
 - Do not add new `RunState` compatibility accessors.
 - Scene/UI changes inside large files must preserve composition-only intent; do not smuggle gameplay ownership into presentation cleanup.
@@ -175,13 +191,14 @@ For content additions, reason using:
 
 ## Continuation Gate
 
-For any non-trivial human or AI continuation pass, state these before or alongside the implementation work:
+For any non-trivial human or AI continuation pass, state these before or alongside the implementation work as a preflight:
 - `touched owner layer`
 - `authority doc`
 - `impact: runtime truth / save shape / asset-provenance`
 - `minimum validation set`
 
-If the honest answer implies a change to flow, save shape, or source-of-truth ownership, stop and escalate before implementation instead of continuing as a narrow patch by default.
+Only stop and escalate if the honest answer implies a change to flow, save shape, or source-of-truth ownership.
+If those boundaries stay intact, continue with the smallest safe implementation path.
 
 This gate is workflow-only.
 It does not create a new gameplay or technical authority surface.

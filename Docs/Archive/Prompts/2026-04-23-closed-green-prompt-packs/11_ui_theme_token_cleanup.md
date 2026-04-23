@@ -12,6 +12,9 @@ Read first:
 - `Docs/VISUAL_AUDIO_STYLE_GUIDE.md`
 - `Docs/UI_INFORMATION_ARCHITECTURE_AUDIT.md`
 - `Docs/UI_MICROCOPY_AUDIT.md`
+- `Game/UI/temp_screen_theme.gd`
+- `Game/UI/temp_screen_theme_tokens.gd`
+- `Game/UI/temp_screen_theme_style_builder.gd`
 
 ## Goal
 
@@ -26,6 +29,9 @@ Centralize shared UI color, spacing, typography, and component-state tokens afte
 
 ## Preferred Owner Surfaces
 
+- `Game/UI/temp_screen_theme.gd` as the public shared theme facade
+- `Game/UI/temp_screen_theme_tokens.gd` for shared token-table cleanup
+- `Game/UI/temp_screen_theme_style_builder.gd` for shared panel/button/style-builder cleanup
 - shared UI helper/theme owners already in use
 - token extraction only where a stable shared owner is already appropriate
 
@@ -68,6 +74,10 @@ Scope:
   - typography
   - panel/button/card state values
 - Keep extraction inside existing shared UI helper/theme owners where possible.
+- Treat the current split truth as:
+  - `temp_screen_theme.gd` = stable public facade
+  - `temp_screen_theme_tokens.gd` = token atlas / shared token tables
+  - `temp_screen_theme_style_builder.gd` = shared style-builder internals
 
 Do not:
 - redesign screens

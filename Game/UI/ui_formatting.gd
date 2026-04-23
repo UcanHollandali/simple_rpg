@@ -164,6 +164,7 @@ static func build_consequence_preview_texts(preview_snapshot: Dictionary) -> Dic
 			"incoming": "Incoming ?",
 			"defend": "Guard ?",
 			"guard_result": "Guard ? | HP ?",
+			"defend_cost": "Turn -? hunger",
 			"hunger_tick": "Tick -1 hunger",
 			"durability_spend": "Swing -? durability",
 			"intent_detail": "Incoming ? | Guard ?",
@@ -185,6 +186,7 @@ static func build_consequence_preview_texts(preview_snapshot: Dictionary) -> Dic
 			int(preview_snapshot.get("guard_absorb_preview", 0)),
 			int(preview_snapshot.get("guard_damage_preview", 0)),
 		],
+		"defend_cost": "Turn -%d hunger" % int(preview_snapshot.get("defend_hunger_cost_preview", preview_snapshot.get("hunger_tick_preview", 1))),
 		"hunger_tick": "Tick -%d hunger" % int(preview_snapshot.get("hunger_tick_preview", 1)),
 		"durability_spend": "Swing -%d durability" % int(preview_snapshot.get("durability_spend_preview", 0)),
 		"intent_detail": "Incoming %d | Guard %d" % [

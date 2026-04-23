@@ -5,6 +5,7 @@ class_name MapRuntimeState
 const ContentLoaderScript = preload("res://Game/Infrastructure/content_loader.gd")
 const MapScatterGraphToolsScript = preload("res://Game/RuntimeState/map_scatter_graph_tools.gd")
 const MapRuntimeGraphCodecScript = preload("res://Game/RuntimeState/map_runtime_graph_codec.gd")
+const MapRuntimeLocalStateHelperScript = preload("res://Game/RuntimeState/map_runtime_local_state_helper.gd")
 
 const NODE_STATE_UNDISCOVERED: String = "undiscovered"
 const NODE_STATE_DISCOVERED: String = "discovered"
@@ -30,6 +31,8 @@ const SCATTER_EXTRA_EDGES_MAX: int = 4
 const SCATTER_ATTEMPT_LIMIT: int = 16
 const SCATTER_MIN_RECONNECT_EDGE_COUNT: int = 1
 const SCATTER_MAX_RECONNECT_EDGE_COUNT: int = 2
+const SCATTER_MIN_RECONNECT_PATH_LENGTH: int = 3
+const SCATTER_MAX_RECONNECT_PATH_LENGTH: int = 6
 const SCATTER_MIN_LEAF_COUNT: int = 2
 const SCATTER_MIN_TWO_WAY_COUNT: int = 2
 const SCATTER_MIN_THREE_WAY_COUNT: int = 1
@@ -55,6 +58,11 @@ const PLACEMENT_EVENT_TARGET_DEPTH: int = 3
 const PLACEMENT_SCORE_STRONG_BONUS: float = 8.0
 const PLACEMENT_SCORE_MEDIUM_BONUS: float = 4.0
 const PLACEMENT_SCORE_LIGHT_BONUS: float = 1.5
+const PLACEMENT_SHORTLIST_STANDARD_LIMIT: int = 3
+const PLACEMENT_SHORTLIST_DETOUR_LIMIT: int = 4
+const PLACEMENT_SHORTLIST_NARROW_SCORE_WINDOW: float = 1.25
+const PLACEMENT_SHORTLIST_STANDARD_SCORE_WINDOW: float = 1.75
+const PLACEMENT_SHORTLIST_WIDE_SCORE_WINDOW: float = 3.0
 const LEGACY_STAGE_TEMPLATE_IDS: PackedStringArray = [
 	"fixed_stage_cluster",
 	"fixed_stage_detour",
@@ -71,6 +79,7 @@ const SLOT_TYPE_LATE_SIDE_MISSION: String = SLOT_TYPE_LATE_HAMLET
 const SIDE_MISSION_DEFAULT_DEFINITION_ID: String = "trail_contract_hunt"
 const MAX_ROADSIDE_ENCOUNTERS_PER_STAGE: int = 3
 const DEFAULT_GENERATION_SEED: int = 1
+const SUPPORT_NODE_FAMILIES: PackedStringArray = ["rest", "merchant", "blacksmith"]
 const SIDE_MISSION_STATUS_OFFERED: String = "offered"
 const SIDE_MISSION_STATUS_ACCEPTED: String = "accepted"
 const SIDE_MISSION_STATUS_COMPLETED: String = "completed"
@@ -107,6 +116,7 @@ var _side_mission_node_states: Dictionary = {}
 var _active_template_id: String = DEFAULT_SCAFFOLD_TEMPLATE_ID
 var _generation_stage_index: int = 1
 var _generation_seed: int = DEFAULT_GENERATION_SEED
+var _active_topology_blueprint_id: String = ""
 var _family_budget_slot_reservations: Dictionary = {}
 var _graph_codec: MapRuntimeGraphCodec = MapRuntimeGraphCodecScript.new()
 
@@ -152,6 +162,10 @@ func get_boss_node_id() -> int:
 
 func get_active_template_id() -> String:
 	return _active_template_id
+
+
+func get_active_topology_blueprint_id() -> String:
+	return _active_topology_blueprint_id
 
 
 func get_node_family(node_id: int) -> String:
@@ -381,10 +395,7 @@ func get_support_node_runtime_state(node_id: int) -> Dictionary:
 		return {}
 	if _support_node_states.has(node_id):
 		return (_support_node_states[node_id] as Dictionary).duplicate(true)
-	return {
-		"support_type": get_node_family(node_id),
-		"unavailable_offer_ids": [],
-	}
+	return MapRuntimeLocalStateHelperScript.build_default_support_node_state(get_node_family(node_id))
 
 
 func get_side_mission_node_runtime_state(node_id: int) -> Dictionary:
@@ -396,16 +407,21 @@ func get_side_quest_node_runtime_state(node_id: int) -> Dictionary:
 		return {}
 	if _side_mission_node_states.has(node_id):
 		return (_side_mission_node_states[node_id] as Dictionary).duplicate(true)
-	return _build_default_side_quest_node_state(node_id)
+	return MapRuntimeLocalStateHelperScript.build_default_side_quest_node_state(
+		get_node_family(node_id),
+		_side_quest_state_helper_config()
+	)
 
 
 func save_support_node_runtime_state(node_id: int, support_node_state: Dictionary) -> void:
 	if not has_node(node_id) or not is_support_node(node_id):
 		return
 
-	var normalized_state: Dictionary = _normalize_support_node_state(node_id, support_node_state)
-	var unavailable_ids_variant: Variant = normalized_state.get("unavailable_offer_ids", [])
-	if typeof(unavailable_ids_variant) == TYPE_ARRAY and (unavailable_ids_variant as Array).is_empty():
+	var normalized_state: Dictionary = MapRuntimeLocalStateHelperScript.normalize_support_node_state(
+		get_node_family(node_id),
+		support_node_state
+	)
+	if not MapRuntimeLocalStateHelperScript.support_state_should_persist(normalized_state):
 		_support_node_states.erase(node_id)
 		return
 	_support_node_states[node_id] = normalized_state
@@ -419,11 +435,16 @@ func save_side_quest_node_runtime_state(node_id: int, side_quest_state: Dictiona
 	if not has_node(node_id) or not is_hamlet_node(node_id):
 		return
 
-	var normalized_state: Dictionary = _normalize_side_quest_node_state(node_id, side_quest_state)
-	var mission_status: String = String(normalized_state.get("mission_status", SIDE_MISSION_STATUS_OFFERED))
-	var target_node_id: int = int(normalized_state.get("target_node_id", NO_PENDING_NODE_ID))
-	var reward_offers_variant: Variant = normalized_state.get("reward_offers", [])
-	if mission_status == SIDE_MISSION_STATUS_OFFERED and target_node_id == NO_PENDING_NODE_ID and typeof(reward_offers_variant) == TYPE_ARRAY and (reward_offers_variant as Array).is_empty():
+	var normalized_state: Dictionary = MapRuntimeLocalStateHelperScript.normalize_side_quest_node_state(
+		side_quest_state,
+		get_node_family(node_id),
+		_build_node_family_lookup(),
+		_side_quest_state_helper_config()
+	)
+	if not MapRuntimeLocalStateHelperScript.side_quest_state_should_persist(
+		normalized_state,
+		_side_quest_state_helper_config()
+	):
 		_side_mission_node_states.erase(node_id)
 		return
 	_side_mission_node_states[node_id] = normalized_state
@@ -470,17 +491,11 @@ func get_side_mission_target_enemy_definition_id(node_id: int) -> String:
 
 
 func get_side_quest_target_enemy_definition_id(node_id: int) -> String:
-	if node_id < 0:
-		return ""
-	for source_node_id_variant in _side_mission_node_states.keys():
-		var source_node_id: int = int(source_node_id_variant)
-		var state: Dictionary = _side_mission_node_states[source_node_id] as Dictionary
-		if String(state.get("mission_status", "")) != SIDE_MISSION_STATUS_ACCEPTED:
-			continue
-		if int(state.get("target_node_id", NO_PENDING_NODE_ID)) != node_id:
-			continue
-		return String(state.get("target_enemy_definition_id", ""))
-	return ""
+	return MapRuntimeLocalStateHelperScript.build_target_enemy_definition_id(
+		_side_mission_node_states,
+		node_id,
+		_side_quest_state_helper_config()
+	)
 
 
 func mark_side_mission_target_completed(target_node_id: int) -> Dictionary:
@@ -488,17 +503,12 @@ func mark_side_mission_target_completed(target_node_id: int) -> Dictionary:
 
 
 func mark_side_quest_target_completed(target_node_id: int) -> Dictionary:
-	for source_node_id_variant in _side_mission_node_states.keys():
-		var source_node_id: int = int(source_node_id_variant)
-		var state: Dictionary = (_side_mission_node_states[source_node_id] as Dictionary).duplicate(true)
-		if String(state.get("mission_status", "")) != SIDE_MISSION_STATUS_ACCEPTED:
-			continue
-		if int(state.get("target_node_id", NO_PENDING_NODE_ID)) != target_node_id:
-			continue
-		state["mission_status"] = SIDE_MISSION_STATUS_COMPLETED
-		_side_mission_node_states[source_node_id] = _normalize_side_quest_node_state(source_node_id, state)
-		return (_side_mission_node_states[source_node_id] as Dictionary).duplicate(true)
-	return {}
+	return MapRuntimeLocalStateHelperScript.mark_side_quest_target_completed(
+		_side_mission_node_states,
+		target_node_id,
+		_build_node_family_lookup(),
+		_side_quest_state_helper_config()
+	)
 
 
 func build_side_mission_highlight_snapshot() -> Dictionary:
@@ -506,38 +516,18 @@ func build_side_mission_highlight_snapshot() -> Dictionary:
 
 
 func build_side_quest_highlight_snapshot() -> Dictionary:
-	var source_node_ids: Array[int] = []
-	for node_id_variant in _side_mission_node_states.keys():
-		source_node_ids.append(int(node_id_variant))
-	source_node_ids.sort()
-	for source_node_id in source_node_ids:
-		var state: Dictionary = _side_mission_node_states[source_node_id] as Dictionary
-		var mission_status: String = String(state.get("mission_status", SIDE_MISSION_STATUS_OFFERED))
-		if mission_status == SIDE_MISSION_STATUS_ACCEPTED:
-			var target_node_id: int = int(state.get("target_node_id", NO_PENDING_NODE_ID))
-			if target_node_id >= 0:
-				return {
-					"node_id": target_node_id,
-					"highlight_state": "target",
-				}
-		elif mission_status == SIDE_MISSION_STATUS_COMPLETED:
-			return {
-				"node_id": source_node_id,
-				"highlight_state": "return",
-			}
-	return {}
+	return MapRuntimeLocalStateHelperScript.build_side_quest_highlight_snapshot(
+		_side_mission_node_states,
+		_side_quest_state_helper_config()
+	)
 
 
 func get_active_side_quest_by_target_node_id(target_node_id: int) -> Dictionary:
-	for source_node_id_variant in _side_mission_node_states.keys():
-		var source_node_id: int = int(source_node_id_variant)
-		var state: Dictionary = (_side_mission_node_states[source_node_id] as Dictionary).duplicate(true)
-		if String(state.get("mission_status", "")) != SIDE_MISSION_STATUS_ACCEPTED:
-			continue
-		if int(state.get("target_node_id", NO_PENDING_NODE_ID)) != target_node_id:
-			continue
-		return state.merged({"source_node_id": source_node_id}, true)
-	return {}
+	return MapRuntimeLocalStateHelperScript.active_side_quest_by_target_node_id(
+		_side_mission_node_states,
+		target_node_id,
+		_side_quest_state_helper_config()
+	)
 
 
 func build_family_budget_slot_snapshot() -> Dictionary:
@@ -562,6 +552,7 @@ func to_save_dict() -> Dictionary:
 func load_from_save_dict(save_data: Dictionary, stage_index: int = 1) -> void:
 	_reset_runtime_state()
 	_generation_stage_index = max(1, stage_index)
+	_active_topology_blueprint_id = ""
 	var restored_template_id: String = String(save_data.get(SAVE_KEY_ACTIVE_TEMPLATE_ID, ""))
 	var restored_realized_graph: Array[Dictionary] = _graph_codec.extract_realized_graph_array(save_data.get(SAVE_KEY_REALIZED_GRAPH, []))
 	if not restored_realized_graph.is_empty():
@@ -602,26 +593,21 @@ func load_from_save_dict(save_data: Dictionary, stage_index: int = 1) -> void:
 			_set_node_state(node_id, node_state)
 
 	var saved_support_states_variant: Variant = save_data.get("support_node_states", [])
-	if typeof(saved_support_states_variant) == TYPE_ARRAY:
-		for entry_variant in saved_support_states_variant:
-			if typeof(entry_variant) != TYPE_DICTIONARY:
-				continue
-			var entry: Dictionary = entry_variant
-			var node_id: int = int(entry.get("node_id", NO_PENDING_NODE_ID))
-			if not has_node(node_id) or not is_support_node(node_id):
-				continue
-			_support_node_states[node_id] = _normalize_support_node_state(node_id, entry)
+	var node_family_by_id: Dictionary = _build_node_family_lookup()
+	_support_node_states = MapRuntimeLocalStateHelperScript.restore_support_node_states(
+		saved_support_states_variant,
+		node_family_by_id,
+		SUPPORT_NODE_FAMILIES,
+		NO_PENDING_NODE_ID
+	)
 
 	var saved_side_mission_states_variant: Variant = save_data.get(SAVE_KEY_SIDE_MISSION_NODE_STATES, [])
-	if typeof(saved_side_mission_states_variant) == TYPE_ARRAY:
-		for entry_variant in saved_side_mission_states_variant:
-			if typeof(entry_variant) != TYPE_DICTIONARY:
-				continue
-			var entry: Dictionary = entry_variant
-			var node_id: int = int(entry.get("node_id", NO_PENDING_NODE_ID))
-			if not has_node(node_id) or not is_hamlet_node(node_id):
-				continue
-			_side_mission_node_states[node_id] = _normalize_side_quest_node_state(node_id, entry)
+	_side_mission_node_states = MapRuntimeLocalStateHelperScript.restore_side_quest_node_states(
+		saved_side_mission_states_variant,
+		node_family_by_id,
+		NODE_FAMILY_HAMLET,
+		_side_quest_state_helper_config()
+	)
 
 	_sync_boss_gate_state()
 	_rebuild_family_budget_slot_reservations_from_graph()
@@ -736,148 +722,27 @@ func _is_valid_node_state(node_state: String) -> bool:
 
 
 func _is_support_node_family(node_family: String) -> bool:
-	return node_family in ["rest", "merchant", "blacksmith"]
+	return SUPPORT_NODE_FAMILIES.has(node_family)
 
 
-func _normalize_support_node_state(node_id: int, support_node_state: Dictionary) -> Dictionary:
-	var unavailable_ids: Array[String] = []
-	var unavailable_ids_variant: Variant = support_node_state.get("unavailable_offer_ids", [])
-	if typeof(unavailable_ids_variant) == TYPE_ARRAY:
-		for offer_id_variant in unavailable_ids_variant:
-			var offer_id: String = String(offer_id_variant)
-			if offer_id.is_empty() or unavailable_ids.has(offer_id):
-				continue
-			unavailable_ids.append(offer_id)
+func _build_node_family_lookup() -> Dictionary:
+	return MapRuntimeLocalStateHelperScript.build_node_family_lookup(_node_graph, NO_PENDING_NODE_ID)
 
+
+func _side_quest_state_helper_config() -> Dictionary:
 	return {
-		"support_type": get_node_family(node_id),
-		"unavailable_offer_ids": unavailable_ids,
+		"no_pending_node_id": NO_PENDING_NODE_ID,
+		"default_definition_id": SIDE_MISSION_DEFAULT_DEFINITION_ID,
+		"default_mission_type": SIDE_QUEST_MISSION_TYPE_HUNT_MARKED_ENEMY,
+		"offered_status": SIDE_MISSION_STATUS_OFFERED,
+		"accepted_status": SIDE_MISSION_STATUS_ACCEPTED,
+		"completed_status": SIDE_MISSION_STATUS_COMPLETED,
+		"claimed_status": SIDE_MISSION_STATUS_CLAIMED,
+		"hunt_marked_enemy_type": SIDE_QUEST_MISSION_TYPE_HUNT_MARKED_ENEMY,
+		"deliver_supplies_type": SIDE_QUEST_MISSION_TYPE_DELIVER_SUPPLIES,
+		"rescue_missing_scout_type": SIDE_QUEST_MISSION_TYPE_RESCUE_MISSING_SCOUT,
+		"bring_proof_type": SIDE_QUEST_MISSION_TYPE_BRING_PROOF,
 	}
-
-
-func _build_default_side_quest_node_state(node_id: int) -> Dictionary:
-	return {
-		"support_type": get_node_family(node_id),
-		"mission_definition_id": SIDE_MISSION_DEFAULT_DEFINITION_ID,
-		"mission_type": SIDE_QUEST_MISSION_TYPE_HUNT_MARKED_ENEMY,
-		"mission_status": SIDE_MISSION_STATUS_OFFERED,
-		"target_node_id": NO_PENDING_NODE_ID,
-		"target_enemy_definition_id": "",
-		"quest_item_definition_id": "",
-		"reward_offers": [],
-	}
-
-
-func _normalize_side_mission_node_state(node_id: int, side_mission_state: Dictionary) -> Dictionary:
-	return _normalize_side_quest_node_state(node_id, side_mission_state)
-
-
-func _normalize_side_quest_node_state(node_id: int, side_quest_state: Dictionary) -> Dictionary:
-	var normalized_state: Dictionary = _build_default_side_quest_node_state(node_id)
-	var mission_definition_id: String = String(side_quest_state.get("mission_definition_id", SIDE_MISSION_DEFAULT_DEFINITION_ID)).strip_edges()
-	if not mission_definition_id.is_empty():
-		normalized_state["mission_definition_id"] = mission_definition_id
-	var mission_type: String = _normalize_side_quest_mission_type(String(side_quest_state.get("mission_type", SIDE_QUEST_MISSION_TYPE_HUNT_MARKED_ENEMY)))
-	normalized_state["mission_type"] = mission_type
-
-	var mission_status: String = String(side_quest_state.get("mission_status", SIDE_MISSION_STATUS_OFFERED))
-	if mission_status not in [
-		SIDE_MISSION_STATUS_OFFERED,
-		SIDE_MISSION_STATUS_ACCEPTED,
-		SIDE_MISSION_STATUS_COMPLETED,
-		SIDE_MISSION_STATUS_CLAIMED,
-	]:
-		mission_status = SIDE_MISSION_STATUS_OFFERED
-	normalized_state["mission_status"] = mission_status
-
-	var target_node_id: int = int(side_quest_state.get("target_node_id", NO_PENDING_NODE_ID))
-	if not has_node(target_node_id) or not _side_quest_target_family_is_valid(mission_type, get_node_family(target_node_id)):
-		target_node_id = NO_PENDING_NODE_ID
-	normalized_state["target_node_id"] = target_node_id
-
-	var target_enemy_definition_id: String = String(side_quest_state.get("target_enemy_definition_id", "")).strip_edges()
-	if target_node_id == NO_PENDING_NODE_ID or mission_type != SIDE_QUEST_MISSION_TYPE_HUNT_MARKED_ENEMY:
-		target_enemy_definition_id = ""
-	normalized_state["target_enemy_definition_id"] = target_enemy_definition_id
-	normalized_state["quest_item_definition_id"] = String(side_quest_state.get("quest_item_definition_id", "")).strip_edges()
-
-	var reward_offers: Array[Dictionary] = []
-	var reward_offers_variant: Variant = side_quest_state.get("reward_offers", [])
-	if typeof(reward_offers_variant) == TYPE_ARRAY:
-		for offer_variant in reward_offers_variant:
-			if typeof(offer_variant) != TYPE_DICTIONARY:
-				continue
-			var offer: Dictionary = offer_variant
-			var effect_type: String = String(offer.get("effect_type", "")).strip_edges()
-			if effect_type.is_empty():
-				effect_type = "claim_side_mission_reward"
-			var offer_id: String = String(offer.get("offer_id", "")).strip_edges()
-			if offer_id.is_empty():
-				offer_id = "claim_reward"
-			match effect_type:
-				"grant_gold":
-					var gold_amount: int = max(1, int(offer.get("amount", 0)))
-					reward_offers.append({
-						"offer_id": offer_id if offer_id != "claim_reward" else "claim_gold_%d" % gold_amount,
-						"label": String(offer.get("label", "")).strip_edges(),
-						"effect_type": "grant_gold",
-						"amount": gold_amount,
-						"available": bool(offer.get("available", true)),
-					})
-				"grant_item", "claim_side_mission_reward":
-					var inventory_family: String = String(offer.get("inventory_family", "")).strip_edges()
-					if not _side_quest_reward_inventory_family_is_supported(inventory_family):
-						continue
-					var definition_id: String = String(offer.get("definition_id", "")).strip_edges()
-					if definition_id.is_empty():
-						continue
-					var normalized_offer: Dictionary = {
-						"offer_id": offer_id if offer_id != "claim_reward" else "claim_%s" % definition_id,
-						"label": String(offer.get("label", "")).strip_edges(),
-						"effect_type": "claim_side_mission_reward",
-						"inventory_family": inventory_family,
-						"definition_id": definition_id,
-						"available": bool(offer.get("available", true)),
-					}
-					if inventory_family == InventoryState.INVENTORY_FAMILY_CONSUMABLE:
-						normalized_offer["amount"] = max(1, int(offer.get("amount", 1)))
-					reward_offers.append(normalized_offer)
-	return normalized_state.merged({
-		"reward_offers": reward_offers,
-	}, true)
-
-
-func _side_quest_reward_inventory_family_is_supported(inventory_family: String) -> bool:
-	return inventory_family in [
-		InventoryState.INVENTORY_FAMILY_WEAPON,
-		InventoryState.INVENTORY_FAMILY_SHIELD,
-		InventoryState.INVENTORY_FAMILY_ARMOR,
-		InventoryState.INVENTORY_FAMILY_BELT,
-		InventoryState.INVENTORY_FAMILY_PASSIVE,
-		InventoryState.INVENTORY_FAMILY_SHIELD_ATTACHMENT,
-		InventoryState.INVENTORY_FAMILY_CONSUMABLE,
-	]
-
-
-func _normalize_side_quest_mission_type(mission_type: String) -> String:
-	if mission_type in [
-		SIDE_QUEST_MISSION_TYPE_HUNT_MARKED_ENEMY,
-		SIDE_QUEST_MISSION_TYPE_DELIVER_SUPPLIES,
-		SIDE_QUEST_MISSION_TYPE_RESCUE_MISSING_SCOUT,
-		SIDE_QUEST_MISSION_TYPE_BRING_PROOF,
-	]:
-		return mission_type
-	return SIDE_QUEST_MISSION_TYPE_HUNT_MARKED_ENEMY
-
-
-func _side_quest_target_family_is_valid(mission_type: String, target_family: String) -> bool:
-	var valid_families: PackedStringArray = PackedStringArray(["combat"])
-	match mission_type:
-		SIDE_QUEST_MISSION_TYPE_DELIVER_SUPPLIES:
-			valid_families = PackedStringArray(["event", "reward", "rest", "merchant", "blacksmith"])
-		SIDE_QUEST_MISSION_TYPE_RESCUE_MISSING_SCOUT, SIDE_QUEST_MISSION_TYPE_BRING_PROOF:
-			valid_families = PackedStringArray(["combat", "event", "reward"])
-	return valid_families.has(target_family)
 
 
 func _sync_boss_gate_state() -> void:
@@ -908,6 +773,7 @@ func _reset_runtime_state() -> void:
 	_node_graph = []
 	_support_node_states = {}
 	_side_mission_node_states = {}
+	_active_topology_blueprint_id = ""
 	_family_budget_slot_reservations = {}
 
 
@@ -934,9 +800,11 @@ func _build_scaffold_graph(template_id: String, stage_index: int) -> Array[Dicti
 		var family_assignments: Dictionary = _build_controlled_scatter_family_assignments(node_adjacency, role_targets, stage_index)
 		var graph: Array[Dictionary] = _build_scatter_graph_payload(node_adjacency, family_assignments)
 		if _validate_scatter_runtime_graph(graph):
+			_active_topology_blueprint_id = String(topology.get("blueprint_id", ""))
 			_family_budget_slot_reservations = _build_family_budget_slot_reservations_from_graph(graph)
 			return graph
 		if _validate_scatter_runtime_graph_min_floor(graph):
+			_active_topology_blueprint_id = String(topology.get("blueprint_id", ""))
 			_family_budget_slot_reservations = _build_family_budget_slot_reservations_from_graph(graph)
 			return graph
 	return _build_scatter_graph_fallback(template_id, stage_index)
@@ -953,9 +821,11 @@ func _build_scatter_graph_fallback(template_id: String, stage_index: int) -> Arr
 			var assignments: Dictionary = _build_controlled_scatter_family_assignments(node_adjacency, role_targets, stage_index)
 			var fallback_graph: Array[Dictionary] = _build_scatter_graph_payload(node_adjacency, assignments)
 			if _validate_scatter_runtime_graph(fallback_graph):
+				_active_topology_blueprint_id = String(topology.get("blueprint_id", ""))
 				_family_budget_slot_reservations = _build_family_budget_slot_reservations_from_graph(fallback_graph)
 				return fallback_graph
 			if _validate_scatter_runtime_graph_min_floor(fallback_graph):
+				_active_topology_blueprint_id = String(topology.get("blueprint_id", ""))
 				_family_budget_slot_reservations = _build_family_budget_slot_reservations_from_graph(fallback_graph)
 				return fallback_graph
 	return []
@@ -1061,27 +931,184 @@ func _validate_scatter_runtime_graph_min_floor(graph: Array[Dictionary], allow_r
 	var reconnect_count: int = _count_scatter_same_depth_reconnects(adjacency_by_node_id, depth_by_node_id)
 	if reconnect_count < 1 and not allow_reconnect_shortfall:
 		return false
+	if reconnect_count > 0 and not _same_depth_reconnects_stay_local(adjacency_by_node_id, depth_by_node_id):
+		return false
 
 	return true
 
 
 func _build_controlled_scatter_topology(template_id: String, attempt_index: int) -> Dictionary:
-	var frontier_tree: Dictionary = _build_controlled_scatter_frontier_tree(template_id, _generation_seed)
+	var blueprint: Dictionary = _select_controlled_scatter_blueprint(template_id, attempt_index, _generation_seed)
+	if blueprint.is_empty():
+		return {}
+	var frontier_tree: Dictionary = _build_controlled_scatter_frontier_tree(blueprint, _generation_seed)
 	var node_adjacency: Dictionary = frontier_tree.get("node_adjacency", {})
 	var branch_node_ids: Array = frontier_tree.get("branch_node_ids", [])
 	if node_adjacency.is_empty() or branch_node_ids.size() != SCATTER_START_BRANCH_COUNT:
 		return {}
 	var depth_by_node_id: Dictionary = _build_scatter_depth_map(node_adjacency)
-	_apply_controlled_scatter_reconnects(node_adjacency, branch_node_ids, depth_by_node_id, template_id, attempt_index, _generation_seed)
-	var role_targets: Dictionary = _reserve_controlled_scatter_role_targets(node_adjacency, branch_node_ids, template_id)
+	_apply_controlled_scatter_reconnects(node_adjacency, branch_node_ids, depth_by_node_id, blueprint, attempt_index, _generation_seed)
+	var role_targets: Dictionary = _reserve_controlled_scatter_role_targets(node_adjacency, branch_node_ids, blueprint)
 	return {
 		"node_adjacency": node_adjacency,
 		"role_targets": role_targets,
+		"blueprint_id": String(blueprint.get("blueprint_id", "")),
 	}
 
 
-func _build_controlled_scatter_frontier_tree(template_id: String, generation_seed: int = DEFAULT_GENERATION_SEED) -> Dictionary:
-	var branch_target_lengths: PackedInt32Array = _frontier_branch_target_lengths(template_id)
+func _select_controlled_scatter_blueprint(template_id: String, attempt_index: int, generation_seed: int = DEFAULT_GENERATION_SEED) -> Dictionary:
+	var blueprint_catalog: Array[Dictionary] = _build_controlled_scatter_blueprint_catalog(template_id)
+	if blueprint_catalog.is_empty():
+		return {}
+	var blueprint_index: int = 0
+	if blueprint_catalog.size() > 1:
+		var selection_seed: String = "%s|blueprint|%d" % [template_id, _normalize_generation_seed(generation_seed)]
+		blueprint_index = (_hash_scatter_seed_string(selection_seed) + max(0, attempt_index)) % blueprint_catalog.size()
+	return (blueprint_catalog[blueprint_index] as Dictionary).duplicate(true)
+
+
+func _build_controlled_scatter_blueprint_catalog(template_id: String) -> Array[Dictionary]:
+	if template_id.find("openfield") != -1:
+		return [
+			_build_controlled_scatter_blueprint(
+				"%s:fan" % template_id,
+				PackedInt32Array([4, 4, 4]),
+				PackedInt32Array([SCATTER_BRANCH_REWARD, SCATTER_BRANCH_COMBAT, SCATTER_BRANCH_SUPPORT]),
+				[
+					{
+						"left_branch_id": SCATTER_BRANCH_COMBAT,
+						"right_branch_id": SCATTER_BRANCH_SUPPORT,
+						"preferred_depth": SCATTER_RECONNECT_DEPTH_LATE,
+					},
+					{
+						"left_branch_id": SCATTER_BRANCH_REWARD,
+						"right_branch_id": SCATTER_BRANCH_SUPPORT,
+						"preferred_depth": SCATTER_RECONNECT_DEPTH_LATE,
+					},
+				],
+				SCATTER_BRANCH_COMBAT
+			),
+			_build_controlled_scatter_blueprint(
+				"%s:lane" % template_id,
+				PackedInt32Array([5, 4, 3]),
+				PackedInt32Array([SCATTER_BRANCH_COMBAT, SCATTER_BRANCH_REWARD, SCATTER_BRANCH_SUPPORT]),
+				[
+					{
+						"left_branch_id": SCATTER_BRANCH_COMBAT,
+						"right_branch_id": SCATTER_BRANCH_REWARD,
+						"preferred_depth": SCATTER_RECONNECT_DEPTH_LATE,
+					},
+					{
+						"left_branch_id": SCATTER_BRANCH_REWARD,
+						"right_branch_id": SCATTER_BRANCH_SUPPORT,
+						"preferred_depth": SCATTER_RECONNECT_DEPTH_MID,
+					},
+				],
+				SCATTER_BRANCH_COMBAT
+			),
+		]
+	if template_id.find("loop") != -1:
+		return [
+			_build_controlled_scatter_blueprint(
+				"%s:return" % template_id,
+				PackedInt32Array([4, 4, 4]),
+				PackedInt32Array([SCATTER_BRANCH_SUPPORT, SCATTER_BRANCH_COMBAT, SCATTER_BRANCH_REWARD]),
+				[
+					{
+						"left_branch_id": SCATTER_BRANCH_COMBAT,
+						"right_branch_id": SCATTER_BRANCH_SUPPORT,
+						"preferred_depth": SCATTER_RECONNECT_DEPTH_LATE,
+					},
+					{
+						"left_branch_id": SCATTER_BRANCH_REWARD,
+						"right_branch_id": SCATTER_BRANCH_SUPPORT,
+						"preferred_depth": SCATTER_RECONNECT_DEPTH_LATE,
+					},
+				],
+				SCATTER_BRANCH_SUPPORT
+			),
+			_build_controlled_scatter_blueprint(
+				"%s:crossback" % template_id,
+				PackedInt32Array([4, 4, 4]),
+				PackedInt32Array([SCATTER_BRANCH_SUPPORT, SCATTER_BRANCH_REWARD, SCATTER_BRANCH_COMBAT]),
+				[
+					{
+						"left_branch_id": SCATTER_BRANCH_COMBAT,
+						"right_branch_id": SCATTER_BRANCH_REWARD,
+						"preferred_depth": SCATTER_RECONNECT_DEPTH_LATE,
+					},
+					{
+						"left_branch_id": SCATTER_BRANCH_SUPPORT,
+						"right_branch_id": SCATTER_BRANCH_REWARD,
+						"preferred_depth": SCATTER_RECONNECT_DEPTH_LATE,
+					},
+				],
+				SCATTER_BRANCH_SUPPORT
+			),
+		]
+	return [
+		_build_controlled_scatter_blueprint(
+			"%s:spine" % template_id,
+			PackedInt32Array([5, 4, 3]),
+			PackedInt32Array([SCATTER_BRANCH_COMBAT, SCATTER_BRANCH_REWARD, SCATTER_BRANCH_SUPPORT]),
+			[
+				{
+					"left_branch_id": SCATTER_BRANCH_COMBAT,
+					"right_branch_id": SCATTER_BRANCH_REWARD,
+					"preferred_depth": SCATTER_RECONNECT_DEPTH_LATE,
+				},
+				{
+					"left_branch_id": SCATTER_BRANCH_REWARD,
+					"right_branch_id": SCATTER_BRANCH_SUPPORT,
+					"preferred_depth": SCATTER_RECONNECT_DEPTH_MID,
+				},
+			],
+			SCATTER_BRANCH_REWARD
+		),
+		_build_controlled_scatter_blueprint(
+			"%s:switchback" % template_id,
+			PackedInt32Array([4, 4, 4]),
+			PackedInt32Array([SCATTER_BRANCH_COMBAT, SCATTER_BRANCH_SUPPORT, SCATTER_BRANCH_REWARD]),
+			[
+				{
+					"left_branch_id": SCATTER_BRANCH_COMBAT,
+					"right_branch_id": SCATTER_BRANCH_REWARD,
+					"preferred_depth": SCATTER_RECONNECT_DEPTH_LATE,
+				},
+				{
+					"left_branch_id": SCATTER_BRANCH_COMBAT,
+					"right_branch_id": SCATTER_BRANCH_SUPPORT,
+					"preferred_depth": SCATTER_RECONNECT_DEPTH_LATE,
+				},
+			],
+			SCATTER_BRANCH_REWARD
+		),
+	]
+
+
+func _build_controlled_scatter_blueprint(
+	blueprint_id: String,
+	branch_target_lengths: PackedInt32Array,
+	branch_priority_order: PackedInt32Array,
+	reconnect_plans: Array,
+	event_branch_id: int
+) -> Dictionary:
+	var normalized_reconnect_plans: Array[Dictionary] = []
+	for reconnect_plan_variant in reconnect_plans:
+		if typeof(reconnect_plan_variant) != TYPE_DICTIONARY:
+			continue
+		normalized_reconnect_plans.append((reconnect_plan_variant as Dictionary).duplicate(true))
+	return {
+		"blueprint_id": blueprint_id,
+		"branch_target_lengths": PackedInt32Array(branch_target_lengths),
+		"branch_priority_order": PackedInt32Array(branch_priority_order),
+		"reconnect_plans": normalized_reconnect_plans,
+		"event_branch_id": event_branch_id,
+	}
+
+
+func _build_controlled_scatter_frontier_tree(blueprint: Dictionary, generation_seed: int = DEFAULT_GENERATION_SEED) -> Dictionary:
+	var branch_target_lengths: PackedInt32Array = _frontier_branch_target_lengths(blueprint)
 	if branch_target_lengths.size() != SCATTER_START_BRANCH_COUNT:
 		return {}
 	var target_node_count: int = SCATTER_START_SPUR_NODE_COUNT
@@ -1089,7 +1116,7 @@ func _build_controlled_scatter_frontier_tree(template_id: String, generation_see
 		target_node_count += int(branch_target_length)
 	if target_node_count != SCATTER_NODE_COUNT - 1:
 		return {}
-	var branch_growth_order: PackedInt32Array = _frontier_branch_growth_order(template_id, branch_target_lengths, generation_seed)
+	var branch_growth_order: PackedInt32Array = _frontier_branch_growth_order(blueprint, branch_target_lengths, generation_seed)
 	var node_adjacency: Dictionary = {}
 	for node_id in range(SCATTER_NODE_COUNT):
 		node_adjacency[node_id] = []
@@ -1124,10 +1151,14 @@ func _build_controlled_scatter_frontier_tree(template_id: String, generation_see
 		"node_adjacency": node_adjacency,
 		"branch_node_ids": branch_node_ids,
 	}
-func _frontier_branch_target_lengths(_template_id: String) -> PackedInt32Array:
-	return PackedInt32Array([4, 4, 4])
-func _frontier_branch_growth_order(template_id: String, branch_target_lengths: PackedInt32Array, generation_seed: int = DEFAULT_GENERATION_SEED) -> PackedInt32Array:
-	var priority_order: PackedInt32Array = _frontier_branch_priority_order(template_id, generation_seed)
+
+
+func _frontier_branch_target_lengths(blueprint: Dictionary) -> PackedInt32Array:
+	return _coerce_adjacent_ids(blueprint.get("branch_target_lengths", PackedInt32Array()))
+
+
+func _frontier_branch_growth_order(blueprint: Dictionary, branch_target_lengths: PackedInt32Array, generation_seed: int = DEFAULT_GENERATION_SEED) -> PackedInt32Array:
+	var priority_order: PackedInt32Array = _frontier_branch_priority_order(blueprint, generation_seed)
 	var branch_current_lengths: PackedInt32Array = PackedInt32Array([1, 1, 1])
 	var growth_order: PackedInt32Array = PackedInt32Array()
 	var required_growth_steps: int = 0
@@ -1148,16 +1179,24 @@ func _frontier_branch_growth_order(template_id: String, branch_target_lengths: P
 		if not added_this_round:
 			break
 	return growth_order
-func _frontier_branch_priority_order(template_id: String, generation_seed: int = DEFAULT_GENERATION_SEED) -> PackedInt32Array:
-	var base_order: PackedInt32Array = PackedInt32Array([SCATTER_BRANCH_COMBAT, SCATTER_BRANCH_SUPPORT, SCATTER_BRANCH_REWARD])
-	if template_id.find("openfield") != -1:
-		base_order = PackedInt32Array([SCATTER_BRANCH_REWARD, SCATTER_BRANCH_COMBAT, SCATTER_BRANCH_SUPPORT])
-	elif template_id.find("loop") != -1:
-		base_order = PackedInt32Array([SCATTER_BRANCH_SUPPORT, SCATTER_BRANCH_COMBAT, SCATTER_BRANCH_REWARD])
+
+
+func _frontier_branch_priority_order(blueprint: Dictionary, generation_seed: int = DEFAULT_GENERATION_SEED) -> PackedInt32Array:
+	var base_order: PackedInt32Array = _coerce_adjacent_ids(
+		blueprint.get(
+			"branch_priority_order",
+			PackedInt32Array([SCATTER_BRANCH_COMBAT, SCATTER_BRANCH_SUPPORT, SCATTER_BRANCH_REWARD])
+		)
+	)
+	if base_order.size() != SCATTER_START_BRANCH_COUNT:
+		base_order = PackedInt32Array([SCATTER_BRANCH_COMBAT, SCATTER_BRANCH_SUPPORT, SCATTER_BRANCH_REWARD])
+	var blueprint_id: String = String(blueprint.get("blueprint_id", ""))
 	var rotation_offset: int = 0
-	if base_order.size() > 1:
-		rotation_offset = _hash_scatter_seed_string("%s|branch-priority|%d" % [template_id, _normalize_generation_seed(generation_seed)]) % base_order.size()
+	if base_order.size() > 1 and not blueprint_id.is_empty():
+		rotation_offset = _hash_scatter_seed_string("%s|branch-priority|%d" % [blueprint_id, _normalize_generation_seed(generation_seed)]) % base_order.size()
 	return _rotate_packed_int32_array(base_order, rotation_offset)
+
+
 func _rotate_packed_int32_array(values: PackedInt32Array, rotation_offset: int) -> PackedInt32Array:
 	if values.is_empty():
 		return PackedInt32Array()
@@ -1171,15 +1210,16 @@ func _apply_controlled_scatter_reconnects(
 	node_adjacency: Dictionary,
 	branch_node_ids: Array,
 	depth_by_node_id: Dictionary,
-	template_id: String,
+	blueprint: Dictionary,
 	attempt_index: int,
 	generation_seed: int = DEFAULT_GENERATION_SEED
 ) -> void:
-	var reconnect_plans: Array = _scatter_reconnect_plans(template_id)
+	var reconnect_plans: Array = _scatter_reconnect_plans(blueprint)
 	var applied_count: int = 0
 	var plan_offset: int = 0
 	if reconnect_plans.size() > 0:
-		var generation_offset: int = _hash_scatter_seed_string("%s|reconnect|%d" % [template_id, _normalize_generation_seed(generation_seed)]) % reconnect_plans.size()
+		var blueprint_id: String = String(blueprint.get("blueprint_id", ""))
+		var generation_offset: int = _hash_scatter_seed_string("%s|reconnect|%d" % [blueprint_id, _normalize_generation_seed(generation_seed)]) % reconnect_plans.size()
 		plan_offset = (attempt_index + generation_offset) % reconnect_plans.size()
 	for plan_index in range(reconnect_plans.size()):
 		var rotated_index: int = (plan_index + plan_offset) % reconnect_plans.size()
@@ -1196,45 +1236,16 @@ func _apply_controlled_scatter_reconnects(
 			break
 
 
-func _scatter_reconnect_plans(template_id: String) -> Array:
-	if template_id.find("openfield") != -1:
-		return [
-			{
-				"left_branch_id": SCATTER_BRANCH_COMBAT,
-				"right_branch_id": SCATTER_BRANCH_SUPPORT,
-				"preferred_depth": SCATTER_RECONNECT_DEPTH_LATE,
-			},
-			{
-				"left_branch_id": SCATTER_BRANCH_REWARD,
-				"right_branch_id": SCATTER_BRANCH_SUPPORT,
-				"preferred_depth": SCATTER_RECONNECT_DEPTH_LATE,
-			},
-		]
-	if template_id.find("loop") != -1:
-		return [
-			{
-				"left_branch_id": SCATTER_BRANCH_COMBAT,
-				"right_branch_id": SCATTER_BRANCH_REWARD,
-				"preferred_depth": SCATTER_RECONNECT_DEPTH_LATE,
-			},
-			{
-				"left_branch_id": SCATTER_BRANCH_COMBAT,
-				"right_branch_id": SCATTER_BRANCH_SUPPORT,
-				"preferred_depth": SCATTER_RECONNECT_DEPTH_LATE,
-			},
-		]
-	return [
-		{
-			"left_branch_id": SCATTER_BRANCH_COMBAT,
-			"right_branch_id": SCATTER_BRANCH_REWARD,
-			"preferred_depth": SCATTER_RECONNECT_DEPTH_LATE,
-		},
-		{
-			"left_branch_id": SCATTER_BRANCH_COMBAT,
-			"right_branch_id": SCATTER_BRANCH_SUPPORT,
-			"preferred_depth": SCATTER_RECONNECT_DEPTH_LATE,
-		},
-	]
+func _scatter_reconnect_plans(blueprint: Dictionary) -> Array:
+	var reconnect_plans_variant: Variant = blueprint.get("reconnect_plans", [])
+	var reconnect_plans: Array = []
+	if typeof(reconnect_plans_variant) != TYPE_ARRAY:
+		return reconnect_plans
+	for reconnect_plan_variant in reconnect_plans_variant:
+		if typeof(reconnect_plan_variant) != TYPE_DICTIONARY:
+			continue
+		reconnect_plans.append((reconnect_plan_variant as Dictionary).duplicate(true))
+	return reconnect_plans
 
 
 func _pick_controlled_reconnect_edge(
@@ -1268,7 +1279,8 @@ func _pick_controlled_reconnect_edge(
 				continue
 			if left_depth != right_depth:
 				continue
-			if _build_scatter_path_length(node_adjacency, left_node_id, right_node_id) < 3:
+			var reconnect_path_length: int = _build_scatter_path_length(node_adjacency, left_node_id, right_node_id)
+			if reconnect_path_length < SCATTER_MIN_RECONNECT_PATH_LENGTH or reconnect_path_length > SCATTER_MAX_RECONNECT_PATH_LENGTH:
 				continue
 			return [left_node_id, right_node_id]
 	return []
@@ -1289,7 +1301,7 @@ func _preferred_reconnect_candidates(branch_nodes: Array, depth_by_node_id: Dict
 	return candidates
 
 
-func _reserve_controlled_scatter_role_targets(node_adjacency: Dictionary, branch_node_ids: Array, template_id: String) -> Dictionary:
+func _reserve_controlled_scatter_role_targets(node_adjacency: Dictionary, branch_node_ids: Array, blueprint: Dictionary) -> Dictionary:
 	if branch_node_ids.size() != SCATTER_START_BRANCH_COUNT:
 		return {}
 	var opening_combat_id: int = _branch_role_node_id(branch_node_ids, SCATTER_BRANCH_COMBAT, 0)
@@ -1299,7 +1311,7 @@ func _reserve_controlled_scatter_role_targets(node_adjacency: Dictionary, branch
 	var boss_node_id: int = _branch_role_node_id(branch_node_ids, SCATTER_BRANCH_COMBAT, -1)
 	var key_node_id: int = _branch_role_node_id(branch_node_ids, SCATTER_BRANCH_REWARD, -1)
 	var side_mission_node_id: int = _branch_role_node_id(branch_node_ids, SCATTER_BRANCH_SUPPORT, -1)
-	var event_node_id: int = _reserve_event_slot_node_id(node_adjacency, branch_node_ids, template_id)
+	var event_node_id: int = _reserve_event_slot_node_id(node_adjacency, branch_node_ids, blueprint)
 	return {
 		SCATTER_ROLE_OPENING_COMBAT: opening_combat_id,
 		SCATTER_ROLE_OPENING_REWARD: opening_reward_id,
@@ -1312,12 +1324,8 @@ func _reserve_controlled_scatter_role_targets(node_adjacency: Dictionary, branch
 	}
 
 
-func _reserve_event_slot_node_id(node_adjacency: Dictionary, branch_node_ids: Array, template_id: String) -> int:
-	var event_branch_id: int = SCATTER_BRANCH_REWARD
-	if template_id.find("openfield") != -1:
-		event_branch_id = SCATTER_BRANCH_COMBAT
-	elif template_id.find("loop") != -1:
-		event_branch_id = SCATTER_BRANCH_SUPPORT
+func _reserve_event_slot_node_id(node_adjacency: Dictionary, branch_node_ids: Array, blueprint: Dictionary) -> int:
+	var event_branch_id: int = int(blueprint.get("event_branch_id", SCATTER_BRANCH_REWARD))
 	var branch_nodes: Array = branch_node_ids[event_branch_id] as Array
 	var last_index: int = branch_nodes.size() - 2
 	while last_index >= 1:
@@ -1375,7 +1383,10 @@ func _validate_controlled_scatter_topology(node_adjacency: Dictionary, role_targ
 	var reconnect_edge_count: int = _count_scatter_extra_edges(node_adjacency)
 	if reconnect_edge_count < SCATTER_MIN_RECONNECT_EDGE_COUNT or reconnect_edge_count > SCATTER_MAX_RECONNECT_EDGE_COUNT:
 		return false
-	if _count_scatter_same_depth_reconnects(node_adjacency, _build_scatter_depth_map(node_adjacency)) < 1:
+	var depth_by_node_id: Dictionary = _build_scatter_depth_map(node_adjacency)
+	if _count_scatter_same_depth_reconnects(node_adjacency, depth_by_node_id) < 1:
+		return false
+	if not _same_depth_reconnects_stay_local(node_adjacency, depth_by_node_id):
 		return false
 	return true
 
@@ -1787,6 +1798,92 @@ func _filter_nodes_away_from_role_branches(node_ids: Array[int], analysis: Dicti
 	return filtered_node_ids
 
 
+func _constrained_scatter_role_shortlist_limit(role_name: String) -> int:
+	match role_name:
+		SCATTER_ROLE_SIDE_MISSION, SCATTER_ROLE_EVENT:
+			return PLACEMENT_SHORTLIST_DETOUR_LIMIT
+		SCATTER_ROLE_BOSS, SCATTER_ROLE_KEY:
+			return 2
+	return PLACEMENT_SHORTLIST_STANDARD_LIMIT
+
+
+func _constrained_scatter_role_score_window(role_name: String) -> float:
+	match role_name:
+		SCATTER_ROLE_BOSS, SCATTER_ROLE_KEY:
+			return PLACEMENT_SHORTLIST_NARROW_SCORE_WINDOW
+		SCATTER_ROLE_SIDE_MISSION, SCATTER_ROLE_EVENT:
+			return PLACEMENT_SHORTLIST_WIDE_SCORE_WINDOW
+	return PLACEMENT_SHORTLIST_STANDARD_SCORE_WINDOW
+
+
+func _build_constrained_scatter_role_shortlist(scored_candidates: Array[Dictionary], role_name: String) -> Array[Dictionary]:
+	var shortlist: Array[Dictionary] = []
+	if scored_candidates.is_empty():
+		return shortlist
+	var best_score: float = float(scored_candidates[0].get("score", -INF))
+	var shortlist_limit: int = _constrained_scatter_role_shortlist_limit(role_name)
+	var score_window: float = _constrained_scatter_role_score_window(role_name)
+	for scored_candidate in scored_candidates:
+		if shortlist.size() >= shortlist_limit:
+			break
+		var score: float = float(scored_candidate.get("score", -INF))
+		if score + score_window < best_score:
+			break
+		shortlist.append((scored_candidate as Dictionary).duplicate(true))
+	if shortlist.is_empty():
+		shortlist.append((scored_candidates[0] as Dictionary).duplicate(true))
+	return shortlist
+
+
+func _build_scatter_role_assignment_signature(role_assignments: Dictionary) -> String:
+	if role_assignments.is_empty():
+		return "none"
+	var ordered_role_names: Array[String] = []
+	for role_name_variant in role_assignments.keys():
+		ordered_role_names.append(String(role_name_variant))
+	ordered_role_names.sort()
+	var fragments: PackedStringArray = []
+	for role_name in ordered_role_names:
+		fragments.append("%s:%d" % [role_name, int(role_assignments.get(role_name, NO_PENDING_NODE_ID))])
+	return "|".join(fragments)
+
+
+func _build_scatter_role_selection_roll(role_name: String, analysis: Dictionary, role_assignments: Dictionary) -> float:
+	var placement_seed: int = int(analysis.get("placement_seed", 1))
+	var roll_hash: int = _hash_scatter_seed_string("%d|%s|%s" % [
+		placement_seed,
+		role_name,
+		_build_scatter_role_assignment_signature(role_assignments),
+	])
+	return float(roll_hash % 1000000) / 1000000.0
+
+
+func _pick_constrained_scatter_role_candidate(shortlist: Array[Dictionary], role_name: String, analysis: Dictionary, role_assignments: Dictionary) -> int:
+	if shortlist.is_empty():
+		return NO_PENDING_NODE_ID
+	if shortlist.size() == 1:
+		return int(shortlist[0].get("node_id", NO_PENDING_NODE_ID))
+	var lowest_score: float = INF
+	for scored_candidate in shortlist:
+		lowest_score = min(lowest_score, float(scored_candidate.get("score", INF)))
+	var candidate_weights: Array[float] = []
+	var total_weight: float = 0.0
+	for shortlist_index in range(shortlist.size()):
+		var scored_candidate: Dictionary = shortlist[shortlist_index]
+		var score: float = float(scored_candidate.get("score", lowest_score))
+		var weight: float = max(0.25, (score - lowest_score) + 1.0)
+		weight += float(shortlist.size() - shortlist_index) * 0.35
+		candidate_weights.append(weight)
+		total_weight += weight
+	var selection_value: float = _build_scatter_role_selection_roll(role_name, analysis, role_assignments) * total_weight
+	var cumulative_weight: float = 0.0
+	for shortlist_index in range(shortlist.size()):
+		cumulative_weight += float(candidate_weights[shortlist_index])
+		if selection_value <= cumulative_weight + 0.0001:
+			return int((shortlist[shortlist_index] as Dictionary).get("node_id", NO_PENDING_NODE_ID))
+	return int((shortlist[shortlist.size() - 1] as Dictionary).get("node_id", NO_PENDING_NODE_ID))
+
+
 func _pick_best_scatter_role_candidate(
 	candidate_node_ids: Array[int],
 	node_adjacency: Dictionary,
@@ -1794,23 +1891,26 @@ func _pick_best_scatter_role_candidate(
 	role_name: String,
 	role_assignments: Dictionary
 ) -> int:
-	var best_node_id: int = NO_PENDING_NODE_ID
-	var best_score: float = -INF
-	var best_tiebreak: float = -INF
+	var scored_candidates: Array[Dictionary] = []
 	for node_id in candidate_node_ids:
 		var score: float = _score_scatter_role_candidate(node_id, node_adjacency, analysis, role_name, role_assignments)
 		var tiebreak_value: float = _role_tiebreak_value(role_name, node_id, analysis)
-		if score > best_score + 0.0001:
-			best_node_id = node_id
-			best_score = score
-			best_tiebreak = tiebreak_value
-			continue
-		if abs(score - best_score) > 0.0001:
-			continue
-		if tiebreak_value > best_tiebreak:
-			best_node_id = node_id
-			best_tiebreak = tiebreak_value
-	return best_node_id
+		scored_candidates.append({
+			"node_id": node_id,
+			"score": score,
+			"tiebreak": tiebreak_value,
+		})
+	if scored_candidates.is_empty():
+		return NO_PENDING_NODE_ID
+	scored_candidates.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
+		var left_score: float = float(left.get("score", -INF))
+		var right_score: float = float(right.get("score", -INF))
+		if abs(left_score - right_score) <= 0.0001:
+			return float(left.get("tiebreak", -INF)) > float(right.get("tiebreak", -INF))
+		return left_score > right_score
+	)
+	var shortlist: Array[Dictionary] = _build_constrained_scatter_role_shortlist(scored_candidates, role_name)
+	return _pick_constrained_scatter_role_candidate(shortlist, role_name, analysis, role_assignments)
 
 
 func _score_scatter_role_candidate(
@@ -1900,6 +2000,7 @@ func _score_scatter_role_candidate(
 		SCATTER_ROLE_SIDE_MISSION:
 			var boss_branch_root_for_side: int = int(branch_root_by_node_id.get(int(role_assignments.get(SCATTER_ROLE_BOSS, NO_PENDING_NODE_ID)), NO_PENDING_NODE_ID))
 			var key_branch_root_for_side: int = int(branch_root_by_node_id.get(int(role_assignments.get(SCATTER_ROLE_KEY, NO_PENDING_NODE_ID)), NO_PENDING_NODE_ID))
+			var opening_support_branch_root_for_side: int = int(branch_root_by_node_id.get(int(role_assignments.get(SCATTER_ROLE_OPENING_SUPPORT, NO_PENDING_NODE_ID)), NO_PENDING_NODE_ID))
 			var side_mission_score: float = optional_detour_score * 6.0
 			side_mission_score += float(depth) * 2.0
 			side_mission_score += frontier_score * 1.5
@@ -1908,18 +2009,26 @@ func _score_scatter_role_candidate(
 				side_mission_score += PLACEMENT_SCORE_MEDIUM_BONUS
 			if branch_root != key_branch_root_for_side:
 				side_mission_score += PLACEMENT_SCORE_LIGHT_BONUS
+			if branch_root != opening_support_branch_root_for_side:
+				side_mission_score += PLACEMENT_SCORE_LIGHT_BONUS
 			if node_id == reserved_node_id:
 				side_mission_score += PLACEMENT_SCORE_LIGHT_BONUS
 			return side_mission_score
 		SCATTER_ROLE_EVENT:
 			var boss_branch_root_for_event: int = int(branch_root_by_node_id.get(int(role_assignments.get(SCATTER_ROLE_BOSS, NO_PENDING_NODE_ID)), NO_PENDING_NODE_ID))
 			var key_branch_root_for_event: int = int(branch_root_by_node_id.get(int(role_assignments.get(SCATTER_ROLE_KEY, NO_PENDING_NODE_ID)), NO_PENDING_NODE_ID))
+			var opening_support_branch_root_for_event: int = int(branch_root_by_node_id.get(int(role_assignments.get(SCATTER_ROLE_OPENING_SUPPORT, NO_PENDING_NODE_ID)), NO_PENDING_NODE_ID))
+			var side_mission_branch_root_for_event: int = int(branch_root_by_node_id.get(int(role_assignments.get(SCATTER_ROLE_SIDE_MISSION, NO_PENDING_NODE_ID)), NO_PENDING_NODE_ID))
 			var event_score: float = connector_score * 6.0
 			event_score += _target_proximity_score(depth, min(int(analysis.get("max_depth", depth)), PLACEMENT_EVENT_TARGET_DEPTH), 4.0)
 			event_score -= frontier_score * 1.5
 			if branch_root != boss_branch_root_for_event:
 				event_score += PLACEMENT_SCORE_LIGHT_BONUS
 			if branch_root != key_branch_root_for_event:
+				event_score += PLACEMENT_SCORE_LIGHT_BONUS
+			if branch_root != opening_support_branch_root_for_event:
+				event_score += PLACEMENT_SCORE_LIGHT_BONUS
+			if side_mission_branch_root_for_event != NO_PENDING_NODE_ID and branch_root != side_mission_branch_root_for_event:
 				event_score += PLACEMENT_SCORE_LIGHT_BONUS
 			if node_id == reserved_node_id:
 				event_score += PLACEMENT_SCORE_LIGHT_BONUS
@@ -2081,8 +2190,71 @@ func _build_scatter_path_length(node_adjacency: Dictionary, start_node_id: int, 
 	return MapScatterGraphToolsScript.build_path_length(node_adjacency, start_node_id, target_node_id)
 
 
+func _build_scatter_path_length_without_edge(
+	node_adjacency: Dictionary,
+	start_node_id: int,
+	target_node_id: int,
+	ignored_left_id: int,
+	ignored_right_id: int
+) -> int:
+	if start_node_id == target_node_id:
+		return 0
+	if not node_adjacency.has(start_node_id) or not node_adjacency.has(target_node_id):
+		return -1
+
+	var visited: Dictionary = {start_node_id: true}
+	var queue: Array[Dictionary] = [{"node_id": start_node_id, "distance": 0}]
+	while not queue.is_empty():
+		var entry: Dictionary = queue.pop_front()
+		var node_id: int = int(entry.get("node_id", -1))
+		var distance: int = int(entry.get("distance", 0))
+		for adjacent_node_id in _coerce_adjacent_ids(node_adjacency.get(node_id, PackedInt32Array())):
+			var resolved_adjacent_node_id: int = int(adjacent_node_id)
+			var ignores_active_edge: bool = (
+				(node_id == ignored_left_id and resolved_adjacent_node_id == ignored_right_id)
+				or (node_id == ignored_right_id and resolved_adjacent_node_id == ignored_left_id)
+			)
+			if ignores_active_edge:
+				continue
+			if resolved_adjacent_node_id == target_node_id:
+				return distance + 1
+			if visited.has(resolved_adjacent_node_id):
+				continue
+			visited[resolved_adjacent_node_id] = true
+			queue.append({
+				"node_id": resolved_adjacent_node_id,
+				"distance": distance + 1,
+			})
+	return -1
+
+
 func _count_scatter_same_depth_reconnects(adjacency_by_node_id: Dictionary, depth_by_node_id: Dictionary) -> int:
 	return MapScatterGraphToolsScript.count_same_depth_reconnects(adjacency_by_node_id, depth_by_node_id)
+
+
+func _same_depth_reconnects_stay_local(node_adjacency: Dictionary, depth_by_node_id: Dictionary) -> bool:
+	var seen_edges: Dictionary = {}
+	for node_id_variant in node_adjacency.keys():
+		var node_id: int = int(node_id_variant)
+		var node_depth: int = int(depth_by_node_id.get(node_id, -1))
+		for adjacent_node_id in _coerce_adjacent_ids(node_adjacency.get(node_id, PackedInt32Array())):
+			var resolved_adjacent_node_id: int = int(adjacent_node_id)
+			var adjacent_depth: int = int(depth_by_node_id.get(resolved_adjacent_node_id, -1))
+			var left_id: int = min(node_id, resolved_adjacent_node_id)
+			var right_id: int = max(node_id, resolved_adjacent_node_id)
+			var edge_key: String = "%d:%d" % [left_id, right_id]
+			if seen_edges.has(edge_key):
+				continue
+			seen_edges[edge_key] = true
+			if node_depth < 2 or adjacent_depth < 2 or node_depth != adjacent_depth:
+				continue
+			var reconnect_path_length: int = _build_scatter_path_length_without_edge(node_adjacency, left_id, right_id, left_id, right_id)
+			if reconnect_path_length < SCATTER_MIN_RECONNECT_PATH_LENGTH:
+				return false
+			if reconnect_path_length > SCATTER_MAX_RECONNECT_PATH_LENGTH:
+				return false
+	return true
+
 
 func _count_scatter_extra_edges(node_adjacency: Dictionary) -> int:
 	return MapScatterGraphToolsScript.count_extra_edges(node_adjacency, SCATTER_NODE_COUNT)
@@ -2252,6 +2424,8 @@ func _validate_scatter_runtime_graph(graph: Array[Dictionary]) -> bool:
 	if _count_scatter_same_depth_reconnects(adjacency_by_node_id, depth_by_node_id) < 1:
 		# Keep at least one late reconnect so the graph does not collapse into a pure tree.
 		return false
+	if not _same_depth_reconnects_stay_local(adjacency_by_node_id, depth_by_node_id):
+		return false
 
 	return true
 
@@ -2276,4 +2450,3 @@ func _resolve_stage_support_layout(stage_index: int) -> Dictionary:
 		}
 	var stage_offset: int = max(0, stage_index - 1)
 	return (STAGE_SUPPORT_LAYOUTS[stage_offset % STAGE_SUPPORT_LAYOUTS.size()] as Dictionary).duplicate(true)
-

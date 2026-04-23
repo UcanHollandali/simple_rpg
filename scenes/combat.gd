@@ -4,10 +4,14 @@ extends Control
 const AppBootstrapScript = preload("res://Game/Application/app_bootstrap.gd")
 const FlowStateScript = preload("res://Game/Application/flow_state.gd")
 const CombatFlowScript = preload("res://Game/Application/combat_flow.gd")
+const InventoryStateScript = preload("res://Game/RuntimeState/inventory_state.gd")
 const CombatPresenterScript = preload("res://Game/UI/combat_presenter.gd")
 const CombatSceneUiScript = preload("res://Game/UI/combat_scene_ui.gd")
 const CombatSceneShellScript = preload("res://Game/UI/combat_scene_shell.gd")
+const CombatGuardBadgeScript = preload("res://Game/UI/combat_guard_badge.gd")
+const CombatEnemyIntentBustVisualsScript = preload("res://Game/UI/combat_enemy_intent_bust_visuals.gd")
 const CombatFeedbackLaneScript = preload("res://Game/UI/combat_feedback_lane.gd")
+const HungerWarningToastScript = preload("res://Game/UI/hunger_warning_toast.gd")
 const ActionHintControllerScript = preload("res://Game/UI/action_hint_controller.gd")
 const RunInventoryPanelScript = preload("res://Game/UI/run_inventory_panel.gd")
 const RunMenuSceneHelperScript = preload("res://Game/UI/run_menu_scene_helper.gd")
@@ -29,12 +33,17 @@ const COMBAT_HEADER_STACK_PATH := "Margin/VBox/HeaderStack"
 const PLAYER_INFO_VBOX_PATH := "Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox"
 const PLAYER_RUN_SUMMARY_CARD_PATH := "Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/PlayerRunSummaryCard"
 const PLAYER_RUN_SUMMARY_LABEL_PATH := "Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/PlayerRunSummaryCard/PlayerRunSummaryFallbackLabel"
-const PLAYER_GUARD_BADGE_PANEL_NAME := "PlayerGuardBadgePanel"
-const PLAYER_GUARD_BADGE_LABEL_NAME := "PlayerGuardBadgeLabel"
-const HUNGER_WARNING_PANEL_NAME := "HungerWarningToast"
-const HUNGER_WARNING_LABEL_NAME := "HungerWarningLabel"
 const ATTACK_BUTTON_PATH := "Margin/VBox/Buttons/ActionCardsRow/AttackActionCard/AttackActionVBox/AttackButton"
 const DEFENSE_BUTTON_PATH := "Margin/VBox/Buttons/ActionCardsRow/DefenseActionCard/DefenseActionVBox/DefenseActionButton"
+const TECHNIQUE_ACTION_CARD_PATH := "Margin/VBox/Buttons/ActionCardsRow/TechniqueActionCard"
+const TECHNIQUE_BUTTON_PATH := "Margin/VBox/Buttons/ActionCardsRow/TechniqueActionCard/TechniqueActionVBox/TechniqueActionButton"
+const HAND_SWAP_PANEL_PATH := "QuickItemSection/HandSwapPanel"
+const HAND_SWAP_TITLE_PATH := "QuickItemSection/HandSwapPanel/HandSwapVBox/HandSwapTitleLabel"
+const HAND_SWAP_HINT_PATH := "QuickItemSection/HandSwapPanel/HandSwapVBox/HandSwapHintLabel"
+const HAND_SWAP_SLOT_BUTTONS_ROW_PATH := "QuickItemSection/HandSwapPanel/HandSwapVBox/HandSwapSlotButtonsRow"
+const RIGHT_HAND_SWAP_BUTTON_PATH := "QuickItemSection/HandSwapPanel/HandSwapVBox/HandSwapSlotButtonsRow/RightHandSwapButton"
+const LEFT_HAND_SWAP_BUTTON_PATH := "QuickItemSection/HandSwapPanel/HandSwapVBox/HandSwapSlotButtonsRow/LeftHandSwapButton"
+const HAND_SWAP_CANDIDATES_FLOW_PATH := "QuickItemSection/HandSwapPanel/HandSwapVBox/HandSwapCandidatesFlow"
 const COMBAT_LOG_TITLE_PATH := "CombatLogCard/CombatLogVBox/CombatLogTitleLabel"
 const COMBAT_LOG_ENTRIES_PATH := "CombatLogCard/CombatLogVBox/CombatLogEntries"
 const LOG_TONE_PLAYER := "player"
@@ -45,16 +54,11 @@ const ENEMY_HP_BAR_NAME := "EnemyHpBar"
 const BAR_TWEEN_META_KEY := "bar_tween"
 const BAR_INITIALIZED_META_KEY := "bar_initialized"
 const ACTION_BUTTON_TWEEN_META_KEY := "action_button_tween"
-const PLAYER_GUARD_BADGE_TWEEN_META_KEY := "player_guard_badge_tween"
 const HUNGER_WARNING_Z_INDEX := 125
-const HUNGER_WARNING_SHOW_DURATION := 2.0
-const HUNGER_WARNING_MARGIN := 16.0
-const HUNGER_WARNING_TOP_GAP := 12.0
 const BUTTON_BOUNCE_DOWN_DURATION := 0.1
 const BUTTON_BOUNCE_UP_DURATION := 0.08
 const BAR_TWEEN_MIN_DURATION := 0.18
 const BAR_TWEEN_MAX_DURATION := 0.3
-
 var _combat_flow: CombatFlow
 var _presenter: RefCounted
 var _run_inventory_panel: RunInventoryPanel
@@ -64,32 +68,29 @@ var _status_line_tones: PackedStringArray = []
 var _transition_requested: bool = false
 var _feedback_lane: CombatFeedbackLane
 var _action_hint_controller: ActionHintController
-var _player_guard_badge_panel: PanelContainer
-var _player_guard_badge_label: Label
+var _player_guard_badge: CombatGuardBadge
+var _enemy_intent_bust_visuals: CombatEnemyIntentBustVisuals
 var _selected_consumable_slot_index: int = -1
 var _pending_phase_feedback_models: Array[Dictionary] = []
 var _is_compact_layout: bool = false
-var _last_rendered_guard: int = -1
 var _guard_before_turn_end_phase: int = -1
+var _selected_hand_swap_slot_name: String = ""
 var _run_status_strip: RunStatusStrip
 var _safe_menu: SafeMenuOverlay
-var _hunger_warning_panel: PanelContainer
-var _hunger_warning_label: Label
-var _hunger_warning_tween: Tween
+var _hunger_warning_toast: HungerWarningToast
 var _first_run_hint_controller: FirstRunHintController
 var _scene_node_cache: Dictionary = {}
-
 @onready var _root_vbox: Control = _scene_node("Margin/VBox") as Control
 @onready var _combat_secondary_scroll_content: Control = _scene_node(COMBAT_SECONDARY_SCROLL_CONTENT_PATH) as Control
 @onready var _header_stack: Control = _scene_node(COMBAT_HEADER_STACK_PATH) as Control
 @onready var _turn_label: Label = _scene_node("Margin/VBox/HeaderStack/TurnLabel") as Label
 @onready var _attack_button: Button = _scene_node(ATTACK_BUTTON_PATH) as Button
 @onready var _defense_button: Button = _scene_node(DEFENSE_BUTTON_PATH) as Button
+@onready var _technique_button: Button = _scene_node(TECHNIQUE_BUTTON_PATH) as Button
 @onready var _enemy_hp_bar: ProgressBar = _scene_node("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/%s" % ENEMY_HP_BAR_NAME) as ProgressBar
 @onready var _player_info_vbox: VBoxContainer = _scene_node(PLAYER_INFO_VBOX_PATH) as VBoxContainer
 @onready var _player_run_summary_card: PanelContainer = _scene_node(PLAYER_RUN_SUMMARY_CARD_PATH) as PanelContainer
 @onready var _player_run_summary_label: Label = _scene_node(PLAYER_RUN_SUMMARY_LABEL_PATH) as Label
-
 
 func _ready() -> void:
 	_scene_node_cache.clear()
@@ -109,6 +110,9 @@ func _ready() -> void:
 		action_hint_controls.get("label") as Label
 	)
 	_ensure_player_guard_badge()
+	_enemy_intent_bust_visuals = CombatEnemyIntentBustVisualsScript.new()
+	_enemy_intent_bust_visuals.configure(self, Callable(self, "_scene_node"))
+	_enemy_intent_bust_visuals.ensure_badge(_is_compact_layout)
 	_ensure_hunger_warning_toast()
 	_presenter = CombatPresenterScript.new()
 	_run_status_strip = RunStatusStripScript.new()
@@ -131,6 +135,7 @@ func _ready() -> void:
 	_run_inventory_panel.set_interaction_mode("combat")
 	SceneAudioPlayersScript.configure_from_config(self, AUDIO_PLAYER_CONFIG)
 	_apply_temp_theme()
+	_apply_hand_swap_panel_style()
 	_setup_safe_menu()
 	SceneLayoutHelperScript.bind_viewport_size_changed(self, Callable(self, "_on_viewport_size_changed"))
 	_apply_portrait_safe_layout()
@@ -173,6 +178,7 @@ func _ready() -> void:
 	SceneAudioPlayersScript.start_looping(self, "CombatMusicPlayer")
 	_refresh_ui()
 	_request_first_run_hint("first_combat_defend")
+	_request_contextual_combat_hints()
 
 
 func _scene_node(path: String) -> Node:
@@ -188,10 +194,11 @@ func _scene_node(path: String) -> Node:
 		_scene_node_cache[path] = node
 	return node
 
-
 func _exit_tree() -> void:
-	if _hunger_warning_tween != null and is_instance_valid(_hunger_warning_tween):
-		_hunger_warning_tween.kill()
+	if _player_guard_badge != null:
+		_player_guard_badge.release()
+	if _hunger_warning_toast != null:
+		_hunger_warning_toast.release()
 	SceneLayoutHelperScript.unbind_viewport_size_changed(self, Callable(self, "_on_viewport_size_changed"))
 	_release_first_run_hint_controller_host()
 	if _run_inventory_panel != null:
@@ -199,7 +206,6 @@ func _exit_tree() -> void:
 	if _action_hint_controller != null:
 		_action_hint_controller.hide_panel(true, true)
 	SceneAudioCleanupScript.release_players(self, SceneAudioPlayersScript.node_names_from_config(AUDIO_PLAYER_CONFIG))
-
 
 func _input(event: InputEvent) -> void:
 	if _run_inventory_panel == null:
@@ -251,6 +257,17 @@ func _connect_buttons() -> void:
 		defense_button.connect("pressed", Callable(self, "_on_defend_pressed"))
 	if _action_hint_controller != null:
 		_action_hint_controller.connect_button(defense_button, CombatFlowScript.ACTION_DEFEND, TempScreenThemeScript.TEAL_ACCENT_COLOR)
+	var technique_button: Button = _technique_button if _technique_button != null and is_instance_valid(_technique_button) else _scene_node(TECHNIQUE_BUTTON_PATH) as Button
+	if technique_button != null and not technique_button.is_connected("pressed", Callable(self, "_on_technique_pressed")):
+		technique_button.connect("pressed", Callable(self, "_on_technique_pressed"))
+	if _action_hint_controller != null:
+		_action_hint_controller.connect_button(technique_button, CombatFlowScript.ACTION_TECHNIQUE, TempScreenThemeScript.REWARD_ACCENT_COLOR)
+	var right_hand_swap_button: Button = _combat_secondary_node(RIGHT_HAND_SWAP_BUTTON_PATH) as Button
+	if right_hand_swap_button != null and not right_hand_swap_button.is_connected("pressed", Callable(self, "_on_right_hand_swap_pressed")):
+		right_hand_swap_button.connect("pressed", Callable(self, "_on_right_hand_swap_pressed"))
+	var left_hand_swap_button: Button = _combat_secondary_node(LEFT_HAND_SWAP_BUTTON_PATH) as Button
+	if left_hand_swap_button != null and not left_hand_swap_button.is_connected("pressed", Callable(self, "_on_left_hand_swap_pressed")):
+		left_hand_swap_button.connect("pressed", Callable(self, "_on_left_hand_swap_pressed"))
 
 
 func _on_attack_pressed() -> void:
@@ -259,6 +276,34 @@ func _on_attack_pressed() -> void:
 
 func _on_defend_pressed() -> void:
 	_resolve_player_turn(CombatFlowScript.ACTION_DEFEND)
+
+
+func _on_technique_pressed() -> void:
+	_resolve_player_turn(CombatFlowScript.ACTION_TECHNIQUE)
+
+
+func _on_right_hand_swap_pressed() -> void:
+	_on_hand_swap_slot_pressed(InventoryStateScript.EQUIPMENT_SLOT_RIGHT_HAND)
+
+
+func _on_left_hand_swap_pressed() -> void:
+	_on_hand_swap_slot_pressed(InventoryStateScript.EQUIPMENT_SLOT_LEFT_HAND)
+
+
+func _on_hand_swap_slot_pressed(slot_name: String) -> void:
+	if _combat_flow == null or _combat_flow.combat_state.combat_ended:
+		return
+	if not _combat_flow.has_hand_swap_candidates(slot_name):
+		return
+	_selected_hand_swap_slot_name = slot_name
+	_refresh_hand_swap_panel()
+
+
+func _on_hand_swap_candidate_pressed(slot_name: String, backpack_slot_id: int) -> void:
+	if _combat_flow == null or _combat_flow.combat_state.combat_ended:
+		return
+	_selected_hand_swap_slot_name = slot_name
+	_resolve_hand_swap_turn(slot_name, backpack_slot_id)
 
 
 func _on_combat_ended(result: String) -> void:
@@ -322,6 +367,16 @@ func _resolve_player_turn(action_name: String, action_value: int = -1) -> void:
 			return
 
 
+func _resolve_hand_swap_turn(slot_name: String, backpack_slot_id: int) -> void:
+	if _combat_flow == null or _combat_flow.combat_state.combat_ended:
+		return
+
+	if _action_hint_controller != null:
+		_action_hint_controller.hide_panel(true)
+	_play_action_start_sfx(CombatFlowScript.ACTION_SWAP_HAND)
+	_combat_flow.resolve_swap_hand_turn(slot_name, backpack_slot_id)
+
+
 func _refresh_ui() -> void:
 	var preview_consumable: Dictionary = {}
 	var preview_snapshot: Dictionary = {}
@@ -371,12 +426,14 @@ func _refresh_ui() -> void:
 		enemy_token_path
 	)
 
+	var current_intent: Dictionary = {}
+	if _combat_flow != null:
+		current_intent = _combat_flow.get_current_intent()
 	var intent_title_label: Label = _scene_node("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentCard/IntentVBox/IntentTitleLabel") as Label
 	if intent_title_label != null:
 		intent_title_label.text = _presenter.build_intent_title_text()
 	var intent_label: Label = _scene_node("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentCard/IntentVBox/IntentRow/IntentLabel") as Label
 	if intent_label != null and _combat_flow != null:
-		var current_intent: Dictionary = _combat_flow.get_current_intent()
 		intent_label.text = _presenter.build_intent_summary_text(current_intent, preview_snapshot)
 		_apply_texture_rect_asset(
 			"Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentCard/IntentVBox/IntentRow/IntentIcon",
@@ -384,9 +441,11 @@ func _refresh_ui() -> void:
 		)
 	var intent_detail_label: Label = _scene_node("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentCard/IntentVBox/IntentDetailLabel") as Label
 	if intent_detail_label != null and _combat_flow != null:
-		var intent_detail_text: String = _presenter.build_intent_detail_text(_combat_flow.get_current_intent())
+		var intent_detail_text: String = _presenter.build_intent_detail_text(current_intent)
 		intent_detail_label.text = intent_detail_text
 		intent_detail_label.visible = not intent_detail_text.is_empty()
+	if _enemy_intent_bust_visuals != null:
+		_enemy_intent_bust_visuals.refresh(current_intent, _presenter, _is_compact_layout)
 
 	_apply_bust_texture(
 		"Margin/VBox/BattleCardsRow/PlayerCard/HBox/PlayerBustFrame",
@@ -453,6 +512,12 @@ func _refresh_ui() -> void:
 	var defense_button: Button = _defense_button if _defense_button != null and is_instance_valid(_defense_button) else _scene_node(DEFENSE_BUTTON_PATH) as Button
 	if defense_button != null and _combat_flow != null:
 		defense_button.text = _presenter.build_defensive_action_label(_combat_flow.combat_state)
+	var technique_card: PanelContainer = _scene_node(TECHNIQUE_ACTION_CARD_PATH) as PanelContainer
+	if technique_card != null:
+		technique_card.visible = _combat_flow != null
+	var technique_button: Button = _technique_button if _technique_button != null and is_instance_valid(_technique_button) else _scene_node(TECHNIQUE_BUTTON_PATH) as Button
+	if technique_button != null and _combat_flow != null:
+		technique_button.text = _presenter.build_technique_action_label(_combat_flow.combat_state)
 	var action_section_title_label: Label = _scene_node("Margin/VBox/Buttons/ActionSectionTitleLabel") as Label
 	if action_section_title_label != null:
 		action_section_title_label.text = "Pick Your Move"
@@ -462,17 +527,146 @@ func _refresh_ui() -> void:
 	var defense_eyebrow_label: Label = _scene_node("Margin/VBox/Buttons/ActionCardsRow/DefenseActionCard/DefenseActionVBox/DefenseActionEyebrowLabel") as Label
 	if defense_eyebrow_label != null:
 		defense_eyebrow_label.text = "BLOCK THE HIT"
+	var technique_eyebrow_label: Label = _scene_node("Margin/VBox/Buttons/ActionCardsRow/TechniqueActionCard/TechniqueActionVBox/TechniqueActionEyebrowLabel") as Label
+	if technique_eyebrow_label != null and _combat_flow != null:
+		technique_eyebrow_label.text = _presenter.build_technique_action_eyebrow_text(_combat_flow.combat_state)
 	var attack_preview_label: Label = _scene_node("Margin/VBox/Buttons/ActionCardsRow/AttackActionCard/AttackActionVBox/AttackActionPreviewLabel") as Label
 	if attack_preview_label != null:
 		attack_preview_label.text = _presenter.build_action_card_preview_text(CombatFlowScript.ACTION_ATTACK, _combat_flow.combat_state if _combat_flow != null else null, {}, preview_snapshot)
 	var defense_preview_label: Label = _scene_node("Margin/VBox/Buttons/ActionCardsRow/DefenseActionCard/DefenseActionVBox/DefenseActionPreviewLabel") as Label
 	if defense_preview_label != null:
 		defense_preview_label.text = _presenter.build_action_card_preview_text(CombatFlowScript.ACTION_DEFEND, _combat_flow.combat_state if _combat_flow != null else null, {}, preview_snapshot)
+	var technique_preview_label: Label = _scene_node("Margin/VBox/Buttons/ActionCardsRow/TechniqueActionCard/TechniqueActionVBox/TechniqueActionPreviewLabel") as Label
+	if technique_preview_label != null and _combat_flow != null:
+		technique_preview_label.text = _presenter.build_action_card_preview_text(CombatFlowScript.ACTION_TECHNIQUE, _combat_flow.combat_state, {}, preview_snapshot)
 
 	_refresh_inventory_cards(preview_consumable)
+	_refresh_hand_swap_panel()
 	_refresh_action_button_tooltips(preview_consumable, preview_snapshot)
 	_set_buttons_enabled(_combat_flow != null and _presenter.are_action_buttons_enabled(_combat_flow.combat_state))
 	_refresh_safe_menu_controls()
+
+
+func _refresh_hand_swap_panel() -> void:
+	var hand_swap_panel: PanelContainer = _combat_secondary_node(HAND_SWAP_PANEL_PATH) as PanelContainer
+	if hand_swap_panel == null:
+		return
+	if _presenter == null or _combat_flow == null or _combat_flow.combat_state == null:
+		hand_swap_panel.visible = false
+		_selected_hand_swap_slot_name = ""
+		_render_hand_swap_candidate_buttons([], "")
+		return
+
+	var slot_candidates_by_name := {
+		InventoryStateScript.EQUIPMENT_SLOT_RIGHT_HAND: _combat_flow.get_hand_swap_candidates(InventoryStateScript.EQUIPMENT_SLOT_RIGHT_HAND),
+		InventoryStateScript.EQUIPMENT_SLOT_LEFT_HAND: _combat_flow.get_hand_swap_candidates(InventoryStateScript.EQUIPMENT_SLOT_LEFT_HAND),
+	}
+	var surface_model: Dictionary = _presenter.build_hand_swap_surface_model(
+		_combat_flow.combat_state,
+		slot_candidates_by_name,
+		_selected_hand_swap_slot_name
+	)
+	var is_visible: bool = bool(surface_model.get("visible", false)) and not _transition_requested
+	hand_swap_panel.visible = is_visible
+	if not is_visible:
+		_selected_hand_swap_slot_name = ""
+		_render_hand_swap_candidate_buttons([], "")
+		return
+
+	_selected_hand_swap_slot_name = String(surface_model.get("selected_slot_name", ""))
+	var title_label: Label = _combat_secondary_node(HAND_SWAP_TITLE_PATH) as Label
+	if title_label != null:
+		title_label.text = String(surface_model.get("title_text", "Hand Swap"))
+	var hint_label: Label = _combat_secondary_node(HAND_SWAP_HINT_PATH) as Label
+	if hint_label != null:
+		hint_label.text = String(surface_model.get("hint_text", "Swap ends turn. Armor and belt stay locked."))
+
+	var slot_models_by_name: Dictionary = {}
+	for slot_button_value in surface_model.get("slot_buttons", []):
+		if typeof(slot_button_value) != TYPE_DICTIONARY:
+			continue
+		var slot_button_model: Dictionary = slot_button_value
+		slot_models_by_name[String(slot_button_model.get("slot_name", ""))] = slot_button_model
+
+	_refresh_hand_swap_slot_button(
+		_combat_secondary_node(RIGHT_HAND_SWAP_BUTTON_PATH) as Button,
+		slot_models_by_name.get(InventoryStateScript.EQUIPMENT_SLOT_RIGHT_HAND, {})
+	)
+	_refresh_hand_swap_slot_button(
+		_combat_secondary_node(LEFT_HAND_SWAP_BUTTON_PATH) as Button,
+		slot_models_by_name.get(InventoryStateScript.EQUIPMENT_SLOT_LEFT_HAND, {})
+	)
+	_render_hand_swap_candidate_buttons(surface_model.get("candidate_buttons", []), _selected_hand_swap_slot_name)
+
+
+func _refresh_hand_swap_slot_button(button: Button, slot_button_model: Dictionary) -> void:
+	if button == null:
+		return
+	var is_visible: bool = not slot_button_model.is_empty()
+	button.visible = is_visible
+	if not is_visible:
+		button.disabled = true
+		button.set_pressed_no_signal(false)
+		button.tooltip_text = ""
+		return
+	button.text = String(slot_button_model.get("text", ""))
+	button.tooltip_text = String(slot_button_model.get("count_text", ""))
+	button.set_pressed_no_signal(bool(slot_button_model.get("selected", false)))
+	button.disabled = _combat_flow == null or _combat_flow.combat_state.combat_ended
+
+
+func _render_hand_swap_candidate_buttons(candidate_button_models: Array, slot_name: String) -> void:
+	var candidates_flow: HFlowContainer = _combat_secondary_node(HAND_SWAP_CANDIDATES_FLOW_PATH) as HFlowContainer
+	if candidates_flow == null:
+		return
+	for child in candidates_flow.get_children():
+		candidates_flow.remove_child(child)
+		child.queue_free()
+	if slot_name.is_empty():
+		return
+	for candidate_value in candidate_button_models:
+		if typeof(candidate_value) != TYPE_DICTIONARY:
+			continue
+		var candidate_model: Dictionary = candidate_value
+		var button := Button.new()
+		button.text = String(candidate_model.get("text", "Swap"))
+		button.tooltip_text = String(candidate_model.get("hint_text", ""))
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.custom_minimum_size = Vector2(160, 42)
+		button.disabled = _combat_flow == null or _combat_flow.combat_state.combat_ended
+		TempScreenThemeScript.apply_small_button(button, _hand_swap_accent_for_slot(slot_name), false)
+		button.connect(
+			"pressed",
+			Callable(self, "_on_hand_swap_candidate_pressed").bind(
+				slot_name,
+				int(candidate_model.get("slot_id", -1))
+			)
+		)
+		candidates_flow.add_child(button)
+
+
+func _hand_swap_accent_for_slot(slot_name: String) -> Color:
+	if slot_name == InventoryStateScript.EQUIPMENT_SLOT_LEFT_HAND:
+		return TempScreenThemeScript.TEAL_ACCENT_COLOR
+	return TempScreenThemeScript.RUST_ACCENT_COLOR
+
+
+func _apply_hand_swap_panel_style() -> void:
+	var hand_swap_panel: PanelContainer = _combat_secondary_node(HAND_SWAP_PANEL_PATH) as PanelContainer
+	if hand_swap_panel != null:
+		TempScreenThemeScript.apply_panel(hand_swap_panel, TempScreenThemeScript.REWARD_ACCENT_COLOR, 14, 0.76)
+	var title_label: Label = _combat_secondary_node(HAND_SWAP_TITLE_PATH) as Label
+	if title_label != null:
+		TempScreenThemeScript.apply_label(title_label, "accent")
+	var hint_label: Label = _combat_secondary_node(HAND_SWAP_HINT_PATH) as Label
+	if hint_label != null:
+		TempScreenThemeScript.apply_label(hint_label, "muted")
+	var right_hand_button: Button = _combat_secondary_node(RIGHT_HAND_SWAP_BUTTON_PATH) as Button
+	if right_hand_button != null:
+		TempScreenThemeScript.apply_small_button(right_hand_button, TempScreenThemeScript.RUST_ACCENT_COLOR, false)
+	var left_hand_button: Button = _combat_secondary_node(LEFT_HAND_SWAP_BUTTON_PATH) as Button
+	if left_hand_button != null:
+		TempScreenThemeScript.apply_small_button(left_hand_button, TempScreenThemeScript.TEAL_ACCENT_COLOR, false)
 
 
 func _append_status_line(line: String, tone: String = LOG_TONE_NEUTRAL) -> void:
@@ -563,27 +757,13 @@ func _queue_feedback_for_domain_event(event_name: String, payload: Dictionary) -
 		"EnemyIntentRevealed":
 			if _feedback_lane != null:
 				_feedback_lane.queue_intent_reveal_feedback()
+			if _enemy_intent_bust_visuals != null:
+				_enemy_intent_bust_visuals.schedule_feedback(false, _is_compact_layout)
 		"BossPhaseChanged":
 			if _feedback_lane != null:
 				_feedback_lane.queue_intent_reveal_feedback(true)
-
-
-func _kill_control_tween(control: Control, meta_key: String) -> void:
-	if control == null or not control.has_meta(meta_key):
-		return
-	var tween_value: Variant = control.get_meta(meta_key, null)
-	if tween_value is Tween:
-		var tween: Tween = tween_value as Tween
-		if is_instance_valid(tween):
-			tween.kill()
-	control.remove_meta(meta_key)
-
-
-func _clear_control_meta(control: Control, meta_key: String) -> void:
-	if control == null or not is_instance_valid(control):
-		return
-	if control.has_meta(meta_key):
-		control.remove_meta(meta_key)
+			if _enemy_intent_bust_visuals != null:
+				_enemy_intent_bust_visuals.schedule_feedback(true, _is_compact_layout)
 
 
 func _extract_enemy_max_hp_from_state(combat_state: CombatState) -> int:
@@ -604,6 +784,20 @@ func _set_buttons_enabled(is_enabled: bool) -> void:
 	]:
 		if button != null:
 			button.disabled = not is_enabled
+	var technique_button: Button = _technique_button if _technique_button != null and is_instance_valid(_technique_button) else _scene_node(TECHNIQUE_BUTTON_PATH) as Button
+	if technique_button != null:
+		var technique_enabled: bool = is_enabled and _combat_flow != null and _combat_flow.is_technique_available()
+		technique_button.disabled = not technique_enabled
+	for slot_button_path in [RIGHT_HAND_SWAP_BUTTON_PATH, LEFT_HAND_SWAP_BUTTON_PATH]:
+		var slot_button: Button = _combat_secondary_node(slot_button_path) as Button
+		if slot_button != null and slot_button.visible:
+			slot_button.disabled = not is_enabled
+	var candidates_flow: HFlowContainer = _combat_secondary_node(HAND_SWAP_CANDIDATES_FLOW_PATH) as HFlowContainer
+	if candidates_flow != null:
+		for child in candidates_flow.get_children():
+			var candidate_button: Button = child as Button
+			if candidate_button != null:
+				candidate_button.disabled = not is_enabled
 
 
 func _get_app_bootstrap() -> AppBootstrapScript:
@@ -612,75 +806,73 @@ func _get_app_bootstrap() -> AppBootstrapScript:
 
 func _setup_first_run_hint_controller() -> void:
 	_first_run_hint_controller = _resolve_first_run_hint_controller()
-	if _first_run_hint_controller == null:
-		return
+	if _first_run_hint_controller == null: return
 	_first_run_hint_controller.setup(self, COMBAT_HEADER_STACK_PATH, HUNGER_WARNING_Z_INDEX + 10)
-
-
+	RunMenuSceneHelperScript.sync_tutorial_hints_available(_safe_menu, _first_run_hint_controller)
 func _release_first_run_hint_controller_host() -> void:
-	if _first_run_hint_controller == null:
-		return
+	if _first_run_hint_controller == null: return
 	_first_run_hint_controller.release_host(self)
 	_first_run_hint_controller = null
-
-
+	RunMenuSceneHelperScript.sync_tutorial_hints_available(_safe_menu, _first_run_hint_controller)
 func _request_first_run_hint(hint_id: String) -> void:
 	if _first_run_hint_controller == null:
 		_setup_first_run_hint_controller()
-	if _first_run_hint_controller == null:
-		return
+	if _first_run_hint_controller == null: return
 	_first_run_hint_controller.request_hint(hint_id)
-
-
 func _scan_first_run_inventory_hints() -> void:
 	if _first_run_hint_controller == null:
 		_setup_first_run_hint_controller()
-	if _first_run_hint_controller == null or _run_state == null:
-		return
+	if _first_run_hint_controller == null or _run_state == null: return
 	_first_run_hint_controller.scan_inventory_hints(_run_state.inventory_state)
+
+
+func _request_contextual_combat_hints() -> void:
+	if _combat_flow == null or _combat_flow.combat_state == null:
+		return
+	if _combat_flow.has_equipped_technique():
+		_request_first_run_hint("first_combat_technique")
+	if _combat_flow.has_any_hand_swap_candidates():
+		_request_first_run_hint("first_combat_hand_swap")
 
 
 func _resolve_first_run_hint_controller() -> FirstRunHintController:
 	var bootstrap = _get_app_bootstrap()
-	if bootstrap == null:
-		return null
+	if bootstrap == null: return null
 	bootstrap.ensure_run_state_initialized()
 	var coordinator: RefCounted = bootstrap.run_session_coordinator
-	if coordinator == null:
-		return null
+	if coordinator == null: return null
 	return coordinator.get("_first_run_hint_controller") as FirstRunHintController
 
-
+func _on_disable_tutorial_hints_pressed() -> void:
+	if _first_run_hint_controller == null:
+		_setup_first_run_hint_controller()
+	if _first_run_hint_controller == null: return
+	var changed: bool = _first_run_hint_controller.mark_all_hints_shown()
+	RunMenuSceneHelperScript.sync_tutorial_hints_available(_safe_menu, _first_run_hint_controller)
+	if _safe_menu != null:
+		_safe_menu.set_status_text(RunMenuSceneHelperScript.build_tutorial_hints_status_text(changed))
 func _on_save_pressed() -> void:
 	var bootstrap = _get_app_bootstrap()
-	if bootstrap == null:
-		return
+	if bootstrap == null: return
 	var save_result: Dictionary = bootstrap.save_game()
 	if _safe_menu != null:
 		_safe_menu.set_status_text(RunMenuSceneHelperScript.build_save_status_text(save_result))
 	_refresh_safe_menu_controls()
-
-
 func _on_load_pressed() -> void:
 	var bootstrap = _get_app_bootstrap()
-	if bootstrap == null:
-		return
+	if bootstrap == null: return
 	var load_result: Dictionary = bootstrap.load_game()
-	if bool(load_result.get("ok", false)):
-		return
+	if bool(load_result.get("ok", false)): return
 	if _safe_menu != null:
 		_safe_menu.set_status_text(RunMenuSceneHelperScript.build_load_failure_status_text(load_result))
 	_refresh_safe_menu_controls()
-
-
 func _on_return_to_main_menu_pressed() -> void:
 	var bootstrap = _get_app_bootstrap()
 	var flow_manager = bootstrap.get_flow_manager() if bootstrap != null else null
 	if flow_manager != null: flow_manager.request_transition(FlowStateScript.Type.MAIN_MENU)
-
-
 func _refresh_safe_menu_controls() -> void:
 	RunMenuSceneHelperScript.sync_load_available(_safe_menu, _get_app_bootstrap())
+	RunMenuSceneHelperScript.sync_tutorial_hints_available(_safe_menu, _first_run_hint_controller)
 
 
 func _setup_safe_menu() -> void:
@@ -693,7 +885,8 @@ func _setup_safe_menu() -> void:
 		String(menu_config.get("launcher_text", RunMenuSceneHelperScript.SHARED_LAUNCHER_TEXT)),
 		Callable(self, "_on_save_pressed"),
 		Callable(self, "_on_load_pressed"),
-		Callable(self, "_on_return_to_main_menu_pressed")
+		Callable(self, "_on_return_to_main_menu_pressed"),
+		Callable(self, "_on_disable_tutorial_hints_pressed")
 	)
 	if _safe_menu != null: _safe_menu.set_main_menu_enabled(false)
 func _first_consumable_slot(combat_state: CombatState) -> Dictionary:
@@ -723,6 +916,10 @@ func _play_action_start_sfx(action_name: String) -> void:
 			SceneAudioPlayersScript.play(self, "AttackResolveSfxPlayer")
 		CombatFlowScript.ACTION_DEFEND:
 			SceneAudioPlayersScript.play(self, "DefendSfxPlayer")
+		CombatFlowScript.ACTION_TECHNIQUE:
+			SceneAudioPlayersScript.play(self, "ItemUseSfxPlayer")
+		CombatFlowScript.ACTION_SWAP_HAND:
+			SceneAudioPlayersScript.play(self, "ItemUseSfxPlayer")
 		CombatFlowScript.ACTION_USE_ITEM:
 			if _has_selected_usable_consumable():
 				SceneAudioPlayersScript.play(self, "ItemUseSfxPlayer")
@@ -759,6 +956,31 @@ func _inventory_card_is_selected(card_model: Dictionary) -> bool:
 	return _combat_flow != null and _combat_flow.is_consumable_slot_usable(slot_index) and slot_index == _selected_consumable_slot_index
 
 
+func _decorate_combat_equipment_cards_for_hand_swap(equipment_cards: Array[Dictionary]) -> Array[Dictionary]:
+	var decorated_cards: Array[Dictionary] = []
+	for equipment_card in equipment_cards:
+		var decorated_card: Dictionary = equipment_card.duplicate(true)
+		var slot_name: String = _resolve_equipment_slot_name_from_card(decorated_card)
+		if not slot_name.is_empty() and _combat_flow != null and _combat_flow.has_hand_swap_candidates(slot_name):
+			decorated_card["combat_action_hint_override"] = "Swap below"
+		decorated_cards.append(decorated_card)
+	return decorated_cards
+
+
+func _resolve_equipment_slot_name_from_card(card_model: Dictionary) -> String:
+	match String(card_model.get("slot_label", "")):
+		"RIGHT HAND":
+			return InventoryStateScript.EQUIPMENT_SLOT_RIGHT_HAND
+		"LEFT HAND":
+			return InventoryStateScript.EQUIPMENT_SLOT_LEFT_HAND
+		"ARMOR":
+			return InventoryStateScript.EQUIPMENT_SLOT_ARMOR
+		"BELT":
+			return InventoryStateScript.EQUIPMENT_SLOT_BELT
+		_:
+			return ""
+
+
 func _refresh_inventory_cards(preview_consumable: Dictionary = {}) -> void:
 	if _run_inventory_panel == null:
 		return
@@ -776,17 +998,23 @@ func _refresh_inventory_cards(preview_consumable: Dictionary = {}) -> void:
 			_combat_flow.combat_state if _combat_flow != null else null,
 			preview_consumable
 		)
+	var equipment_cards: Array[Dictionary] = inventory_presenter.build_combat_equipment_cards(
+		_combat_flow.combat_state if _combat_flow != null else null,
+		_run_state.inventory_state if _run_state != null else null
+	)
+	equipment_cards = _decorate_combat_equipment_cards_for_hand_swap(equipment_cards)
 	_run_inventory_panel.render({
 		"equipment_title": inventory_presenter.build_equipment_title_text(),
-		"equipment_hint": inventory_presenter.build_equipment_hint_text(true),
+		"equipment_hint": (
+			_presenter.build_combat_equipment_hint_text()
+			if _presenter != null
+			else inventory_presenter.build_equipment_hint_text(true)
+		),
 		"equipment_hint_visible": true,
 		"inventory_title": inventory_title_text,
 		"inventory_hint": inventory_hint_text,
 		"inventory_hint_visible": true,
-		"equipment_cards": inventory_presenter.build_combat_equipment_cards(
-			_combat_flow.combat_state if _combat_flow != null else null,
-			_run_state.inventory_state if _run_state != null else null
-		),
+		"equipment_cards": equipment_cards,
 		"backpack_cards": inventory_presenter.build_combat_inventory_cards(
 			_combat_flow.combat_state if _combat_flow != null else null,
 			_run_state.inventory_state if _run_state != null else null
@@ -811,7 +1039,7 @@ func _handle_inventory_card_click(slot_index: int, inventory_slot_id: int, card_
 				return
 			_resolve_player_turn(CombatFlowScript.ACTION_USE_ITEM, slot_index)
 		"weapon", "shield", "armor", "belt", "quest_item", "shield_attachment":
-			_append_status_line("Equipment is locked during combat.")
+			_append_status_line("Only hand swaps are legal in combat. Swap ends turn. Armor and belt stay locked.")
 			_refresh_ui()
 		_:
 			return
@@ -878,241 +1106,43 @@ func _render_status_chips(container: Container, chip_texts: PackedStringArray) -
 
 
 func _ensure_player_guard_badge() -> void:
-	var info_vbox: VBoxContainer = _player_info_vbox if _player_info_vbox != null and is_instance_valid(_player_info_vbox) else _scene_node(PLAYER_INFO_VBOX_PATH) as VBoxContainer
-	if info_vbox == null:
-		return
-
-	if _player_guard_badge_panel == null or not is_instance_valid(_player_guard_badge_panel):
-		_player_guard_badge_panel = info_vbox.get_node_or_null(PLAYER_GUARD_BADGE_PANEL_NAME) as PanelContainer
-	if _player_guard_badge_panel == null:
-		_player_guard_badge_panel = PanelContainer.new()
-		_player_guard_badge_panel.name = PLAYER_GUARD_BADGE_PANEL_NAME
-		_player_guard_badge_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_player_guard_badge_panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-		_player_guard_badge_panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-		info_vbox.add_child(_player_guard_badge_panel)
-
-	if _player_guard_badge_label == null or not is_instance_valid(_player_guard_badge_label):
-		_player_guard_badge_label = _player_guard_badge_panel.get_node_or_null(PLAYER_GUARD_BADGE_LABEL_NAME) as Label
-	if _player_guard_badge_label == null:
-		_player_guard_badge_label = Label.new()
-		_player_guard_badge_label.name = PLAYER_GUARD_BADGE_LABEL_NAME
-		_player_guard_badge_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_player_guard_badge_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_player_guard_badge_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		_player_guard_badge_panel.add_child(_player_guard_badge_label)
-
-	var player_run_summary_card: PanelContainer = _player_run_summary_card if _player_run_summary_card != null and is_instance_valid(_player_run_summary_card) else _scene_node(PLAYER_RUN_SUMMARY_CARD_PATH) as PanelContainer
-	if player_run_summary_card != null:
-		info_vbox.move_child(_player_guard_badge_panel, min(info_vbox.get_child_count() - 1, player_run_summary_card.get_index() + 1))
-
-	_style_player_guard_badge()
-	_apply_player_guard_badge_layout()
-	if _last_rendered_guard < 0:
-		_finish_hiding_player_guard_badge()
+	if _player_guard_badge == null:
+		_player_guard_badge = CombatGuardBadgeScript.new()
+	_player_guard_badge.setup(self, Callable(self, "_scene_node"), PLAYER_INFO_VBOX_PATH, PLAYER_RUN_SUMMARY_CARD_PATH)
 
 
 func _style_player_guard_badge() -> void:
-	if _player_guard_badge_panel == null or _player_guard_badge_label == null:
-		return
-	TempScreenThemeScript.apply_chip(_player_guard_badge_panel, _player_guard_badge_label, TempScreenThemeScript.TEAL_ACCENT_COLOR)
-	TempScreenThemeScript.apply_label(_player_guard_badge_label)
-	_player_guard_badge_label.add_theme_color_override("font_color", TempScreenThemeScript.TEXT_PRIMARY_COLOR)
-	_player_guard_badge_label.add_theme_color_override("font_outline_color", Color(0.02, 0.03, 0.04, 0.84))
-	_player_guard_badge_label.add_theme_constant_override("outline_size", 4)
+	if _player_guard_badge != null:
+		_player_guard_badge.refresh_style()
 
 
 func _apply_player_guard_badge_layout() -> void:
-	if _player_guard_badge_panel == null or _player_guard_badge_label == null:
-		return
-	var viewport_height: float = get_viewport_rect().size.y
-	var font_size: int = 16 if _is_compact_layout else 18
-	if viewport_height < 1500.0:
-		font_size = 15 if _is_compact_layout else 16
-	elif viewport_height >= 1800.0 and not _is_compact_layout:
-		font_size = 19
-	_player_guard_badge_panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	_player_guard_badge_panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	_player_guard_badge_label.add_theme_font_size_override("font_size", font_size)
+	if _player_guard_badge != null:
+		_player_guard_badge.apply_layout(_is_compact_layout)
 
 
 func _refresh_player_guard_badge() -> void:
 	_ensure_player_guard_badge()
-	if _player_guard_badge_panel == null or _player_guard_badge_label == null:
+	if _player_guard_badge == null:
 		return
 
 	var current_guard: int = max(0, int(_combat_flow.combat_state.current_guard)) if _combat_flow != null else 0
-	_player_guard_badge_label.text = _presenter.build_guard_badge_text(current_guard) if _presenter != null else "Guard: %d" % current_guard
-	_apply_player_guard_badge_layout()
-
-	if _last_rendered_guard < 0:
-		_last_rendered_guard = current_guard
-		if current_guard > 0:
-			_player_guard_badge_panel.visible = true
-			_player_guard_badge_panel.modulate = Color(1, 1, 1, 1)
-			_player_guard_badge_panel.scale = Vector2.ONE
-		else:
-			_finish_hiding_player_guard_badge()
-		return
-
-	if current_guard <= 0:
-		if _last_rendered_guard > 0 or _player_guard_badge_panel.visible:
-			_hide_player_guard_badge()
-		else:
-			_finish_hiding_player_guard_badge()
-		_last_rendered_guard = 0
-		return
-
-	var should_pop: bool = _last_rendered_guard <= 0 or current_guard > _last_rendered_guard
-	_show_player_guard_badge(should_pop)
-	_last_rendered_guard = current_guard
-
-
-func _show_player_guard_badge(pop_badge: bool = false) -> void:
-	if _player_guard_badge_panel == null:
-		return
-	_kill_control_tween(_player_guard_badge_panel, PLAYER_GUARD_BADGE_TWEEN_META_KEY)
-	_player_guard_badge_panel.pivot_offset = _player_guard_badge_panel.get_combined_minimum_size() * 0.5
-	var needs_fade_in: bool = not _player_guard_badge_panel.visible or _player_guard_badge_panel.modulate.a < 0.99
-	_player_guard_badge_panel.visible = true
-	if not needs_fade_in and not pop_badge:
-		_player_guard_badge_panel.modulate = Color(1, 1, 1, 1)
-		_player_guard_badge_panel.scale = Vector2.ONE
-		return
-
-	_player_guard_badge_panel.modulate = Color(1, 1, 1, 0) if needs_fade_in else Color(1, 1, 1, 1)
-	_player_guard_badge_panel.scale = Vector2.ONE * (0.88 if pop_badge else 0.96)
-	var tween: Tween = create_tween()
-	_player_guard_badge_panel.set_meta(PLAYER_GUARD_BADGE_TWEEN_META_KEY, tween)
-	tween.parallel().tween_property(_player_guard_badge_panel, "modulate", Color(1, 1, 1, 1), 0.16)
-	tween.parallel().tween_property(_player_guard_badge_panel, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tween.finished.connect(Callable(self, "_clear_control_meta").bind(_player_guard_badge_panel, PLAYER_GUARD_BADGE_TWEEN_META_KEY), CONNECT_ONE_SHOT)
-
-
-func _hide_player_guard_badge() -> void:
-	if _player_guard_badge_panel == null:
-		return
-	_kill_control_tween(_player_guard_badge_panel, PLAYER_GUARD_BADGE_TWEEN_META_KEY)
-	if not _player_guard_badge_panel.visible:
-		_finish_hiding_player_guard_badge()
-		return
-	_player_guard_badge_panel.pivot_offset = _player_guard_badge_panel.get_combined_minimum_size() * 0.5
-	var tween: Tween = create_tween()
-	_player_guard_badge_panel.set_meta(PLAYER_GUARD_BADGE_TWEEN_META_KEY, tween)
-	tween.parallel().tween_property(_player_guard_badge_panel, "modulate", Color(1, 1, 1, 0), 0.14)
-	tween.parallel().tween_property(_player_guard_badge_panel, "scale", Vector2.ONE * 0.94, 0.14).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
-	tween.finished.connect(Callable(self, "_finish_hiding_player_guard_badge"), CONNECT_ONE_SHOT)
-
-func _finish_hiding_player_guard_badge() -> void:
-	if _player_guard_badge_panel == null or not is_instance_valid(_player_guard_badge_panel):
-		return
-	_player_guard_badge_panel.visible = false
-	_player_guard_badge_panel.modulate = Color(1, 1, 1, 0)
-	_player_guard_badge_panel.scale = Vector2.ONE
-	_clear_control_meta(_player_guard_badge_panel, PLAYER_GUARD_BADGE_TWEEN_META_KEY)
+	var badge_text: String = _presenter.build_guard_badge_text(current_guard) if _presenter != null else "Guard: %d" % current_guard
+	_player_guard_badge.refresh(current_guard, badge_text, _is_compact_layout)
 
 func _ensure_hunger_warning_toast() -> void:
-	if _hunger_warning_panel != null and is_instance_valid(_hunger_warning_panel):
-		_apply_hunger_warning_style(RunStatusStripScript.HUNGER_THRESHOLD_HUNGRY)
-		_position_hunger_warning_toast()
-		return
-
-	_hunger_warning_panel = PanelContainer.new()
-	_hunger_warning_panel.name = HUNGER_WARNING_PANEL_NAME
-	_hunger_warning_panel.visible = false
-	_hunger_warning_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_hunger_warning_panel.top_level = true
-	_hunger_warning_panel.z_index = HUNGER_WARNING_Z_INDEX
-	_hunger_warning_panel.modulate = Color(1, 1, 1, 0)
-	add_child(_hunger_warning_panel)
-
-	_hunger_warning_label = Label.new()
-	_hunger_warning_label.name = HUNGER_WARNING_LABEL_NAME
-	_hunger_warning_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_hunger_warning_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_hunger_warning_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_hunger_warning_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_hunger_warning_panel.add_child(_hunger_warning_label)
-	_apply_hunger_warning_style(RunStatusStripScript.HUNGER_THRESHOLD_HUNGRY)
-	_finish_hiding_hunger_warning()
-
-func _apply_hunger_warning_style(threshold: int) -> void:
-	if _hunger_warning_panel == null or _hunger_warning_label == null:
-		return
-	var accent: Color = RunStatusStripScript.resolve_hunger_threshold_accent(threshold)
-	TempScreenThemeScript.apply_panel(_hunger_warning_panel, accent, 16, 0.94)
-	TempScreenThemeScript.apply_label(_hunger_warning_label, "muted")
-	_hunger_warning_label.add_theme_color_override("font_color", TempScreenThemeScript.TEXT_PRIMARY_COLOR)
-	_hunger_warning_label.add_theme_color_override("font_shadow_color", Color(0.02, 0.03, 0.04, 0.76))
-	_hunger_warning_label.add_theme_constant_override("shadow_size", 2)
-	var font_size: int = 18 if not _is_compact_layout else 17
-	var viewport_height: float = get_viewport_rect().size.y
-	if viewport_height < 1400.0:
-		font_size = 16 if not _is_compact_layout else 15
-	elif viewport_height >= 1800.0 and not _is_compact_layout:
-		font_size = 20
-	_hunger_warning_label.add_theme_font_size_override("font_size", font_size)
+	if _hunger_warning_toast == null:
+		_hunger_warning_toast = HungerWarningToastScript.new()
+	_hunger_warning_toast.setup(self, COMBAT_HEADER_STACK_PATH, HUNGER_WARNING_Z_INDEX, _is_compact_layout)
 
 func _on_hunger_threshold_crossed(_old_threshold: int, new_threshold: int) -> void:
 	var warning_text: String = RunStatusStripScript.build_hunger_threshold_warning_text(new_threshold)
 	if warning_text.is_empty():
 		return
-	_show_hunger_warning(warning_text, new_threshold)
-	_request_first_run_hint("first_low_hunger_warning")
-
-func _show_hunger_warning(warning_text: String, threshold: int) -> void:
 	_ensure_hunger_warning_toast()
-	if _hunger_warning_panel == null or _hunger_warning_label == null:
-		return
-	if _hunger_warning_tween != null and is_instance_valid(_hunger_warning_tween):
-		_hunger_warning_tween.kill()
-	_hunger_warning_label.text = warning_text
-	_apply_hunger_warning_style(threshold)
-	_hunger_warning_panel.custom_minimum_size = Vector2(max(220.0, min(get_viewport_rect().size.x - (HUNGER_WARNING_MARGIN * 2.0), 420.0)), 0.0)
-	_hunger_warning_label.custom_minimum_size = Vector2(max(200.0, _hunger_warning_panel.custom_minimum_size.x - 20.0), 0.0)
-	_hunger_warning_panel.size = _hunger_warning_panel.get_combined_minimum_size()
-	_position_hunger_warning_toast()
-	_hunger_warning_panel.visible = true
-	_hunger_warning_panel.pivot_offset = _hunger_warning_panel.size * 0.5
-	_hunger_warning_panel.scale = Vector2(0.96, 0.96)
-	_hunger_warning_panel.modulate = Color(1, 1, 1, 0)
-
-	_hunger_warning_tween = create_tween()
-	_hunger_warning_tween.parallel().tween_property(_hunger_warning_panel, "modulate", Color(1, 1, 1, 1), 0.16)
-	_hunger_warning_tween.parallel().tween_property(_hunger_warning_panel, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	_hunger_warning_tween.tween_interval(HUNGER_WARNING_SHOW_DURATION)
-	_hunger_warning_tween.parallel().tween_property(_hunger_warning_panel, "modulate", Color(1, 1, 1, 0), 0.18)
-	_hunger_warning_tween.parallel().tween_property(_hunger_warning_panel, "scale", Vector2(0.98, 0.98), 0.18).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
-	_hunger_warning_tween.finished.connect(Callable(self, "_finish_hiding_hunger_warning"), CONNECT_ONE_SHOT)
-
-func _position_hunger_warning_toast() -> void:
-	if _hunger_warning_panel == null or not is_instance_valid(_hunger_warning_panel):
-		return
-	var viewport_size: Vector2 = get_viewport_rect().size
-	var panel_size: Vector2 = _hunger_warning_panel.size
-	var anchor_bottom: float = HUNGER_WARNING_MARGIN
-	var header_stack: Control = _header_stack if _header_stack != null and is_instance_valid(_header_stack) else _scene_node(COMBAT_HEADER_STACK_PATH) as Control
-	if header_stack != null and header_stack.visible:
-		anchor_bottom = header_stack.get_global_rect().end.y + HUNGER_WARNING_TOP_GAP
-	var x_position: float = clampf(
-		(viewport_size.x - panel_size.x) * 0.5,
-		HUNGER_WARNING_MARGIN,
-		max(HUNGER_WARNING_MARGIN, viewport_size.x - panel_size.x - HUNGER_WARNING_MARGIN)
-	)
-	var y_position: float = clampf(
-		anchor_bottom,
-		HUNGER_WARNING_MARGIN,
-		max(HUNGER_WARNING_MARGIN, viewport_size.y - panel_size.y - HUNGER_WARNING_MARGIN)
-	)
-	_hunger_warning_panel.global_position = Vector2(x_position, y_position)
-
-func _finish_hiding_hunger_warning() -> void:
-	if _hunger_warning_panel == null or not is_instance_valid(_hunger_warning_panel):
-		return
-	_hunger_warning_panel.visible = false
-	_hunger_warning_panel.modulate = Color(1, 1, 1, 0)
-	_hunger_warning_panel.scale = Vector2.ONE
-	_hunger_warning_tween = null
+	if _hunger_warning_toast != null:
+		_hunger_warning_toast.show_warning(warning_text, new_threshold)
+	_request_first_run_hint("first_low_hunger_warning")
 
 
 func _queue_guard_decay_feedback_from_turn_end(turn_end_result: Dictionary) -> void:
@@ -1161,11 +1191,13 @@ func _apply_texture_rect_asset(node_path: String, asset_path: String) -> void:
 func _refresh_action_button_tooltips(preview_consumable: Dictionary, preview_snapshot: Dictionary = {}) -> void:
 	var attack_button: Button = _attack_button if _attack_button != null and is_instance_valid(_attack_button) else _scene_node(ATTACK_BUTTON_PATH) as Button
 	var defense_button: Button = _defense_button if _defense_button != null and is_instance_valid(_defense_button) else _scene_node(DEFENSE_BUTTON_PATH) as Button
+	var technique_button: Button = _technique_button if _technique_button != null and is_instance_valid(_technique_button) else _scene_node(TECHNIQUE_BUTTON_PATH) as Button
 	var combat_state: CombatState = _combat_flow.combat_state if _combat_flow != null else null
 	if _action_hint_controller != null:
 		_action_hint_controller.refresh_button_tooltips(
 			attack_button,
 			defense_button,
+			technique_button,
 			null,
 			_presenter,
 			combat_state,
@@ -1177,7 +1209,10 @@ func _refresh_action_button_tooltips(preview_consumable: Dictionary, preview_sna
 func _apply_temp_theme() -> void:
 	CombatSceneUiScript.apply_temp_theme(self, Callable(self, "_combat_secondary_node"))
 	_style_player_guard_badge()
-	_apply_hunger_warning_style(RunStatusStripScript.HUNGER_THRESHOLD_HUNGRY)
+	if _hunger_warning_toast != null:
+		_hunger_warning_toast.set_compact_layout(_is_compact_layout)
+	if _enemy_intent_bust_visuals != null:
+		_enemy_intent_bust_visuals.refresh(_combat_flow.get_current_intent() if _combat_flow != null else {}, _presenter, _is_compact_layout)
 
 
 func _on_viewport_size_changed() -> void:
@@ -1186,14 +1221,19 @@ func _on_viewport_size_changed() -> void:
 		_action_hint_controller.update_visibility()
 	if _first_run_hint_controller != null:
 		_first_run_hint_controller.refresh_position()
-	_position_hunger_warning_toast()
+	if _hunger_warning_toast != null:
+		_hunger_warning_toast.position_toast()
 
 
 func _apply_portrait_safe_layout() -> void:
 	var layout_result: Dictionary = CombatSceneUiScript.apply_portrait_safe_layout(self, Callable(self, "_combat_secondary_node"))
 	_is_compact_layout = bool(layout_result.get("is_compact_layout", false))
 	_apply_player_guard_badge_layout()
-	_apply_hunger_warning_style(RunStatusStripScript.HUNGER_THRESHOLD_HUNGRY)
-	_position_hunger_warning_toast()
+	if _hunger_warning_toast != null:
+		_hunger_warning_toast.set_compact_layout(_is_compact_layout)
+		_hunger_warning_toast.position_toast()
+	if _enemy_intent_bust_visuals != null:
+		_enemy_intent_bust_visuals.ensure_badge(_is_compact_layout)
+		_enemy_intent_bust_visuals.refresh(_combat_flow.get_current_intent() if _combat_flow != null else {}, _presenter, _is_compact_layout)
 	if _action_hint_controller != null:
 		_action_hint_controller.update_visibility()

@@ -537,6 +537,61 @@ func test_support_interaction_presenter_builds_hamlet_contract_models() -> void:
 	assert(not bool((models[1] as Dictionary).get("disabled", true)), "Expected completed hamlet claim buttons to stay enabled.")
 	assert(not bool((models[2] as Dictionary).get("visible", true)), "Expected unused support buttons to stay hidden on the hamlet reward read.")
 
+	var training_state: SupportInteractionState = SupportInteractionStateScript.new()
+	training_state.setup_for_type("hamlet", side_mission_node_id, {
+		"mission_definition_id": "trail_contract_hunt",
+		"mission_status": "claimed",
+		"training_step": "technique_choice",
+		"technique_offers": [
+			{
+				"offer_id": "equip_cleanse_pulse",
+				"label": "Take Cleanse Pulse",
+				"effect_type": "equip_technique",
+				"definition_id": "cleanse_pulse",
+				"replaces_definition_id": "blood_draw",
+				"available": true,
+			},
+			{
+				"offer_id": "equip_echo_strike",
+				"label": "Take Echo Strike",
+				"effect_type": "equip_technique",
+				"definition_id": "echo_strike",
+				"available": true,
+			},
+			{
+				"offer_id": "skip_hamlet_training",
+				"label": "Skip for now",
+				"effect_type": "skip_training_choice",
+				"available": true,
+			},
+		],
+	}, 1, run_state.inventory_state, run_state.map_runtime_state)
+	assert(
+		presenter.call("build_context_text", training_state) == "Take one field lesson.",
+		"Expected hamlet training choice to keep the context copy compact and action-focused."
+	)
+	assert(
+		presenter.call("build_hint_text", training_state) == "Pick 1 technique or skip.",
+		"Expected hamlet training choice to explain the lightweight 2-offer-plus-skip contract."
+	)
+	var training_models: Array = presenter.call("build_action_view_models", training_state, 3)
+	assert(
+		String((training_models[0] as Dictionary).get("detail_text", "")).contains("gain 2 guard"),
+		"Expected technique training offers to surface the authored technique short description."
+	)
+	assert(
+		String((training_models[0] as Dictionary).get("tooltip_text", "")).contains("Replaces Blood Draw."),
+		"Expected technique training tooltips to explain replacement when the offer would overwrite the carried technique."
+	)
+	assert(
+		String((training_models[2] as Dictionary).get("detail_text", "")) == "Keep current loadout.",
+		"Expected the hamlet training skip button to explain that it leaves the current technique untouched."
+	)
+	assert(
+		String((training_models[2] as Dictionary).get("tooltip_text", "")).contains("will not stay open"),
+		"Expected the hamlet training skip tooltip to explain that the same-visit lesson closes instead of staying unclaimed."
+	)
+
 
 func test_support_interaction_state_roundtrips_blacksmith_target_selection_state() -> void:
 	var support_state: SupportInteractionState = SupportInteractionStateScript.new()
@@ -644,8 +699,12 @@ func test_transition_shell_presenter_builds_node_resolve_text() -> void:
 		"Expected reward resolve hint text to keep the runtime handoff explicit."
 	)
 	assert(
-		String(presenter.call("build_node_icon_texture_path", "combat")) == "res://Assets/Icons/icon_attack.svg",
-		"Expected combat node resolve shell to reuse the attack icon."
+		String(presenter.call("build_node_icon_texture_path", "combat")) == "res://Assets/Icons/icon_map_combat.svg",
+		"Expected combat node resolve shell to stay aligned with the dedicated map combat icon."
+	)
+	assert(
+		String(presenter.call("build_node_icon_texture_path", "boss")) == "res://Assets/Icons/icon_map_boss.svg",
+		"Expected boss node resolve shell to stay aligned with the dedicated map boss icon."
 	)
 	assert(
 		String(presenter.call("build_node_icon_texture_path", "event")) == "res://Assets/Icons/icon_map_trail_event.svg",
@@ -654,4 +713,8 @@ func test_transition_shell_presenter_builds_node_resolve_text() -> void:
 	assert(
 		String(presenter.call("build_node_icon_texture_path", "reward")) == "res://Assets/Icons/icon_reward.svg",
 		"Expected reward node resolve shell to expose the reward icon."
+	)
+	assert(
+		String(presenter.call("build_node_icon_texture_path", "key")) == "res://Assets/Icons/icon_map_key.svg",
+		"Expected key node resolve shell to stay aligned with the dedicated map key icon."
 	)

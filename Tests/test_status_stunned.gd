@@ -26,7 +26,7 @@ func test_stunned_skips_the_next_player_action_but_still_spends_the_turn() -> vo
 	assert(int(flow.combat_state.weapon_instance.get("current_durability", -1)) == 20, "Expected stunned skip to avoid spending weapon durability.")
 
 	var enemy_result: Dictionary = full_turn_result.get("enemy_result", {})
-	assert(int(enemy_result.get("damage_applied", -1)) == 3, "Expected stunned turn to continue into the enemy action and take the hound's first darting bite.")
+	assert(int(enemy_result.get("damage_applied", -1)) == 2, "Expected stunned turn to continue into the enemy action and take the hound's first darting bite.")
 	assert(int(flow.combat_state.current_turn) == 2, "Expected stunned skip to still advance combat to the next turn.")
 	assert(flow.combat_state.player_statuses.is_empty(), "Expected stunned to expire after the skipped-action turn end.")
 

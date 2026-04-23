@@ -14,6 +14,18 @@ static func route_camera_follow_progress(progress: float, route_move_camera_dela
 	return ease_in_out_sine(delayed_progress)
 
 
+static func route_layout_offset_for_move_progress(
+	current_offset: Vector2,
+	target_offset: Vector2,
+	progress: float,
+	route_move_camera_delay_ratio: float
+) -> Vector2:
+	return current_offset.lerp(
+		target_offset,
+		route_camera_follow_progress(progress, route_move_camera_delay_ratio)
+	)
+
+
 static func clamp_route_move_duration(
 	distance: float,
 	route_move_min_duration: float,
@@ -56,6 +68,35 @@ static func build_route_move_world_path(
 	if points.size() >= 2:
 		return points
 	return PackedVector2Array([start_world, target_world])
+
+
+static func has_pending_roadside_visual_state(roadside_visual_state: Dictionary, no_pending_node_id: int) -> bool:
+	return not roadside_visual_state.is_empty() and int(roadside_visual_state.get("target_node_id", no_pending_node_id)) != no_pending_node_id
+
+
+static func build_roadside_visual_state(
+	current_node_id: int,
+	target_node_id: int,
+	current_offset: Vector2,
+	target_offset: Vector2,
+	roadside_interruption_progress: float,
+	route_move_camera_delay_ratio: float,
+	no_pending_node_id: int
+) -> Dictionary:
+	if current_node_id == no_pending_node_id or target_node_id == no_pending_node_id:
+		return {}
+	return {
+		"current_node_id": current_node_id,
+		"target_node_id": target_node_id,
+		"progress": roadside_interruption_progress,
+		"offset": route_layout_offset_for_move_progress(
+			current_offset,
+			target_offset,
+			roadside_interruption_progress,
+			route_move_camera_delay_ratio
+		),
+		"target_offset": target_offset,
+	}
 
 
 static func build_pending_roadside_visual_sample(
@@ -170,15 +211,25 @@ static func walker_stride_offset(
 ) -> Vector2:
 	if route_move_path_length <= 0.0:
 		return Vector2.ZERO
-	var stride_envelope: float = sin(clampf(progress, 0.0, 1.0) * PI)
+	var clamped_progress: float = clampf(progress, 0.0, 1.0)
+	var stride_envelope: float = sin(clamped_progress * PI)
 	if stride_envelope <= 0.0:
 		return Vector2.ZERO
-	var bob_wave: float = absf(sin(clampf(progress, 0.0, 1.0) * TAU * route_move_stride_cycles))
+	var stride_phase: float = clamped_progress * TAU * route_move_stride_cycles
+	var bob_wave: float = absf(sin(stride_phase))
+	var sway_wave: float = sin(stride_phase)
 	var bob_amplitude: float = min(
 		walker_stride_bob_max,
 		walker_stride_bob_max * clampf(route_move_path_length / 220.0, 0.45, 1.0)
 	)
-	return Vector2(0.0, -bob_wave * bob_amplitude * stride_envelope)
+	var sway_amplitude: float = min(
+		4.0,
+		4.0 * clampf(route_move_path_length / 220.0, 0.35, 1.0)
+	)
+	return Vector2(
+		sway_wave * sway_amplitude * stride_envelope * 0.42,
+		-bob_wave * bob_amplitude * stride_envelope
+	)
 
 
 static func ease_in_out_sine(value: float) -> float:

@@ -12,6 +12,7 @@ func _init() -> void:
 
 func _run() -> void:
 	test_mark_hint_shown_is_idempotent()
+	test_mark_all_hints_shown_suppresses_remaining_hints()
 	test_request_hint_queues_once_and_never_retriggers()
 	test_inventory_scan_queues_supported_inventory_hints_in_order()
 	print("test_first_run_hint_controller: all assertions passed")
@@ -39,26 +40,51 @@ func test_mark_hint_shown_is_idempotent() -> void:
 	)
 
 
+func test_mark_all_hints_shown_suppresses_remaining_hints() -> void:
+	var controller: FirstRunHintController = FirstRunHintControllerScript.new()
+	var expected_hint_ids: Array[String] = []
+	for hint_id in FirstRunHintControllerScript.FROZEN_HINT_IDS:
+		expected_hint_ids.append(String(hint_id))
+	expected_hint_ids.sort()
+	assert(controller.request_hint("first_combat_defend"), "Expected an active hint before suppressing tutorial hints.")
+	assert(controller.request_hint("first_hamlet"), "Expected a pending hint before suppressing tutorial hints.")
+	assert(controller.mark_all_hints_shown(), "Expected suppressing tutorial hints to report a real state change on a fresh save.")
+	assert(controller.get_active_hint_id().is_empty(), "Expected suppressing tutorial hints to dismiss the active hint immediately.")
+	assert(controller.get_pending_hint_ids().is_empty(), "Expected suppressing tutorial hints to clear the pending queue.")
+	assert(
+		controller.build_save_data() == expected_hint_ids,
+		"Expected suppressing tutorial hints to persist the full frozen hint set."
+	)
+	assert(
+		not controller.has_unshown_hints(),
+		"Expected suppressing tutorial hints to leave no tutorial hints available on this save."
+	)
+	assert(
+		not controller.mark_all_hints_shown(),
+		"Expected repeating tutorial suppression to stay idempotent."
+	)
+
+
 func test_request_hint_queues_once_and_never_retriggers() -> void:
 	var controller: FirstRunHintController = FirstRunHintControllerScript.new()
 	assert(controller.request_hint("first_combat_defend"), "Expected the first combat hint to activate once.")
 	assert(controller.get_active_hint_id() == "first_combat_defend", "Expected the first requested hint to become active.")
 	assert(controller.has_shown_hint("first_combat_defend"), "Expected active hints to mark themselves as shown immediately.")
 	assert(not controller.request_hint("first_combat_defend"), "Expected shown hints not to requeue.")
-	assert(controller.request_hint("first_low_hunger_warning"), "Expected a second hint to queue while one stays active.")
+	assert(controller.request_hint("first_combat_technique"), "Expected the first technique hint to queue while one stays active.")
 	assert(
-		controller.get_pending_hint_ids() == ["first_low_hunger_warning"],
+		controller.get_pending_hint_ids() == ["first_combat_technique"],
 		"Expected later hints to wait in a one-at-a-time queue."
 	)
 	controller.dismiss_active_hint()
 	assert(
-		controller.get_active_hint_id() == "first_low_hunger_warning",
+		controller.get_active_hint_id() == "first_combat_technique",
 		"Expected dismissing the active hint to reveal the next queued hint."
 	)
 	controller.dismiss_active_hint()
 	assert(controller.get_active_hint_id().is_empty(), "Expected the queue to empty after dismissing the final hint.")
 	assert(
-		not controller.request_hint("first_low_hunger_warning"),
+		not controller.request_hint("first_combat_technique"),
 		"Expected already shown hints to stay suppressed after dismissal."
 	)
 	assert(

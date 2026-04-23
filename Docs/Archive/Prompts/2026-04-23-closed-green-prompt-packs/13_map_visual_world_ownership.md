@@ -1,10 +1,10 @@
-# Prompt 13 - Map Visual World Ownership
+﻿# Prompt 13 - Map Visual World Ownership
 
 Use this prompt pack only after Prompt 12.5 is closed green.
 This is a future-queue ownership/contract pack. Do not start it while any earlier open 06-12.5 pack is still open.
 
 Checked-in filename note:
-- this pack lives at `Docs/Promts/13_map_visual_world_ownership.md`
+- this pack lives at `Docs/Archive/Prompts/2026-04-23-closed-green-prompt-packs/13_map_visual_world_ownership.md`
 - checked-in filename and logical queue position now match Prompt `13`
 
 Read first:

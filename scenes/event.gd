@@ -262,6 +262,7 @@ func _on_return_to_main_menu_pressed() -> void:
 
 func _refresh_save_controls() -> void:
 	RunMenuSceneHelperScript.sync_load_available(_safe_menu, _bootstrap)
+	RunMenuSceneHelperScript.sync_tutorial_hints_available(_safe_menu, _first_run_hint_controller)
 
 
 func _setup_choice_tooltip() -> void:
@@ -444,7 +445,8 @@ func _setup_safe_menu() -> void:
 		String(menu_config.get("launcher_text", RunMenuSceneHelperScript.SHARED_LAUNCHER_TEXT)),
 		Callable(self, "_on_save_pressed"),
 		Callable(self, "_on_load_pressed"),
-		Callable(self, "_on_return_to_main_menu_pressed")
+		Callable(self, "_on_return_to_main_menu_pressed"),
+		Callable(self, "_on_disable_tutorial_hints_pressed")
 	)
 
 
@@ -565,6 +567,7 @@ func _setup_first_run_hint_controller() -> void:
 	if _first_run_hint_controller == null:
 		return
 	_first_run_hint_controller.setup(self, HEADER_STACK_PATH, 190)
+	RunMenuSceneHelperScript.sync_tutorial_hints_available(_safe_menu, _first_run_hint_controller)
 
 
 func _release_first_run_hint_controller_host() -> void:
@@ -572,6 +575,7 @@ func _release_first_run_hint_controller_host() -> void:
 		return
 	_first_run_hint_controller.release_host(self)
 	_first_run_hint_controller = null
+	RunMenuSceneHelperScript.sync_tutorial_hints_available(_safe_menu, _first_run_hint_controller)
 
 
 func _request_contextual_first_run_hint() -> void:
@@ -590,6 +594,15 @@ func _resolve_first_run_hint_controller() -> FirstRunHintController:
 	if coordinator == null:
 		return null
 	return coordinator.get("_first_run_hint_controller") as FirstRunHintController
+
+func _on_disable_tutorial_hints_pressed() -> void:
+	_setup_first_run_hint_controller()
+	if _first_run_hint_controller == null:
+		return
+	var changed: bool = _first_run_hint_controller.mark_all_hints_shown()
+	RunMenuSceneHelperScript.sync_tutorial_hints_available(_safe_menu, _first_run_hint_controller)
+	if _safe_menu != null:
+		_safe_menu.set_status_text(RunMenuSceneHelperScript.build_tutorial_hints_status_text(changed))
 
 func _event_card_name_for_button(button_name: String) -> String:
 	match button_name:

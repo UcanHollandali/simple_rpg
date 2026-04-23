@@ -4,18 +4,18 @@ class_name CombatCopyFormatter
 
 
 static func build_intent_title_text() -> String:
-	return "Next Hit"
+	return "Next Threat"
 
 
 static func build_intent_summary_text(intent: Dictionary, preview_snapshot: Dictionary = {}) -> String:
-	if not preview_snapshot.is_empty() and preview_snapshot.has("incoming_damage_preview"):
-		return "Hits for %d" % int(preview_snapshot.get("incoming_damage_preview", 0))
-
-	var intent_damage: int = _extract_intent_damage(intent)
-	if intent_damage > 0:
-		return "Hits for %d" % intent_damage
-
 	var extra_effects: PackedStringArray = _extract_intent_extra_effect_names(intent)
+	var intent_damage: int = _extract_visible_intent_damage(intent, preview_snapshot)
+	if intent_damage > 0:
+		var hit_copy: String = "Heavy hit" if _intent_is_heavy_damage(intent) else "Hit"
+		if extra_effects.is_empty():
+			return "%s for %d" % [hit_copy, intent_damage]
+		return "%s for %d + %s" % [hit_copy, intent_damage, " + ".join(extra_effects)]
+
 	if not extra_effects.is_empty():
 		return "Applies %s" % ", ".join(extra_effects)
 
@@ -23,10 +23,25 @@ static func build_intent_summary_text(intent: Dictionary, preview_snapshot: Dict
 
 
 static func build_intent_detail_text(intent: Dictionary) -> String:
+	var detail_parts: PackedStringArray = []
+	if _intent_is_heavy_damage(intent):
+		detail_parts.append("High threat.")
 	var extra_effects: PackedStringArray = _extract_intent_extra_effect_names(intent)
-	if extra_effects.is_empty():
-		return ""
-	return "Extra: %s" % ", ".join(extra_effects)
+	if not extra_effects.is_empty():
+		detail_parts.append("Also applies %s." % ", ".join(extra_effects))
+	return " ".join(detail_parts)
+
+
+static func build_intent_reveal_text(intent: Dictionary) -> String:
+	if intent.is_empty():
+		return "Enemy telegraphs nothing."
+
+	var summary_text: String = build_intent_summary_text(intent)
+	var detail_text: String = build_intent_detail_text(intent)
+	var reveal_text: String = "Enemy telegraphs %s." % summary_text.to_lower()
+	if detail_text.is_empty():
+		return reveal_text
+	return "%s %s" % [reveal_text, detail_text]
 
 
 static func build_enemy_type_text(combat_state: CombatState) -> String:
@@ -107,10 +122,11 @@ static func build_attack_action_preview(preview_snapshot: Dictionary) -> String:
 
 static func build_defend_action_preview(preview_snapshot: Dictionary) -> String:
 	if preview_snapshot.is_empty():
-		return "Gain guard before the hit"
-	return "Gain %d guard | Take %d dmg" % [
+		return "Gain guard before the hit | Costs extra hunger"
+	return "Gain %d guard | Take %d dmg | -%d hunger" % [
 		int(preview_snapshot.get("guard_gain_preview", 0)),
 		int(preview_snapshot.get("guard_damage_preview", 0)),
+		int(preview_snapshot.get("defend_hunger_cost_preview", preview_snapshot.get("hunger_tick_preview", 1))),
 	]
 
 
@@ -169,6 +185,12 @@ static func _extract_intent_damage(intent: Dictionary) -> int:
 	return max(0, total_damage)
 
 
+static func _extract_visible_intent_damage(intent: Dictionary, preview_snapshot: Dictionary = {}) -> int:
+	if not preview_snapshot.is_empty() and preview_snapshot.has("incoming_damage_preview"):
+		return max(0, int(preview_snapshot.get("incoming_damage_preview", 0)))
+	return _extract_intent_damage(intent)
+
+
 static func _extract_intent_extra_effect_names(intent: Dictionary) -> PackedStringArray:
 	var effect_names: PackedStringArray = []
 	var effects_variant: Variant = intent.get("effects", [])
@@ -191,6 +213,10 @@ static func _extract_intent_extra_effect_names(intent: Dictionary) -> PackedStri
 				if not generic_name.is_empty():
 					effect_names.append(generic_name)
 	return effect_names
+
+
+static func _intent_is_heavy_damage(intent: Dictionary) -> bool:
+	return _extract_intent_damage(intent) > 0 and String(intent.get("threat_level", "")) == "high"
 
 
 static func _humanize_identifier(value: String) -> String:

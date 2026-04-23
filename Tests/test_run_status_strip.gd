@@ -32,8 +32,12 @@ func test_hunger_threshold_crossed_emits_once_per_threshold_entry() -> void:
 	assert(_threshold_events[1] == {"old": 6, "new": 2}, "Expected the second threshold crossing to announce entry into Starving.")
 	assert(_threshold_events[2] == {"old": 2, "new": 0}, "Expected the final threshold crossing to announce starvation damage.")
 	assert(
-		RunStatusStripScript.build_hunger_threshold_warning_text(RunStatusStripScript.HUNGER_THRESHOLD_STARVING) == "Starving — saldırı gücün -2",
-		"Expected the shared hunger warning copy to stay centralized in the status-strip helper."
+		RunStatusStripScript.build_hunger_threshold_warning_text(RunStatusStripScript.HUNGER_THRESHOLD_HUNGRY) == "Hungry - attack power -1",
+		"Expected the hungry warning copy to stay centralized in the status-strip helper."
+	)
+	assert(
+		RunStatusStripScript.build_hunger_threshold_warning_text(RunStatusStripScript.HUNGER_THRESHOLD_STARVING) == "Starving - attack power -2",
+		"Expected the starving warning copy to stay centralized in the status-strip helper."
 	)
 
 

@@ -78,6 +78,7 @@ func connect_button(button: Button, action_name: String, accent: Color) -> void:
 func refresh_button_tooltips(
 	attack_button: Button,
 	defense_button: Button,
+	technique_button: Button,
 	use_item_button: Button,
 	presenter: RefCounted,
 	combat_state: RefCounted,
@@ -96,6 +97,11 @@ func refresh_button_tooltips(
 		set_action_hint_text(
 			defense_button,
 			presenter.build_action_tooltip_text(String(defense_button.get_meta("action_name", "")), combat_state, {}, preview_snapshot)
+		)
+	if technique_button != null:
+		set_action_hint_text(
+			technique_button,
+			presenter.build_action_tooltip_text(String(technique_button.get_meta("action_name", "")), combat_state, {}, preview_snapshot)
 		)
 	if use_item_button != null:
 		use_item_button.text = "Use Item"

@@ -3,14 +3,18 @@ extends RefCounted
 class_name CombatPresenter
 
 const ContentLoaderScript = preload("res://Game/Infrastructure/content_loader.gd")
+const ItemDefinitionTooltipBuilderScript = preload("res://Game/UI/item_definition_tooltip_builder.gd")
 const InventoryActionsScript = preload("res://Game/Application/inventory_actions.gd")
+const InventoryStateScript = preload("res://Game/RuntimeState/inventory_state.gd")
 const CombatFeedbackFactoryScript = preload("res://Game/UI/combat_feedback_factory.gd")
 const CombatCopyFormatterScript = preload("res://Game/UI/combat_copy_formatter.gd")
+const CombatIntentVisualModelBuilderScript = preload("res://Game/UI/combat_intent_visual_model_builder.gd")
 const TempScreenThemeScript = preload("res://Game/UI/temp_screen_theme.gd")
 const UiAssetPathsScript = preload("res://Game/UI/ui_asset_paths.gd")
 const UiFormattingScript = preload("res://Game/UI/ui_formatting.gd")
 
 var _loader: ContentLoader = ContentLoaderScript.new()
+var _item_tooltip_builder: ItemDefinitionTooltipBuilder = ItemDefinitionTooltipBuilderScript.new()
 
 
 func build_turn_text(combat_state: CombatState) -> String:
@@ -24,10 +28,7 @@ func build_combat_ready_text(combat_state: CombatState) -> String:
 
 
 func build_intent_text(intent: Dictionary) -> String:
-	return "Enemy intends: %s (%s)" % [
-		String(intent.get("intent_id", "none")),
-		String(intent.get("threat_level", "unknown")),
-	]
+	return CombatCopyFormatterScript.build_intent_reveal_text(intent)
 
 
 func build_intent_title_text() -> String:
@@ -53,6 +54,10 @@ func build_intent_icon_texture_path(intent: Dictionary) -> String:
 		return UiAssetPathsScript.ENEMY_INTENT_HEAVY_ICON_TEXTURE_PATH
 
 	return UiAssetPathsScript.ENEMY_INTENT_ATTACK_ICON_TEXTURE_PATH
+
+
+func build_enemy_bust_intent_visual_model(intent: Dictionary) -> Dictionary:
+	return CombatIntentVisualModelBuilderScript.build_enemy_bust_intent_visual_model(intent)
 
 
 func build_enemy_name_text(combat_state: CombatState) -> String:
@@ -169,14 +174,15 @@ func build_player_status_model(combat_state: CombatState) -> Dictionary:
 		"current_value": combat_state.player_hunger,
 		"max_value": RunState.DEFAULT_HUNGER,
 	})
+	var durability_metric: Dictionary = _build_durability_metric_item(combat_state)
 	primary_items.append({
 		"key": "durability",
-		"label_text": "Durability",
+		"label_text": String(durability_metric.get("label_text", "Durability")),
 		"value_text": UiFormattingScript.build_metric_value_text(
 			int(combat_state.weapon_instance.get("current_durability", 0)),
 			_extract_weapon_max_durability(combat_state)
 		),
-		"semantic": "durability",
+		"semantic": String(durability_metric.get("semantic", "durability")),
 		"current_value": int(combat_state.weapon_instance.get("current_durability", 0)),
 		"max_value": _extract_weapon_max_durability(combat_state),
 	})
@@ -253,6 +259,31 @@ func build_player_badge_text() -> String:
 
 func build_defensive_action_label(_combat_state: CombatState = null) -> String:
 	return "Defend"
+
+
+func build_technique_action_label(combat_state: CombatState) -> String:
+	if combat_state == null or not combat_state.has_equipped_technique():
+		return "Technique"
+	return String(
+		combat_state.equipped_technique_definition.get("display", {}).get("name", combat_state.equipped_technique_definition_id)
+	)
+
+
+func build_technique_action_eyebrow_text(combat_state: CombatState) -> String:
+	if combat_state == null or not combat_state.has_equipped_technique():
+		return "TACTICAL TECHNIQUE"
+	if bool(combat_state.technique_spent):
+		return "SPENT THIS FIGHT"
+	var effect_type: String = String(
+		combat_state.equipped_technique_definition.get("rules", {}).get("effect", {}).get("type", "")
+	).strip_edges()
+	match effect_type:
+		"remove_statuses":
+			return "CLEAR AFFLICTIONS"
+		"prime_next_attack":
+			return "SET UP NEXT HIT"
+		_:
+			return "TACTICAL TECHNIQUE"
 
 
 func build_resource_hud_texts(combat_state: CombatState) -> Dictionary:
@@ -386,6 +417,8 @@ func build_action_card_preview_text(action_name: String, combat_state: CombatSta
 			return CombatCopyFormatterScript.build_attack_action_preview(preview_snapshot)
 		"defend":
 			return CombatCopyFormatterScript.build_defend_action_preview(preview_snapshot)
+		"technique":
+			return _build_technique_action_preview_text(combat_state, preview_snapshot)
 		"use_item":
 			if combat_state == null:
 				return "Select a consumable card below."
@@ -413,6 +446,10 @@ func build_action_card_preview_text(action_name: String, combat_state: CombatSta
 
 func build_combat_quickbar_title_text() -> String:
 	return "Quick Use"
+
+
+func build_combat_equipment_hint_text() -> String:
+	return "Only hand swaps are legal here. Swap ends turn. Armor and belt stay locked."
 
 
 func build_combat_quickbar_hint_text(combat_state: CombatState, preview_consumable_slot: Dictionary = {}) -> String:
@@ -445,12 +482,74 @@ func build_combat_quickbar_hint_text(combat_state: CombatState, preview_consumab
 	]
 
 
+func build_hand_swap_surface_model(
+	combat_state: CombatState,
+	slot_candidates_by_name: Dictionary,
+	selected_slot_name: String
+) -> Dictionary:
+	var ordered_slot_names: Array[String] = [
+		InventoryStateScript.EQUIPMENT_SLOT_RIGHT_HAND,
+		InventoryStateScript.EQUIPMENT_SLOT_LEFT_HAND,
+	]
+	var visible_slot_names: Array[String] = []
+	for slot_name in ordered_slot_names:
+		var slot_candidates: Array = slot_candidates_by_name.get(slot_name, [])
+		if slot_candidates.is_empty():
+			continue
+		visible_slot_names.append(slot_name)
+	if visible_slot_names.is_empty():
+		return {
+			"visible": false,
+		}
+
+	var resolved_selected_slot_name: String = selected_slot_name
+	if not visible_slot_names.has(resolved_selected_slot_name):
+		resolved_selected_slot_name = visible_slot_names[0]
+
+	var current_item_name: String = _build_hand_swap_equipped_item_name(combat_state, resolved_selected_slot_name)
+	var selected_candidates: Array = slot_candidates_by_name.get(resolved_selected_slot_name, [])
+	var slot_buttons: Array[Dictionary] = []
+	for slot_name in visible_slot_names:
+		var candidates: Array = slot_candidates_by_name.get(slot_name, [])
+		slot_buttons.append({
+			"slot_name": slot_name,
+			"text": _build_hand_swap_slot_label(slot_name),
+			"selected": slot_name == resolved_selected_slot_name,
+			"count_text": "%d spare%s" % [candidates.size(), "" if candidates.size() == 1 else "s"],
+		})
+
+	var candidate_buttons: Array[Dictionary] = []
+	for candidate_value in selected_candidates:
+		if typeof(candidate_value) != TYPE_DICTIONARY:
+			continue
+		var candidate_slot: Dictionary = candidate_value
+		candidate_buttons.append({
+			"slot_id": int(candidate_slot.get("slot_id", -1)),
+			"text": _build_hand_swap_candidate_display_name(candidate_slot),
+			"hint_text": _build_hand_swap_candidate_hint_text(resolved_selected_slot_name, candidate_slot),
+		})
+
+	return {
+		"visible": true,
+		"title_text": "Hand Swap",
+		"hint_text": "%s is %s. Tap a packed spare. Swap ends turn. Armor and belt stay locked." % [
+			_build_hand_swap_slot_label(resolved_selected_slot_name),
+			current_item_name,
+		],
+		"selected_slot_name": resolved_selected_slot_name,
+		"slot_buttons": slot_buttons,
+		"candidate_buttons": candidate_buttons,
+	}
+
+
 func build_action_tooltip_text(action_name: String, combat_state: CombatState, preview_consumable_slot: Dictionary = {}, preview_snapshot: Dictionary = {}) -> String:
 	match action_name:
 		"attack":
 			return _build_attack_tooltip_text(combat_state, preview_snapshot)
 		"defend":
 			return _build_defend_tooltip_text(combat_state, preview_snapshot)
+		"technique":
+			return _build_technique_tooltip_text(combat_state, preview_snapshot)
 		"use_item":
 			return _build_use_item_tooltip_text(combat_state, preview_consumable_slot)
 		_:
@@ -499,11 +598,25 @@ func format_player_turn_phase_line(action_name: String, result: Dictionary) -> S
 		"defend":
 			if bool(result.get("skipped", false)):
 				return ""
-			return "Defend raised %d guard." % int(result.get("guard_generated", result.get("guard_points", 0)))
+			return "Defend raised %d guard. Costs +%d extra hunger." % [
+				int(result.get("guard_generated", result.get("guard_points", 0))),
+				int(result.get("extra_hunger_cost", 0)),
+			]
+		"technique":
+			if bool(result.get("skipped", false)):
+				return "Technique unavailable."
+			return _format_technique_turn_phase_line(result)
 		"use_item":
 			if bool(result.get("skipped", false)):
 				return "No consumable ready."
 			return ""
+		"swap_hand":
+			if bool(result.get("skipped", false)):
+				return "No legal hand swap."
+			return "Swapped %s to %s." % [
+				_build_hand_swap_slot_label(String(result.get("equipment_slot_name", ""))).to_lower(),
+				_build_hand_swap_result_name(result),
+			]
 		_:
 			return ""
 
@@ -529,11 +642,15 @@ func format_domain_event_line(event_name: String, payload: Dictionary) -> String
 			return "Weapon broke."
 		"GuardGained":
 			var guard_points: int = int(payload.get("guard_points", 0))
+			var extra_hunger_cost: int = int(payload.get("extra_hunger_cost", 0))
+			var hunger_cost_suffix: String = ""
+			if extra_hunger_cost > 0:
+				hunger_cost_suffix = " Costs +%d extra hunger." % extra_hunger_cost
 			if bool(payload.get("shield_bonus_applied", false)):
-				return "Defend raised %d guard with shield support." % guard_points
+				return "Defend raised %d guard with shield support.%s" % [guard_points, hunger_cost_suffix]
 			if bool(payload.get("dual_wield_penalty_applied", false)):
-				return "Defend raised %d guard while dual wielding." % guard_points
-			return "Defend raised %d guard." % guard_points
+				return "Defend raised %d guard while dual wielding.%s" % [guard_points, hunger_cost_suffix]
+			return "Defend raised %d guard.%s" % [guard_points, hunger_cost_suffix]
 		"GuardAbsorbed":
 			var guard_absorbed: int = int(payload.get("guard_absorbed", 0))
 			var hp_damage: int = int(payload.get("hp_damage", 0))
@@ -581,6 +698,8 @@ func format_domain_event_line(event_name: String, payload: Dictionary) -> String
 		"EnemyIntentRevealed":
 			var intent: Dictionary = payload.get("intent", {})
 			return build_intent_text(intent)
+		"TechniqueUsed":
+			return _format_technique_domain_event_line(payload)
 		_:
 			return ""
 
@@ -597,6 +716,29 @@ func _extract_enemy_max_hp(combat_state: CombatState) -> int:
 
 func _extract_weapon_max_durability(combat_state: CombatState) -> int:
 	return max(1, int(combat_state.weapon_instance.get("max_durability", combat_state.weapon_instance.get("current_durability", 1))))
+
+
+func _build_durability_metric_item(combat_state: CombatState) -> Dictionary:
+	var current_durability: int = max(0, int(combat_state.weapon_instance.get("current_durability", 0)))
+	var max_durability: int = _extract_weapon_max_durability(combat_state)
+	if current_durability <= 0:
+		return {
+			"label_text": "BROKEN",
+			"semantic": "danger",
+		}
+	if current_durability <= _resolve_low_durability_threshold(max_durability):
+		return {
+			"label_text": "LOW DUR.",
+			"semantic": "danger",
+		}
+	return {
+		"label_text": "Durability",
+		"semantic": "durability",
+	}
+
+
+func _resolve_low_durability_threshold(max_durability: int) -> int:
+	return max(1, int(ceil(float(max_durability) * 0.25)))
 
 
 func _build_equipment_display_name(definition_folder: String, equipment_instance: Dictionary) -> String:
@@ -643,7 +785,7 @@ func _build_attack_tooltip_text(combat_state: CombatState, preview_snapshot: Dic
 
 
 func _build_defend_tooltip_text(combat_state: CombatState, preview_snapshot: Dictionary = {}) -> String:
-	var base_text: String = "Defend. Gain guard before HP. Some guard carries. Shields add more."
+	var base_text: String = "Defend. Gain guard before HP. Some guard carries. Shields add more. Costs +1 extra hunger."
 	var left_hand_family: String = _left_hand_inventory_family(combat_state)
 	if left_hand_family == "weapon":
 		base_text += " Offhand weapons lower guard."
@@ -651,10 +793,11 @@ func _build_defend_tooltip_text(combat_state: CombatState, preview_snapshot: Dic
 		return base_text
 
 	var preview_texts: Dictionary = build_preview_texts(preview_snapshot)
-	return "%s Expected %s into %s." % [
+	return "%s Expected %s into %s. %s." % [
 		base_text,
 		String(preview_texts.get("defend", "Guard ?")).to_lower(),
 		String(preview_texts.get("guard_result", "Guard ? | HP ?")).to_lower(),
+		String(preview_texts.get("defend_cost", "Turn -? hunger")),
 	]
 
 
@@ -689,6 +832,296 @@ func _build_use_item_tooltip_text(combat_state: CombatState, preview_consumable_
 		item_name,
 		effect_summary,
 	]
+
+
+func _build_technique_action_preview_text(combat_state: CombatState, preview_snapshot: Dictionary = {}) -> String:
+	if combat_state == null or not combat_state.has_equipped_technique():
+		return "No technique equipped."
+	if bool(preview_snapshot.get("technique_spent", combat_state.technique_spent)):
+		return "Spent this combat."
+	if not bool(preview_snapshot.get("technique_available", true)):
+		match String(preview_snapshot.get("technique_unavailable_reason", "")):
+			"no_statuses_to_cleanse":
+				return "No afflictions to clear."
+			_:
+				return "Unavailable."
+
+	var effect_type: String = String(preview_snapshot.get("technique_effect_type", ""))
+	match effect_type:
+		"remove_statuses":
+			return _build_cleanse_preview_text(combat_state, preview_snapshot)
+		"attack_ignore_armor":
+			return "Hit %d | Ignore armor" % int(preview_snapshot.get("technique_damage_preview", 0))
+		"attack_lifesteal":
+			return "Hit %d | Heal %d" % [
+				int(preview_snapshot.get("technique_damage_preview", 0)),
+				int(preview_snapshot.get("technique_heal_preview", 0)),
+			]
+		"prime_next_attack":
+			return "Prime x%d next attack" % int(preview_snapshot.get("technique_attack_multiplier_preview", 2))
+		_:
+			return String(preview_snapshot.get("technique_short_description", "Technique")).strip_edges()
+
+
+func _build_technique_tooltip_text(combat_state: CombatState, preview_snapshot: Dictionary = {}) -> String:
+	if combat_state == null or not combat_state.has_equipped_technique():
+		return "No technique equipped."
+	var display: Dictionary = combat_state.equipped_technique_definition.get("display", {})
+	var short_description: String = String(display.get("short_description", "")).strip_edges()
+	var base_text: String = "%s. Once per combat." % (
+		short_description if not short_description.is_empty() else build_technique_action_label(combat_state)
+	)
+	if bool(preview_snapshot.get("technique_spent", combat_state.technique_spent)):
+		return "%s Already spent this fight." % base_text
+	match String(preview_snapshot.get("technique_unavailable_reason", "")):
+		"no_statuses_to_cleanse":
+			return "%s Unavailable until you have a current affliction to clear." % base_text
+		_:
+			if String(preview_snapshot.get("technique_effect_type", "")) == "remove_statuses":
+				var current_afflictions_text: String = _build_current_affliction_names_text(combat_state.player_statuses)
+				if not current_afflictions_text.is_empty():
+					return "%s Current afflictions: %s." % [base_text, current_afflictions_text]
+			return base_text
+
+
+func _format_technique_turn_phase_line(result: Dictionary) -> String:
+	var display_name: String = String(result.get("technique_display_name", result.get("technique_definition_id", "Technique")))
+	match String(result.get("technique_effect_type", "")):
+		"remove_statuses":
+			var removed_status_count: int = int(result.get("removed_status_count", 0))
+			var guard_gained: int = int(result.get("guard_gained", 0))
+			if guard_gained > 0:
+				return "%s cleared %d afflictions and raised %d guard." % [
+					display_name,
+					removed_status_count,
+					guard_gained,
+				]
+			return "%s cleared %d afflictions." % [
+				display_name,
+				removed_status_count,
+			]
+		"attack_ignore_armor":
+			return "%s hit through armor for %d." % [
+				display_name,
+				int(result.get("damage_applied", 0)),
+			]
+		"attack_lifesteal":
+			return "%s hit for %d and healed %d." % [
+				display_name,
+				int(result.get("damage_applied", 0)),
+				int(result.get("healed_amount", 0)),
+			]
+		"prime_next_attack":
+			return "%s primed the next attack at x%d." % [
+				display_name,
+				int(result.get("queued_attack_multiplier", 1)),
+			]
+		_:
+			return "%s resolved." % display_name
+
+
+func _format_technique_domain_event_line(payload: Dictionary) -> String:
+	var display_name: String = String(payload.get("display_name", payload.get("technique_definition_id", "Technique")))
+	match String(payload.get("technique_effect_type", "")):
+		"remove_statuses":
+			return "%s is ready to clear afflictions." % display_name
+		"attack_ignore_armor":
+			return "%s will ignore armor on hit." % display_name
+		"attack_lifesteal":
+			return "%s will heal from damage dealt." % display_name
+		"prime_next_attack":
+			return "%s prepares a stronger next swing." % display_name
+		_:
+			return "%s equipped." % display_name
+
+
+func _build_hand_swap_result_name(result: Dictionary) -> String:
+	var definition_id: String = String(result.get("equipped_definition_id", "")).strip_edges()
+	var inventory_family: String = String(result.get("equipped_inventory_family", "")).strip_edges()
+	if definition_id.is_empty():
+		return "new gear"
+	return _build_inventory_item_display_name(inventory_family, definition_id, result)
+
+
+func _build_hand_swap_slot_label(slot_name: String) -> String:
+	match slot_name:
+		InventoryStateScript.EQUIPMENT_SLOT_RIGHT_HAND:
+			return "Right Hand"
+		InventoryStateScript.EQUIPMENT_SLOT_LEFT_HAND:
+			return "Left Hand"
+		_:
+			return "Hand"
+
+
+func _build_hand_swap_equipped_item_name(combat_state: CombatState, slot_name: String) -> String:
+	if combat_state == null:
+		return "Empty"
+	match slot_name:
+		InventoryStateScript.EQUIPMENT_SLOT_RIGHT_HAND:
+			return _build_inventory_item_display_name(
+				InventoryStateScript.INVENTORY_FAMILY_WEAPON,
+				String(combat_state.weapon_instance.get("definition_id", "")),
+				combat_state.weapon_instance
+			)
+		InventoryStateScript.EQUIPMENT_SLOT_LEFT_HAND:
+			var left_hand_slot: Dictionary = combat_state.left_hand_instance
+			var inventory_family: String = String(left_hand_slot.get("inventory_family", "")).strip_edges()
+			return _build_inventory_item_display_name(
+				inventory_family,
+				String(left_hand_slot.get("definition_id", "")),
+				left_hand_slot
+			)
+		_:
+			return "Empty"
+
+
+func _build_hand_swap_candidate_display_name(slot: Dictionary) -> String:
+	var inventory_family: String = String(slot.get("inventory_family", "")).strip_edges()
+	var definition_id: String = String(slot.get("definition_id", "")).strip_edges()
+	var display_name: String = _build_inventory_item_display_name(inventory_family, definition_id, slot)
+	if inventory_family == InventoryStateScript.INVENTORY_FAMILY_WEAPON and int(slot.get("current_durability", 1)) <= 0:
+		return "%s (Broken)" % display_name
+	return display_name
+
+
+func _build_hand_swap_candidate_hint_text(slot_name: String, slot: Dictionary) -> String:
+	var display_name: String = _build_hand_swap_candidate_display_name(slot)
+	var inventory_family: String = String(slot.get("inventory_family", "")).strip_edges()
+	var hint_fragments: Array[String] = []
+	match slot_name:
+		InventoryStateScript.EQUIPMENT_SLOT_RIGHT_HAND:
+			var main_hand_summary: String = _item_tooltip_builder.build_definition_summary_text(
+				InventoryStateScript.INVENTORY_FAMILY_WEAPON,
+				String(slot.get("definition_id", "")),
+				1,
+				slot
+			)
+			hint_fragments.append("Main attack uses this weapon.")
+			if not main_hand_summary.is_empty():
+				hint_fragments.append(main_hand_summary)
+		InventoryStateScript.EQUIPMENT_SLOT_LEFT_HAND:
+			if inventory_family == InventoryStateScript.INVENTORY_FAMILY_SHIELD:
+				hint_fragments.append("Shield lane: Defend +2.")
+				var shield_passive_summary: String = _build_shield_swap_passive_summary_text(String(slot.get("definition_id", "")))
+				if not shield_passive_summary.is_empty():
+					hint_fragments.append(shield_passive_summary)
+			elif inventory_family == InventoryStateScript.INVENTORY_FAMILY_WEAPON:
+				hint_fragments.append("Offhand only: Attack +1 | Defend -1.")
+				hint_fragments.append("Main attack stays in the right hand.")
+		_:
+			pass
+	hint_fragments.append("Ends turn.")
+	return "%s to %s. %s" % [
+		display_name,
+		_build_hand_swap_slot_label(slot_name).to_lower(),
+		" ".join(hint_fragments),
+	]
+
+
+func _build_shield_swap_passive_summary_text(definition_id: String) -> String:
+	var shield_definition: Dictionary = _loader.load_definition("Shields", definition_id)
+	if shield_definition.is_empty():
+		return ""
+	var rules: Dictionary = shield_definition.get("rules", {})
+	var behaviors: Array = rules.get("behaviors", [])
+	var modifier_fragments: Array[String] = []
+	for behavior_value in behaviors:
+		if typeof(behavior_value) != TYPE_DICTIONARY:
+			continue
+		var behavior: Dictionary = behavior_value
+		var effects: Array = behavior.get("effects", [])
+		for effect_value in effects:
+			if typeof(effect_value) != TYPE_DICTIONARY:
+				continue
+			var effect: Dictionary = effect_value
+			if String(effect.get("type", "")) != "modify_stat":
+				continue
+			var params: Dictionary = effect.get("params", {})
+			var stat_name: String = String(params.get("stat", "")).strip_edges()
+			var amount: int = int(params.get("amount", 0))
+			match stat_name:
+				"attack_power_bonus":
+					modifier_fragments.append("%+d attack" % amount)
+				"incoming_damage_flat_reduction":
+					modifier_fragments.append("%+d defense" % amount)
+				"durability_cost_flat_reduction":
+					if amount < 0:
+						modifier_fragments.append("%d less durability/use" % abs(amount))
+					elif amount > 0:
+						modifier_fragments.append("%+d durability/use" % amount)
+				_:
+					pass
+	if modifier_fragments.is_empty():
+		return ""
+	return "Passive: %s." % " | ".join(modifier_fragments)
+
+
+func _build_cleanse_preview_text(combat_state: CombatState, preview_snapshot: Dictionary) -> String:
+	var affliction_text: String = _build_current_affliction_names_text(combat_state.player_statuses if combat_state != null else [])
+	var removed_status_count: int = int(preview_snapshot.get("technique_removed_status_count", 0))
+	var guard_gain: int = _resolve_cleanse_guard_gain(preview_snapshot, combat_state)
+	var fragments: Array[String] = []
+	if not affliction_text.is_empty():
+		fragments.append("Clear %s" % affliction_text)
+	elif removed_status_count > 0:
+		fragments.append("Clear %d afflictions" % removed_status_count)
+	else:
+		fragments.append("Clear afflictions")
+	if guard_gain > 0:
+		fragments.append("Guard +%d" % guard_gain)
+	return " | ".join(fragments)
+
+
+func _build_current_affliction_names_text(statuses: Array) -> String:
+	var names: Array[String] = []
+	for status_value in statuses:
+		if typeof(status_value) != TYPE_DICTIONARY:
+			continue
+		var status: Dictionary = status_value
+		var definition_id: String = String(status.get("definition_id", "")).strip_edges()
+		if definition_id.is_empty():
+			continue
+		var status_definition: Dictionary = _loader.load_definition("Statuses", definition_id)
+		var display_name: String = String(status_definition.get("display", {}).get("name", definition_id)).strip_edges()
+		if display_name.is_empty():
+			continue
+		names.append(display_name)
+	if names.is_empty():
+		return ""
+	if names.size() == 1:
+		return names[0]
+	if names.size() == 2:
+		return "%s + %s" % [names[0], names[1]]
+	return "%s +%d more" % [names[0], names.size() - 1]
+
+
+func _resolve_cleanse_guard_gain(preview_snapshot: Dictionary, combat_state: CombatState) -> int:
+	var preview_guard_gain: int = int(preview_snapshot.get("technique_guard_gain_preview", 0))
+	if preview_guard_gain > 0:
+		return preview_guard_gain
+	if combat_state == null or not combat_state.has_equipped_technique():
+		return 0
+	var params: Dictionary = combat_state.equipped_technique_definition.get("rules", {}).get("effect", {}).get("params", {})
+	return max(0, int(params.get("guard_gain", 0)))
+
+
+func _build_inventory_item_display_name(inventory_family: String, definition_id: String, slot: Dictionary = {}) -> String:
+	if definition_id.is_empty():
+		return "Empty"
+	var slot_snapshot: Dictionary = slot.duplicate(true)
+	if String(slot_snapshot.get("definition_id", "")).strip_edges().is_empty():
+		slot_snapshot["definition_id"] = definition_id
+	match inventory_family:
+		InventoryStateScript.INVENTORY_FAMILY_WEAPON:
+			return _build_equipment_display_name("Weapons", slot_snapshot)
+		InventoryStateScript.INVENTORY_FAMILY_SHIELD:
+			return _build_equipment_display_name("Shields", slot_snapshot)
+		InventoryStateScript.INVENTORY_FAMILY_ARMOR:
+			return _build_equipment_display_name("Armors", slot_snapshot)
+		InventoryStateScript.INVENTORY_FAMILY_BELT:
+			return _build_equipment_display_name("Belts", slot_snapshot)
+		_:
+			return definition_id
 
 
 func _is_consumable_slot_usable_in_combat(combat_state: CombatState, consumable_slot: Dictionary) -> bool:

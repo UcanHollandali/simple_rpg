@@ -425,7 +425,7 @@ func _route_restore_state(active_flow_state: int) -> void:
 
 func _initialize_playtest_logger() -> void:
 	playtest_logger = PlaytestLoggerScript.new()
-	playtest_logger.setup(_is_playtest_logging_enabled())
+	playtest_logger.setup(_is_playtest_logging_enabled(), PlaytestLogger.DEFAULT_LOG_PATH, _build_playtest_session_metadata())
 	if playtest_logger == null or not playtest_logger.is_enabled():
 		return
 	if game_flow_manager == null:
@@ -436,8 +436,12 @@ func _initialize_playtest_logger() -> void:
 		game_flow_manager.flow_state_changed.connect(state_changed_callable)
 
 
+static func playtest_logging_requested(cmdline_args: PackedStringArray) -> bool:
+	return cmdline_args.has(PLAYTEST_LOG_CMDLINE_ARG)
+
+
 func _is_playtest_logging_enabled() -> bool:
-	return OS.is_debug_build() or OS.get_cmdline_args().has(PLAYTEST_LOG_CMDLINE_ARG)
+	return playtest_logging_requested(PackedStringArray(OS.get_cmdline_args()))
 
 
 func _on_playtest_flow_state_changed(_old_state: int, new_state: int) -> void:
@@ -481,3 +485,11 @@ func _build_playtest_log_payload(event_type: String, extra_data: Dictionary = {}
 	for key in extra_data.keys():
 		payload[key] = extra_data[key]
 	return payload
+
+
+func _build_playtest_session_metadata() -> Dictionary:
+	return {
+		"logging_mode": "explicit_flag",
+		"build_channel": "debug" if OS.is_debug_build() else "release",
+		"platform": OS.get_name(),
+	}

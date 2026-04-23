@@ -135,6 +135,8 @@ func _draw_filler_shapes() -> void:
 		var tone_shift: float = float(shape.get("tone_shift", 0.0))
 		var alpha_scale: float = float(shape.get("alpha_scale", 1.0))
 		var rotation_radians: float = deg_to_rad(float(shape.get("rotation_degrees", 0.0)))
+		var texture_path: String = String(shape.get("texture_path", ""))
+		var texture: Texture2D = SceneLayoutHelperScript.load_texture_or_null(texture_path)
 		var outer_polygon: PackedVector2Array = _filler_polygon(family, center, half_size, rotation_radians)
 		draw_colored_polygon(
 			outer_polygon,
@@ -150,6 +152,21 @@ func _draw_filler_shapes() -> void:
 			),
 			MapBoardStyleScript.filler_shape_inner_color(template_profile, family, tone_shift, alpha_scale)
 		)
+		if texture != null:
+			var texture_scale: float = float(shape.get("texture_scale", 1.44))
+			var texture_alpha_multiplier: float = 0.38 if family == "water_patch" else 0.56
+			var texture_size_multiplier: float = 0.90 if family == "water_patch" else 0.86
+			var texture_modulate := Color(1, 1, 1, clampf(alpha_scale * texture_alpha_multiplier, 0.0, 1.0))
+			_draw_texture_stamp(
+				texture,
+				center,
+				Vector2(
+					half_size.x * texture_scale * texture_size_multiplier * 2.0,
+					half_size.y * texture_scale * texture_size_multiplier * 2.0
+				),
+				texture_modulate,
+				rotation_radians
+			)
 		_draw_closed_polyline(
 			outer_polygon,
 			MapBoardStyleScript.filler_shape_rim_color(template_profile, family, tone_shift, alpha_scale),
@@ -199,24 +216,35 @@ func _draw_trail_decals() -> void:
 		if typeof(edge_variant) != TYPE_DICTIONARY:
 			continue
 		var edge: Dictionary = edge_variant
+		var is_history: bool = bool(edge.get("is_history", false))
+		var emphasis_level: int = _edge_emphasis_level(edge)
+		var visual_profile: Dictionary = _edge_visual_profile(edge, emphasis_level)
+		if not bool(visual_profile.get("draw_trail_decal", true)):
+			continue
 		var trail_texture_path: String = String(edge.get("trail_texture_path", ""))
 		var trail_texture: Texture2D = SceneLayoutHelperScript.load_texture_or_null(trail_texture_path)
 		if trail_texture == null:
 			continue
-		var translated_points: PackedVector2Array = _display_edge_points(edge.get("points", PackedVector2Array()))
+		var translated_points: PackedVector2Array = _display_edge_points_for_edge(edge)
 		if translated_points.size() < 2:
 			continue
 		var center: Vector2 = _midpoint_for_polyline(translated_points)
 		var direction: Vector2 = _direction_for_polyline(translated_points)
 		var chord_length: float = translated_points[0].distance_to(translated_points[translated_points.size() - 1])
-		var size_scale: Vector2 = Vector2(
-			clampf(chord_length * 0.88, 110.0, 224.0),
-			clampf(34.0 + chord_length * 0.06, 26.0, 58.0)
-		)
 		var state_semantic: String = String(edge.get("state_semantic", "open"))
-		var emphasis_level: int = _edge_emphasis_level(edge)
+		var size_scale_factor: float = MapBoardStyleScript.trail_stamp_size_scale(is_history, emphasis_level)
+		size_scale_factor *= float(visual_profile.get("trail_size_scale", 1.0))
+		var size_scale: Vector2 = Vector2(
+			clampf(chord_length * 0.88 * size_scale_factor, 104.0, 224.0),
+			clampf((34.0 + chord_length * 0.06) * size_scale_factor, 24.0, 58.0)
+		)
 		var stamp_tint: Color = MapBoardStyleScript.road_base_color(state_semantic, emphasis_level)
-		stamp_tint.a = min(MapBoardStyleScript.TRAIL_STAMP_ALPHA_CAP, stamp_tint.a * MapBoardStyleScript.TRAIL_STAMP_ALPHA_MULTIPLIER)
+		stamp_tint.a = min(
+			MapBoardStyleScript.TRAIL_STAMP_ALPHA_CAP,
+			stamp_tint.a
+				* MapBoardStyleScript.trail_stamp_alpha_multiplier(is_history, emphasis_level)
+				* float(visual_profile.get("trail_alpha_scale", 1.0))
+		)
 		_draw_texture_stamp(
 			trail_texture,
 			center,
@@ -236,27 +264,32 @@ func _draw_edges(draw_highlight_pass: bool) -> void:
 		if points.size() < 2:
 			continue
 		var is_history: bool = bool(edge.get("is_history", false))
-		var translated_points: PackedVector2Array = _display_edge_points(points)
 		var state_semantic: String = String(edge.get("state_semantic", "open"))
 		var emphasis_level: int = _edge_emphasis_level(edge)
+		var visual_profile: Dictionary = _edge_visual_profile(edge, emphasis_level)
+		var translated_points: PackedVector2Array = _display_edge_points_for_edge(edge)
 		if draw_highlight_pass:
-			if is_history and emphasis_level == 0:
+			if not bool(visual_profile.get("draw_highlight", emphasis_level > 0)):
 				continue
 			var highlight_points: PackedVector2Array = _trim_polyline_endpoints(
 				translated_points,
-				MapBoardStyleScript.road_endpoint_trim(emphasis_level),
-				MapBoardStyleScript.road_endpoint_trim(emphasis_level)
+				MapBoardStyleScript.road_endpoint_trim(emphasis_level) * float(visual_profile.get("trim_scale", 1.0)),
+				MapBoardStyleScript.road_endpoint_trim(emphasis_level) * float(visual_profile.get("trim_scale", 1.0))
 			)
+			var highlight_color: Color = MapBoardStyleScript.road_highlight_color(state_semantic, emphasis_level)
+			highlight_color.a *= float(visual_profile.get("highlight_alpha_scale", 1.0))
 			draw_polyline(
 				highlight_points,
-				MapBoardStyleScript.road_highlight_color(state_semantic, emphasis_level),
-				MapBoardStyleScript.road_highlight_width(is_history, emphasis_level),
+				highlight_color,
+				MapBoardStyleScript.road_highlight_width(is_history, emphasis_level) * float(visual_profile.get("highlight_width_scale", 1.0)),
 				true
 			)
 		else:
-			var base_width: float = MapBoardStyleScript.road_base_width(is_history, emphasis_level)
-			var shadow_width: float = MapBoardStyleScript.road_shadow_width(is_history)
-			var shadow_alpha: float = MapBoardStyleScript.road_shadow_alpha(is_history)
+			var base_width: float = MapBoardStyleScript.road_base_width(is_history, emphasis_level) * float(visual_profile.get("base_width_scale", 1.0))
+			var shadow_width: float = MapBoardStyleScript.road_shadow_width(is_history) * float(visual_profile.get("shadow_width_scale", 1.0))
+			var shadow_alpha: float = MapBoardStyleScript.road_shadow_alpha(is_history) * float(visual_profile.get("shadow_alpha_scale", 1.0))
+			var base_color: Color = MapBoardStyleScript.road_base_color(state_semantic, emphasis_level)
+			base_color.a *= float(visual_profile.get("base_alpha_scale", 1.0))
 			draw_polyline(
 				translated_points,
 				Color(0.02, 0.03, 0.02, shadow_alpha),
@@ -265,7 +298,7 @@ func _draw_edges(draw_highlight_pass: bool) -> void:
 			)
 			draw_polyline(
 				translated_points,
-				MapBoardStyleScript.road_base_color(state_semantic, emphasis_level),
+				base_color,
 				base_width,
 				true
 			)
@@ -358,6 +391,135 @@ func _edge_emphasis_level(edge: Dictionary) -> int:
 	return emphasis_level
 
 
+func _edge_route_surface_semantic(edge: Dictionary, emphasis_level: int = -1) -> String:
+	if emphasis_level < 0:
+		emphasis_level = _edge_emphasis_level(edge)
+	if emphasis_level >= 2:
+		return "selected"
+	var route_surface_semantic: String = String(edge.get("route_surface_semantic", ""))
+	match route_surface_semantic:
+		"local_actionable":
+			return "actionable_secondary" if _has_route_interaction_target() and emphasis_level <= 0 else "actionable"
+		"history_reconnect":
+			return "history_reconnect"
+		"history":
+			return "history"
+	var is_history: bool = bool(edge.get("is_history", false))
+	if not is_history:
+		return "actionable_secondary" if _has_route_interaction_target() and emphasis_level <= 0 else "actionable"
+	return "history_reconnect" if bool(edge.get("is_reconnect_edge", false)) else "history"
+
+
+func _edge_visual_profile(edge: Dictionary, emphasis_level: int = -1) -> Dictionary:
+	if emphasis_level < 0:
+		emphasis_level = _edge_emphasis_level(edge)
+	var route_surface_semantic: String = _edge_route_surface_semantic(edge, emphasis_level)
+	match route_surface_semantic:
+		"selected":
+			return {
+				"draw_highlight": true,
+				"draw_trail_decal": true,
+				"base_alpha_scale": 1.08,
+				"base_width_scale": 1.08,
+				"shadow_alpha_scale": 1.0,
+				"shadow_width_scale": 1.04,
+				"highlight_alpha_scale": 1.0,
+				"highlight_width_scale": 1.08,
+				"trail_alpha_scale": 1.12,
+				"trail_size_scale": 1.04,
+				"trim_scale": 1.0,
+				"smoothing_strength": 1.0,
+				"corner_radius_min": 18.0,
+				"corner_radius_max": 52.0,
+			}
+		"actionable":
+			return {
+				"draw_highlight": emphasis_level > 0,
+				"draw_trail_decal": true,
+				"base_alpha_scale": 1.0,
+				"base_width_scale": 1.0,
+				"shadow_alpha_scale": 1.0,
+				"shadow_width_scale": 1.0,
+				"highlight_alpha_scale": 1.0,
+				"highlight_width_scale": 1.0,
+				"trail_alpha_scale": 1.0,
+				"trail_size_scale": 1.0,
+				"trim_scale": 1.0,
+				"smoothing_strength": 1.0,
+				"corner_radius_min": 18.0,
+				"corner_radius_max": 52.0,
+			}
+		"actionable_secondary":
+			return {
+				"draw_highlight": false,
+				"draw_trail_decal": true,
+				"base_alpha_scale": 0.56,
+				"base_width_scale": 0.84,
+				"shadow_alpha_scale": 0.56,
+				"shadow_width_scale": 0.88,
+				"highlight_alpha_scale": 0.0,
+				"highlight_width_scale": 0.84,
+				"trail_alpha_scale": 0.58,
+				"trail_size_scale": 0.90,
+				"trim_scale": 0.92,
+				"smoothing_strength": 0.84,
+				"corner_radius_min": 14.0,
+				"corner_radius_max": 40.0,
+			}
+		"history":
+			return {
+				"draw_highlight": false,
+				"draw_trail_decal": true,
+				"base_alpha_scale": 0.46,
+				"base_width_scale": 0.74,
+				"shadow_alpha_scale": 0.44,
+				"shadow_width_scale": 0.78,
+				"highlight_alpha_scale": 0.0,
+				"highlight_width_scale": 0.78,
+				"trail_alpha_scale": 0.34,
+				"trail_size_scale": 0.78,
+				"trim_scale": 0.86,
+				"smoothing_strength": 0.46,
+				"corner_radius_min": 10.0,
+				"corner_radius_max": 26.0,
+			}
+		_:
+			return {
+				"draw_highlight": false,
+				"draw_trail_decal": false,
+				"base_alpha_scale": 0.22,
+				"base_width_scale": 0.68,
+				"shadow_alpha_scale": 0.28,
+				"shadow_width_scale": 0.72,
+				"highlight_alpha_scale": 0.0,
+				"highlight_width_scale": 0.72,
+				"trail_alpha_scale": 0.0,
+				"trail_size_scale": 0.0,
+				"trim_scale": 0.82,
+				"smoothing_strength": 0.0,
+				"corner_radius_min": 0.0,
+				"corner_radius_max": 0.0,
+			}
+
+
+func _display_edge_points_for_edge(edge: Dictionary) -> PackedVector2Array:
+	var points: PackedVector2Array = edge.get("points", PackedVector2Array())
+	var visual_profile: Dictionary = _edge_visual_profile(edge)
+	var smoothing_strength: float = float(visual_profile.get("smoothing_strength", 1.0))
+	if points.size() < 3 or smoothing_strength <= 0.01:
+		return _translated_edge_points(points)
+	return _display_edge_points(
+		points,
+		smoothing_strength,
+		float(visual_profile.get("corner_radius_min", 18.0)),
+		float(visual_profile.get("corner_radius_max", 52.0))
+	)
+
+
+func _has_route_interaction_target() -> bool:
+	return _active_target_node_id >= 0 or _hovered_target_node_id >= 0
+
+
 func _edge_touches_family(from_node_id: int, to_node_id: int, node_family: String) -> bool:
 	var from_node: Dictionary = _visible_node_entry_by_id(from_node_id)
 	if String(from_node.get("node_family", "")) == node_family:
@@ -404,7 +566,12 @@ func _translated_edge_points(points: PackedVector2Array) -> PackedVector2Array:
 	return translated_points
 
 
-func _display_edge_points(points: PackedVector2Array) -> PackedVector2Array:
+func _display_edge_points(
+	points: PackedVector2Array,
+	smoothing_strength: float = 1.0,
+	corner_radius_min: float = 18.0,
+	corner_radius_max: float = 52.0
+) -> PackedVector2Array:
 	var translated_points: PackedVector2Array = _translated_edge_points(points)
 	if translated_points.size() < 3:
 		return translated_points
@@ -426,7 +593,11 @@ func _display_edge_points(points: PackedVector2Array) -> PackedVector2Array:
 		if absf(incoming_direction.dot(outgoing_direction)) >= 0.999:
 			_append_display_point(smoothed_points, corner_point)
 			continue
-		var corner_radius: float = clampf(minf(incoming_length, outgoing_length) * 0.26, 18.0, 52.0)
+		var corner_radius: float = clampf(
+			minf(incoming_length, outgoing_length) * 0.26 * smoothing_strength,
+			corner_radius_min,
+			corner_radius_max
+		)
 		var entry_point: Vector2 = corner_point - incoming_direction * corner_radius
 		var exit_point: Vector2 = corner_point + outgoing_direction * corner_radius
 		_append_display_point(smoothed_points, entry_point)

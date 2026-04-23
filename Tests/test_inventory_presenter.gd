@@ -48,6 +48,7 @@ func test_run_inventory_cards_split_equipment_and_backpack() -> void:
 	assert(String(equipment_cards[0].get("detail_text", "")).begins_with("EQUIPPED |"), "Expected equipment cards to mark equipped gear.")
 	assert(String(equipment_cards[1].get("slot_label", "")) == "LEFT HAND", "Expected the second equipment slot to be left hand.")
 	assert(String(equipment_cards[1].get("title_text", "")) == "Open Slot", "Expected empty left hand slot placeholder.")
+	assert(String(equipment_cards[1].get("detail_text", "")) == "Equip shield or offhand.", "Expected run equipment cards to keep the generic equip copy outside combat.")
 	assert(String(equipment_cards[2].get("title_text", "")) == "Watcher Mail +1", "Expected armor slot to resolve equipped armor.")
 	assert(String(equipment_cards[3].get("detail_text", "")).contains("+2 INV"), "Expected belt slot to expose backpack utility.")
 	assert(
@@ -173,6 +174,11 @@ func test_inventory_interaction_hints_explain_backpack_and_equipment_actions() -
 		String(presenter.call("build_combat_inventory_hint_text")).contains("Only consumables"),
 		"Expected combat backpack hint to explain that gear and backpack order are locked in combat."
 	)
+	assert(
+		String(presenter.call("build_equipment_hint_text", true)).contains("Only packed hand swaps are legal in combat.")
+		and String(presenter.call("build_equipment_hint_text", true)).contains("Armor and belt stay locked."),
+		"Expected combat equipment hints to explain the narrow live hand-swap legality instead of a full lock."
+	)
 
 	var equipped_weapon_card: Dictionary = {
 		"card_family": "weapon",
@@ -195,6 +201,47 @@ func test_inventory_interaction_hints_explain_backpack_and_equipment_actions() -
 	assert(
 		String(combat_hint_card.get("action_hint_tone", "")) == "selected",
 		"Expected the selected combat consumable to expose the selected action-hint tone."
+	)
+	var combat_swap_card: Dictionary = {
+		"card_family": "weapon",
+		"is_equipped": true,
+		"combat_action_hint_override": "Swap below",
+	}
+	var combat_swap_hint_card: Dictionary = presenter.call("decorate_card_interaction_state", combat_swap_card, true, false, false, false)
+	assert(
+		String(combat_swap_hint_card.get("action_hint_text", "")) == "Swap below",
+		"Expected combat equipment cards to allow the narrow hand-swap lane to override the old locked-copy when a legal spare exists."
+	)
+	var combat_equipped_weapon_card: Dictionary = presenter.call("decorate_card_interaction_state", {
+		"card_family": "weapon",
+		"is_equipped": true,
+	}, true, false, false, false)
+	assert(
+		String(combat_equipped_weapon_card.get("action_hint_text", "")) == "Packed spare needed",
+		"Expected combat hand-slot cards without a live spare override to explain the narrow swap lane instead of falling back to a fake global lock."
+	)
+	var combat_carried_weapon_card: Dictionary = presenter.call("decorate_card_interaction_state", {
+		"card_family": "weapon",
+		"is_equipped": false,
+	}, true, false, false, false)
+	assert(
+		String(combat_carried_weapon_card.get("action_hint_text", "")) == "Use Hand Swap panel",
+		"Expected carried combat weapons to point at the narrow Hand Swap lane instead of claiming that all gear is locked."
+	)
+	var combat_armor_card: Dictionary = presenter.call("decorate_card_interaction_state", {
+		"card_family": "armor",
+		"is_equipped": true,
+	}, true, false, false, false)
+	assert(
+		String(combat_armor_card.get("action_hint_text", "")) == "Armor and belt stay locked",
+		"Expected combat armor cards to keep the non-hand lock explicit once hand swaps become legal."
+	)
+	var combat_attachment_card: Dictionary = presenter.call("decorate_card_interaction_state", {
+		"card_family": "shield_attachment",
+	}, true, false, false, false)
+	assert(
+		String(combat_attachment_card.get("action_hint_text", "")) == "Shield mods stay locked",
+		"Expected combat shield-mod cards to keep their own locked lane instead of repeating the old blanket equipment lock."
 	)
 
 
@@ -247,6 +294,10 @@ func test_combat_inventory_cards_follow_combat_local_stacks() -> void:
 	var equipment_cards: Array[Dictionary] = presenter.call("build_combat_equipment_cards", combat_state, passive_slots)
 	var backpack_cards: Array[Dictionary] = presenter.call("build_combat_inventory_cards", combat_state, passive_slots)
 	assert(String(equipment_cards[0].get("count_text", "")) == "7/20", "Expected combat equipment to use combat-local durability instead of stale run values.")
+	assert(
+		String(equipment_cards[1].get("detail_text", "")) == "No spare shield/offhand.",
+		"Expected empty combat hand slots without a legal spare to explain the no-spare hand-swap state instead of generic equip copy."
+	)
 	assert(String(backpack_cards[0].get("title_text", "")) == "Traveler Bread", "Expected combat backpack to keep the active consumable stack visible.")
 	assert(String(backpack_cards[0].get("card_family", "")) == "consumable", "Expected combat backpack cards to keep the consumable family metadata.")
 	assert(int(backpack_cards[0].get("slot_index", -1)) == 0, "Expected combat consumable cards to preserve slot indices for scene-side selection.")
@@ -286,7 +337,11 @@ func test_combat_inventory_cards_follow_combat_local_equipment_projection() -> v
 	assert(String(splitter_axe_card.get("detail_text", "")).begins_with("EQUIPPED |"), "Expected projected combat equipment to keep the right-hand slot marked equipped.")
 	assert(String(splitter_axe_card.get("count_text", "")) == "4/14", "Expected projected combat equipment to surface combat-local weapon durability.")
 	assert(not iron_sword_card.is_empty(), "Expected projected combat backpack to keep the displaced starter weapon visible.")
-	assert(String(iron_sword_card.get("tooltip_text", "")).contains("Equipment is locked during combat."), "Expected carried weapons to explain the combat lock instead of an equip interaction.")
+	assert(
+		String(iron_sword_card.get("tooltip_text", "")).contains("Only packed hand swaps are legal in combat.")
+		and String(iron_sword_card.get("tooltip_text", "")).contains("Armor and belt stay locked."),
+		"Expected carried weapons to explain the narrow combat hand-swap rule instead of a blanket equipment lock."
+	)
 
 
 func test_combat_inventory_compat_builder_stays_read_only() -> void:

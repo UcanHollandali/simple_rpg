@@ -1,10 +1,10 @@
-# Prompt 12 - Semantic Icon Readiness
+﻿# Prompt 12 - Semantic Icon Readiness
 
 Use this prompt pack only after Prompt 11.5 is closed green and Prompt 04 Part D is already landed.
 This is a future-queue reference pack. Do not start it while any earlier open 06-11.5 pack is still open.
 
 Checked-in filename note:
-- this pack lives at `Docs/Promts/12_semantic_icon_readiness.md`
+- this pack lives at `Docs/Archive/Prompts/2026-04-23-closed-green-prompt-packs/12_semantic_icon_readiness.md`
 - checked-in filename and logical queue position now match Prompt `12`
 
 Read first:

@@ -25,7 +25,7 @@ func build_equipment_title_text() -> String:
 
 func build_equipment_hint_text(is_combat: bool = false) -> String:
 	return (
-		"Equipment stays locked during combat."
+		"Only packed hand swaps are legal in combat. Swap ends turn. Armor and belt stay locked."
 		if is_combat
 		else "Tap a slot to equip or unequip. Right/Left hand, armor, and belt stay outside the backpack."
 	)
@@ -72,7 +72,7 @@ func build_run_inventory_cards(run_state: RunState) -> Array[Dictionary]:
 func build_combat_equipment_cards(combat_state: CombatState, inventory_source: Variant = null) -> Array[Dictionary]:
 	var inventory_state: InventoryState = _resolve_combat_inventory_state(combat_state, inventory_source)
 	if inventory_state == null:
-		return _build_empty_equipment_cards()
+		return _build_empty_equipment_cards(null, combat_state)
 	return _build_equipment_cards(inventory_state, combat_state)
 
 
@@ -110,7 +110,7 @@ func _build_equipment_cards(inventory_state: InventoryState, combat_state: Comba
 	for equipment_slot_name in InventoryStateScript.EQUIPMENT_SLOT_NAMES:
 		var slot: Dictionary = inventory_state.build_equipment_slot_snapshot(equipment_slot_name)
 		if slot.is_empty():
-			cards.append(_build_empty_equipment_card(equipment_slot_name))
+			cards.append(_build_empty_equipment_card(equipment_slot_name, inventory_state, combat_state))
 			continue
 		cards.append(_build_populated_card(slot, inventory_state, combat_state, _equipment_slot_label(equipment_slot_name), -1, true))
 	return cards
@@ -142,10 +142,10 @@ func _build_backpack_cards(inventory_state: InventoryState, combat_state: Combat
 	return cards
 
 
-func _build_empty_equipment_cards() -> Array[Dictionary]:
+func _build_empty_equipment_cards(inventory_state: InventoryState = null, combat_state: CombatState = null) -> Array[Dictionary]:
 	var cards: Array[Dictionary] = []
 	for equipment_slot_name in InventoryStateScript.EQUIPMENT_SLOT_NAMES:
-		cards.append(_build_empty_equipment_card(equipment_slot_name))
+		cards.append(_build_empty_equipment_card(equipment_slot_name, inventory_state, combat_state))
 	return cards
 
 
@@ -202,18 +202,13 @@ func _build_populated_card(
 			return _build_empty_equipment_card(InventoryStateScript.EQUIPMENT_SLOT_RIGHT_HAND) if is_equipment_slot else _build_empty_backpack_card(backpack_slot_index)
 
 
-func _build_empty_equipment_card(equipment_slot_name: String) -> Dictionary:
+func _build_empty_equipment_card(
+	equipment_slot_name: String,
+	inventory_state: InventoryState = null,
+	combat_state: CombatState = null
+) -> Dictionary:
 	var title_text: String = "Open Slot"
-	var detail_text: String = ""
-	match equipment_slot_name:
-		InventoryStateScript.EQUIPMENT_SLOT_RIGHT_HAND:
-			detail_text = "Equip weapon."
-		InventoryStateScript.EQUIPMENT_SLOT_LEFT_HAND:
-			detail_text = "Equip shield or offhand."
-		InventoryStateScript.EQUIPMENT_SLOT_ARMOR:
-			detail_text = "Equip armor."
-		InventoryStateScript.EQUIPMENT_SLOT_BELT:
-			detail_text = "Equip belt for pack space."
+	var detail_text: String = _build_empty_equipment_detail_text(equipment_slot_name, inventory_state, combat_state)
 	return _build_card_model(
 		"empty",
 		_equipment_slot_label(equipment_slot_name),
@@ -227,6 +222,45 @@ func _build_empty_equipment_card(equipment_slot_name: String) -> Dictionary:
 		TempScreenThemeScript.PANEL_BORDER_COLOR.darkened(0.18),
 		false
 	)
+
+
+func _build_empty_equipment_detail_text(
+	equipment_slot_name: String,
+	inventory_state: InventoryState = null,
+	combat_state: CombatState = null
+) -> String:
+	if combat_state != null:
+		match equipment_slot_name:
+			InventoryStateScript.EQUIPMENT_SLOT_RIGHT_HAND:
+				return "Swap packed spare." if _has_eligible_combat_hand_spare(inventory_state, equipment_slot_name) else "No spare weapon."
+			InventoryStateScript.EQUIPMENT_SLOT_LEFT_HAND:
+				return "Swap packed spare." if _has_eligible_combat_hand_spare(inventory_state, equipment_slot_name) else "No spare shield/offhand."
+			InventoryStateScript.EQUIPMENT_SLOT_ARMOR:
+				return "Armor locked."
+			InventoryStateScript.EQUIPMENT_SLOT_BELT:
+				return "Belt locked."
+
+	match equipment_slot_name:
+		InventoryStateScript.EQUIPMENT_SLOT_RIGHT_HAND:
+			return "Equip weapon."
+		InventoryStateScript.EQUIPMENT_SLOT_LEFT_HAND:
+			return "Equip shield or offhand."
+		InventoryStateScript.EQUIPMENT_SLOT_ARMOR:
+			return "Equip armor."
+		InventoryStateScript.EQUIPMENT_SLOT_BELT:
+			return "Equip belt for pack space."
+	return ""
+
+
+func _has_eligible_combat_hand_spare(inventory_state: InventoryState, equipment_slot_name: String) -> bool:
+	if inventory_state == null:
+		return false
+	if equipment_slot_name != InventoryStateScript.EQUIPMENT_SLOT_RIGHT_HAND and equipment_slot_name != InventoryStateScript.EQUIPMENT_SLOT_LEFT_HAND:
+		return false
+	for slot in inventory_state.inventory_slots:
+		if inventory_state.slot_can_equip_to(slot, equipment_slot_name):
+			return true
+	return false
 
 func _build_empty_backpack_card(slot_index: int) -> Dictionary:
 	var slot_label: String = "PACK %d" % (slot_index + 1)
@@ -668,7 +702,7 @@ func _extract_upgrade_level(slot: Dictionary) -> int:
 
 func _build_equipment_toggle_hint(is_equipped: bool, combat_state: CombatState) -> String:
 	if combat_state != null:
-		return "Equipment is locked during combat."
+		return "Only packed hand swaps are legal in combat. Swap ends turn. Armor and belt stay locked."
 	return "Click to unequip." if is_equipped else "Click to equip."
 
 
@@ -682,14 +716,23 @@ func _build_action_hint_text(
 	is_clickable: bool,
 	is_selected: bool
 ) -> String:
+	var combat_action_hint_override: String = String(card_model.get("combat_action_hint_override", "")).strip_edges()
+	if is_combat and not combat_action_hint_override.is_empty():
+		return combat_action_hint_override
 	var card_family: String = String(card_model.get("card_family", ""))
 	var is_equipped: bool = bool(card_model.get("is_equipped", false))
 	match card_family:
-		InventoryStateScript.INVENTORY_FAMILY_WEAPON, InventoryStateScript.INVENTORY_FAMILY_SHIELD, InventoryStateScript.INVENTORY_FAMILY_ARMOR, InventoryStateScript.INVENTORY_FAMILY_BELT:
+		InventoryStateScript.INVENTORY_FAMILY_WEAPON, InventoryStateScript.INVENTORY_FAMILY_SHIELD:
 			if is_combat:
-				return "Locked during combat"
+				return "Packed spare needed" if is_equipped else "Use Hand Swap panel"
 			if card_family == InventoryStateScript.INVENTORY_FAMILY_SHIELD and is_equipped and bool(card_model.get("has_attachment", false)):
 				return "Tap to detach mod"
+			if is_clickable:
+				return "Tap to unequip" if is_equipped else "Tap to equip"
+			return "Stored"
+		InventoryStateScript.INVENTORY_FAMILY_ARMOR, InventoryStateScript.INVENTORY_FAMILY_BELT:
+			if is_combat:
+				return "Armor and belt stay locked"
 			if is_clickable:
 				return "Tap to unequip" if is_equipped else "Tap to equip"
 			return "Stored"
@@ -705,7 +748,7 @@ func _build_action_hint_text(
 			return "Quest cargo"
 		InventoryStateScript.INVENTORY_FAMILY_SHIELD_ATTACHMENT:
 			if is_combat:
-				return "Locked during combat"
+				return "Shield mods stay locked"
 			if is_clickable:
 				return "Tap to attach to equipped shield"
 			return "Requires equipped shield"

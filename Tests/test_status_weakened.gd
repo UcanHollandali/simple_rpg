@@ -31,7 +31,7 @@ func test_weakened_reduces_player_attack_and_expires_in_combat_state() -> void:
 	)
 
 	var first_turn_end: Dictionary = flow.process_turn_end()
-	assert(int(first_turn_end.get("player_hunger", -1)) == RunState.DEFAULT_HUNGER - 1, "Expected normal hunger tick after weakened resolves.")
+	assert(int(first_turn_end.get("player_hunger", -1)) == RunState.DEFAULT_HUNGER - 2, "Expected defend turn end to spend the baseline hunger tick plus the extra defend cost.")
 	assert(
 		int(flow.combat_state.player_statuses[0].get("remaining_turns", -1)) == 1,
 		"Expected weakened to drop to 1 remaining turn after the first turn end."
@@ -44,7 +44,7 @@ func test_weakened_reduces_player_attack_and_expires_in_combat_state() -> void:
 	var second_enemy_result: Dictionary = flow.process_enemy_action()
 	assert(int(second_enemy_result.get("damage_applied", -1)) == 2, "Expected second adept hit to deal normal 2 damage.")
 	var second_turn_end: Dictionary = flow.process_turn_end()
-	assert(int(second_turn_end.get("player_hunger", -1)) == RunState.DEFAULT_HUNGER - 2, "Expected hunger progression to remain intact on the second turn.")
+	assert(int(second_turn_end.get("player_hunger", -1)) == RunState.DEFAULT_HUNGER - 3, "Expected hunger progression to remain intact on the second turn.")
 	assert(flow.combat_state.player_statuses.is_empty(), "Expected weakened to expire after its second turn-end tick.")
 
 	run_state.commit_combat_result(flow.combat_state)
