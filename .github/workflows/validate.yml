@@ -49,6 +49,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
             Write-Warning "Environment diagnostics exited with $LASTEXITCODE on the GitHub runner; continuing because validators and Godot tests are the CI gate."
           }
+          exit 0
 
       - name: Content validator
         shell: powershell
