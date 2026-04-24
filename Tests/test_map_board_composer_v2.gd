@@ -44,6 +44,7 @@ func _init() -> void:
 	test_map_board_composer_emits_deterministic_filler_shapes()
 	test_map_board_composer_breaks_ground_into_corridor_and_pocket_masks()
 	test_map_board_composer_emits_deterministic_forest_shapes()
+	test_map_board_composer_derives_terrain_masks_from_render_model_surfaces()
 	test_map_board_composer_centers_ground_bed_on_layout_action_bounds()
 	test_map_board_composer_tames_corridor_ground_bed_footprint()
 	test_map_board_composer_keeps_forest_shapes_clear_of_route_action_pocket()
@@ -1071,6 +1072,65 @@ func test_map_board_composer_emits_deterministic_forest_shapes() -> void:
 	)
 
 
+func test_map_board_composer_derives_terrain_masks_from_render_model_surfaces() -> void:
+	var composer: RefCounted = MapBoardComposerV2Script.new()
+	var run_state: RunState = RunState.new()
+	run_state.reset_for_new_run()
+	run_state.configure_run_seed(41)
+	_advance_visible_branch(run_state, 3)
+	var board_size := Vector2(920, 1180)
+	var composition: Dictionary = composer.call("compose", run_state, board_size, Vector2(0.5, 0.58), Vector2(148, 212))
+	var render_model: Dictionary = composition.get("render_model", {})
+	var path_surfaces: Array = render_model.get("path_surfaces", [])
+	var clearing_surfaces: Array = render_model.get("clearing_surfaces", [])
+	assert(not path_surfaces.is_empty(), "Expected render-model path surfaces before checking terrain mask ownership.")
+	assert(not clearing_surfaces.is_empty(), "Expected render-model clearing surfaces before checking terrain mask ownership.")
+
+	for shape_variant in composition.get("ground_shapes", []):
+		if typeof(shape_variant) != TYPE_DICTIONARY:
+			continue
+		var shape_entry: Dictionary = shape_variant
+		assert(
+			not String(shape_entry.get("mask_source", "")).is_empty(),
+			"Expected every ground shape to expose the terrain mask source used to keep old wrapper terrain auditable."
+		)
+		if String(shape_entry.get("family", "")) == "corridor":
+			assert(
+				String(shape_entry.get("mask_source", "")) == "render_model.path_surfaces",
+				"Expected corridor ground masks to derive from render_model.path_surfaces, not only legacy layout_edges."
+			)
+	for shape_variant in composition.get("filler_shapes", []):
+		if typeof(shape_variant) != TYPE_DICTIONARY:
+			continue
+		var shape_entry: Dictionary = shape_variant
+		assert(
+			String(shape_entry.get("mask_source", "")) == "render_model.path_surfaces+clearing_surfaces",
+			"Expected filler masks to declare render-model path/clearing exclusion instead of acting as generic board decor."
+		)
+		var center: Vector2 = Vector2(shape_entry.get("center", Vector2.ZERO))
+		var half_size: Vector2 = Vector2(shape_entry.get("half_size", Vector2.ZERO))
+		var family: String = String(shape_entry.get("family", "rock"))
+		assert(
+			_nearest_filler_render_surface_clearance(center, half_size, family, composition) >= 0.0,
+			"Expected filler masks to stay outside render-model path surfaces and clearing surfaces."
+		)
+	for shape_variant in composition.get("forest_shapes", []):
+		if typeof(shape_variant) != TYPE_DICTIONARY:
+			continue
+		var shape_entry: Dictionary = shape_variant
+		assert(
+			String(shape_entry.get("mask_source", "")) == "render_model.path_surfaces+clearing_surfaces",
+			"Expected canopy/decor masks to declare render-model path/clearing exclusion."
+		)
+		var center: Vector2 = Vector2(shape_entry.get("center", Vector2.ZERO))
+		var radius: float = float(shape_entry.get("radius", 0.0))
+		var family: String = String(shape_entry.get("family", "decor"))
+		assert(
+			_nearest_forest_render_surface_clearance(center, radius, family, composition) >= 0.0,
+			"Expected canopy/decor masks to stay outside render-model path surfaces and clearing surfaces."
+		)
+
+
 func test_map_board_composer_emits_deterministic_ground_shapes() -> void:
 	var composer: RefCounted = MapBoardComposerV2Script.new()
 	var run_state: RunState = RunState.new()
@@ -1998,6 +2058,54 @@ func _nearest_forest_route_clearance(center: Vector2, radius: float, family: Str
 			continue
 		var required_clearance: float = MapBoardBackdropBuilderScript.route_clearance_radius(radius, family)
 		nearest_clearance = min(nearest_clearance, _polyline_distance_to_point(points, center) - required_clearance)
+	return nearest_clearance
+
+
+func _nearest_filler_render_surface_clearance(center: Vector2, half_size: Vector2, family: String, composition: Dictionary) -> float:
+	var nearest_clearance: float = INF
+	var render_model: Dictionary = composition.get("render_model", {})
+	for surface_variant in render_model.get("path_surfaces", []):
+		if typeof(surface_variant) != TYPE_DICTIONARY:
+			continue
+		var surface_entry: Dictionary = surface_variant
+		var points: PackedVector2Array = surface_entry.get("centerline_points", PackedVector2Array())
+		if points.size() < 2:
+			continue
+		var surface_width: float = maxf(float(surface_entry.get("surface_width", 0.0)), float(surface_entry.get("outer_width", 0.0)))
+		var required_clearance: float = MapBoardFillerBuilderScript.route_exclusion_radius(half_size, family) + surface_width * 0.50
+		nearest_clearance = min(nearest_clearance, _polyline_distance_to_point(points, center) - required_clearance)
+	for clearing_variant in render_model.get("clearing_surfaces", []):
+		if typeof(clearing_variant) != TYPE_DICTIONARY:
+			continue
+		var clearing_entry: Dictionary = clearing_variant
+		var clearing_center: Vector2 = Vector2(clearing_entry.get("center", Vector2.ZERO))
+		var clearing_radius: float = float(clearing_entry.get("radius", 0.0))
+		var filler_footprint: Vector2 = MapBoardFillerBuilderScript.footprint_half_size(half_size, family)
+		var required_clearing_clearance: float = clearing_radius + maxf(filler_footprint.x, filler_footprint.y) + 18.0
+		nearest_clearance = min(nearest_clearance, center.distance_to(clearing_center) - required_clearing_clearance)
+	return nearest_clearance
+
+
+func _nearest_forest_render_surface_clearance(center: Vector2, radius: float, family: String, composition: Dictionary) -> float:
+	var nearest_clearance: float = INF
+	var render_model: Dictionary = composition.get("render_model", {})
+	for surface_variant in render_model.get("path_surfaces", []):
+		if typeof(surface_variant) != TYPE_DICTIONARY:
+			continue
+		var surface_entry: Dictionary = surface_variant
+		var points: PackedVector2Array = surface_entry.get("centerline_points", PackedVector2Array())
+		if points.size() < 2:
+			continue
+		var required_clearance: float = MapBoardBackdropBuilderScript.route_clearance_radius(radius, family)
+		nearest_clearance = min(nearest_clearance, _polyline_distance_to_point(points, center) - required_clearance)
+	for clearing_variant in render_model.get("clearing_surfaces", []):
+		if typeof(clearing_variant) != TYPE_DICTIONARY:
+			continue
+		var clearing_entry: Dictionary = clearing_variant
+		var clearing_center: Vector2 = Vector2(clearing_entry.get("center", Vector2.ZERO))
+		var clearing_radius: float = float(clearing_entry.get("radius", 0.0))
+		var required_clearing_clearance: float = clearing_radius + MapBoardBackdropBuilderScript.forest_draw_half_extent(radius, family) * 0.34 + 14.0
+		nearest_clearance = min(nearest_clearance, center.distance_to(clearing_center) - required_clearing_clearance)
 	return nearest_clearance
 
 

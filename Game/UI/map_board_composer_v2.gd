@@ -129,14 +129,15 @@ func compose(
 	var visible_nodes: Array = _build_visible_node_entries(graph_snapshot, graph_by_id, world_positions, current_node_id, board_size)
 	var visible_edges: Array = _build_visible_edges(layout_edges, visible_nodes, current_node_id, layout_context, board_size)
 	visible_nodes = _decorate_node_entries_with_landmark_footprints(visible_nodes, visible_edges, board_seed, board_size)
+	var terrain_mask_context: Dictionary = _build_render_model_core(layout_edges, graph_nodes, layout_context, board_size, template_profile)
 	var render_model_core: Dictionary = _build_render_model_core(visible_edges, visible_nodes, layout_context, board_size, template_profile)
 	var can_reuse_terrain_shapes: bool = can_reuse_stable_layout and _stable_terrain_shapes_have_surface_masks(stable_layout)
 	var ground_shapes: Array = (stable_layout.get("ground_shapes", []) as Array).duplicate(true) if can_reuse_terrain_shapes else []
-	if ground_shapes.is_empty(): ground_shapes = MapBoardGroundBuilderScript.build_ground_shapes(board_size, graph_nodes, layout_edges, template_profile, board_seed, BASE_CENTER_FACTOR, min_board_margin, render_model_core)
+	if ground_shapes.is_empty(): ground_shapes = MapBoardGroundBuilderScript.build_ground_shapes(board_size, graph_nodes, layout_edges, template_profile, board_seed, BASE_CENTER_FACTOR, min_board_margin, terrain_mask_context)
 	var filler_shapes: Array = (stable_layout.get("filler_shapes", []) as Array).duplicate(true) if can_reuse_terrain_shapes else []
-	if filler_shapes.is_empty(): filler_shapes = MapBoardFillerBuilderScript.build_filler_shapes(board_size, graph_nodes, layout_edges, template_profile, board_seed, BASE_CENTER_FACTOR, min_board_margin, render_model_core)
+	if filler_shapes.is_empty(): filler_shapes = MapBoardFillerBuilderScript.build_filler_shapes(board_size, graph_nodes, layout_edges, template_profile, board_seed, BASE_CENTER_FACTOR, min_board_margin, terrain_mask_context)
 	var forest_shapes: Array = (stable_layout.get("forest_shapes", []) as Array).duplicate(true) if can_reuse_terrain_shapes else []
-	if forest_shapes.is_empty(): forest_shapes = MapBoardBackdropBuilderScript.build_forest_shapes(board_size, graph_nodes, layout_edges, template_profile, board_seed, BASE_CENTER_FACTOR, min_board_margin, render_model_core)
+	if forest_shapes.is_empty(): forest_shapes = MapBoardBackdropBuilderScript.build_forest_shapes(board_size, graph_nodes, layout_edges, template_profile, board_seed, BASE_CENTER_FACTOR, min_board_margin, terrain_mask_context)
 	var render_model: Dictionary = MapBoardRenderModelMasksSlotsScript.extend_render_model(render_model_core, visible_nodes, filler_shapes, forest_shapes)
 	return {
 		"seed": board_seed,

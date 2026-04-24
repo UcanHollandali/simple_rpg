@@ -155,6 +155,19 @@ static func _build_layout_edge_polylines(layout_edges: Array) -> Array[PackedVec
 	return polylines
 
 
+static func _build_surface_edge_polylines(surface_mask_context: Dictionary) -> Array[PackedVector2Array]:
+	var polylines: Array[PackedVector2Array] = []
+	for surface_variant in surface_mask_context.get("path_surfaces", []):
+		if typeof(surface_variant) != TYPE_DICTIONARY:
+			continue
+		var surface_entry: Dictionary = surface_variant
+		var points: PackedVector2Array = surface_entry.get("centerline_points", PackedVector2Array())
+		if points.size() < 2:
+			continue
+		polylines.append(points)
+	return polylines
+
+
 static func _build_action_bounds(node_entries: Array[Dictionary], edge_segments: Array[PackedVector2Array], pocket_masks: Array[Dictionary]) -> Rect2:
 	var points: Array[Vector2] = []
 	for node_entry in node_entries:
@@ -746,11 +759,31 @@ static func _build_pocket_masks(node_entries: Array[Dictionary]) -> Array[Dictio
 	return pocket_masks
 
 
+static func _build_clearing_masks(surface_mask_context: Dictionary) -> Array[Dictionary]:
+	var masks: Array[Dictionary] = []
+	for clearing_variant in surface_mask_context.get("clearing_surfaces", []):
+		if typeof(clearing_variant) != TYPE_DICTIONARY:
+			continue
+		var clearing_entry: Dictionary = clearing_variant
+		var radius: float = float(clearing_entry.get("radius", 0.0))
+		if radius <= 0.0:
+			continue
+		masks.append({
+			"center": Vector2(clearing_entry.get("center", Vector2.ZERO)),
+			"half_size": Vector2.ONE * radius,
+			"shape": "ellipse",
+			"mask_source": "render_model.clearing_surfaces",
+		})
+	return masks
+
+
 static func _point_inside_mask(point: Vector2, center: Vector2, half_size: Vector2, shape: String) -> bool:
 	if half_size.x <= 0.001 or half_size.y <= 0.001:
 		return false
 	if shape == "rect":
 		return Rect2(center - half_size, half_size * 2.0).has_point(point)
+	if shape == "diamond":
+		return absf(point.x - center.x) / half_size.x + absf(point.y - center.y) / half_size.y <= 1.0
 	var normalized_x: float = (point.x - center.x) / half_size.x
 	var normalized_y: float = (point.y - center.y) / half_size.y
 	return normalized_x * normalized_x + normalized_y * normalized_y <= 1.0
@@ -764,6 +797,12 @@ static func _hash_seed_string(value: String) -> int:
 	if accumulator == 0:
 		return 1
 	return accumulator
+
+
+static func _surface_mask_source(surface_mask_context: Dictionary, fallback_source: String) -> String:
+	if not (surface_mask_context.get("path_surfaces", []) as Array).is_empty() or not (surface_mask_context.get("clearing_surfaces", []) as Array).is_empty():
+		return "render_model.path_surfaces+clearing_surfaces"
+	return fallback_source
 
 
 static func _clamp_to_board(
