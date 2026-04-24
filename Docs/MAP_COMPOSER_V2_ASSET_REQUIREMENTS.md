@@ -46,22 +46,13 @@ Reuse current assets where they still fit the V2 role:
 
 ## Prototype Asset-Wave Rule (Current Direction)
 
-- `SourceArt/Generated/new/` is a candidate/source pack for the generated-map overhaul.
-- Those files are not authority docs and they are not automatically approved runtime assets.
-- File presence under `Assets/UI/Map/` or `SourceArt/Generated/new/` must not be treated as implicit approval; runtime hookup still requires explicit approved filenames plus truthful manifest rows.
+- Source candidate files are not authority docs and they are not automatically approved runtime assets.
+- File presence under `Assets/UI/Map/` or source-art candidate folders must not be treated as implicit approval; runtime hookup still requires explicit approved filenames plus truthful manifest rows.
 - The current direction is selective adoption:
-  - use the pack to replace or augment weak older node/path/pocket visuals
+  - use only reviewed candidates to replace or augment weak older node/path/pocket visuals
   - keep runtime graph truth and composer ownership unchanged
   - generate missing families only when the current prototype pack leaves a real gap
-- The source pack now keeps normalized master folders under `SourceArt/Generated/new/`:
-  - `node_shell_variants`
-  - `state_overlays`
-  - `path_assets`
-  - `clearing_ground`
-  - `canopy_fog_filler`
-- The operational source prompt reference remains `SourceArt/Generated/new/asset_prompts.md`.
-- Redundant source-planning markdowns were archived under `SourceArt/Archive/2026-04-20-map_prototype_pack/docs/`.
-- Treat this as a prototype kit for the graph-backed board, not as final release art.
+- Treat prototype source candidates as graph-backed board support only, not as final release art.
 
 ## Replacement Rule (Proposed)
 

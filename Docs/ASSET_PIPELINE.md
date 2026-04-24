@@ -97,9 +97,6 @@ The minimum safe path is:
 
 `reference_only -> candidate_source -> approved_master -> runtime export + manifest row`
 
-`SourceArt/Generated/new/` is a candidate-pack lane only.
-Do not point `asset_manifest.csv` `master_path` rows there directly; choose or clean the approved master into an active source lane first.
-
 ## Temporary Sourcing Order
 
 Temporary production passes exist to open a stable runtime floor, not to declare a final asset.

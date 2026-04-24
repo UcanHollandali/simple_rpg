@@ -68,7 +68,6 @@ RUNTIME_TRACKED_EXTENSIONS = {
 SOURCE_ART_ROOT_PREFIX = "SourceArt/"
 SOURCE_ART_ARCHIVE_PREFIX = "SourceArt/Archive/"
 SOURCE_ART_GENERATED_PREFIX = "SourceArt/Generated/"
-SOURCE_ART_GENERATED_CANDIDATE_PACK_PREFIX = "SourceArt/Generated/new/"
 ACTIVE_SOURCE_PREVIEW_NAME_FRAGMENT = "_preview."
 
 
@@ -450,15 +449,6 @@ def validate_manifest_policy_consistency(
 
         normalized_master_path = master_path.replace("\\", "/")
         source_tool = row.get("source_tool", "")
-
-        if normalized_master_path.startswith(SOURCE_ART_GENERATED_CANDIDATE_PACK_PREFIX):
-            errors.append(
-                ValidationIssue(
-                    location,
-                    "candidate_pack_used_as_master",
-                    "master_path must not point into SourceArt/Generated/new/; choose or clean a real active master first.",
-                )
-            )
 
         if status == "approved_for_prototype" and normalized_master_path.startswith(SOURCE_ART_GENERATED_PREFIX):
             errors.append(
