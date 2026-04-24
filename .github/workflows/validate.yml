@@ -42,6 +42,39 @@ jobs:
           python --version
           godot --version
 
-      - name: Run validation
+      - name: Environment check
         shell: powershell
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_ai_check.ps1 -TimeoutSeconds 240
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File Tools/check_environment.ps1 -FailOnRunningGodot
+
+      - name: Content validator
+        shell: powershell
+        run: python Tools/validate_content.py
+
+      - name: Asset validator
+        shell: powershell
+        run: python Tools/validate_assets.py
+
+      - name: Architecture guard validator
+        shell: powershell
+        run: python Tools/validate_architecture_guards.py
+
+      - name: Godot bounded tests
+        shell: powershell
+        run: |
+          try {
+            powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_tests.ps1 -TimeoutSeconds 240
+          }
+          catch {
+            if (Test-Path -LiteralPath "_godot_profile/logs" -PathType Container) {
+              Get-ChildItem -LiteralPath "_godot_profile/logs" -File -Filter "*.log" | ForEach-Object {
+                Write-Host "::group::Godot log $($_.Name)"
+                Get-Content -LiteralPath $_.FullName -Tail 160
+                Write-Host "::endgroup::"
+              }
+            }
+            throw
+          }
+
+      - name: Diff whitespace check
+        shell: powershell
+        run: git diff --check
