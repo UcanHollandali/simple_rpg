@@ -1,6 +1,6 @@
 # SIMPLE RPG - Handoff
 
-Last updated: 2026-04-24 (map prompt wave closed and archived; next lane is broader cleanup; GitHub `Validate` workflow is active)
+Last updated: 2026-04-24 (map prompt wave closed and archived; broader cleanup audit closed; next lane is production art pilot)
 
 This file is a current-state snapshot only.
 It is not a rule contract. If it conflicts with an authority doc, the authority doc wins.
@@ -43,6 +43,9 @@ Use `Docs/ROADMAP.md` for next-lane planning and `Docs/DOC_PRECEDENCE.md` for au
   - `Game/UI` may own derived presentation only
   - `AppBootstrap` remains a facade over flow/run/save coordination
 - GitHub Actions `Validate` is active on `main`; check the latest Actions run before claiming remote cleanliness for a new commit.
+- The previous post-wave `Validate` failure was limited to stale seeded map portrait baselines after the wrapper/blob visual lane was retired.
+  - The seeded map baselines under `Tests/VisualBaselines/portrait_review/` were refreshed to the closed `render_model` surface lane.
+  - The refreshed checkpoint passed GitHub Actions `Validate` on `main`.
 - Optional GDQuest `gdscript-formatter` `0.19.0` is installed outside the repo at `../Tools/gdscript-formatter/gdscript-formatter.exe`.
   - repo helper: `Tools/run_gdscript_static_check.ps1`
   - use it as an opt-in changed-file linter/format-check helper; broad formatting remains a separate explicit cleanup pass
@@ -57,7 +60,8 @@ Use `Docs/ROADMAP.md` for next-lane planning and `Docs/DOC_PRECEDENCE.md` for au
 
 ## Last Verified Validation Checkpoint
 
-- Latest GitHub Actions `Validate` on `main`: check the current run for the commit under review.
+- Latest confirmed GitHub Actions `Validate` on `main`: green after the seeded map portrait baseline refresh for the closed `render_model` surface lane.
+  - Check the current run again for any newer commit under review.
 - Final local closeout for the map wave passed:
   - `py -3 Tools/validate_assets.py`
   - `py -3 Tools/validate_architecture_guards.py` with existing hotspot warnings only
@@ -73,7 +77,8 @@ Use `Docs/ROADMAP.md` for next-lane planning and `Docs/DOC_PRECEDENCE.md` for au
   - active prompt-execution stale scan outside `Docs/Archive/`
   - active archived-audit/plan filename reference scan outside `Docs/Archive/`
   - `git diff --check`
-- Portrait image diff and `Tools/run_ai_check.ps1` were not rerun during final closeout; do not cite them as current evidence without rerunning.
+- Portrait image diff passed after refreshing the seeded map baselines for the closed `render_model` surface lane.
+- `Tools/run_ai_check.ps1` was not rerun during final closeout; do not cite it as current evidence without rerunning.
 
 ## Open Risks
 
@@ -84,14 +89,14 @@ Use `Docs/ROADMAP.md` for next-lane planning and `Docs/DOC_PRECEDENCE.md` for au
 - Manual portrait playtest and screenshot review are required for map readability, overlay feel, and landmark/route read.
 - `NodeResolve` remains live legacy flow code; do not behavior-change or remove it without a dedicated flow audit.
 - Pending-node continuity still crosses save orchestration in `RunSessionCoordinator` and runtime ownership in `MapRuntimeState`; do not move that boundary without explicit save audit.
-- The active worktree may contain uncommitted map-wave and cleanup changes; inspect `git status --short` before starting new edits and do not revert unrelated changes.
+- The closed map wave and seeded baseline refresh are committed and pushed; still inspect `git status --short` before starting new edits and do not revert unrelated changes.
 
 ## Next Step
 
-1. Continue with a `broader cleanup` lane.
-2. Keep cleanup boundary-safe: no save-shape, flow-state, runtime truth ownership, or production-art claim changes.
-3. Prefer evidence-backed cleanup of stale map presentation surfaces, dead tests, stale docs, and obsolete asset references.
-4. Treat archived prompt packs, archived audits, and archived stale plans as historical evidence only, not as active queue truth.
+1. Open a small `production art pilot`, not a broad asset wave.
+2. Keep runtime truth, save shape, flow state, and source-of-truth ownership unchanged.
+3. Add or wire only the minimum socket-driven art needed to prove real assets can replace socket-smoke placeholders without damaging board read.
+4. Keep hunger/exploration UX as a separate later lane; UI may only reflect runtime-derived truth.
 
 ## Locked Decisions
 

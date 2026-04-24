@@ -1,6 +1,6 @@
 # SIMPLE RPG - Active Roadmap
 
-Last updated: 2026-04-24 (prompt wave archived; next lane is broader cleanup)
+Last updated: 2026-04-24 (prompt wave archived; broader cleanup audit closed; next lane is production art pilot)
 
 This is the active short-horizon roadmap for the repo.
 It is a planning file, not an authority doc.
@@ -36,25 +36,23 @@ Authority still lives where `Docs/DOC_PRECEDENCE.md` says it lives.
   - `ui_map_board_backdrop.svg` no longer carries non-routing oval/blob atmosphere marks in front of the board field.
 - Candidate art is not the default next step.
   - Existing socket-smoke placeholder assets are not structural proof.
-  - Open production-art or asset-candidate work only after broader cleanup preserves one unambiguous default presentation lane.
+- Broader cleanup audit preserved one unambiguous default presentation lane and found no evidence-backed active code/asset deletion beyond stale current-state doc cleanup.
+  - `visible_edges`, `layout_edges`, `ground_shapes`, `filler_shapes`, and `forest_shapes` remain live fallback/wrapper/prototype metadata as labeled above.
+  - Socket-smoke placeholder assets remain provisional until a later art pilot replaces or narrows them with manifest-backed assets.
 - Archived old prompt `14-20` remains historically closed as the older guarded fixed-board map-overhaul wave.
 - Archived old prompt `21-36` remains historically closed as the combat/content reset and first executable combat slice.
 
-## Next Lane - Broader Cleanup
+## Closed Lane - Broader Cleanup
 
-Goal:
-- prepare the repo for the next implementation lane by removing stale routing, obsolete docs, stale references, and retired map-presentation leftovers that no longer need to stay active
-- preserve the single default map presentation lane
-- keep archived prompt/audit/stale-plan material out of default agent routing
+Result:
+- active prompt/audit/stale-plan routing stayed archived and out of default agent routing
+- retired `ui_map_v2_*` draw-lane paths were not found in live runtime/test code
+- wrapper/fallback/provisional surfaces still have live tests or derivation roles and were not removed
 
-In scope:
-- doc routing cleanup after prompt archival
-- stale prompt/doc/reference scans
-- dead-code or stale-test cleanup only when evidence-backed and boundary-safe
-- stale asset/manifest references only when provenance and live runtime use are clear
-- cleanup of obsolete wrapper/fallback labels if code evidence proves they are no longer needed
+Safe cleanup applied:
+- stale current-state wording in `Docs/HANDOFF.md` and this roadmap
 
-Out of scope by default:
+Still out of scope without a dedicated lane:
 - save-schema or save-version changes
 - flow-state additions
 - pending-node ownership moves
@@ -62,6 +60,25 @@ Out of scope by default:
 - production art claims
 - using candidate art as structural proof
 - restoring archived prompt packs as active queue truth
+
+## Next Lane - Production Art Pilot
+
+Goal:
+- prove real, manifest-backed map art can ride the socket system without becoming structural proof or damaging the fixed-board read
+
+Pilot scope:
+- one boss landmark
+- one key landmark
+- one merchant or rest landmark
+- one path-surface brush
+- one decor/filler stamp
+
+Rules:
+- every runtime asset must have a truthful manifest/provenance row in the same patch
+- source/master paths must be reviewable
+- socket placement must derive from `render_model` sockets, not gameplay truth or ad hoc node-family logic in the canvas
+- socket-smoke placeholders remain provisional and must not be treated as final art
+- hunger/exploration UX remains a separate later lane
 
 Minimum validation for docs-only cleanup:
 - `py -3 Tools/validate_assets.py`
@@ -85,11 +102,11 @@ Add these when map presentation code, scenes, assets, or tests change:
 - old `Prompt 21-36`: historical combat/content reset wave
 - old `Prompt 06-36`: broader closed-green prompt history archived under `Docs/Archive/Prompts/2026-04-23-closed-green-prompt-packs/`
 
-## After Broader Cleanup
+## After Production Art Pilot
 
-- If cleanup leaves one unambiguous default presentation lane, choose the next lane explicitly from:
-  - production art
-  - asset candidate
+- If the pilot is green, choose the next lane explicitly from:
+  - production art expansion
+  - hunger/exploration UX pilot
   - additional map structural cleanup
   - broader balance/content work
 - Do not open a new prompt queue until `ROADMAP.md` names it directly.
