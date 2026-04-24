@@ -34,6 +34,10 @@ Current validator commands:
 - GitHub Actions validation: `.github/workflows/validate.yml`
   - Windows PR/push lane installs Godot `4.6.2`, sets up Python, verifies the toolchain, and runs `Tools/run_ai_check.ps1`
   - CI green is a baseline safety signal, not a substitute for prompt-specific targeted checks or manual screenshot review
+- Optional GDScript static check: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_gdscript_static_check.ps1`
+  - default scope is changed `.gd` files only and default action is linter-only with noisy existing style-debt rules disabled
+  - add `-FormatCheck` for non-mutating formatting checks
+  - use `-Format` only with explicit `-Files` or `-All`, because broad formatter rewrites are separate cleanup work
 - Windows: `py -3 Tools/validate_content.py`
 - macOS/Linux: `python3 Tools/validate_content.py`
 - Windows asset validator: `py -3 Tools/validate_assets.py`

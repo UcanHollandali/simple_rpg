@@ -64,6 +64,42 @@ function Get-PythonCheck {
     return New-Check -Name "Python command" -Status "fail" -Detail "A Python 3 command is required for validator scripts."
 }
 
+function Get-GdscriptFormatterCheck {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ProjectRoot
+    )
+
+    $command = Get-Command "gdscript-formatter" -ErrorAction SilentlyContinue | Select-Object -First 1
+    $formatterPath = ""
+    if ($command) {
+        if ($command.Path) {
+            $formatterPath = $command.Path
+        }
+        elseif ($command.Source) {
+            $formatterPath = $command.Source
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($formatterPath)) {
+        $knownLocalPath = Join-Path (Split-Path $ProjectRoot -Parent) "Tools\gdscript-formatter\gdscript-formatter.exe"
+        if (Test-Path -LiteralPath $knownLocalPath -PathType Leaf) {
+            $formatterPath = (Resolve-Path -LiteralPath $knownLocalPath).Path
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($formatterPath)) {
+        return New-Check -Name "GDScript formatter/linter" -Status "warn" -Detail "gdscript-formatter not found; optional static check helper will be skipped until installed."
+    }
+
+    $output = & $formatterPath --version 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        return New-Check -Name "GDScript formatter/linter" -Status "warn" -Detail "$formatterPath, version command exited with $LASTEXITCODE"
+    }
+
+    return New-Check -Name "GDScript formatter/linter" -Status "ok" -Detail "$formatterPath -> $((($output | Select-Object -First 1) -join '').Trim())"
+}
+
 function Get-GodotTemplateVersion {
     param(
         [Parameter(Mandatory = $true)]
@@ -151,6 +187,7 @@ catch {
 }
 
 $checks.Add((Get-PythonCheck))
+$checks.Add((Get-GdscriptFormatterCheck -ProjectRoot $projectRoot))
 
 $gitVersion = Get-CommandVersion -CommandName "git"
 if ($gitVersion) {

@@ -1,6 +1,6 @@
 # SIMPLE RPG - Handoff
 
-Last updated: 2026-04-24 (Prompt 02 baseline complete as failure evidence; `Prompt 03` is next; archived `43-62` remains superseded historical evidence)
+Last updated: 2026-04-24 (Prompt 02 baseline complete as failure evidence; `Prompt 03` is next; GitHub `Validate` workflow is active but currently red on pushed main map evidence)
 
 This file is a current-state snapshot only.
 It is not a rule contract. If it conflicts with an authority doc, the authority doc wins.
@@ -30,6 +30,13 @@ Use `Docs/ROADMAP.md` for canonical queue/open-state and `Docs/DOC_PRECEDENCE.md
   - corridor/road hierarchy attempts exist
   - terrain/filler masking exists
   - map-adjacent UI alignment exists
+- GitHub Actions `Validate` is now active on `main`, but the first pushed run for tooling commit `79bb501` failed during bounded Godot validation.
+  - reproduced failure: `test_phase2_loop.gd` hit `SCRIPT ERROR` / `Parse Error` rows around missing map presentation helpers such as `build_forest_shapes`
+  - treat this as current map-lane failure evidence, not as GitHub workflow setup failure
+  - local dirty map changes may already be addressing this; do not commit them as tooling cleanup without checking the active map pass owner
+- Optional GDQuest `gdscript-formatter` `0.19.0` is installed outside the repo at `../Tools/gdscript-formatter/gdscript-formatter.exe`.
+  - repo helper: `Tools/run_gdscript_static_check.ps1`
+  - use it as an opt-in changed-file linter/format-check helper; broad formatting remains a separate explicit cleanup pass
 - Current honesty watchpoints remain open until the new wave rechecks them:
   - baseline screenshot truth vs optimistic closeout wording
   - center-local start identity with varied north/south/east/west outward exploration feel
@@ -50,6 +57,7 @@ Use `Docs/ROADMAP.md` for canonical queue/open-state and `Docs/DOC_PRECEDENCE.md
 
 ## Last Verified Validation Checkpoint
 
+- Current remote CI is not green after `79bb501`; use the failure note above as newer evidence than the old local checkpoint.
 - Passed latest explicit full suite: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_full_suite.ps1`
 - Passed latest validators: `py -3 Tools/validate_content.py`, `py -3 Tools/validate_assets.py`, `py -3 Tools/validate_architecture_guards.py`
 - Passed latest diff hygiene check: `git diff --check`
