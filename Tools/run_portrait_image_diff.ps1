@@ -18,6 +18,7 @@ param(
     [double]$MaxChangedRatio = 0.015,
     [double]$MaxMeanDelta = 1.25,
     [switch]$IncludeUnseededMapBaselines,
+    [switch]$CleanOldArtifacts,
     [string]$BaselineDirectory = "Tests/VisualBaselines/portrait_review",
     [string]$ActualDirectory = "export/portrait_review",
     [string]$DiffDirectory = "export/portrait_image_diff"
@@ -169,6 +170,14 @@ if (-not $IncludeUnseededMapBaselines) {
 }
 
 if ($Capture) {
+    if ($CleanOldArtifacts) {
+        Write-Host ""
+        Write-Host "==> clean old portrait artifacts"
+        $cleanupRunner = Join-Path $PSScriptRoot "clean_portrait_artifacts.ps1"
+        & $cleanupRunner
+        Write-Host "PASS: clean old portrait artifacts"
+    }
+
     Write-Host ""
     Write-Host "==> portrait capture"
     $captureRunner = Join-Path $PSScriptRoot "run_portrait_review_capture.ps1"

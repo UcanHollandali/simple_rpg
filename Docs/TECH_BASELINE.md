@@ -58,6 +58,7 @@ This file locks the technical baseline that should not stay ambiguous.
   - formatting writes require explicit `-Format` plus `-Files` or `-All`; do not auto-format broad gameplay work by default
 - Windows portrait image-diff regression: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_portrait_image_diff.ps1 -Capture`
   - captures the standard portrait review set, compares stable images against `Tests/VisualBaselines/portrait_review/`, and writes report/diff artifacts under ignored `export/portrait_image_diff/`
+  - add `-CleanOldArtifacts` to prune stale ignored portrait captures before producing a new capture set
   - use `-UpdateBaselines` only after the visual change is intentional and reviewed
 - GitHub Actions validation: `.github/workflows/validate.yml`
   - runs on Windows with Godot `4.6.2` and Python

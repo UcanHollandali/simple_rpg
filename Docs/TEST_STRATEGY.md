@@ -70,6 +70,7 @@ Current limitation:
 - Windows portrait image-diff regression can be run through `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_portrait_image_diff.ps1 -Capture`
   - checked-in baselines live under `Tests/VisualBaselines/portrait_review/`
   - current captures and diff artifacts stay under ignored `export/`
+  - use `-CleanOldArtifacts` or `Tools/clean_portrait_artifacts.ps1` to keep ignored local captures from accumulating
   - unseeded `map_explore` captures are not pixel-gated by default because they intentionally generate a different board; seeded map scenarios are pixel-gated instead
   - use `-UpdateBaselines` only after an intentional visual change has been reviewed
 - visual screenshot confidence still depends on human review of captures or live scene/editor/device checks layered on top of the automated suite; image diff catches unexpected pixel drift, not design quality

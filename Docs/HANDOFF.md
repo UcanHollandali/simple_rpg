@@ -1,6 +1,6 @@
 # SIMPLE RPG - Handoff
 
-Last updated: 2026-04-24 (Prompt 02 baseline complete as failure evidence; `Prompt 03` is next; GitHub `Validate` workflow is active and green on `main`)
+Last updated: 2026-04-24 (Prompt 02 baseline complete as failure evidence; `Prompt 03` is next; GitHub `Validate` workflow is active; portrait export cleanup is wired into image-diff)
 
 This file is a current-state snapshot only.
 It is not a rule contract. If it conflicts with an authority doc, the authority doc wins.
@@ -30,7 +30,7 @@ Use `Docs/ROADMAP.md` for canonical queue/open-state and `Docs/DOC_PRECEDENCE.md
   - corridor/road hierarchy attempts exist
   - terrain/filler masking exists
   - map-adjacent UI alignment exists
-- GitHub Actions `Validate` is active on `main` and last passed on commit `d085ad4`.
+- GitHub Actions `Validate` is active on `main`; check the latest Actions run before claiming remote cleanliness for a new commit.
   - earlier tooling commit `79bb501` failed because `test_phase2_loop.gd` exposed missing map presentation helpers such as `build_forest_shapes`
   - the failure was addressed by `7e47fd7`, which keeps terrain/filler/forest masks derived from render-model path and clearing surfaces
   - later CI commits split validation steps and made environment diagnostics non-blocking so validator/Godot failures are easier to locate
@@ -40,6 +40,7 @@ Use `Docs/ROADMAP.md` for canonical queue/open-state and `Docs/DOC_PRECEDENCE.md
 - Portrait image-diff regression harness is now available through `Tools/run_portrait_image_diff.ps1`.
   - checked-in baselines live under `Tests/VisualBaselines/portrait_review/`
   - current captures and diff artifacts stay under ignored `export/`
+  - use `-CleanOldArtifacts` or `Tools/clean_portrait_artifacts.ps1` to prune stale portrait captures/diffs; `export/windows_playtest` is only removed with explicit `-IncludeWindowsPlaytest`
   - unseeded map captures are still for human review; seeded map captures are pixel-gated
 - Current honesty watchpoints remain open until the new wave rechecks them:
   - baseline screenshot truth vs optimistic closeout wording
@@ -61,8 +62,8 @@ Use `Docs/ROADMAP.md` for canonical queue/open-state and `Docs/DOC_PRECEDENCE.md
 
 ## Last Verified Validation Checkpoint
 
-- Passed latest GitHub Actions `Validate` on `main`: `d085ad4`.
-- Passed latest local portrait image diff: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_portrait_image_diff.ps1 -Capture -TimeoutSeconds 180`.
+- Latest GitHub Actions `Validate` on `main`: check the current run for the commit under review.
+- Passed latest local portrait image diff: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_portrait_image_diff.ps1 -Capture -CleanOldArtifacts -TimeoutSeconds 180`.
 - Passed latest local AI check: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_ai_check.ps1 -TimeoutSeconds 240`.
 - Passed latest local map review check: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_ai_check.ps1 -MapReview -TimeoutSeconds 240`.
 - Passed latest explicit full suite: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_full_suite.ps1`
