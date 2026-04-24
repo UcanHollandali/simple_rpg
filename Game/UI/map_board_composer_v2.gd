@@ -131,6 +131,8 @@ func compose(
 	visible_nodes = _decorate_node_entries_with_landmark_footprints(visible_nodes, visible_edges, board_seed, board_size)
 	var terrain_mask_context: Dictionary = _build_render_model_core(layout_edges, graph_nodes, layout_context, board_size, template_profile)
 	var render_model_core: Dictionary = _build_render_model_core(visible_edges, visible_nodes, layout_context, board_size, template_profile)
+	# Wrapper terrain/decor payloads are retained only as render-model mask/socket derivation sources.
+	# The canvas default lane draws from render_model surfaces, not these legacy wrapper fields.
 	var can_reuse_terrain_shapes: bool = can_reuse_stable_layout and _stable_terrain_shapes_have_surface_masks(stable_layout)
 	var ground_shapes: Array = (stable_layout.get("ground_shapes", []) as Array).duplicate(true) if can_reuse_terrain_shapes else []
 	if ground_shapes.is_empty(): ground_shapes = MapBoardGroundBuilderScript.build_ground_shapes(board_size, graph_nodes, layout_edges, template_profile, board_seed, BASE_CENTER_FACTOR, min_board_margin, terrain_mask_context)
@@ -793,8 +795,6 @@ func _build_visible_node_entries(
 			"is_adjacent": is_adjacent,
 			"show_known_icon": node_state != MapRuntimeStateScript.NODE_STATE_UNDISCOVERED or is_current,
 			"icon_texture_path": _icon_texture_path_for_family(node_family),
-			"node_plate_texture_path": _node_plate_texture_path_for(state_semantic),
-			"clearing_decal_texture_path": _clearing_decal_texture_path_for(node_family),
 			"world_position": world_position,
 			"clearing_radius": _clearing_radius_for(node_family, state_semantic, board_size),
 		})
@@ -1314,7 +1314,6 @@ func _build_full_edge_layouts(
 				"to_branch_root_id": int(path_model.get("to_branch_root_id", adjacent_node_id)),
 				"depth_delta": abs(int(depth_by_node_id.get(node_id, 0)) - int(depth_by_node_id.get(adjacent_node_id, 0))),
 				"path_family": String(path_model.get("path_family", PATH_FAMILY_GENTLE_CURVE)),
-				"trail_texture_path": _trail_texture_path_for_family(String(path_model.get("path_family", PATH_FAMILY_GENTLE_CURVE))),
 				"points": path_model.get("points", PackedVector2Array()),
 			})
 	layout_edges.sort_custom(func(left_edge: Dictionary, right_edge: Dictionary) -> bool:
@@ -1889,26 +1888,6 @@ func _icon_texture_path_for_family(node_family: String) -> String:
 			return ""
 
 
-func _node_plate_texture_path_for(state_semantic: String) -> String:
-	match state_semantic:
-		"resolved":
-			return UiAssetPathsScript.MAP_NODE_PLATE_RESOLVED_TEXTURE_PATH
-		"locked":
-			return UiAssetPathsScript.MAP_NODE_PLATE_LOCKED_TEXTURE_PATH
-		_:
-			return UiAssetPathsScript.MAP_NODE_PLATE_REACHABLE_TEXTURE_PATH
-
-
-func _clearing_decal_texture_path_for(node_family: String) -> String:
-	match node_family:
-		"boss", "key":
-			return UiAssetPathsScript.MAP_CLEARING_DECAL_BOSS_TEXTURE_PATH
-		_:
-			return UiAssetPathsScript.MAP_CLEARING_DECAL_NEUTRAL_TEXTURE_PATH
-
-
-func _trail_texture_path_for_family(path_family: String) -> String:
-	return String(UiAssetPathsScript.MAP_TRAIL_TEXTURE_PATHS_BY_FAMILY.get(path_family, ""))
 func _clearing_radius_for(node_family: String, state_semantic: String, board_size: Vector2) -> float:
 	var board_unit: float = min(board_size.x, board_size.y)
 	var factor: float = 0.054

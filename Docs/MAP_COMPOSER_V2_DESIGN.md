@@ -80,7 +80,7 @@ Map Composer V2 should keep the existing gameplay truth and stage contract while
 - Presentation should serve a `fixed-board diorama`, not a moving-board follow chain.
 - The walker should move on the board while the board and camera stay still by default.
 - Layout/path/world-fill should follow runtime graph truth; they must not become a second gameplay map.
-- Filler world remains non-routing atmosphere around the traversal pocket.
+- Filler/decor metadata remains non-routing support around the traversal pocket.
 - Visual variation should come from deterministic composition, placement, and asset/filler dressing rather than from camera drift.
 
 ## Design Goals
@@ -323,45 +323,45 @@ The reopened wave may keep a narrow emergency fallback for exceptional cases, bu
 
 ## Render Model Payload
 
-Status after Prompt 09 Part B:
+Status after the closed map wave:
 
 - `MapBoardComposerV2` emits a nested UI-only `render_model` payload with `schema_version = 1`.
 - The payload is derived from existing composition truth; it does not add gameplay state, save state, flow state, asset provenance, assets, or canvas ownership.
 - `render_model.path_surfaces` wraps currently visible corridor geometry with role, endpoint, width, cardinal, outward-route hint, and throat metadata.
 - `render_model.junctions` wraps visible node junction/blend points for local choices and branch throats.
 - `render_model.clearing_surfaces` wraps visible clearing discs and their road endpoint links.
-- `render_model.canopy_masks` wraps live canopy-source `forest_shapes` as road/clearing framing masks with cardinal and outward-route relationship metadata.
+- `render_model.canopy_masks` wraps canopy-source `forest_shapes` as road/clearing framing metadata with cardinal and outward-route relationship metadata.
 - `render_model.landmark_slots` wraps visible node landmark footprints as asset-ready socket metadata with family, role, anchor point, rotation, scale, cardinal, and outward-route relationship fields.
-- `render_model.decor_slots` wraps live filler/decor source shapes as metadata-only socket anchors with route/clearing relation, cardinal side, outward-route hint, rotation, and scale fields.
+- `render_model.decor_slots` wraps filler/decor source shapes as metadata-only socket anchors with route/clearing relation, cardinal side, outward-route hint, rotation, and scale fields.
 - `MapBoardCanvas` uses `render_model.path_surfaces`, `render_model.junctions`, and `render_model.clearing_surfaces` as the default road/junction/clearing presentation lane when those fields are present.
-- Legacy road strokes/decals are fallback-only for compositions without a usable `render_model` surface lane.
+- Legacy road strokes/decals and node-plate/decal candidate hooks are retired; `visible_edges` remains fallback data for continuity/motion, not a canvas default lane.
+- The old visual wrapper blob/stamp layer is retired from default canvas drawing; `ground_shapes`, `filler_shapes`, and `forest_shapes` remain metadata sources for masks/sockets only.
+- `ui_map_board_backdrop.svg` is a plain framed board shell; non-routing oval/blob atmosphere marks were removed from the runtime asset and source master.
 - `MapRouteBinding` refreshes `render_model` after visible-edge continuity fallback so canvas reads the final presentation geometry.
 
-Render-model canvas draw order while Prompt 09 is active:
+Render-model canvas draw order after the closed map wave:
 
-1. board atmosphere
-2. wrapper terrain bed from `ground_shapes`
-3. wrapper filler shapes
-4. wrapper canopy shapes
-5. landmark pocket underlays from visible node footprint metadata
-6. `render_model.path_surfaces` as filled walkable surface polygons
-7. `render_model.junctions` as local blend points
-8. render-model path-surface highlight pass for selected/preview/current emphasis
-9. `render_model.clearing_surfaces`
-10. secondary landmark/icon identity overlays
-11. wrapper decor shapes
+1. plain board background
+2. landmark pocket underlays from visible node footprint metadata
+3. `render_model.path_surfaces` as filled walkable surface polygons
+4. path-surface socket-smoke placeholder dressing
+5. `render_model.junctions` as local blend points
+6. render-model path-surface highlight pass for selected/preview/current emphasis
+7. `render_model.clearing_surfaces`
+8. secondary landmark/icon identity overlays
+9. landmark/decor socket-smoke placeholder dressing
 
-This keeps roads above atmosphere/filler/canopy, lets junctions blend route throats before clearings cap the endpoints, and keeps icon/plate identity secondary to pocket and path-surface structure.
+This keeps roads above the plain board background, lets junctions blend route throats before clearings cap the endpoints, and keeps icon/plate identity secondary to pocket and path-surface structure. Socket-smoke placeholders are still provisional and do not prove final art quality.
 
-Legacy field status while Prompt 09 is active:
+Legacy field status after the closed map wave:
 
 | Legacy field | Status | Meaning after render-model canvas adoption |
 |---|---|---|
 | `layout_edges` | `fallback` | Frozen full-layout path geometry and continuity source; not a canvas default lane. |
 | `visible_edges` | `fallback` | Legacy road geometry and motion/fallback source; not the default canvas road lane when render-model surfaces exist. |
-| `ground_shapes` | `wrapper` | Wrapper terrain-bed input around the render-model road/clearing lane. |
-| `filler_shapes` | `wrapper` | Wrapper decor input and source for `render_model.decor_slots`. |
-| `forest_shapes` | `wrapper` | Wrapper canopy/decor input and source for `render_model.canopy_masks` / `render_model.decor_slots`. |
+| `ground_shapes` | `wrapper` | Metadata-only terrain-mask payload; no longer drawn by default canvas. |
+| `filler_shapes` | `wrapper` | Metadata-only source for `render_model.decor_slots`; no runtime texture hook and no default canvas stamp layer. |
+| `forest_shapes` | `wrapper` | Metadata-only source for `render_model.canopy_masks` / `render_model.decor_slots`; no runtime texture hook and no default canvas canopy/decor layer. |
 
 ## Playable Rect Rule
 
@@ -429,13 +429,14 @@ The playable rect must leave room for:
 
 ### Fill Principle (Proposed)
 
-- Ground/forest/ruin/canopy fill is an atmosphere layer around the graph pocket.
+- Ground/forest/ruin/canopy wrapper payload is metadata around the graph pocket after the closed map wave.
+- It should derive masks and future socket placement; it is not a visible default canvas layer.
 - It is not a second gameplay map.
-- It must improve local-neighborhood readability, not fight it.
+- Any future visible fill must improve local-neighborhood readability with screenshot evidence, not fight it.
 
 ### Non-Routing Rule (Proposed)
 
-- filler world gives atmosphere
+- filler metadata may seed future atmosphere/dressing sockets
 - node/path graph remains routing truth
 
 This rule also applies to any later asset hook:

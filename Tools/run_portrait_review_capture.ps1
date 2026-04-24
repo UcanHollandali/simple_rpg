@@ -186,9 +186,13 @@ try {
         @{ Label = "seed11_mid"; RunSeed = 11; AdvanceSteps = 3 },
         @{ Label = "seed29_mid"; RunSeed = 29; AdvanceSteps = 3 },
         @{ Label = "seed41_mid"; RunSeed = 41; AdvanceSteps = 3 },
+        @{ Label = "seed73_mid"; RunSeed = 73; AdvanceSteps = 3 },
+        @{ Label = "seed97_mid"; RunSeed = 97; AdvanceSteps = 3 },
         @{ Label = "seed11_late"; RunSeed = 11; AdvanceSteps = 5 },
         @{ Label = "seed29_late"; RunSeed = 29; AdvanceSteps = 5 },
-        @{ Label = "seed41_late"; RunSeed = 41; AdvanceSteps = 5 }
+        @{ Label = "seed41_late"; RunSeed = 41; AdvanceSteps = 5 },
+        @{ Label = "seed73_late"; RunSeed = 73; AdvanceSteps = 5 },
+        @{ Label = "seed97_late"; RunSeed = 97; AdvanceSteps = 5 }
     )
 
     $importLogFile = Get-GodotLogFilePath -ProjectRoot $projectRoot -Name "godot_portrait_capture_import.log"

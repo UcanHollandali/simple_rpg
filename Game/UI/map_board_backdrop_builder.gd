@@ -2,7 +2,6 @@
 extends RefCounted
 class_name MapBoardBackdropBuilder
 
-const UiAssetPathsScript = preload("res://Game/UI/ui_asset_paths.gd")
 const MapBoardStyleScript = preload("res://Game/UI/map_board_style.gd")
 const CANOPY_ACTION_POCKET_PADDING := Vector2(92.0, 104.0)
 const DECOR_ACTION_POCKET_PADDING := Vector2(46.0, 52.0)
@@ -118,7 +117,7 @@ static func forest_draw_half_extent(radius: float, shape_family: String) -> floa
 	if radius <= 0.0:
 		return 0.0
 	if shape_family == "canopy":
-		return maxf(radius, radius * MapBoardStyleScript.forest_texture_scale(shape_family) * 0.5)
+		return maxf(radius, radius * MapBoardStyleScript.forest_mask_extent_scale(shape_family) * 0.5)
 	return radius
 
 
@@ -243,7 +242,6 @@ static func _build_forest_shape(
 			"center": center,
 			"radius": radius,
 			"tone": _forest_tone_for(template_profile, shape_family, shape_index),
-			"texture_path": _forest_texture_path_for(shape_family, board_seed, shape_index),
 			"rotation_degrees": _forest_rotation_degrees_for(shape_family, board_seed, shape_index),
 			"terrain_role": "canopy_frame" if shape_family == "canopy" else "negative_space_decor",
 			"mask_source": mask_source,
@@ -319,7 +317,6 @@ static func _build_fallback_forest_shape(
 				"center": candidate,
 				"radius": radius,
 				"tone": _forest_tone_for(template_profile, shape_family, slot_index),
-				"texture_path": _forest_texture_path_for(shape_family, board_seed, slot_index),
 				"rotation_degrees": _forest_rotation_degrees_for(shape_family, board_seed, slot_index),
 				"terrain_role": "canopy_frame" if shape_family == "canopy" else "negative_space_decor",
 				"mask_source": mask_source,
@@ -341,7 +338,6 @@ static func _build_fallback_forest_shape(
 				"center": candidate,
 				"radius": relaxed_radius,
 				"tone": _forest_tone_for(template_profile, shape_family, slot_index),
-				"texture_path": _forest_texture_path_for(shape_family, board_seed, slot_index),
 				"rotation_degrees": _forest_rotation_degrees_for(shape_family, board_seed, slot_index),
 				"terrain_role": "canopy_frame" if shape_family == "canopy" else "negative_space_decor",
 				"mask_source": mask_source,
@@ -385,7 +381,6 @@ static func _build_fallback_forest_shape(
 			"center": best_effort_candidate,
 			"radius": best_effort_radius,
 			"tone": _forest_tone_for(template_profile, shape_family, best_effort_slot_index),
-			"texture_path": _forest_texture_path_for(shape_family, board_seed, best_effort_slot_index),
 			"rotation_degrees": _forest_rotation_degrees_for(shape_family, board_seed, best_effort_slot_index),
 			"terrain_role": "canopy_frame" if shape_family == "canopy" else "negative_space_decor",
 			"mask_source": mask_source,
@@ -436,7 +431,6 @@ static func _build_route_safe_fallback_forest_shape(
 		"center": best_candidate,
 		"radius": best_radius,
 		"tone": _forest_tone_for(template_profile, shape_family, shape_index),
-		"texture_path": _forest_texture_path_for(shape_family, board_seed, shape_index),
 		"rotation_degrees": _forest_rotation_degrees_for(shape_family, board_seed, shape_index),
 		"terrain_role": "canopy_frame" if shape_family == "canopy" else "negative_space_decor",
 		"mask_source": mask_source,
@@ -718,13 +712,6 @@ static func _best_effort_fallback_slot_index(slots: Array[Vector2], node_entries
 			best_score = score
 			best_index = index
 	return best_index
-
-
-static func _forest_texture_path_for(shape_family: String, board_seed: int, shape_index: int) -> String:
-	if shape_family != "canopy" or UiAssetPathsScript.MAP_CANOPY_TEXTURE_PATHS.is_empty():
-		return ""
-	var texture_index: int = abs(_derive_seed(board_seed, "forest-texture:%d" % shape_index)) % UiAssetPathsScript.MAP_CANOPY_TEXTURE_PATHS.size()
-	return String(UiAssetPathsScript.MAP_CANOPY_TEXTURE_PATHS[texture_index])
 
 
 static func _forest_rotation_degrees_for(shape_family: String, board_seed: int, shape_index: int) -> float:

@@ -4,6 +4,7 @@ class_name TestRewardNode
 
 const AppBootstrapScript = preload("res://Game/Application/app_bootstrap.gd")
 const SceneRouterScript = preload("res://Game/Infrastructure/scene_router.gd")
+const ContentLoaderScript = preload("res://Game/Infrastructure/content_loader.gd")
 const FlowStateScript = preload("res://Game/Application/flow_state.gd")
 const MapOverlayContractScript = preload("res://Game/UI/map_overlay_contract.gd")
 const RewardStateScript = preload("res://Game/RuntimeState/reward_state.gd")
@@ -292,6 +293,13 @@ func _ensure_map_inventory_drawer_expanded() -> void:
 
 
 func _expected_item_display_name(inventory_family: String, definition_id: String) -> String:
+	var content_family: String = _content_family_for_inventory_family(inventory_family)
+	if not content_family.is_empty():
+		var loader = ContentLoaderScript.new()
+		var definition: Dictionary = loader.load_definition(content_family, definition_id)
+		var display_name: String = String(definition.get("display", {}).get("name", "")).strip_edges()
+		if not display_name.is_empty():
+			return display_name
 	match inventory_family:
 		"weapon":
 			return "Iron Sword" if definition_id == "iron_sword" else "Weapon"
@@ -307,6 +315,24 @@ func _expected_item_display_name(inventory_family: String, definition_id: String
 			return "Thorn Grip Charm" if definition_id == "iron_grip_charm" else "Passive"
 		_:
 			return definition_id
+
+
+func _content_family_for_inventory_family(inventory_family: String) -> String:
+	match inventory_family:
+		"weapon":
+			return "Weapons"
+		"shield":
+			return "Shields"
+		"armor":
+			return "Armors"
+		"belt":
+			return "Belts"
+		"consumable":
+			return "Consumables"
+		"passive":
+			return "PassiveItems"
+		_:
+			return ""
 
 
 func _prepare_map_adjacent_to_family(node_family: String) -> int:

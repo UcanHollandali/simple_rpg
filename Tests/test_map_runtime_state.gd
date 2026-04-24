@@ -27,6 +27,7 @@ func _run() -> void:
 	test_map_runtime_state_uses_runtime_backbone_profile_for_stage_two()
 	test_map_runtime_state_uses_runtime_backbone_profile_for_stage_three()
 	test_procedural_grammar_seed_sweep_keeps_family_placement_readable()
+	test_map_runtime_state_keeps_hunger_route_pressure_delta_green()
 	test_map_runtime_state_builds_layout_graph_snapshots_without_save_shape()
 	test_map_runtime_state_generation_is_deterministic_per_profile()
 	test_run_state_map_generation_varies_by_seed_but_stays_deterministic()
@@ -117,6 +118,31 @@ func test_procedural_grammar_seed_sweep_keeps_family_placement_readable() -> voi
 		assert(observed_blueprint_ids.size() >= 2, "Expected stage %d seed sweep to exercise at least two explicit topology blueprints." % stage_index)
 
 
+func test_map_runtime_state_keeps_hunger_route_pressure_delta_green() -> void:
+	for stage_index in [1, 2, 3]:
+		for generation_seed in range(0, 32):
+			var map_runtime_state: RefCounted = MapRuntimeStateScript.new()
+			map_runtime_state.reset_for_new_run(stage_index, generation_seed)
+			var boss_node_id: int = int(map_runtime_state.get_boss_node_id())
+			var route_lengths: Array[int] = _collect_simple_path_lengths_between_nodes(
+				map_runtime_state,
+				MapRuntimeStateScript.DEFAULT_NODE_INDEX,
+				boss_node_id
+			)
+			assert(route_lengths.size() >= 2, "Expected stage %d seed %d to expose an alternate boss-pressure route." % [stage_index, generation_seed])
+			var shortest_vs_alternative_route_delta: int = int(route_lengths[1]) - int(route_lengths[0])
+			assert(
+				shortest_vs_alternative_route_delta >= 2,
+				"Expected stage %d seed %d shortest_vs_alternative_route_delta >= 2. Blueprint=%s lengths=%s delta=%d." % [
+					stage_index,
+					generation_seed,
+					String(map_runtime_state.get_active_topology_blueprint_id()),
+					str(route_lengths),
+					shortest_vs_alternative_route_delta,
+				]
+			)
+
+
 func test_map_runtime_state_builds_layout_graph_snapshots_without_save_shape() -> void:
 	var map_runtime_state: RefCounted = MapRuntimeStateScript.new()
 	map_runtime_state.reset_for_new_run(1, 11)
@@ -142,10 +168,10 @@ func test_map_runtime_state_builds_layout_graph_snapshots_without_save_shape() -
 	var observed_sector_ids: Dictionary = {}
 	var expected_blueprint_id: String = String(map_runtime_state.get_active_topology_blueprint_id())
 	for layout_snapshot in layout_snapshots:
-		assert(layout_snapshot.keys().size() == allowed_keys.size(), "Expected layout graph snapshots to expose only owner-safe Prompt 04 fields.")
+		assert(layout_snapshot.keys().size() == allowed_keys.size(), "Expected layout graph snapshots to expose only owner-safe layout metadata fields.")
 		for key_variant in layout_snapshot.keys():
 			var snapshot_key: String = String(key_variant)
-			assert(bool(allowed_keys.get(snapshot_key, false)), "Expected layout graph snapshot key %s to stay inside the Prompt 04 allowlist." % snapshot_key)
+			assert(bool(allowed_keys.get(snapshot_key, false)), "Expected layout graph snapshot key %s to stay inside the owner-safe layout metadata allowlist." % snapshot_key)
 
 		var node_id: int = int(layout_snapshot.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
 		assert(realized_by_node_id.has(node_id), "Expected layout graph snapshot node %d to exist in the realized runtime graph." % node_id)
@@ -175,7 +201,7 @@ func test_map_runtime_state_builds_layout_graph_snapshots_without_save_shape() -
 		var seeded_layout_snapshots: Array[Dictionary] = seeded_map_runtime_state.build_layout_graph_snapshots()
 		assert(not seeded_layout_snapshots.is_empty(), "Expected seeded layout graph snapshots to be available for seed %d." % generation_seed)
 		observed_orientation_profile_ids[String(seeded_layout_snapshots[0].get("orientation_profile_id", ""))] = true
-	assert(observed_orientation_profile_ids.size() >= 2, "Expected layout orientation metadata to vary across Prompt 04 seed evidence.")
+	assert(observed_orientation_profile_ids.size() >= 2, "Expected layout orientation metadata to vary across seeded layout evidence.")
 
 	var save_data: Dictionary = map_runtime_state.to_save_dict()
 	for forbidden_key in ["sector_id", "route_role", "orientation_profile_id", "topology_blueprint_id"]:
@@ -1921,8 +1947,8 @@ func test_run_session_coordinator_builds_content_backed_combat_setup() -> void:
 		"Expected combat setup to use the equipped weapon definition instead of a scene hardcode."
 	)
 	assert(
-		String(enemy_definition.get("definition_id", "")) == expected_enemy_ids[0],
-		"Expected first combat setup to use the first authored-order enemy from the active stage-specific pool."
+		String(enemy_definition.get("definition_id", "")) == expected_enemy_ids[posmod(run_state.map_runtime_state.current_node_id - 1, expected_enemy_ids.size())],
+		"Expected first combat setup to use deterministic stage-specific enemy rotation for the active combat node."
 	)
 
 	if expected_enemy_ids.size() > 1:
@@ -2246,6 +2272,42 @@ func _build_path_between_nodes(map_runtime_state: RefCounted, start_node_id: int
 	return []
 
 
+func _collect_simple_path_lengths_between_nodes(map_runtime_state: RefCounted, start_node_id: int, target_node_id: int) -> Array[int]:
+	var path_lengths: Array[int] = []
+	var start_path := PackedInt32Array()
+	start_path.append(start_node_id)
+	var stack: Array[Dictionary] = [{
+		"node_id": start_node_id,
+		"path": start_path,
+	}]
+	while not stack.is_empty():
+		var entry: Dictionary = stack.pop_back()
+		var node_id: int = int(entry.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
+		var path: PackedInt32Array = PackedInt32Array(entry.get("path", PackedInt32Array()))
+		if node_id == target_node_id:
+			path_lengths.append(max(0, path.size() - 1))
+			continue
+		if path.size() >= map_runtime_state.get_node_count():
+			continue
+		for adjacent_node_id_variant in map_runtime_state.get_adjacent_node_ids(node_id):
+			var adjacent_node_id: int = int(adjacent_node_id_variant)
+			if path.has(adjacent_node_id):
+				continue
+			var next_path := PackedInt32Array(path)
+			next_path.append(adjacent_node_id)
+			stack.append({
+				"node_id": adjacent_node_id,
+				"path": next_path,
+			})
+	path_lengths.sort()
+	var unique_lengths: Array[int] = []
+	for path_length in path_lengths:
+		if unique_lengths.has(path_length):
+			continue
+		unique_lengths.append(path_length)
+	return unique_lengths
+
+
 func _find_node_ids_by_family(map_runtime_state: RefCounted, node_family: String) -> Array[int]:
 	var node_ids: Array[int] = []
 	for node_snapshot in map_runtime_state.build_node_snapshots():
@@ -2322,7 +2384,6 @@ func _assert_runtime_same_depth_reconnects_stay_local(map_runtime_state: RefCoun
 	var reconnect_path_lengths: Array[int] = _collect_same_depth_reconnect_path_lengths(map_runtime_state)
 	var depth_by_node_id: Dictionary = _build_depth_map_from_start(map_runtime_state)
 	var branch_root_by_node_id: Dictionary = _build_branch_root_map_from_runtime(map_runtime_state)
-	var children_count_by_node_id: Dictionary = _build_runtime_children_count_map(map_runtime_state)
 	assert(reconnect_path_lengths.size() >= 1, "Expected %s to keep at least one same-depth reconnect edge." % context_label)
 	assert(_count_extra_edges_from_runtime(map_runtime_state) >= 1 and _count_extra_edges_from_runtime(map_runtime_state) <= 2, "Expected %s to keep reconnect budget inside [1, 2]." % context_label)
 	var reconnect_edges: Array[PackedInt32Array] = _collect_same_depth_reconnect_edges(map_runtime_state)
@@ -2338,8 +2399,8 @@ func _assert_runtime_same_depth_reconnects_stay_local(map_runtime_state: RefCoun
 		var left_branch_root: int = int(branch_root_by_node_id.get(left_id, MapRuntimeStateScript.NO_PENDING_NODE_ID))
 		var right_branch_root: int = int(branch_root_by_node_id.get(right_id, MapRuntimeStateScript.NO_PENDING_NODE_ID))
 		assert(abs(left_branch_root - right_branch_root) == 1, "Expected %s reconnects to stay between neighboring opening branches instead of cross-map diagonals." % context_label)
-		assert(int(children_count_by_node_id.get(left_id, 0)) >= 1, "Expected %s reconnects to stay on forward-progress connectors instead of dead-end leaves." % context_label)
-		assert(int(children_count_by_node_id.get(right_id, 0)) >= 1, "Expected %s reconnects to stay on forward-progress connectors instead of dead-end leaves." % context_label)
+		assert(_runtime_node_has_forward_neighbor(map_runtime_state, depth_by_node_id, left_id), "Expected %s reconnects to stay on forward-progress connectors instead of dead-end leaves." % context_label)
+		assert(_runtime_node_has_forward_neighbor(map_runtime_state, depth_by_node_id, right_id), "Expected %s reconnects to stay on forward-progress connectors instead of dead-end leaves." % context_label)
 
 
 func _expected_stage_blueprint_ids(stage_index: int) -> Dictionary:
@@ -2443,6 +2504,14 @@ func _build_runtime_children_count_map(map_runtime_state: RefCounted) -> Diction
 		var parent_node_id: int = parent_candidates[0]
 		children_count_by_node_id[parent_node_id] = int(children_count_by_node_id.get(parent_node_id, 0)) + 1
 	return children_count_by_node_id
+
+
+func _runtime_node_has_forward_neighbor(map_runtime_state: RefCounted, depth_by_node_id: Dictionary, node_id: int) -> bool:
+	var node_depth: int = int(depth_by_node_id.get(node_id, -1))
+	for adjacent_node_id in map_runtime_state.get_adjacent_node_ids(node_id):
+		if int(depth_by_node_id.get(int(adjacent_node_id), -1)) > node_depth:
+			return true
+	return false
 
 
 func _is_runtime_leaf_like_node(map_runtime_state: RefCounted, node_id: int) -> bool:

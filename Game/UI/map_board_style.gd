@@ -5,67 +5,10 @@ class_name MapBoardStyle
 const TempScreenThemeScript = preload("res://Game/UI/temp_screen_theme.gd")
 
 const ATMOSPHERE_BACKGROUND_COLOR := Color(0.02, 0.05, 0.04, 0.24)
-const ATMOSPHERE_CENTER_RATIO := Vector2(0.50, 0.60)
-const ATMOSPHERE_CENTER_OFFSET_SCALE := 0.18
-const ATMOSPHERE_LAYER_RADIUS_MULTIPLIERS := [0.48, 0.34]
-const ATMOSPHERE_LAYER_COLORS := [
-	Color(0.14, 0.17, 0.11, 0.11),
-	Color(0.26, 0.23, 0.12, 0.08),
-]
-const ATMOSPHERE_UPPER_GLOW_CENTER_RATIO := Vector2(0.50, 0.18)
-const ATMOSPHERE_UPPER_GLOW_OFFSET_SCALE := 0.08
-const ATMOSPHERE_UPPER_GLOW_RADIUS_MULTIPLIER := 0.13
-const ATMOSPHERE_UPPER_GLOW_COLOR := Color(0.66, 0.55, 0.24, 0.05)
-const ATMOSPHERE_LOWER_SHADE_CENTER_RATIO := Vector2(0.50, 0.92)
-const ATMOSPHERE_LOWER_SHADE_RADIUS_MULTIPLIER := 0.18
-const ATMOSPHERE_LOWER_SHADE_COLOR := Color(0.02, 0.04, 0.03, 0.16)
-const ATMOSPHERE_GUIDE_ARC_WARM_RADIUS_MULTIPLIER := 0.28
-const ATMOSPHERE_GUIDE_ARC_WARM_COLOR := Color(0.84, 0.74, 0.40, 0.05)
-const ATMOSPHERE_GUIDE_ARC_WARM_WIDTH := 1.4
-const ATMOSPHERE_GUIDE_ARC_COOL_RADIUS_MULTIPLIER := 0.38
-const ATMOSPHERE_GUIDE_ARC_COOL_COLOR := Color(0.20, 0.38, 0.30, 0.07)
-const ATMOSPHERE_GUIDE_ARC_COOL_WIDTH := 1.8
 
-const GROUND_BED_ALPHA := 0.70
-const GROUND_PATCH_ALPHA := 0.46
-const GROUND_BREAKUP_ALPHA := 0.34
-const GROUND_BED_RIM_WIDTH := 2.2
-const GROUND_PATCH_RIM_WIDTH := 1.6
-const GROUND_BREAKUP_RIM_WIDTH := 1.2
-const GROUND_BED_INNER_SCALE := Vector2(0.84, 0.80)
-const GROUND_PATCH_INNER_SCALE := Vector2(0.80, 0.74)
-const GROUND_BREAKUP_INNER_SCALE := Vector2(0.76, 0.70)
-const GROUND_BED_INNER_ALPHA_SCALE := 0.52
-const GROUND_PATCH_INNER_ALPHA_SCALE := 0.44
-const GROUND_BREAKUP_INNER_ALPHA_SCALE := 0.36
-const GROUND_RIM_ALPHA_SCALE := 0.54
+const CANOPY_MASK_EXTENT_SCALE := 1.92
+const DECOR_MASK_EXTENT_SCALE := 1.56
 
-const FILLER_ROCK_ALPHA := 0.34
-const FILLER_RUIN_ALPHA := 0.30
-const FILLER_WATER_ALPHA := 0.28
-const FILLER_ROCK_RIM_WIDTH := 1.4
-const FILLER_RUIN_RIM_WIDTH := 1.2
-const FILLER_WATER_RIM_WIDTH := 1.1
-const FILLER_ROCK_INNER_SCALE := Vector2(0.78, 0.74)
-const FILLER_RUIN_INNER_SCALE := Vector2(0.80, 0.78)
-const FILLER_WATER_INNER_SCALE := Vector2(0.84, 0.78)
-const FILLER_ROCK_INNER_ALPHA_SCALE := 0.44
-const FILLER_RUIN_INNER_ALPHA_SCALE := 0.34
-const FILLER_WATER_INNER_ALPHA_SCALE := 0.28
-const FILLER_RIM_ALPHA_SCALE := 0.46
-
-const CANOPY_TEXTURE_SCALE := 1.92
-const DECOR_TEXTURE_SCALE := 1.56
-const CANOPY_ALPHA_SCALE := 0.46
-const DECOR_ALPHA_SCALE := 0.72
-const CANOPY_FALLBACK_LOBE_SCALES := [0.72, 0.52, 0.38]
-const CANOPY_FALLBACK_LOBE_OFFSETS := [Vector2(-0.18, -0.10), Vector2(0.18, 0.02), Vector2(0.04, 0.20)]
-const CANOPY_FALLBACK_ALPHA_SCALES := [0.54, 0.40, 0.30]
-
-const TRAIL_STAMP_ALPHA_CAP := 0.34
-const TRAIL_STAMP_ALPHA_MULTIPLIER := 0.42
-const TRAIL_STAMP_ALPHA_MULTIPLIER_HISTORY := 0.24
-const TRAIL_STAMP_SIZE_SCALE_HISTORY := 0.84
 const ROAD_HIGHLIGHT_WIDTH_DEFAULT := 3.2
 const ROAD_HIGHLIGHT_WIDTH_HISTORY := 2.8
 const ROAD_HIGHLIGHT_WIDTH_CURRENT := 4.6
@@ -74,23 +17,9 @@ const ROAD_BASE_WIDTH_DEFAULT := 12.0
 const ROAD_BASE_WIDTH_HISTORY := 8.4
 const ROAD_BASE_WIDTH_CURRENT := 13.5
 const ROAD_BASE_WIDTH_TARGET := 16.0
-const ROAD_SHADOW_WIDTH_DEFAULT := 4.5
-const ROAD_SHADOW_WIDTH_HISTORY := 3.2
 const ROAD_SHADOW_ALPHA_DEFAULT := 0.22
 const ROAD_SHADOW_ALPHA_HISTORY := 0.12
-const ROAD_ENDPOINT_TRIM_DEFAULT := 4.0
-const ROAD_ENDPOINT_TRIM_CURRENT := 6.0
-const ROAD_ENDPOINT_TRIM_TARGET := 8.0
 
-const CLEARING_PLATE_SCALE := 2.12
-const CLEARING_PLATE_ALPHA_CURRENT := 0.64
-const CLEARING_PLATE_ALPHA_RESOLVED := 0.56
-const CLEARING_PLATE_ALPHA_DEFAULT := 0.46
-const CLEARING_DECAL_SIZE_MULTIPLIER := Vector2(2.38, 1.70)
-const CLEARING_DECAL_Y_OFFSET_MULTIPLIER := 0.01
-const CLEARING_DECAL_ALPHA_CURRENT := 0.40
-const CLEARING_DECAL_ALPHA_RESOLVED := 0.34
-const CLEARING_DECAL_ALPHA_DEFAULT := 0.24
 const CLEARING_SHADOW_Y_OFFSET_MULTIPLIER := 0.09
 const CLEARING_SHADOW_RADIUS_MULTIPLIER := 0.92
 const CLEARING_SHADOW_ALPHA := 0.18
@@ -292,176 +221,8 @@ static func road_highlight_color(state_semantic: String, emphasis_level: int = 0
 	return highlight_color
 
 
-static func board_atmosphere_center(board_size: Vector2, board_offset: Vector2) -> Vector2:
-	return board_size * ATMOSPHERE_CENTER_RATIO + board_offset * ATMOSPHERE_CENTER_OFFSET_SCALE
-
-
-static func board_atmosphere_upper_glow_center(board_size: Vector2, board_offset: Vector2) -> Vector2:
-	return board_size * ATMOSPHERE_UPPER_GLOW_CENTER_RATIO + board_offset * ATMOSPHERE_UPPER_GLOW_OFFSET_SCALE
-
-
-static func ground_patch_color(template_profile: String, family: String, tone_shift: float, alpha_scale: float) -> Color:
-	var ground_color: Color = _ground_profile_base_color(template_profile)
-	match family:
-		"corridor":
-			ground_color = ground_color.lightened(0.10).lerp(Color(0.23, 0.18, 0.11, ground_color.a), 0.18)
-		"pocket":
-			ground_color = ground_color.lightened(0.14).lerp(Color(0.26, 0.20, 0.12, ground_color.a), 0.24)
-		"patch":
-			ground_color = ground_color.lightened(0.05).lerp(Color(0.17, 0.14, 0.09, ground_color.a), 0.12)
-		"breakup":
-			ground_color = ground_color.darkened(0.04).lerp(Color(0.09, 0.08, 0.06, ground_color.a), 0.18)
-		_:
-			ground_color = ground_color.lightened(0.02)
-	ground_color = _apply_ground_tone_shift(ground_color, tone_shift)
-	ground_color.a *= _ground_family_alpha(family) * alpha_scale
-	return ground_color
-
-
-static func ground_patch_inner_color(template_profile: String, family: String, tone_shift: float, alpha_scale: float) -> Color:
-	var inner_color: Color = _ground_profile_base_color(template_profile).lightened(0.09)
-	match family:
-		"corridor":
-			inner_color = inner_color.lightened(0.04)
-		"pocket":
-			inner_color = inner_color.lightened(0.06)
-		"breakup":
-			inner_color = inner_color.darkened(0.02)
-	inner_color = _apply_ground_tone_shift(inner_color, tone_shift * 0.65)
-	inner_color.a *= _ground_inner_alpha_scale(family) * alpha_scale
-	return inner_color
-
-
-static func ground_patch_rim_color(template_profile: String, family: String, tone_shift: float, alpha_scale: float) -> Color:
-	var rim_color: Color = _ground_profile_base_color(template_profile).lightened(0.18)
-	match family:
-		"corridor":
-			rim_color = rim_color.lightened(0.04)
-		"pocket":
-			rim_color = rim_color.lightened(0.08)
-		"breakup":
-			rim_color = rim_color.darkened(0.02)
-	rim_color = _apply_ground_tone_shift(rim_color, tone_shift * 0.42)
-	rim_color.a *= GROUND_RIM_ALPHA_SCALE * alpha_scale
-	return rim_color
-
-
-static func ground_patch_rim_width(family: String) -> float:
-	match family:
-		"corridor":
-			return GROUND_PATCH_RIM_WIDTH
-		"pocket":
-			return GROUND_PATCH_RIM_WIDTH + 0.8
-		"patch":
-			return GROUND_PATCH_RIM_WIDTH
-		"breakup":
-			return GROUND_BREAKUP_RIM_WIDTH
-		_:
-			return GROUND_BED_RIM_WIDTH
-
-
-static func ground_patch_inner_scale(family: String) -> Vector2:
-	match family:
-		"corridor":
-			return Vector2(0.80, 0.72)
-		"pocket":
-			return Vector2(0.84, 0.78)
-		"patch":
-			return GROUND_PATCH_INNER_SCALE
-		"breakup":
-			return GROUND_BREAKUP_INNER_SCALE
-		_:
-			return GROUND_BED_INNER_SCALE
-
-
-static func filler_shape_color(template_profile: String, family: String, tone_shift: float, alpha_scale: float) -> Color:
-	var filler_color: Color = _ground_profile_base_color(template_profile)
-	match family:
-		"ruin":
-			filler_color = filler_color.lightened(0.08).lerp(Color(0.38, 0.31, 0.21, 1.0), 0.34)
-		"water_patch":
-			filler_color = Color(0.13, 0.18, 0.19, 1.0).lerp(filler_color, 0.26)
-		_:
-			filler_color = filler_color.darkened(0.08).lerp(Color(0.31, 0.29, 0.24, 1.0), 0.22)
-	filler_color = _apply_ground_tone_shift(filler_color, tone_shift)
-	filler_color.a *= _filler_family_alpha(family) * alpha_scale
-	return filler_color
-
-
-static func filler_shape_inner_color(template_profile: String, family: String, tone_shift: float, alpha_scale: float) -> Color:
-	var inner_color: Color = _ground_profile_base_color(template_profile).lightened(0.10)
-	match family:
-		"ruin":
-			inner_color = inner_color.lightened(0.04).lerp(Color(0.54, 0.45, 0.31, 1.0), 0.24)
-		"water_patch":
-			inner_color = Color(0.21, 0.30, 0.31, 1.0)
-		_:
-			inner_color = inner_color.lerp(Color(0.46, 0.42, 0.34, 1.0), 0.18)
-	inner_color = _apply_ground_tone_shift(inner_color, tone_shift * 0.55)
-	inner_color.a *= _filler_inner_alpha_scale(family) * alpha_scale
-	return inner_color
-
-
-static func filler_shape_rim_color(template_profile: String, family: String, tone_shift: float, alpha_scale: float) -> Color:
-	var rim_color: Color = _ground_profile_base_color(template_profile).lightened(0.22)
-	if family == "water_patch":
-		rim_color = Color(0.36, 0.48, 0.48, 1.0)
-	elif family == "ruin":
-		rim_color = rim_color.lerp(Color(0.70, 0.58, 0.40, 1.0), 0.26)
-	rim_color = _apply_ground_tone_shift(rim_color, tone_shift * 0.40)
-	rim_color.a *= FILLER_RIM_ALPHA_SCALE * alpha_scale
-	return rim_color
-
-
-static func filler_shape_rim_width(family: String) -> float:
-	match family:
-		"ruin":
-			return FILLER_RUIN_RIM_WIDTH
-		"water_patch":
-			return FILLER_WATER_RIM_WIDTH
-		_:
-			return FILLER_ROCK_RIM_WIDTH
-
-
-static func filler_shape_inner_scale(family: String) -> Vector2:
-	match family:
-		"ruin":
-			return FILLER_RUIN_INNER_SCALE
-		"water_patch":
-			return FILLER_WATER_INNER_SCALE
-		_:
-			return FILLER_ROCK_INNER_SCALE
-
-
-static func forest_texture_scale(shape_family: String) -> float:
-	return CANOPY_TEXTURE_SCALE if shape_family == "canopy" else DECOR_TEXTURE_SCALE
-
-
-static func forest_shape_tint(shape_family: String, tone: Color) -> Color:
-	var scaled_tone: Color = tone
-	scaled_tone.a *= CANOPY_ALPHA_SCALE if shape_family == "canopy" else DECOR_ALPHA_SCALE
-	return scaled_tone
-
-
-static func forest_shape_fallback_circles(shape_family: String, center: Vector2, radius: float, rotation_radians: float) -> Array:
-	if shape_family != "canopy" or radius <= 0.0:
-		return [{"center": center, "radius": radius, "alpha_scale": 1.0}]
-	var fallback_circles: Array = []
-	var mirror_x: float = -1.0 if int(floor(absf(center.x * 0.013 + center.y * 0.009 + radius * 0.17))) % 2 == 1 else 1.0
-	var rotation_basis: Vector2 = Vector2.RIGHT.rotated(rotation_radians)
-	var cross_basis: Vector2 = rotation_basis.orthogonal()
-	for index in range(CANOPY_FALLBACK_LOBE_SCALES.size()):
-		var offset_hint: Vector2 = CANOPY_FALLBACK_LOBE_OFFSETS[index]
-		var blob_center: Vector2 = center + (
-			rotation_basis * (offset_hint.x * mirror_x * radius)
-			+ cross_basis * (offset_hint.y * radius)
-		)
-		fallback_circles.append({
-			"center": blob_center,
-			"radius": radius * float(CANOPY_FALLBACK_LOBE_SCALES[index]),
-			"alpha_scale": float(CANOPY_FALLBACK_ALPHA_SCALES[index]),
-		})
-	return fallback_circles
+static func forest_mask_extent_scale(shape_family: String) -> float:
+	return CANOPY_MASK_EXTENT_SCALE if shape_family == "canopy" else DECOR_MASK_EXTENT_SCALE
 
 
 static func road_highlight_width(is_history: bool, emphasis_level: int) -> float:
@@ -480,48 +241,8 @@ static func road_base_width(is_history: bool, emphasis_level: int) -> float:
 	return ROAD_BASE_WIDTH_HISTORY if is_history else ROAD_BASE_WIDTH_DEFAULT
 
 
-static func road_shadow_width(is_history: bool) -> float:
-	return ROAD_SHADOW_WIDTH_HISTORY if is_history else ROAD_SHADOW_WIDTH_DEFAULT
-
-
 static func road_shadow_alpha(is_history: bool) -> float:
 	return ROAD_SHADOW_ALPHA_HISTORY if is_history else ROAD_SHADOW_ALPHA_DEFAULT
-
-
-static func road_endpoint_trim(emphasis_level: int) -> float:
-	if emphasis_level >= 2:
-		return ROAD_ENDPOINT_TRIM_TARGET
-	if emphasis_level == 1:
-		return ROAD_ENDPOINT_TRIM_CURRENT
-	return ROAD_ENDPOINT_TRIM_DEFAULT
-
-
-static func trail_stamp_alpha_multiplier(is_history: bool, emphasis_level: int) -> float:
-	if emphasis_level >= 1:
-		return TRAIL_STAMP_ALPHA_MULTIPLIER
-	return TRAIL_STAMP_ALPHA_MULTIPLIER_HISTORY if is_history else TRAIL_STAMP_ALPHA_MULTIPLIER
-
-
-static func trail_stamp_size_scale(is_history: bool, emphasis_level: int) -> float:
-	if emphasis_level >= 1:
-		return 1.0
-	return TRAIL_STAMP_SIZE_SCALE_HISTORY if is_history else 1.0
-
-
-static func clearing_plate_alpha(is_current: bool, is_resolved: bool) -> float:
-	if is_current:
-		return CLEARING_PLATE_ALPHA_CURRENT
-	if is_resolved:
-		return CLEARING_PLATE_ALPHA_RESOLVED
-	return CLEARING_PLATE_ALPHA_DEFAULT
-
-
-static func clearing_decal_alpha(is_current: bool, is_resolved: bool) -> float:
-	if is_current:
-		return CLEARING_DECAL_ALPHA_CURRENT
-	if is_resolved:
-		return CLEARING_DECAL_ALPHA_RESOLVED
-	return CLEARING_DECAL_ALPHA_DEFAULT
 
 
 static func clearing_fill_color(node_family: String, state_semantic: String, is_current: bool) -> Color:
@@ -735,62 +456,6 @@ static func side_quest_highlight_color(highlight_state: String) -> Color:
 			return Color(0.84, 0.72, 1.0, 0.94)
 		_:
 			return Color(0.92, 0.88, 0.72, 0.88)
-
-
-static func _ground_profile_base_color(template_profile: String) -> Color:
-	match template_profile:
-		"openfield":
-			return Color(0.22, 0.19, 0.12, 1.0)
-		"loop":
-			return Color(0.18, 0.18, 0.13, 1.0)
-		_:
-			return Color(0.19, 0.16, 0.11, 1.0)
-
-
-static func _ground_family_alpha(family: String) -> float:
-	match family:
-		"patch":
-			return GROUND_PATCH_ALPHA
-		"breakup":
-			return GROUND_BREAKUP_ALPHA
-		_:
-			return GROUND_BED_ALPHA
-
-
-static func _ground_inner_alpha_scale(family: String) -> float:
-	match family:
-		"patch":
-			return GROUND_PATCH_INNER_ALPHA_SCALE
-		"breakup":
-			return GROUND_BREAKUP_INNER_ALPHA_SCALE
-		_:
-			return GROUND_BED_INNER_ALPHA_SCALE
-
-
-static func _filler_family_alpha(family: String) -> float:
-	match family:
-		"ruin":
-			return FILLER_RUIN_ALPHA
-		"water_patch":
-			return FILLER_WATER_ALPHA
-		_:
-			return FILLER_ROCK_ALPHA
-
-
-static func _filler_inner_alpha_scale(family: String) -> float:
-	match family:
-		"ruin":
-			return FILLER_RUIN_INNER_ALPHA_SCALE
-		"water_patch":
-			return FILLER_WATER_INNER_ALPHA_SCALE
-		_:
-			return FILLER_ROCK_INNER_ALPHA_SCALE
-
-
-static func _apply_ground_tone_shift(color: Color, tone_shift: float) -> Color:
-	if tone_shift >= 0.0:
-		return color.lightened(tone_shift)
-	return color.darkened(absf(tone_shift))
 
 
 static func _apply_color_emphasis(color: Color, light_amount: float, alpha_add: float) -> Color:

@@ -45,7 +45,7 @@ Do not infer ownership from convenience accessors exposed on `RunState` or `AppB
 
 ### Context and History
 
-- [ROADMAP.md](ROADMAP.md): active short-horizon roadmap and queue index; not a rule source
+- [ROADMAP.md](ROADMAP.md): active short-horizon roadmap and next-lane index; not a rule source
 - [MAP_TOPOLOGY_LOCAL_GRAPH_DESIGN.md](MAP_TOPOLOGY_LOCAL_GRAPH_DESIGN.md): reference-only map-topology design companion; subordinate to `MAP_CONTRACT.md`, `SOURCE_OF_TRUTH.md`, and the save/flow authority docs
 - [MAP_COMPOSER_V2_DESIGN.md](MAP_COMPOSER_V2_DESIGN.md): reference-only map-presentation design companion; subordinate to `MAP_CONTRACT.md`, `SOURCE_OF_TRUTH.md`, and the save/flow authority docs
 - [PRODUCTION_RISK_REGISTER.md](PRODUCTION_RISK_REGISTER.md): reference-only continuation guardrails for growth risks; non-authoritative
@@ -54,12 +54,8 @@ Do not infer ownership from convenience accessors exposed on `RunState` or `AppB
 - [CONTENT_BALANCE_TRACKER.md](CONTENT_BALANCE_TRACKER.md): reference-only current content inventory and balance-reading snapshot; subordinate to authority docs and live definitions
 - [ASSET_WAVE_SEMANTIC_SCOPE.md](ASSET_WAVE_SEMANTIC_SCOPE.md): reference-only semantic asset-wave scope; subordinate to `VISUAL_AUDIO_STYLE_GUIDE.md`, `ASSET_PIPELINE.md`, `ASSET_LICENSE_POLICY.md`, and `ASSET_BACKLOG.md`
 - [MAP_COMPOSER_V2_ASSET_REQUIREMENTS.md](MAP_COMPOSER_V2_ASSET_REQUIREMENTS.md): reference-only asset requirements companion for `MAP_COMPOSER_V2_DESIGN.md`; subordinate to the production authority docs
-- [MAP_RUNTIME_STATE_EXTRACTION_PLAN.md](MAP_RUNTIME_STATE_EXTRACTION_PLAN.md): planning-only extraction reference; subordinate to `SOURCE_OF_TRUTH.md`, `MAP_CONTRACT.md`, `SAVE_SCHEMA.md`, and `GAME_FLOW_STATE_MACHINE.md`
-- [MAP_VISUAL_OWNERSHIP_AUDIT.md](MAP_VISUAL_OWNERSHIP_AUDIT.md): reference-only visual ownership/evidence report; subordinate to `MAP_CONTRACT.md`, `SOURCE_OF_TRUTH.md`, and active screenshot evidence
-- [SEMANTIC_ICON_READINESS_CHECKLIST.md](SEMANTIC_ICON_READINESS_CHECKLIST.md): reference-only asset readiness checkpoint; subordinate to the production authority docs and live manifest/runtime paths
-- [UI_INFORMATION_ARCHITECTURE_AUDIT.md](UI_INFORMATION_ARCHITECTURE_AUDIT.md): reference-only UI audit; subordinate to `VISUAL_AUDIO_STYLE_GUIDE.md` and the relevant gameplay contracts
-- [UI_MICROCOPY_AUDIT.md](UI_MICROCOPY_AUDIT.md): reference-only copy audit; subordinate to `VISUAL_AUDIO_STYLE_GUIDE.md` and live runtime text owners
-- [UI_ACCESSIBILITY_AND_MOBILE_AUDIT.md](UI_ACCESSIBILITY_AND_MOBILE_AUDIT.md): reference-only accessibility/mobile audit; subordinate to `VISUAL_AUDIO_STYLE_GUIDE.md`, `TECH_BASELINE.md`, and live UI owners
+- [Archive/Audits/2026-04-24-closed-reference-audits/](Archive/Audits/2026-04-24-closed-reference-audits/): archived map/UI audit and checklist snapshots only; non-authoritative and not part of default routing
+- [Archive/Plans/2026-04-24-stale-reference-plans/](Archive/Plans/2026-04-24-stale-reference-plans/): archived stale planning snapshots only; non-authoritative and not part of default routing
 - [WINDOWS_PLAYTEST_BRIEF.md](WINDOWS_PLAYTEST_BRIEF.md): playtest launch and feedback brief; not a gameplay authority and subordinate to current `HANDOFF.md` plus the closest authority docs
 - [DECISION_LOG.md](DECISION_LOG.md)
 - [DEFERRED_DECISIONS.md](DEFERRED_DECISIONS.md)
@@ -73,8 +69,9 @@ Do not infer ownership from convenience accessors exposed on `RunState` or `AppB
 - Open archive files only when the task explicitly needs dated review history.
 - If you need archive history, search it explicitly by path instead of widening normal repo scans.
 - Prompt dumps, frozen checklists, and stale bridge ballast should not be restored into the active doc set.
-- Archived audits, retired prompt packs, and superseded roadmaps belong under `Docs/Archive/`.
-- `Docs/Promts/` may hold active execution packs, but it is not an authority surface and it is not the canonical queue index; archive only the packs that are genuinely retired or superseded.
+- Archived audits, retired prompt packs, stale reference plans, and superseded roadmaps belong under `Docs/Archive/`.
+- There is currently no active `Docs/Promts/` execution-pack folder.
+- The closed map `Prompt 01-18` pack is archived under `Docs/Archive/Prompts/2026-04-24-map-wave-01-18-closed/` as historical evidence only.
 
 ## Fast Topic Map
 
@@ -98,7 +95,7 @@ Do not infer ownership from convenience accessors exposed on `RunState` or `AppB
 | test expectations | `TEST_STRATEGY.md` |
 | command/event architecture sensitivity | `ARCHITECTURE.md` |
 | implemented command/event names | `COMMAND_EVENT_CATALOG.md` (reference only) |
-| short-horizon roadmap and queue order | `ROADMAP.md` |
+| short-horizon roadmap and next-lane state | `ROADMAP.md` |
 | core game north star | `GDD.md` |
 | visual/audio style | `VISUAL_AUDIO_STYLE_GUIDE.md` |
 | asset source-of-truth, folder flow, promotion stages, and runtime approval boundary | `ASSET_PIPELINE.md` |
@@ -115,10 +112,10 @@ Do not infer ownership from convenience accessors exposed on `RunState` or `AppB
 - `CLAUDE.md` is not an independent rule source. It is a Claude working-memory alias over `AGENTS.md`.
 - continuation gate/checklist requirements belong in `AGENTS.md` as workflow discipline, not in gameplay or technical authority docs.
 - `HANDOFF.md` is a current-state handoff file, not a rule contract.
-- `ROADMAP.md` is the active planning and queue file, not a rule contract.
-- `HANDOFF.md` should stay a snapshot. `ROADMAP.md` should stay a queue. Neither should turn into a second authority layer.
-- Use `ROADMAP.md` as the canonical active prompt-wave order/open-state surface and `HANDOFF.md` as the current-state companion snapshot.
-- Do not infer active queue state from `Docs/Promts/` packs or from reference-only design companions.
+- `ROADMAP.md` is the active planning and next-lane file, not a rule contract.
+- `HANDOFF.md` should stay a snapshot. `ROADMAP.md` should stay focused on the next lane. Neither should turn into a second authority layer.
+- There is no active prompt-wave queue after the `Prompt 01-18` closeout unless `ROADMAP.md` explicitly opens a new one.
+- Do not infer active queue state from archived prompt packs, future-lane stubs, or reference-only design companions.
 - `SOURCE_OF_TRUTH.md` decides runtime ownership questions. `RunState` or `AppBootstrap` convenience access does not override the owner named there.
 - `COMMAND_EVENT_CATALOG.md` is a naming/reference file, not the authority for whether a command family or event family should exist.
 - `PRODUCTION_RISK_REGISTER.md` is a reference-only continuation guardrail, not a rule contract or current-state source.
@@ -133,7 +130,7 @@ Do not infer ownership from convenience accessors exposed on `RunState` or `AppB
 - `DEFERRED_DECISIONS.md` tracks open timing, not active rules.
 - `EXPERIMENT_BANK.md` is non-authoritative by design.
 - dated review history lives in `Docs/Archive/`, not in the active doc set.
-- retired prompt packs, audit snapshots, and superseded roadmap drafts live in `Docs/Archive/`, not in the active doc set.
+- retired prompt packs, audit snapshots, stale reference plans, and superseded roadmap drafts live in `Docs/Archive/`, not in the active doc set.
 - root keeps only the stable entry docs: `README.md`, `AGENTS.md`, and `CLAUDE.md`.
 - use `Docs/` as the active authority location and `Docs/Archive/` for historical material.
 - do not treat archive prompt sets as a fallback authority when active docs already answer the question.
@@ -145,7 +142,7 @@ Do not infer ownership from convenience accessors exposed on `RunState` or `AppB
 - `HANDOFF.md` should not grow into a prompt pack mirror or copy/paste start-message bundle.
 - `README.md` should change rarely and remain the stable repo entrypoint.
 - validator commands, Godot runners, and platform/tooling notes should stay in the closest authority doc, typically `TECH_BASELINE.md`, not in `README.md`.
-- `ROADMAP.md` should stay focused on the active queue and near phases instead of duplicating long archived closeout history.
+- `ROADMAP.md` should stay focused on the next lane and near phases instead of duplicating long archived closeout history.
 - `DECISION_LOG.md` is only for accepted project-level decisions.
 - `DEFERRED_DECISIONS.md` is only for consciously open topics, not backlog tracking.
 

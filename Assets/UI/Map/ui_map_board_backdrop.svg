@@ -13,43 +13,9 @@
 <stop offset="0.38" stop-color="#10191D"/>
 <stop offset="1" stop-color="#091114"/>
 </linearGradient>
-<radialGradient id="mistCenter" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(360 528) rotate(90) scale(344 260)">
-<stop stop-color="#5A766C" stop-opacity="0.18"/>
-<stop offset="0.64" stop-color="#24332F" stop-opacity="0.08"/>
-<stop offset="1" stop-color="#13201F" stop-opacity="0"/>
-</radialGradient>
-<linearGradient id="guideLane" x1="360" y1="836" x2="360" y2="210" gradientUnits="userSpaceOnUse">
-<stop stop-color="#C6B173" stop-opacity="0.24"/>
-<stop offset="0.45" stop-color="#E6D5A1" stop-opacity="0.1"/>
-<stop offset="1" stop-color="#ECE2BE" stop-opacity="0"/>
-</linearGradient>
-<radialGradient id="northHint" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(360 186) rotate(90) scale(112 166)">
-<stop stop-color="#D7C88E" stop-opacity="0.24"/>
-<stop offset="1" stop-color="#D7C88E" stop-opacity="0"/>
-</radialGradient>
-<radialGradient id="cornerShade" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(360 480) rotate(90) scale(520 404)">
-<stop offset="0.72" stop-color="#000000" stop-opacity="0"/>
-<stop offset="1" stop-color="#030506" stop-opacity="0.42"/>
-</radialGradient>
 </defs>
 <rect x="8" y="8" width="704" height="944" rx="42" fill="url(#frameOuter)" stroke="#8B7754" stroke-width="5"/>
 <rect x="22" y="22" width="676" height="916" rx="34" fill="url(#frameInner)" stroke="#223339" stroke-opacity="0.7" stroke-width="2"/>
 <rect x="38" y="38" width="644" height="884" rx="28" fill="url(#boardField)"/>
 <rect x="52" y="52" width="616" height="856" rx="24" fill="#132024" stroke="#23363B" stroke-opacity="0.6"/>
-<ellipse cx="360" cy="528" rx="304" ry="336" fill="url(#mistCenter)"/>
-<ellipse cx="360" cy="480" rx="338" ry="436" fill="url(#cornerShade)"/>
-<path d="M360 836C330 774 320 680 329 586C338 488 346 406 360 330C374 406 382 488 391 586C400 680 390 774 360 836Z" fill="url(#guideLane)"/>
-<ellipse cx="360" cy="186" rx="138" ry="92" fill="url(#northHint)"/>
-<circle cx="360" cy="478" r="182" stroke="#304540" stroke-opacity="0.18" stroke-width="2"/>
-<circle cx="360" cy="478" r="248" stroke="#304540" stroke-opacity="0.1" stroke-width="2"/>
-<path d="M360 116 372 144 360 172 348 144Z" fill="#C9B26B" fill-opacity="0.72"/>
-<path d="M360 782 368 806 360 830 352 806Z" fill="#28403C" fill-opacity="0.5"/>
-<ellipse cx="236" cy="676" rx="118" ry="82" fill="#2A3B37" fill-opacity="0.14"/>
-<ellipse cx="484" cy="676" rx="118" ry="82" fill="#2A3B37" fill-opacity="0.14"/>
-<ellipse cx="220" cy="308" rx="98" ry="72" fill="#314541" fill-opacity="0.08"/>
-<ellipse cx="500" cy="308" rx="98" ry="72" fill="#314541" fill-opacity="0.08"/>
-<circle cx="132" cy="168" r="8" fill="#C9B26B" fill-opacity="0.18"/>
-<circle cx="588" cy="168" r="8" fill="#C9B26B" fill-opacity="0.18"/>
-<path d="M68 782C124 744 172 720 216 704" stroke="#070A0C" stroke-opacity="0.3" stroke-width="8" stroke-linecap="round"/>
-<path d="M652 782C596 744 548 720 504 704" stroke="#070A0C" stroke-opacity="0.3" stroke-width="8" stroke-linecap="round"/>
 </svg>

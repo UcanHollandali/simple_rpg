@@ -37,30 +37,6 @@ const ENEMY_INTENT_HEAVY_ICON_TEXTURE_PATH := "res://Assets/Icons/icon_enemy_int
 const MAP_WALKER_IDLE_TEXTURE_PATH := "res://Assets/UI/Map/Walker/ui_map_walker_idle.svg"
 const MAP_WALKER_WALK_A_TEXTURE_PATH := "res://Assets/UI/Map/Walker/ui_map_walker_walk_a.svg"
 const MAP_WALKER_WALK_B_TEXTURE_PATH := "res://Assets/UI/Map/Walker/ui_map_walker_walk_b.svg"
-const MAP_CANOPY_TEXTURE_PATHS := [
-	"res://Assets/UI/Map/Canopy/ui_map_v2_canopy_clump_a.svg",
-	"res://Assets/UI/Map/Canopy/ui_map_v2_canopy_clump_b.svg",
-	"res://Assets/UI/Map/Canopy/ui_map_v2_canopy_clump_c.svg",
-]
-const MAP_CLEARING_DECAL_NEUTRAL_TEXTURE_PATH := "res://Assets/UI/Map/Clearings/ui_map_v2_clearing_decal_neutral.svg"
-const MAP_CLEARING_DECAL_BOSS_TEXTURE_PATH := "res://Assets/UI/Map/Clearings/ui_map_v2_clearing_decal_boss.svg"
-const MAP_NODE_PLATE_REACHABLE_TEXTURE_PATH := "res://Assets/UI/Map/NodePlates/ui_map_v2_node_plate_reachable.svg"
-const MAP_NODE_PLATE_RESOLVED_TEXTURE_PATH := "res://Assets/UI/Map/NodePlates/ui_map_v2_node_plate_resolved.svg"
-const MAP_NODE_PLATE_LOCKED_TEXTURE_PATH := "res://Assets/UI/Map/NodePlates/ui_map_v2_node_plate_locked.svg"
-const MAP_FILLER_TEXTURE_PATHS_BY_FAMILY := {
-	"rock": [
-		"res://Assets/UI/Map/Props/ui_map_v2_prop_stone_cluster_a.png",
-		"res://Assets/UI/Map/Props/ui_map_v2_prop_fallen_log_a.png",
-	],
-	"ruin": [
-		"res://Assets/UI/Map/Landmarks/ui_map_v2_landmark_waystone_a.png",
-		"res://Assets/UI/Map/Landmarks/ui_map_v2_landmark_cairn_a.png",
-	],
-	"water_patch": [
-		"res://Assets/UI/Map/Ground/ui_map_v2_ground_forest_floor_a.png",
-		"res://Assets/UI/Map/Ground/ui_map_v2_ground_forest_floor_b.png",
-	],
-}
 const ENEMY_BUST_FALLBACK_TEXTURE_PATHS := {
 	# The prototype only guarantees a small bust set; keep live enemies readable with
 	# the closest available family silhouette instead of showing a blank combat frame.
@@ -72,11 +48,16 @@ const ENEMY_BUST_FALLBACK_TEXTURE_PATHS := {
 }
 const ENEMY_TOKEN_FALLBACK_TEXTURE_PATHS := {
 }
-const MAP_TRAIL_TEXTURE_PATHS_BY_FAMILY := {
-	"short_straight": "res://Assets/UI/Map/Trails/ui_map_v2_trail_short_straight.svg",
-	"gentle_curve": "res://Assets/UI/Map/Trails/ui_map_v2_trail_gentle_curve.svg",
-	"wider_curve": "res://Assets/UI/Map/Trails/ui_map_v2_trail_wider_curve.svg",
-	"outward_reconnecting_arc": "res://Assets/UI/Map/Trails/ui_map_v2_trail_outward_reconnecting_arc.svg",
+const MAP_SOCKET_SMOKE_KIND_PATH_SURFACE := "path_surface"
+const MAP_SOCKET_SMOKE_KIND_LANDMARK := "landmark"
+const MAP_SOCKET_SMOKE_KIND_DECOR := "decor"
+const MAP_SOCKET_SMOKE_PATH_SURFACE_TEXTURE_PATH := "res://Assets/UI/Map/SocketSmoke/ui_map_socket_smoke_path_brush.svg"
+const MAP_SOCKET_SMOKE_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/SocketSmoke/ui_map_socket_smoke_landmark_marker.svg"
+const MAP_SOCKET_SMOKE_DECOR_TEXTURE_PATH := "res://Assets/UI/Map/SocketSmoke/ui_map_socket_smoke_decor_stamp.svg"
+const MAP_SOCKET_SMOKE_TEXTURE_PATHS_BY_KIND := {
+	"path_surface": MAP_SOCKET_SMOKE_PATH_SURFACE_TEXTURE_PATH,
+	"landmark": MAP_SOCKET_SMOKE_LANDMARK_TEXTURE_PATH,
+	"decor": MAP_SOCKET_SMOKE_DECOR_TEXTURE_PATH,
 }
 
 
@@ -252,6 +233,10 @@ static func build_enemy_token_texture_path(icon_key: String, definition_id: Stri
 		return fallback_path
 
 	return ""
+
+
+static func build_map_socket_smoke_texture_path(socket_kind: String) -> String:
+	return String(MAP_SOCKET_SMOKE_TEXTURE_PATHS_BY_KIND.get(String(socket_kind).strip_edges().to_lower(), ""))
 
 
 static func _texture_path_exists(texture_path: String) -> bool:

@@ -2,7 +2,6 @@
 extends RefCounted
 class_name MapBoardFillerBuilder
 
-const UiAssetPathsScript = preload("res://Game/UI/ui_asset_paths.gd")
 const MapBoardGeometryScript = preload("res://Game/UI/map_board_geometry.gd")
 const MapBoardLayoutSolverScript = preload("res://Game/UI/map_board_layout_solver.gd")
 
@@ -66,7 +65,7 @@ const FILLER_ACTION_POCKET_PADDING_BY_PROFILE := {
 # Contract:
 # - Input is limited to existing board-space derived truth: board size, graph-node positions,
 #   frozen route polylines, template profile, existing board seed, and board margin/center hints.
-# - Output is an ordered array of board-space filler shapes with these fields:
+# - Output is an ordered array of board-space filler-mask shapes with these fields:
 #   `family`, `center`, `half_size`, `rotation_degrees`, `tone_shift`, `alpha_scale`.
 # - Density stays auditable: the builder attempts at most one accepted filler per seeded zone,
 #   caps total accepted fillers per profile, and enforces explicit node/route/shape exclusion floors.
@@ -124,8 +123,6 @@ static func build_filler_shapes(
 				"rotation_degrees": candidate_rng.randf_range(-26.0, 26.0),
 				"tone_shift": _tone_shift_for_family(family, candidate_rng),
 				"alpha_scale": _alpha_scale_for_family(family, candidate_rng),
-				"texture_path": _texture_path_for_family(family, board_seed, zone_index, accepted_shapes.size()),
-				"texture_scale": _texture_scale_for_family(family),
 				"slot_role": "negative_space_decor",
 				"mask_source": _surface_mask_source(surface_mask_context, "layout_edges"),
 				"exclusion_source": _surface_mask_source(surface_mask_context, "node_route_pocket_masks"),
@@ -154,8 +151,8 @@ static func max_fillers_for_profile(template_profile: String) -> int:
 static func footprint_half_size(half_size: Vector2, family: String = "") -> Vector2:
 	if family.is_empty():
 		return half_size
-	var texture_scale: float = maxf(1.0, _texture_scale_for_family(family))
-	return Vector2(half_size.x * texture_scale, half_size.y * texture_scale)
+	var footprint_scale: float = maxf(1.0, _footprint_scale_for_family(family))
+	return Vector2(half_size.x * footprint_scale, half_size.y * footprint_scale)
 
 
 static func node_exclusion_radius(clearing_radius: float, half_size: Vector2, family: String = "") -> float:
@@ -374,8 +371,6 @@ static func _build_corner_fallback_shapes(
 			"rotation_degrees": attempt_rng.randf_range(-18.0, 18.0),
 			"tone_shift": _tone_shift_for_family(family, attempt_rng),
 			"alpha_scale": _alpha_scale_for_family(family, attempt_rng),
-			"texture_path": _texture_path_for_family(family, board_seed, zone_index, fallback_shapes.size()),
-			"texture_scale": _texture_scale_for_family(family),
 			"slot_role": "negative_space_decor",
 			"mask_source": _surface_mask_source(surface_mask_context, "fallback_zone"),
 			"exclusion_source": _surface_mask_source(surface_mask_context, "node_route_pocket_masks"),
@@ -383,16 +378,7 @@ static func _build_corner_fallback_shapes(
 	return fallback_shapes
 
 
-static func _texture_path_for_family(family: String, board_seed: int, zone_index: int, accepted_index: int) -> String:
-	var texture_paths: Array = UiAssetPathsScript.MAP_FILLER_TEXTURE_PATHS_BY_FAMILY.get(family, [])
-	if texture_paths.is_empty():
-		return ""
-	var salt: String = "filler-texture:%s:%d:%d" % [family, zone_index, accepted_index]
-	var texture_index: int = abs(_derive_seed(board_seed, salt)) % texture_paths.size()
-	return String(texture_paths[texture_index])
-
-
-static func _texture_scale_for_family(family: String) -> float:
+static func _footprint_scale_for_family(family: String) -> float:
 	match family:
 		"ruin":
 			return 1.40

@@ -8,7 +8,8 @@ Active authority and queue ownership remain in:
 - `Docs/MAP_CONTRACT.md`
 - `Docs/MAP_COMPOSER_V2_DESIGN.md`
 - `Docs/MAP_COMPOSER_V2_ASSET_REQUIREMENTS.md`
-- `Docs/Archive/Prompts/2026-04-22-map-lane-closed/04_map_renderer_code_first.md` (closed-green archive reference; supersedes the archived Prompt 03 Part G terrain-asset hookup framing)
+
+Historical execution notes live under `Docs/Archive/` and are not active authority.
 
 This folder keeps source masters only:
 
@@ -18,7 +19,7 @@ This folder keeps source masters only:
 - `clearing_ground/`
 - `canopy_fog_filler/`
 
-Operational prompt reference:
+Source-generation notes:
 
 - `asset_prompts.md`
 

@@ -1,7 +1,0 @@
-﻿<svg xmlns="http://www.w3.org/2000/svg" width="256" height="96" viewBox="0 0 256 96">
-  <g fill="none" fill-rule="evenodd">
-    <path d="M20 48c34-8 70-10 108-10 42 0 76 2 108 10" stroke="#1B1712" stroke-opacity="0.42" stroke-width="30" stroke-linecap="round"/>
-    <path d="M24 48c32-7 68-9 104-9 40 0 72 2 104 9" stroke="#8C7A5B" stroke-opacity="0.90" stroke-width="18" stroke-linecap="round"/>
-    <path d="M40 48c26-5 54-6 88-6 36 0 64 1 88 6" stroke="#D2B85A" stroke-opacity="0.24" stroke-width="6" stroke-linecap="round"/>
-  </g>
-</svg>

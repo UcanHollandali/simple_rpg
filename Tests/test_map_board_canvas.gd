@@ -6,6 +6,7 @@ const MapBoardCanvasScript = preload("res://Game/UI/map_board_canvas.gd")
 const MapBoardStyleScript = preload("res://Game/UI/map_board_style.gd")
 const SceneLayoutHelperScript = preload("res://Game/UI/scene_layout_helper.gd")
 const TestExitCleanupHelperScript = preload("res://Tests/_exit_cleanup_helper.gd")
+const UiAssetPathsScript = preload("res://Game/UI/ui_asset_paths.gd")
 
 
 func _init() -> void:
@@ -15,9 +16,9 @@ func _init() -> void:
 func _run() -> void:
 	test_map_board_canvas_returns_null_for_missing_asset_paths()
 	test_map_board_canvas_skips_missing_known_icon_assets_without_crashing()
-	test_map_board_canvas_de_emphasizes_history_trail_helpers()
 	test_map_board_canvas_demotes_history_reconnect_edges_below_actionable_roads()
 	test_map_board_canvas_uses_render_model_surface_lane_by_default()
+	test_map_board_canvas_derives_socket_smoke_from_render_model_slots()
 	test_map_board_canvas_splits_tight_surface_paths_into_safe_segment_polygons()
 	test_map_board_canvas_keeps_selected_route_lane_above_other_choices()
 	test_map_board_canvas_keeps_hover_preview_below_selected_route_lane()
@@ -48,17 +49,6 @@ func test_map_board_canvas_skips_missing_known_icon_assets_without_crashing() ->
 	}, Vector2(64.0, 64.0), 24.0)
 	assert(true, "Expected missing known-icon assets to short-circuit cleanly before any draw call tries to use them.")
 	board_canvas.free()
-
-
-func test_map_board_canvas_de_emphasizes_history_trail_helpers() -> void:
-	assert(
-		MapBoardStyleScript.trail_stamp_alpha_multiplier(true, 0) < MapBoardStyleScript.trail_stamp_alpha_multiplier(false, 0),
-		"Expected history trail decals to use a lower alpha multiplier than local actionable roads."
-	)
-	assert(
-		MapBoardStyleScript.trail_stamp_size_scale(true, 0) < MapBoardStyleScript.trail_stamp_size_scale(false, 0),
-		"Expected history trail decals to stamp smaller than local actionable roads."
-	)
 
 
 func test_map_board_canvas_demotes_history_reconnect_edges_below_actionable_roads() -> void:
@@ -114,10 +104,7 @@ func test_map_board_canvas_demotes_history_reconnect_edges_below_actionable_road
 			and float(branch_history_profile.get("base_alpha_scale", 0.0)) > float(reconnect_profile.get("base_alpha_scale", 1.0)),
 		"Expected the owner-level corridor hierarchy to keep primary corridors above branch corridors, branch history above generic reconnect detours."
 	)
-	assert(
-		bool(reconnect_profile.get("draw_trail_decal", true)) == false,
-		"Expected reconnect history roads to suppress bright trail stamps so they do not read like hero routes."
-	)
+	assert(float(reconnect_profile.get("base_alpha_scale", 1.0)) < 0.30, "Expected reconnect history roads to stay below actionable roads in the render-model surface lane.")
 	board_canvas.free()
 
 
@@ -185,6 +172,81 @@ func test_map_board_canvas_uses_render_model_surface_lane_by_default() -> void:
 	board_canvas.free()
 
 
+func test_map_board_canvas_derives_socket_smoke_from_render_model_slots() -> void:
+	var board_canvas: Control = MapBoardCanvasScript.new()
+	board_canvas.call("set_composition", {
+		"render_model": {
+			"schema_version": 1,
+			"path_surfaces": [{
+				"surface_id": "path:0:1",
+				"shape": "polyline_strip",
+				"centerline_points": PackedVector2Array([Vector2(20.0, 24.0), Vector2(92.0, 64.0)]),
+				"surface_width": 28.0,
+				"role": "primary_actionable_corridor",
+				"route_surface_semantic": "primary_actionable_corridor",
+				"state_semantic": "open",
+				"is_history": false,
+			}],
+			"clearing_surfaces": [{
+				"surface_id": "clearing:0",
+				"node_id": 0,
+				"shape": "clearing_disc",
+				"center": Vector2(20.0, 24.0),
+				"radius": 32.0,
+				"is_current": true,
+			}],
+			"landmark_slots": [{
+				"slot_id": "landmark:0",
+				"asset_socket_kind": "landmark",
+				"slot_role": "current_landmark",
+				"anchor_point": Vector2(64.0, 72.0),
+				"landmark_half_size": Vector2(16.0, 24.0),
+				"rotation_degrees": 12.0,
+				"asset_family_key": "test_family:should_not_drive_canvas_asset_choice",
+			}],
+			"decor_slots": [{
+				"slot_id": "decor:filler:0",
+				"asset_socket_kind": "decor",
+				"anchor_point": Vector2(128.0, 88.0),
+				"half_size": Vector2(18.0, 14.0),
+				"radius": 0.0,
+				"rotation_degrees": -8.0,
+				"relation_type": "route_side",
+			}],
+		},
+	})
+	assert(
+		SceneLayoutHelperScript.load_texture_or_null(UiAssetPathsScript.MAP_SOCKET_SMOKE_PATH_SURFACE_TEXTURE_PATH) != null,
+		"Expected the path-surface socket smoke placeholder runtime asset to be loadable."
+	)
+	assert(
+		SceneLayoutHelperScript.load_texture_or_null(UiAssetPathsScript.MAP_SOCKET_SMOKE_LANDMARK_TEXTURE_PATH) != null,
+		"Expected the landmark socket smoke placeholder runtime asset to be loadable."
+	)
+	assert(
+		SceneLayoutHelperScript.load_texture_or_null(UiAssetPathsScript.MAP_SOCKET_SMOKE_DECOR_TEXTURE_PATH) != null,
+		"Expected the decor socket smoke placeholder runtime asset to be loadable."
+	)
+
+	var path_entries: Array = board_canvas.call("_path_surface_socket_smoke_entries")
+	var landmark_entries: Array = board_canvas.call("_landmark_socket_smoke_entries")
+	var decor_entries: Array = board_canvas.call("_decor_socket_smoke_entries")
+	assert(path_entries.size() == 1, "Expected path-surface socket smoke to derive from render_model.path_surfaces.")
+	assert(landmark_entries.size() == 1, "Expected landmark socket smoke to derive from render_model.landmark_slots.")
+	assert(decor_entries.size() == 1, "Expected decor socket smoke to derive from render_model.decor_slots.")
+
+	var path_entry: Dictionary = path_entries[0]
+	var landmark_entry: Dictionary = landmark_entries[0]
+	var decor_entry: Dictionary = decor_entries[0]
+	assert(String(path_entry.get("texture_path", "")) == UiAssetPathsScript.MAP_SOCKET_SMOKE_PATH_SURFACE_TEXTURE_PATH, "Expected path-surface sockets to use the path smoke asset family.")
+	assert(String(landmark_entry.get("texture_path", "")) == UiAssetPathsScript.MAP_SOCKET_SMOKE_LANDMARK_TEXTURE_PATH, "Expected landmark sockets to use the landmark smoke asset family.")
+	assert(String(decor_entry.get("texture_path", "")) == UiAssetPathsScript.MAP_SOCKET_SMOKE_DECOR_TEXTURE_PATH, "Expected decor sockets to use the decor smoke asset family.")
+	assert(Vector2(landmark_entry.get("center", Vector2.ZERO)) == Vector2(64.0, 72.0), "Expected landmark smoke placement to come from the socket anchor point.")
+	assert(Vector2(decor_entry.get("center", Vector2.ZERO)) == Vector2(128.0, 88.0), "Expected decor smoke placement to come from the socket anchor point.")
+	assert(Vector2(path_entry.get("draw_size", Vector2.ZERO)).x <= 52.0, "Expected path smoke to stay small enough to avoid becoming road truth.")
+	board_canvas.free()
+
+
 func test_map_board_canvas_splits_tight_surface_paths_into_safe_segment_polygons() -> void:
 	var board_canvas: Control = MapBoardCanvasScript.new()
 	var tight_backtrack_points := PackedVector2Array([
@@ -243,8 +305,8 @@ func test_map_board_canvas_keeps_selected_route_lane_above_other_choices() -> vo
 	)
 	assert(
 		float(selected_profile.get("base_width_scale", 0.0)) > float(sibling_profile.get("base_width_scale", 1.0))
-			and float(selected_profile.get("trail_alpha_scale", 0.0)) > float(sibling_profile.get("trail_alpha_scale", 1.0)),
-		"Expected the selected route lane to dominate width and trail intensity over neighboring actionable curves."
+			and float(selected_profile.get("base_alpha_scale", 0.0)) > float(sibling_profile.get("base_alpha_scale", 1.0)),
+		"Expected the selected route lane to dominate surface width and presence over neighboring actionable curves."
 	)
 	board_canvas.free()
 
@@ -275,14 +337,14 @@ func test_map_board_canvas_keeps_hover_preview_below_selected_route_lane() -> vo
 	)
 	assert(
 		float(preview_profile.get("base_width_scale", 0.0)) > float(branch_profile.get("base_width_scale", 1.0))
-			and float(preview_profile.get("trail_alpha_scale", 0.0)) > float(branch_profile.get("trail_alpha_scale", 1.0)),
+			and float(preview_profile.get("base_alpha_scale", 0.0)) > float(branch_profile.get("base_alpha_scale", 1.0)),
 		"Expected hovered route previews to stay above ordinary branch lanes without overtaking the selected-route tier."
 	)
 	board_canvas.call("set_interaction_state", 2, -1)
 	var selected_profile: Dictionary = board_canvas.call("_edge_visual_profile", preview_edge)
 	assert(
 		float(selected_profile.get("base_width_scale", 0.0)) > float(preview_profile.get("base_width_scale", 1.0))
-			and float(selected_profile.get("trail_alpha_scale", 0.0)) > float(preview_profile.get("trail_alpha_scale", 1.0)),
+			and float(selected_profile.get("base_alpha_scale", 0.0)) > float(preview_profile.get("base_alpha_scale", 1.0)),
 		"Expected the committed route lane to stay visually stronger than a hover preview."
 	)
 	board_canvas.free()
@@ -323,10 +385,6 @@ func test_map_board_canvas_uses_landmark_signage_slots_for_known_icons() -> void
 
 func test_map_board_canvas_subdues_icon_disc_support_when_landmark_footprints_exist() -> void:
 	assert(
-		MapBoardStyleScript.clearing_plate_alpha(false, false) < 0.52,
-		"Expected open clearing plates to stay subdued once landmark pockets own the primary local read."
-	)
-	assert(
 		MapBoardStyleScript.KNOWN_ICON_OPEN_ALPHA_CAP <= 0.56
 			and MapBoardStyleScript.landmark_icon_alpha_scale("open", false) <= 0.64,
 		"Expected open-node icons to stay below the older icon-disc dominance cap once pocket-first read is live."
@@ -366,7 +424,7 @@ func test_map_board_canvas_avoids_extra_curve_smoothing_on_history_reconnects() 
 		"is_history": true,
 		"is_reconnect_edge": true,
 		"route_surface_semantic": "reconnect_corridor",
-		"points": PackedVector2Array([Vector2(24.0, 24.0), Vector2(72.0, 84.0), Vector2(128.0, 36.0)]),
+		"centerline_points": PackedVector2Array([Vector2(24.0, 24.0), Vector2(72.0, 84.0), Vector2(128.0, 36.0)]),
 	}
 	var actionable_edge := {
 		"from_node_id": 0,
@@ -374,16 +432,16 @@ func test_map_board_canvas_avoids_extra_curve_smoothing_on_history_reconnects() 
 		"is_history": false,
 		"is_reconnect_edge": false,
 		"route_surface_semantic": "primary_actionable_corridor",
-		"points": PackedVector2Array([Vector2(24.0, 24.0), Vector2(72.0, 84.0), Vector2(128.0, 36.0)]),
+		"centerline_points": PackedVector2Array([Vector2(24.0, 24.0), Vector2(72.0, 84.0), Vector2(128.0, 36.0)]),
 	}
-	var reconnect_display: PackedVector2Array = board_canvas.call("_display_edge_points_for_edge", reconnect_edge)
-	var actionable_display: PackedVector2Array = board_canvas.call("_display_edge_points_for_edge", actionable_edge)
+	var reconnect_display: PackedVector2Array = board_canvas.call("_display_path_surface_points", reconnect_edge)
+	var actionable_display: PackedVector2Array = board_canvas.call("_display_path_surface_points", actionable_edge)
 	assert(
-		reconnect_display.size() == PackedVector2Array(reconnect_edge.get("points", PackedVector2Array())).size(),
-		"Expected reconnect history roads to keep their raw routed polyline instead of adding extra decorative smoothing."
+		reconnect_display.size() == PackedVector2Array(reconnect_edge.get("centerline_points", PackedVector2Array())).size(),
+		"Expected reconnect history surfaces to keep their raw routed polyline instead of adding extra decorative smoothing."
 	)
 	assert(
 		actionable_display.size() > reconnect_display.size(),
-		"Expected actionable roads to keep the softer display smoothing that helps the chosen lane read as one continuous trail."
+		"Expected actionable render-model roads to keep the softer display smoothing that helps the chosen lane read as one continuous trail."
 	)
 	board_canvas.free()

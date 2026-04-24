@@ -116,8 +116,8 @@ func test_map_board_composer_is_deterministic_from_saved_truth() -> void:
 		"Expected repeated compose calls to keep the same path family classification for the same visible edge."
 	)
 	assert(
-		not String(first_edge.get("trail_texture_path", "")).is_empty(),
-		"Expected visible edges to expose a presentation-only trail texture path for the prototype map kit hookup."
+		not first_edge.has("trail_texture_path"),
+		"Expected visible_edges to omit the retired trail texture path; render_model.path_surfaces owns the default road lane."
 	)
 	var current_world_position: Vector2 = world_positions_a.get(0, Vector2.ZERO)
 	assert(
@@ -131,12 +131,12 @@ func test_map_board_composer_is_deterministic_from_saved_truth() -> void:
 	)
 	var first_visible_node: Dictionary = (composition_a.get("visible_nodes", [])[0] as Dictionary)
 	assert(
-		not String(first_visible_node.get("node_plate_texture_path", "")).is_empty(),
-		"Expected visible nodes to expose a presentation-only node-plate asset path for the prototype kit hookup."
+		not first_visible_node.has("node_plate_texture_path"),
+		"Expected visible_nodes to omit the retired node-plate texture path; render_model.clearing_surfaces and landmark pockets own the board read."
 	)
 	assert(
-		not String(first_visible_node.get("clearing_decal_texture_path", "")).is_empty(),
-		"Expected visible nodes to expose a presentation-only clearing-decal asset path for the prototype kit hookup."
+		not first_visible_node.has("clearing_decal_texture_path"),
+		"Expected visible_nodes to omit the retired clearing-decal texture path; render_model.clearing_surfaces and landmark pockets own the board read."
 	)
 	assert(
 		(composition_a.get("forest_shapes", []) as Array).size() > 0,
@@ -306,16 +306,16 @@ func test_map_board_composer_emits_core_render_model_payload() -> void:
 	assert(String(render_model.get("orientation_profile_id", "")) == String(composition.get("orientation_profile_id", "")), "Expected render_model to preserve the runtime-derived center-outward orientation profile metadata.")
 	assert(String(render_model.get("center_outward_emphasis_id", "")) == String(composition.get("orientation_profile_id", "")), "Expected render_model to carry equivalent center-outward emphasis metadata for later surface rendering.")
 	assert(String(render_model.get("topology_blueprint_id", "")) == String(composition.get("topology_blueprint_id", "")), "Expected render_model to keep topology blueprint metadata as presentation readback only.")
-	assert(render_model.has("canopy_masks"), "Expected Prompt 08 render_model to carry canopy mask metadata without switching the canvas lane.")
-	assert(render_model.has("landmark_slots"), "Expected Prompt 08 render_model to carry landmark socket metadata without adding assets.")
-	assert(render_model.has("decor_slots"), "Expected Prompt 08 render_model to carry decor socket metadata without adding assets.")
+	assert(render_model.has("canopy_masks"), "Expected render_model to carry canopy mask metadata without switching the canvas lane.")
+	assert(render_model.has("landmark_slots"), "Expected render_model to carry landmark socket metadata without adding assets.")
+	assert(render_model.has("decor_slots"), "Expected render_model to carry decor socket metadata without adding assets.")
 
 	var legacy_field_status: Dictionary = render_model.get("legacy_field_status", {})
 	assert(String(legacy_field_status.get("layout_edges", "")) == "fallback", "Expected layout_edges to be explicitly labeled as a fallback lane before render-model canvas adoption.")
 	assert(String(legacy_field_status.get("visible_edges", "")) == "fallback", "Expected visible_edges to be labeled fallback once render_model.path_surfaces owns the default canvas road lane.")
 	assert(String(legacy_field_status.get("ground_shapes", "")) == "wrapper", "Expected ground_shapes to be labeled as a wrapper terrain bed while render_model owns road/clearing surfaces.")
-	assert(String(legacy_field_status.get("filler_shapes", "")) == "wrapper", "Expected filler_shapes to be labeled as wrapper decor metadata after Prompt 08 slots land.")
-	assert(String(legacy_field_status.get("forest_shapes", "")) == "wrapper", "Expected forest_shapes to be labeled as wrapper canopy/decor metadata after Prompt 08 masks/slots land.")
+	assert(String(legacy_field_status.get("filler_shapes", "")) == "wrapper", "Expected filler_shapes to be labeled as wrapper decor metadata after render_model slots land.")
+	assert(String(legacy_field_status.get("forest_shapes", "")) == "wrapper", "Expected forest_shapes to be labeled as wrapper canopy/decor metadata after render_model masks/slots land.")
 
 	var path_surfaces: Array = render_model.get("path_surfaces", [])
 	var junctions: Array = render_model.get("junctions", [])
@@ -341,10 +341,10 @@ func test_map_board_composer_emits_core_render_model_payload() -> void:
 		assert(allowed_roles.has(role), "Expected path surfaces to carry first-class corridor roles, not ad hoc route text. Surface=%s." % JSON.stringify(surface_entry))
 		assert(centerline_points.size() >= 2, "Expected path surfaces to carry centerline geometry for later surface drawing. Surface=%s." % JSON.stringify(surface_entry))
 		assert(float(surface_entry.get("surface_width", 0.0)) > 0.0, "Expected every path surface to expose a positive terrain-surface width.")
-		assert(String(surface_entry.get("shape", "")) == "polyline_strip", "Expected Prompt 07 path surfaces to use core polyline-strip metadata instead of masks/slots.")
+		assert(String(surface_entry.get("shape", "")) == "polyline_strip", "Expected path surfaces to use core polyline-strip metadata instead of masks/slots.")
 		assert(not String(surface_entry.get("cardinal_direction", "")).is_empty(), "Expected path surfaces to preserve cardinal route read metadata.")
 		assert(not String(surface_entry.get("outward_route_hint", "")).is_empty(), "Expected path surfaces to expose an outward/history/reconnect route hint.")
-		assert(not String(surface_entry.get("corridor_throat_id", "")).is_empty(), "Expected path surfaces to preserve corridor throat identity from Prompt 06.")
+		assert(not String(surface_entry.get("corridor_throat_id", "")).is_empty(), "Expected path surfaces to preserve corridor throat identity.")
 		assert(Vector2(surface_entry.get("from_endpoint", Vector2.ZERO)) == centerline_points[0], "Expected path surface endpoint metadata to match its centerline start.")
 		assert(Vector2(surface_entry.get("to_endpoint", Vector2.ZERO)) == centerline_points[centerline_points.size() - 1], "Expected path surface endpoint metadata to match its centerline end.")
 		if role == "primary_actionable_corridor":
@@ -368,7 +368,7 @@ func test_map_board_composer_emits_core_render_model_payload() -> void:
 		if typeof(clearing_variant) != TYPE_DICTIONARY:
 			continue
 		var clearing_entry: Dictionary = clearing_variant
-		assert(String(clearing_entry.get("shape", "")) == "clearing_disc", "Expected Prompt 07 clearing surfaces to stay core clearing geometry, not Prompt 08 slots.")
+		assert(String(clearing_entry.get("shape", "")) == "clearing_disc", "Expected clearing surfaces to stay core clearing geometry, not socket metadata.")
 		assert(float(clearing_entry.get("radius", 0.0)) > 0.0, "Expected every clearing surface to expose its clearing radius.")
 		assert(not (clearing_entry.get("connected_path_surface_ids", []) as Array).is_empty() or bool(clearing_entry.get("is_current", false)), "Expected visible destination clearings to connect to road endpoints where graph visibility exposes them.")
 
@@ -384,9 +384,9 @@ func test_map_board_composer_emits_masks_slots_render_model_payload() -> void:
 	var canopy_masks: Array = render_model.get("canopy_masks", [])
 	var landmark_slots: Array = render_model.get("landmark_slots", [])
 	var decor_slots: Array = render_model.get("decor_slots", [])
-	assert(not canopy_masks.is_empty(), "Expected Prompt 08 to expose canopy masks derived from forest canopy shapes.")
-	assert(not landmark_slots.is_empty(), "Expected Prompt 08 to expose landmark slots derived from visible landmark footprints.")
-	assert(not decor_slots.is_empty(), "Expected Prompt 08 to expose decor slots derived from existing filler/decor shapes.")
+	assert(not canopy_masks.is_empty(), "Expected render_model to expose canopy masks derived from forest canopy shapes.")
+	assert(not landmark_slots.is_empty(), "Expected render_model to expose landmark slots derived from visible landmark footprints.")
+	assert(not decor_slots.is_empty(), "Expected render_model to expose decor slots derived from existing filler/decor shapes.")
 
 	var legacy_field_status: Dictionary = render_model.get("legacy_field_status", {})
 	assert(String(legacy_field_status.get("ground_shapes", "")) == "wrapper", "Expected ground_shapes to be labeled as wrapper terrain metadata after the render-model canvas lane lands.")
@@ -484,7 +484,7 @@ func test_map_board_composer_rebuilds_render_model_after_visible_edge_updates() 
 	)
 	assert(
 		(refreshed_render_model.get("landmark_slots", []) as Array).size() == (composition.get("visible_nodes", []) as Array).size(),
-		"Expected render_model rebuild to refresh Prompt 08 socket metadata together with path surfaces."
+		"Expected render_model rebuild to refresh socket metadata together with path surfaces."
 	)
 
 
@@ -1062,13 +1062,13 @@ func test_map_board_composer_emits_deterministic_forest_shapes() -> void:
 		assert(shape_a.get("center", Vector2.ZERO) == shape_b.get("center", Vector2.ZERO), "Expected forest shape centers to stay deterministic.")
 		assert(shape_a.get("radius", 0.0) == shape_b.get("radius", -1.0), "Expected forest shape radii to stay deterministic.")
 		assert(shape_a.get("tone", Color.WHITE) == shape_b.get("tone", Color.BLACK), "Expected forest shape tones to stay deterministic.")
-		assert(shape_a.get("texture_path", "") == shape_b.get("texture_path", ""), "Expected forest shape asset selection to stay deterministic.")
+		assert(not shape_a.has("texture_path"), "Expected retired forest wrapper shapes to avoid runtime texture-path ownership.")
 		assert(shape_a.get("rotation_degrees", 0.0) == shape_b.get("rotation_degrees", -999.0), "Expected forest shape rotation metadata to stay deterministic.")
 	var canopy_shape: Dictionary = _find_forest_shape_by_family(composition_a, "canopy")
-	assert(not canopy_shape.is_empty(), "Expected the prototype map kit hookup to tag at least one canopy shape for textured stamp rendering.")
+	assert(not canopy_shape.is_empty(), "Expected the wrapper metadata lane to keep at least one canopy shape for socket/mask derivation.")
 	assert(
-		not String(canopy_shape.get("texture_path", "")).is_empty(),
-		"Expected canopy shapes to expose a texture path for forest-pocket stamp hookup."
+		not canopy_shape.has("texture_path"),
+		"Expected canopy wrapper shapes to stay metadata-only after the visual stamp lane was retired."
 	)
 
 
@@ -1213,23 +1213,22 @@ func test_map_board_composer_emits_deterministic_filler_shapes() -> void:
 		assert(shape_a.get("rotation_degrees", 0.0) == shape_b.get("rotation_degrees", -999.0), "Expected filler shape rotation metadata to stay deterministic.")
 		assert(shape_a.get("tone_shift", 0.0) == shape_b.get("tone_shift", 1.0), "Expected filler tone variation to stay deterministic.")
 		assert(shape_a.get("alpha_scale", 0.0) == shape_b.get("alpha_scale", -1.0), "Expected filler alpha variation to stay deterministic.")
-		assert(shape_a.get("texture_path", "") == shape_b.get("texture_path", ""), "Expected filler texture hookup to stay deterministic.")
-		assert(shape_a.get("texture_scale", 0.0) == shape_b.get("texture_scale", -1.0), "Expected filler texture scale metadata to stay deterministic.")
+		assert(not shape_a.has("texture_path"), "Expected retired filler wrapper shapes to avoid runtime texture-path ownership.")
+		assert(not shape_a.has("texture_scale"), "Expected filler shapes to stop exposing texture-scale metadata after the stamp lane was retired.")
 		assert(not shape_a.has("node_family"), "Expected filler payload to stay free of node-family semantics.")
 		assert(not shape_a.has("adjacent_node_ids"), "Expected filler payload to stay free of route-logic semantics.")
-		assert(not String(shape_a.get("texture_path", "")).is_empty(), "Expected every filler shape family to expose a stable runtime texture path after the map-only asset hookup.")
 		var half_size: Vector2 = Vector2(shape_a.get("half_size", Vector2.ZERO))
 		var filler_center: Vector2 = Vector2(shape_a.get("center", Vector2.ZERO))
 		var family: String = String(shape_a.get("family", "rock"))
 		var nearest_node_clearance: float = _nearest_filler_node_clearance(filler_center, half_size, family, composition_a)
 		assert(
 			nearest_node_clearance >= 0.0,
-			"Expected filler shapes to respect the explicit textured node-exclusion contract."
+			"Expected filler metadata masks to respect the explicit node-exclusion contract."
 		)
 		var nearest_route_clearance: float = _nearest_filler_route_clearance(filler_center, half_size, family, composition_a)
 		assert(
 			nearest_route_clearance >= 0.0,
-			"Expected filler shapes to stay outside the explicit textured route-exclusion contract."
+			"Expected filler metadata masks to stay outside the explicit route-exclusion contract."
 		)
 		assert(
 			not _visible_landmark_pocket_contains_point(
@@ -1345,12 +1344,12 @@ func test_map_board_composer_keeps_forest_shapes_clear_of_route_action_pocket() 
 			nearest_node_clearance = min(nearest_node_clearance, center.distance_to(node_position) - required_node_clearance)
 		assert(
 			nearest_node_clearance >= 0.0,
-			"Expected %s world-fill shapes to stay out of node clearings after textured layout convergence." % family
+			"Expected %s world-fill metadata masks to stay out of node clearings after layout convergence." % family
 		)
 		var nearest_route_clearance: float = _nearest_forest_route_clearance(center, radius, family, composition)
 		assert(
 			nearest_route_clearance >= 0.0,
-			"Expected %s world-fill shapes to stay outside the frozen route pocket after textured layout convergence." % family
+			"Expected %s world-fill metadata masks to stay outside the frozen route pocket after layout convergence." % family
 		)
 		assert(
 			not _visible_landmark_pocket_contains_point(
@@ -1749,9 +1748,9 @@ func test_map_board_composer_exposes_sector_corridor_metadata_for_visible_edges(
 
 func test_map_board_composer_exposes_route_surface_semantics_for_visible_edges() -> void:
 	var composer: RefCounted = MapBoardComposerV2Script.new()
-	var observed_branch_actionable: bool = false
+	var observed_secondary_actionable: bool = false
 	var observed_branch_history: bool = false
-	var observed_reconnect_history: bool = false
+	var observed_reconnect_corridor: bool = false
 	for seed in [11, 29, 41]:
 		var run_state: RunState = RunState.new()
 		run_state.reset_for_new_run()
@@ -1784,7 +1783,7 @@ func test_map_board_composer_exposes_route_surface_semantics_for_visible_edges()
 							route_surface_semantic,
 						]
 					)
-					observed_reconnect_history = true
+					observed_reconnect_corridor = true
 				else:
 					assert(
 						route_surface_semantic in ["branch_history_corridor", "history_corridor"],
@@ -1816,15 +1815,18 @@ func test_map_board_composer_exposes_route_surface_semantics_for_visible_edges()
 				if route_surface_semantic == "primary_actionable_corridor":
 					primary_actionable_count += 1
 				elif route_surface_semantic == "branch_actionable_corridor":
-					observed_branch_actionable = true
+					observed_secondary_actionable = true
+				elif route_surface_semantic == "reconnect_corridor":
+					observed_secondary_actionable = true
+					observed_reconnect_corridor = true
 		assert(primary_actionable_count == 1, "Expected each visible pocket to keep exactly one dominant primary actionable corridor.")
 	assert(
-		observed_reconnect_history,
-		"Expected the curated late-route seed set to keep at least one visible reconnect corridor once the Prompt 48 backbone-compatible history window is in view."
+		observed_reconnect_corridor,
+		"Expected the curated late-route seed set to keep at least one visible reconnect corridor once the Prompt 48 backbone-compatible window is in view."
 	)
 	assert(
-		observed_branch_actionable,
-		"Expected the curated late-route seed set to keep at least one branch actionable corridor visible once Prompt 51 hierarchy lands."
+		observed_secondary_actionable,
+		"Expected the curated late-route seed set to keep at least one secondary actionable corridor visible once Prompt 51 hierarchy lands."
 	)
 	assert(
 		observed_branch_history,

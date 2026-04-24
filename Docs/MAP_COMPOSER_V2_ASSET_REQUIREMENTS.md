@@ -5,7 +5,9 @@
 - This file is a production/reference companion to `Docs/MAP_COMPOSER_V2_DESIGN.md`.
 - Authority remains `Docs/VISUAL_AUDIO_STYLE_GUIDE.md` for style direction and `Docs/ASSET_PIPELINE.md` plus `Docs/ASSET_LICENSE_POLICY.md` for provenance/pipeline rules.
 - This file describes the code-first Map Composer V2 presentation direction: the procedural renderer owns baseline terrain/board readability, while asset families stay in the optional-polish or later semantic-surface lanes.
-- Asset adoption assumes the board first behaves as a stable stage-start layout and that discovery only reveals a frozen layout; optional terrain stamp hookup stays deferred behind the asset approval contract and the live layout-regression fixes tracked in Prompt 05.
+- Asset adoption assumes the board first behaves as a stable stage-start layout and that discovery only reveals a frozen layout; optional dressing must re-enter through render-model sockets after screenshot evidence, not through the retired wrapper stamp layer.
+- The closed map wave retired the older draw-only `ui_map_v2_trail_*`, `ui_map_v2_clearing_decal_*`, and `ui_map_v2_node_plate_*` candidate lanes. Future dressing should target render-model sockets instead of restoring those top-level asset-path hooks.
+- The closed map wave retired the visible atmosphere/ground/filler/canopy wrapper blob layer, removed non-routing oval/blob marks from `ui_map_board_backdrop.svg`, and removed the old runtime wrapper assets; `ground_shapes`, `filler_shapes`, and `forest_shapes` remain metadata for masks/socket derivation only.
 
 ## Observed Current Asset Baseline (Certain)
 
@@ -65,12 +67,11 @@ Reuse current assets where they still fit the V2 role:
 
 The current `ui_map_board_backdrop` shell should become optional fallback art, not the primary map-surface identity.
 
-V2 can optionally add environmental composition polish for:
+V2 can optionally add socket-driven environmental polish for:
 
-- trail carving
-- clearing pockets
-- canopy mass
-- forest props
+- path-surface breakup
+- clearing / landmark pocket dressing
+- decor or canopy-frame stamps derived from sockets/masks
 - boss/key landmark emphasis
 
 ## Optional Terrain / Board Polish Families
@@ -79,12 +80,11 @@ These are optional terrain / board polish families for V2 after the procedural r
 
 | Family group | Suggested runtime family pattern | Priority lane | Purpose | Notes |
 |---|---|---|---|---|
-| forest floor base | `ui_map_v2_ground_*` | optional-polish | supplemental board-surface breakup under clearings and trails | shared across all scaffold types; not required for baseline readability |
-| trail mask / trail edge brushes | `ui_map_v2_trail_*` | optional-polish | supplemental spline trail fill, edge breakup, worn path read | preferably vector-friendly or high-resolution transparent raster |
-| clearing underlays | `ui_map_v2_clearing_*` | optional-polish | supplemental start/node/boss pocket read | at least small / medium / large variants |
-| canopy clusters | `ui_map_v2_canopy_*` | optional-polish | supplemental concealment mass and pocket framing | large / medium / small silhouette clusters |
-| forest props | `ui_map_v2_prop_*` | later-polish | roots, rocks, shrubs, broken logs | support edge framing and variation |
-| route landmark accents | `ui_map_v2_landmark_*` | later-polish | boss approach, key hint, guide-light accents | used sparingly, not one per node family |
+| board-surface socket dressing | future socket-driven family | optional-polish | supplemental board-surface breakup after the road/pocket read is already green | must not restore the retired free-floating ground blob/stamp lane |
+| path-surface socket brushes | future socket-driven family | optional-polish | supplemental render-model path-surface breakup after the procedural road read is already green | must derive from `render_model.path_surfaces`; the old `ui_map_v2_trail_*` draw lane is retired |
+| clearing / landmark socket dressers | future socket-driven family | optional-polish | supplemental start/node/boss pocket read after procedural clearings and landmark slots are already green | must derive from `render_model.clearing_surfaces` or `render_model.landmark_slots`; the old `ui_map_v2_clearing_*` draw lane is retired |
+| canopy / decor socket dressers | future socket-driven family | optional-polish | supplemental concealment mass and pocket framing | derive from `render_model.canopy_masks` or `render_model.decor_slots`; do not draw background blobs by default |
+| route landmark accents | future socket-driven family | later-polish | boss approach, key hint, guide-light accents | used sparingly, not one per node family |
 | foreground branch overlays | `ui_map_v2_foreground_*` | later-polish | light depth and framing | only if readability remains strong |
 
 ## Generated-Map Pipeline Fit
@@ -94,9 +94,9 @@ The intended board pipeline for the current overhaul is:
 1. scatter node layout from graph truth
 2. freeze full path layout for the stage
 3. filter visible subset from that frozen layout
-4. render the procedural pocket first, then optionally layer filler / canopy / clutter / fog polish
+4. render the procedural pocket and road surface first, then optionally layer socket-driven dressing
 
-Asset families must support that order and remain safe when optional stamp loads return `null`.
+Asset families must support that order and remain safe when optional socket dressing loads return `null`.
 They must not assume that visibility changes can redraw path geometry.
 
 ## Minimum New Counts (Proposed)
@@ -119,15 +119,13 @@ The current prototype wave should favor semantic identity completion first, with
   - `icon_map_combat`
   - `icon_map_key`
   - `icon_map_boss`
-- optional board-support polish
-  - `ui_map_v2_path_edge_filler_*`
-  - `ui_map_v2_path_breakup_decal_*`
-  - `ui_map_v2_junction_patch_*`
-- optional canopy / clutter / atmosphere polish
-  - `ui_map_v2_canopy_clump_d/e/f`
-  - `ui_map_v2_ground_clutter_*`
-  - `ui_map_v2_fog_patch_*`
-  - `ui_map_v2_ruin_scatter_*`
+- optional socket-driven board-support polish
+  - path-surface brushes derived from `render_model.path_surfaces`
+  - junction/clearing trim derived from `render_model.junctions` and `render_model.clearing_surfaces`
+  - landmark/decor/socket dressing derived from `render_model.landmark_slots` and `render_model.decor_slots`
+- retired/deferred wrapper polish
+  - free-floating canopy, ground, prop, and atmosphere blob/stamp lanes are not live runtime proof after the closed map wave
+  - future canopy/clutter work must re-enter through sockets/masks with screenshot evidence instead of resurrecting the old background-stamp layer
 
 These families can deepen the generated board after the procedural renderer itself is visually acceptable. They are not Priority 1 blockers for the first readable V2 pass.
 
@@ -178,12 +176,12 @@ This keeps production scope controlled and avoids hidden mechanic drift through 
 | Layer | Family group | Visual role |
 |---|---|---|
 | backdrop | existing `bg_map_*` | far atmosphere and depth |
-| board surface | procedural base + optional `ui_map_v2_ground_*` | local playable forest floor |
-| path layer | procedural trail read + optional `ui_map_v2_trail_*` | traversal read |
-| pocket layer | procedural clearing read + optional `ui_map_v2_clearing_*` | node-area readability |
-| concealment layer | procedural forest shapes + optional `ui_map_v2_canopy_*` | unreadable forest mass |
-| prop layer | optional `ui_map_v2_prop_*` | variation and edge shaping |
-| landmark layer | optional `ui_map_v2_landmark_*` | boss/key/current-route emphasis |
+| board surface | plain procedural base + future socket-driven dressing | local playable forest floor |
+| path layer | procedural `render_model.path_surfaces` + future socket-driven path brushes | traversal read |
+| pocket layer | procedural `render_model.clearing_surfaces` + future socket-driven clearing/landmark dressers | node-area readability |
+| concealment layer | metadata-only canopy masks + future socket-driven dressers | unreadable forest mass without free-floating blob ownership |
+| prop layer | future socket-driven decor dressers | variation and edge shaping |
+| landmark layer | future socket-driven landmark dressers | boss/key/current-route emphasis |
 | overlay layer | existing icons + optional `ui_map_v2_node_halo_*` | node family/state/hit target clarity |
 | actor layer | existing walker family | local traversal motion |
 
@@ -246,18 +244,16 @@ Ground / trail / clearing / canopy / filler / junction / forest-transition famil
 
 ## Priority 2 - Optional Board / Route Polish After Procedural Pass
 
-- `ui_map_v2_ground_*`
-- `ui_map_v2_trail_*`
-- `ui_map_v2_clearing_*`
-- `ui_map_v2_canopy_*`
-- `ui_map_v2_path_edge_filler_*`
-- `ui_map_v2_path_breakup_decal_*`
-- `ui_map_v2_junction_patch_*`
+- future socket-driven board-surface dressing family
+- future socket-driven path-surface brush family
+- future socket-driven clearing / landmark dresser family
+- future socket-driven canopy / decor dresser family
+- future junction trim family derived from `render_model.junctions`
 
 ## Priority 3 - Later Semantic / Atmosphere Polish
 
-- `ui_map_v2_prop_*`
-- `ui_map_v2_landmark_*`
+- future socket-driven decor prop family
+- future socket-driven route landmark accent family
 - `ui_map_v2_foreground_*`
 - optional overlay refresh families
 - optional audio polish families

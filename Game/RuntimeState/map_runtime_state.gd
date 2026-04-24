@@ -1220,7 +1220,7 @@ func _build_controlled_scatter_blueprint_catalog(template_id: String) -> Array[D
 				PackedInt32Array([2, 5, 10, 12]),
 				PackedInt32Array([3, 7, 8, 11]),
 				[
-					_build_fixed_scatter_reconnect_plan(SCATTER_BRANCH_COMBAT, SCATTER_BRANCH_REWARD, SCATTER_RECONNECT_DEPTH_MID),
+					_build_fixed_scatter_reconnect_plan(SCATTER_BRANCH_COMBAT, SCATTER_BRANCH_REWARD, SCATTER_RECONNECT_DEPTH_LATE, 0, 1, 7),
 					_build_fixed_scatter_reconnect_plan(SCATTER_BRANCH_REWARD, SCATTER_BRANCH_SUPPORT, SCATTER_RECONNECT_DEPTH_LATE),
 				],
 				SCATTER_BRANCH_SUPPORT
@@ -1231,7 +1231,7 @@ func _build_controlled_scatter_blueprint_catalog(template_id: String) -> Array[D
 				PackedInt32Array([2, 6, 7, 12]),
 				PackedInt32Array([3, 8, 10, 11]),
 				[
-					_build_fixed_scatter_reconnect_plan(SCATTER_BRANCH_COMBAT, SCATTER_BRANCH_REWARD, SCATTER_RECONNECT_DEPTH_MID),
+					_build_fixed_scatter_reconnect_plan(SCATTER_BRANCH_COMBAT, SCATTER_BRANCH_REWARD, SCATTER_RECONNECT_DEPTH_LATE, 0, 1, 7),
 					_build_fixed_scatter_reconnect_plan(SCATTER_BRANCH_REWARD, SCATTER_BRANCH_SUPPORT, SCATTER_RECONNECT_DEPTH_LATE),
 				],
 				SCATTER_BRANCH_REWARD
@@ -1245,8 +1245,8 @@ func _build_controlled_scatter_blueprint_catalog(template_id: String) -> Array[D
 				PackedInt32Array([2, 7, 10, 12]),
 				PackedInt32Array([3, 8, 11, 9]),
 				[
-					_build_fixed_scatter_reconnect_plan(SCATTER_BRANCH_COMBAT, SCATTER_BRANCH_REWARD, SCATTER_RECONNECT_DEPTH_LATE),
-					_build_fixed_scatter_reconnect_plan(SCATTER_BRANCH_REWARD, SCATTER_BRANCH_SUPPORT, SCATTER_RECONNECT_DEPTH_MID),
+					_build_fixed_scatter_reconnect_plan(SCATTER_BRANCH_COMBAT, SCATTER_BRANCH_REWARD, SCATTER_RECONNECT_DEPTH_LATE, 0, 1, 7),
+					_build_fixed_scatter_reconnect_plan(SCATTER_BRANCH_REWARD, SCATTER_BRANCH_SUPPORT, SCATTER_RECONNECT_DEPTH_LATE),
 				],
 				SCATTER_BRANCH_SUPPORT
 			),
@@ -1256,8 +1256,8 @@ func _build_controlled_scatter_blueprint_catalog(template_id: String) -> Array[D
 				PackedInt32Array([2, 6, 10, 12]),
 				PackedInt32Array([3, 7, 11, 8]),
 				[
-					_build_fixed_scatter_reconnect_plan(SCATTER_BRANCH_COMBAT, SCATTER_BRANCH_REWARD, SCATTER_RECONNECT_DEPTH_MID),
-					_build_fixed_scatter_reconnect_plan(SCATTER_BRANCH_REWARD, SCATTER_BRANCH_SUPPORT, SCATTER_RECONNECT_DEPTH_LATE),
+					_build_fixed_scatter_reconnect_plan(SCATTER_BRANCH_COMBAT, SCATTER_BRANCH_REWARD, SCATTER_RECONNECT_DEPTH_LATE, 0, 1, 7),
+					_build_fixed_scatter_reconnect_plan(SCATTER_BRANCH_REWARD, SCATTER_BRANCH_SUPPORT, SCATTER_RECONNECT_DEPTH_MID),
 				],
 				SCATTER_BRANCH_SUPPORT
 			),
@@ -1269,7 +1269,7 @@ func _build_controlled_scatter_blueprint_catalog(template_id: String) -> Array[D
 			PackedInt32Array([2, 6, 10, 12]),
 			PackedInt32Array([3, 7, 8, 11]),
 			[
-				_build_fixed_scatter_reconnect_plan(SCATTER_BRANCH_COMBAT, SCATTER_BRANCH_REWARD, SCATTER_RECONNECT_DEPTH_MID),
+				_build_fixed_scatter_reconnect_plan(SCATTER_BRANCH_COMBAT, SCATTER_BRANCH_REWARD, SCATTER_RECONNECT_DEPTH_LATE, 0, 1, 7),
 				_build_fixed_scatter_reconnect_plan(SCATTER_BRANCH_REWARD, SCATTER_BRANCH_SUPPORT, SCATTER_RECONNECT_DEPTH_LATE),
 			],
 			SCATTER_BRANCH_REWARD
@@ -1280,7 +1280,7 @@ func _build_controlled_scatter_blueprint_catalog(template_id: String) -> Array[D
 			PackedInt32Array([2, 7, 10, 12]),
 			PackedInt32Array([3, 8, 9, 11]),
 			[
-				_build_fixed_scatter_reconnect_plan(SCATTER_BRANCH_COMBAT, SCATTER_BRANCH_REWARD, SCATTER_RECONNECT_DEPTH_MID),
+				_build_fixed_scatter_reconnect_plan(SCATTER_BRANCH_COMBAT, SCATTER_BRANCH_REWARD, SCATTER_RECONNECT_DEPTH_LATE, 0, 1, 7),
 				_build_fixed_scatter_reconnect_plan(SCATTER_BRANCH_REWARD, SCATTER_BRANCH_SUPPORT, SCATTER_RECONNECT_DEPTH_LATE),
 			],
 			SCATTER_BRANCH_COMBAT
@@ -1309,11 +1309,21 @@ func _build_fixed_scatter_backbone_blueprint(
 	}
 
 
-func _build_fixed_scatter_reconnect_plan(left_branch_id: int, right_branch_id: int, preferred_depth: int) -> Dictionary:
+func _build_fixed_scatter_reconnect_plan(
+	left_branch_id: int,
+	right_branch_id: int,
+	preferred_depth: int,
+	left_depth_offset: int = 0,
+	right_depth_offset: int = 0,
+	max_path_length: int = SCATTER_MAX_RECONNECT_PATH_LENGTH
+) -> Dictionary:
 	return {
 		"left_branch_id": left_branch_id,
 		"right_branch_id": right_branch_id,
 		"preferred_depth": preferred_depth,
+		"left_depth_offset": left_depth_offset,
+		"right_depth_offset": right_depth_offset,
+		"max_path_length": max_path_length,
 	}
 
 
@@ -1533,8 +1543,11 @@ func _pick_controlled_reconnect_edge(
 	if not _scatter_branches_are_local_neighbors(left_branch_id, right_branch_id):
 		return []
 	var preferred_depth: int = int(reconnect_plan.get("preferred_depth", SCATTER_RECONNECT_DEPTH_MID))
-	var left_candidates: Array[int] = _preferred_reconnect_candidates(branch_node_ids[left_branch_id] as Array, depth_by_node_id, preferred_depth)
-	var right_candidates: Array[int] = _preferred_reconnect_candidates(branch_node_ids[right_branch_id] as Array, depth_by_node_id, preferred_depth)
+	var left_preferred_depth: int = preferred_depth + int(reconnect_plan.get("left_depth_offset", 0))
+	var right_preferred_depth: int = preferred_depth + int(reconnect_plan.get("right_depth_offset", 0))
+	var max_path_length: int = int(reconnect_plan.get("max_path_length", SCATTER_MAX_RECONNECT_PATH_LENGTH))
+	var left_candidates: Array[int] = _preferred_reconnect_candidates(branch_node_ids[left_branch_id] as Array, depth_by_node_id, left_preferred_depth)
+	var right_candidates: Array[int] = _preferred_reconnect_candidates(branch_node_ids[right_branch_id] as Array, depth_by_node_id, right_preferred_depth)
 	for left_node_id in left_candidates:
 		for right_node_id in right_candidates:
 			if left_node_id == right_node_id:
@@ -1547,12 +1560,10 @@ func _pick_controlled_reconnect_edge(
 				continue
 			var left_depth: int = int(depth_by_node_id.get(left_node_id, -1))
 			var right_depth: int = int(depth_by_node_id.get(right_node_id, -1))
-			if left_depth < preferred_depth or right_depth < preferred_depth:
-				continue
-			if left_depth != right_depth:
+			if left_depth != left_preferred_depth or right_depth != right_preferred_depth:
 				continue
 			var reconnect_path_length: int = _build_scatter_path_length(node_adjacency, left_node_id, right_node_id)
-			if reconnect_path_length < SCATTER_MIN_RECONNECT_PATH_LENGTH or reconnect_path_length > SCATTER_MAX_RECONNECT_PATH_LENGTH:
+			if reconnect_path_length < SCATTER_MIN_RECONNECT_PATH_LENGTH or reconnect_path_length > max_path_length:
 				continue
 			return [left_node_id, right_node_id]
 	return []
@@ -1564,7 +1575,7 @@ func _scatter_branches_are_local_neighbors(left_branch_id: int, right_branch_id:
 
 func _preferred_reconnect_candidates(branch_nodes: Array, depth_by_node_id: Dictionary, preferred_depth: int) -> Array[int]:
 	var candidates: Array[int] = []
-	var maximum_index: int = max(1, branch_nodes.size() - 1)
+	var maximum_index: int = max(1, branch_nodes.size())
 	for branch_index in range(1, maximum_index):
 		candidates.append(int(branch_nodes[branch_index]))
 	candidates.sort_custom(func(left_id: int, right_id: int) -> bool:
@@ -1718,11 +1729,19 @@ func _scatter_connectivity_rules_hold(
 				return false
 			if not _scatter_branches_are_local_neighbors(left_branch_root - 1, right_branch_root - 1):
 				return false
-			if int(children_count_by_node_id.get(left_id, 0)) <= 0:
+			if not _scatter_node_has_forward_neighbor(node_adjacency, depth_by_node_id, left_id):
 				return false
-			if int(children_count_by_node_id.get(right_id, 0)) <= 0:
+			if not _scatter_node_has_forward_neighbor(node_adjacency, depth_by_node_id, right_id):
 				return false
 	return true
+
+
+func _scatter_node_has_forward_neighbor(node_adjacency: Dictionary, depth_by_node_id: Dictionary, node_id: int) -> bool:
+	var node_depth: int = int(depth_by_node_id.get(node_id, -1))
+	for adjacent_node_id in _coerce_adjacent_ids(node_adjacency.get(node_id, PackedInt32Array())):
+		if int(depth_by_node_id.get(int(adjacent_node_id), -1)) > node_depth:
+			return true
+	return false
 
 
 func _build_controlled_scatter_family_assignments(node_adjacency: Dictionary, role_targets: Dictionary, stage_index: int) -> Dictionary:
