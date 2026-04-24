@@ -4,6 +4,7 @@ class_name MapBoardCanvas
 
 const SceneLayoutHelperScript = preload("res://Game/UI/scene_layout_helper.gd")
 const MapBoardStyleScript = preload("res://Game/UI/map_board_style.gd")
+const MapBoardThroatBlendModelScript = preload("res://Game/UI/map_board_throat_blend_model.gd")
 const UiAssetPathsScript = preload("res://Game/UI/ui_asset_paths.gd")
 
 var _composition: Dictionary = {}
@@ -48,6 +49,7 @@ func _draw() -> void:
 	if uses_render_model_surface_lane:
 		_draw_render_landmark_pocket_underlays()
 		_draw_path_surfaces(false)
+		_draw_road_pocket_throat_blends()
 		_draw_path_surface_socket_smoke_dressing()
 		_draw_render_junctions()
 		_draw_path_surfaces(true)
@@ -130,6 +132,28 @@ func _draw_path_surfaces(draw_highlight_pass: bool) -> void:
 			surface_width * float(visual_profile.get("base_width_scale", 1.0)),
 			base_color
 		)
+
+
+func _draw_road_pocket_throat_blends() -> void:
+	for blend_variant in _road_pocket_throat_blend_entries():
+		if typeof(blend_variant) != TYPE_DICTIONARY:
+			continue
+		var blend: Dictionary = blend_variant
+		var center: Vector2 = Vector2(blend.get("center", Vector2.ZERO))
+		var inner_center: Vector2 = Vector2(blend.get("inner_center", center))
+		var outer_radius: float = float(blend.get("outer_radius", 0.0))
+		var base_radius: float = float(blend.get("base_radius", 0.0))
+		var inner_radius: float = float(blend.get("inner_radius", 0.0))
+		if outer_radius <= 0.0 or base_radius <= 0.0:
+			continue
+		draw_circle(
+			center + Vector2(0.0, outer_radius * 0.08),
+			outer_radius,
+			Color(0.01, 0.02, 0.02, 0.10)
+		)
+		draw_circle(center, base_radius, blend.get("road_color", Color(0.60, 0.52, 0.30, 0.24)))
+		if inner_radius > 0.0:
+			draw_circle(inner_center, inner_radius, blend.get("clearing_color", Color(0.28, 0.34, 0.18, 0.18)))
 
 
 func _draw_render_junctions() -> void:
@@ -533,6 +557,40 @@ func _junction_entries() -> Array:
 func _clearing_surface_entries() -> Array:
 	var render_model: Dictionary = _render_model()
 	return (render_model.get("clearing_surfaces", []) as Array).duplicate(true)
+
+
+func _road_pocket_throat_blend_entries() -> Array:
+	return MapBoardThroatBlendModelScript.build_entries(
+		_clearing_surface_entries(),
+		_path_surface_throat_blend_sources_by_id(),
+		_board_offset
+	)
+
+
+func _path_surface_throat_blend_sources_by_id() -> Dictionary:
+	var sources_by_id: Dictionary = {}
+	for surface_variant in _path_surface_entries():
+		if typeof(surface_variant) != TYPE_DICTIONARY:
+			continue
+		var surface: Dictionary = surface_variant
+		var surface_id: String = String(surface.get("surface_id", ""))
+		if surface_id.is_empty():
+			continue
+		var display_points: PackedVector2Array = _display_path_surface_points(surface)
+		if display_points.size() < 2:
+			continue
+		var is_history: bool = bool(surface.get("is_history", false))
+		var edge_proxy: Dictionary = _edge_proxy_for_path_surface(surface)
+		var emphasis_level: int = _edge_emphasis_level(edge_proxy)
+		sources_by_id[surface_id] = {
+			"display_points": display_points,
+			"path_direction": _direction_for_polyline(display_points),
+			"is_history": is_history,
+			"emphasis_level": emphasis_level,
+			"surface_width": maxf(1.0, float(surface.get("surface_width", MapBoardStyleScript.road_base_width(is_history, emphasis_level)))),
+			"state_semantic": String(surface.get("state_semantic", "open")),
+		}
+	return sources_by_id
 
 
 func _edge_proxy_for_path_surface(surface: Dictionary) -> Dictionary:

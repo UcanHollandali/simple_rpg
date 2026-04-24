@@ -20,6 +20,7 @@ func _run() -> void:
 	test_map_board_canvas_uses_render_model_surface_lane_by_default()
 	test_map_board_canvas_derives_socket_art_from_render_model_slots()
 	test_map_board_canvas_splits_tight_surface_paths_into_safe_segment_polygons()
+	test_map_board_canvas_derives_road_pocket_throat_blends_from_render_model_links()
 	test_map_board_canvas_keeps_selected_route_lane_above_other_choices()
 	test_map_board_canvas_keeps_hover_preview_below_selected_route_lane()
 	test_map_board_canvas_uses_landmark_signage_slots_for_known_icons()
@@ -298,6 +299,66 @@ func test_map_board_canvas_splits_tight_surface_paths_into_safe_segment_polygons
 			absf(signed_area * 0.5) > 1.0,
 			"Expected every path-surface segment polygon to keep non-zero drawable area."
 		)
+	board_canvas.free()
+
+
+func test_map_board_canvas_derives_road_pocket_throat_blends_from_render_model_links() -> void:
+	var board_canvas: Control = MapBoardCanvasScript.new()
+	board_canvas.call("set_composition", {
+		"render_model": {
+			"schema_version": 1,
+			"path_surfaces": [{
+				"surface_id": "path:0:1",
+				"shape": "polyline_strip",
+				"centerline_points": PackedVector2Array([Vector2(100.0, 132.0), Vector2(100.0, 220.0)]),
+				"surface_width": 24.0,
+				"outer_width": 34.0,
+				"from_node_id": 0,
+				"to_node_id": 1,
+				"role": "primary_actionable_corridor",
+				"route_surface_semantic": "primary_actionable_corridor",
+				"state_semantic": "open",
+				"is_history": false,
+			}],
+			"clearing_surfaces": [{
+				"surface_id": "clearing:0",
+				"node_id": 0,
+				"node_family": "rest",
+				"shape": "clearing_disc",
+				"center": Vector2(100.0, 100.0),
+				"radius": 34.0,
+				"is_current": true,
+				"connected_path_surface_ids": ["path:0:1"],
+			}],
+		},
+	})
+	var blend_entries: Array = board_canvas.call("_road_pocket_throat_blend_entries")
+	assert(blend_entries.size() == 1, "Expected road-pocket throat blends to derive only from render_model clearing/path links.")
+	var blend_entry: Dictionary = blend_entries[0]
+	assert(String(blend_entry.get("surface_id", "")) == "path:0:1", "Expected the blend to preserve the connected path surface id.")
+	assert(
+		Vector2(blend_entry.get("center", Vector2.ZERO)).distance_to(Vector2(100.0, 132.0)) <= 0.001,
+		"Expected the blend to sit on the path endpoint nearest to the clearing instead of adding a second route owner."
+	)
+	assert(
+		float(blend_entry.get("base_radius", 0.0)) > 7.0 and float(blend_entry.get("base_radius", 0.0)) < 16.0,
+		"Expected throat blends to stay small enough to soften the road/pocket seam without masking pocket shape."
+	)
+	board_canvas.call("set_composition", {
+		"render_model": {
+			"schema_version": 1,
+			"path_surfaces": [],
+			"clearing_surfaces": [{
+				"surface_id": "clearing:0",
+				"center": Vector2(100.0, 100.0),
+				"radius": 34.0,
+			}],
+		},
+	})
+	assert(
+		(board_canvas.call("_road_pocket_throat_blend_entries") as Array).is_empty(),
+		"Expected no throat blends when render_model does not expose connected path surfaces."
+	)
 	board_canvas.free()
 
 
