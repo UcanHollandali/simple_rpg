@@ -51,7 +51,7 @@ This file locks the technical baseline that should not stay ambiguous.
   - `-MapReview` runs the map-targeted test pair, `scenes/map_explore.tscn` isolation, and a `1080x1920` map portrait capture
   - `-FullSuite` runs the explicit full `Tests/test_*.gd` lane instead of the bounded/targeted runner
 - Optional Windows GDScript static check: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_gdscript_static_check.ps1`
-  - uses GDQuest `gdscript-formatter` when available on `PATH` or at `../Tools/gdscript-formatter/gdscript-formatter.exe`
+  - uses GDQuest `gdscript-formatter` when available on `PATH`, `C:\Tools\gdscript-formatter\gdscript-formatter.exe`, or the legacy sibling `../Tools/gdscript-formatter/gdscript-formatter.exe`
   - default scope is changed `.gd` files only; use `-All` only when explicitly auditing repo-wide style debt
   - default action is linter-only with noisy existing style-debt rules disabled; pass `-DisabledRules @()` only for an explicit strict style audit
   - add `-FormatCheck` for non-mutating formatter checks
@@ -137,7 +137,7 @@ Layer-oriented suffixes are encouraged:
 - Python `3.8+` for validator scripts
 - A Godot `4.6.x` editor binary available on `PATH`, via `GODOT` / `GODOT_BIN` / `GODOT_EXECUTABLE`, or discoverable by helper scripts
 - `Tools/check_environment.ps1` is the current Windows preflight for confirming the local Godot/Python/Git/GitHub CLI surface and whether Godot processes are already running
-- Optional GDQuest `gdscript-formatter` can live outside the repo under `../Tools/gdscript-formatter/gdscript-formatter.exe`; it is a helper, not an authority source
+- Optional GDQuest `gdscript-formatter` can live outside the repo under `C:\Tools\gdscript-formatter\gdscript-formatter.exe`; it is a helper, not an authority source
 - Optional local Godot documentation clones under `../References/` are external helper references only; they are not repo authority and must not be committed into this project
 - Windows playtest export additionally requires the matching Windows export template for the active Godot `4.6.x` editor binary
   - current export helper first checks local template lanes and then attempts the official `4.6.2` export-template archive download automatically when local templates are missing

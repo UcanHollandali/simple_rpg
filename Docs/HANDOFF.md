@@ -1,6 +1,6 @@
 # SIMPLE RPG - Handoff
 
-Last updated: 2026-04-24 (map prompt wave closed and archived; production art pilot landed; next lane is hunger/exploration UX pilot)
+Last updated: 2026-04-24 (map prompt wave archived; art-pilot candidate pass extended; next lane is hunger/exploration UX pilot)
 
 This file is a current-state snapshot only.
 It is not a rule contract. If it conflicts with an authority doc, the authority doc wins.
@@ -34,10 +34,16 @@ Use `Docs/ROADMAP.md` for next-lane planning and `Docs/DOC_PRECEDENCE.md` for au
   - runtime candidate assets live under `Assets/UI/Map/ArtPilot/`
   - source masters live under `SourceArt/Edited/Map/ArtPilot/`
   - manifest rows are `candidate` with `replace_before_release=yes`
-  - `MapBoardCanvas` consumes the pilot path brush, boss landmark, key landmark, rest landmark, and decor stamp from `render_model` socket metadata
+  - `MapBoardCanvas` consumes the pilot path brush, boss landmark, key landmark, rest landmark, merchant landmark, and decor stamp from `render_model` socket metadata
+  - source-only production-art candidates live under `SourceArt/Generated/Map/ProductionArtPilotCandidates/`; they are not runtime assets and are not structural proof
+  - path brush and decor stamp are v2 selected candidates under the same runtime asset ids
   - unsupported landmark families do not draw socket-smoke placeholder art during normal/default board render
   - socket-smoke placeholder drawing is available only through an explicit debug/prototype canvas flag
   - these assets prove socket carry only; they do not prove final art, route truth, pocket quality, terrain quality, or hunger pressure
+- The latest visual cleanup pass added a render-model-derived road/pocket throat blend layer:
+  - it is UI presentation only
+  - it uses connected path/clearing surface metadata
+  - it does not change route, discovery, movement, hunger, save, or flow truth
 - Current map-direction truth remains ahead of the old scatter lane:
   - runtime topology backbone exists
   - slot/anchor placement exists
@@ -54,7 +60,7 @@ Use `Docs/ROADMAP.md` for next-lane planning and `Docs/DOC_PRECEDENCE.md` for au
 - The previous post-wave `Validate` failure was limited to stale seeded map portrait baselines after the wrapper/blob visual lane was retired.
   - The seeded map baselines under `Tests/VisualBaselines/portrait_review/` were refreshed to the closed `render_model` surface lane.
   - The refreshed checkpoint passed GitHub Actions `Validate` on `main`.
-- Optional GDQuest `gdscript-formatter` `0.19.0` is installed outside the repo at `../Tools/gdscript-formatter/gdscript-formatter.exe`.
+- Optional GDQuest `gdscript-formatter` `0.19.0` is installed outside the repo at `C:\Tools\gdscript-formatter\gdscript-formatter.exe`.
   - repo helper: `Tools/run_gdscript_static_check.ps1`
   - use it as an opt-in changed-file linter/format-check helper; broad formatting remains a separate explicit cleanup pass
 - Portrait image-diff regression harness is available through `Tools/run_portrait_image_diff.ps1`.
@@ -94,6 +100,15 @@ Use `Docs/ROADMAP.md` for next-lane planning and `Docs/DOC_PRECEDENCE.md` for au
   - `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_portrait_image_diff.ps1 -Capture -CleanOldArtifacts -TimeoutSeconds 180`
   - `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_full_suite.ps1`
   - `git diff --check`
+- Visual cleanup / art-candidate extension local checks passed:
+  - `py -3 Tools/validate_assets.py`
+  - `py -3 Tools/validate_architecture_guards.py` with existing hotspot warnings only
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_tests.ps1 -Tests test_map_board_canvas.gd`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_scene_isolation.ps1 -ScenePath scenes/map_explore.tscn -QuitAfter 2`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_portrait_review_capture.ps1 -ScenePaths scenes/map_explore.tscn -ViewportSizes 1080x1920 -TimeoutSeconds 120`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_portrait_image_diff.ps1 -Capture -CleanOldArtifacts -TimeoutSeconds 180`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_full_suite.ps1`
+  - `git diff --check`
 - Portrait image diff passed after refreshing the seeded map baselines for the closed `render_model` surface lane.
 - `Tools/run_ai_check.ps1` was not rerun during final closeout; do not cite it as current evidence without rerunning.
 
@@ -104,6 +119,7 @@ Use `Docs/ROADMAP.md` for next-lane planning and `Docs/DOC_PRECEDENCE.md` for au
 - Socket-smoke placeholders remain provisional and must not be treated as final art.
 - Socket-smoke placeholders remain manifest-tracked but hidden from normal/default board render.
 - Art-pilot assets remain provisional and must not be treated as final art or release-safe art.
+- Source-only candidate SVGs under `SourceArt/Generated/Map/ProductionArtPilotCandidates/` are not runtime assets until promoted through `SourceArt/Edited/`, `Assets/`, and manifest rows.
 - Wrapper/orchestrator/fallback map data surfaces still exist and must not silently become gameplay owners.
 - Manual portrait playtest and screenshot review are required for map readability, overlay feel, and landmark/route read.
 - `NodeResolve` remains live legacy flow code; do not behavior-change or remove it without a dedicated flow audit.

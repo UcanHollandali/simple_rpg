@@ -43,9 +43,14 @@ function Get-GdscriptFormatterExecutable {
         }
     }
 
-    $knownLocalPath = Join-Path (Split-Path $ProjectRoot -Parent) "Tools\gdscript-formatter\gdscript-formatter.exe"
-    if (Test-Path -LiteralPath $knownLocalPath -PathType Leaf) {
-        return (Resolve-Path -LiteralPath $knownLocalPath).Path
+    $knownLocalPaths = @(
+        "C:\Tools\gdscript-formatter\gdscript-formatter.exe",
+        (Join-Path (Split-Path $ProjectRoot -Parent) "Tools\gdscript-formatter\gdscript-formatter.exe")
+    )
+    foreach ($knownLocalPath in $knownLocalPaths) {
+        if (Test-Path -LiteralPath $knownLocalPath -PathType Leaf) {
+            return (Resolve-Path -LiteralPath $knownLocalPath).Path
+        }
     }
 
     throw "gdscript-formatter not found. Install GDQuest/GDScript-formatter or pass -FormatterPath."

@@ -82,9 +82,15 @@ function Get-GdscriptFormatterCheck {
     }
 
     if ([string]::IsNullOrWhiteSpace($formatterPath)) {
-        $knownLocalPath = Join-Path (Split-Path $ProjectRoot -Parent) "Tools\gdscript-formatter\gdscript-formatter.exe"
-        if (Test-Path -LiteralPath $knownLocalPath -PathType Leaf) {
-            $formatterPath = (Resolve-Path -LiteralPath $knownLocalPath).Path
+        $knownLocalPaths = @(
+            "C:\Tools\gdscript-formatter\gdscript-formatter.exe",
+            (Join-Path (Split-Path $ProjectRoot -Parent) "Tools\gdscript-formatter\gdscript-formatter.exe")
+        )
+        foreach ($knownLocalPath in $knownLocalPaths) {
+            if (Test-Path -LiteralPath $knownLocalPath -PathType Leaf) {
+                $formatterPath = (Resolve-Path -LiteralPath $knownLocalPath).Path
+                break
+            }
         }
     }
 
