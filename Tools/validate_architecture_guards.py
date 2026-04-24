@@ -538,6 +538,8 @@ def validate_command_event_catalog_alignment() -> list[str]:
         errors.append(
             f"{rel_path}: missing implemented command/event catalog entry for {entry_name}"
         )
+    precedence_text = (DOCS_ROOT / "DOC_PRECEDENCE.md").read_text(encoding="utf-8") if (DOCS_ROOT / "DOC_PRECEDENCE.md").is_file() else ""
+    errors.extend(f"{path.relative_to(PROJECT_ROOT).as_posix()}: active Docs root markdown is not routed in Docs/DOC_PRECEDENCE.md" for path in sorted(DOCS_ROOT.glob("*.md")) if path.name != "DOC_PRECEDENCE.md" and path.name not in precedence_text)
     return errors
 
 

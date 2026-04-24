@@ -52,6 +52,15 @@ Do not infer ownership from convenience accessors exposed on `RunState` or `AppB
 - [COMMAND_EVENT_CATALOG.md](COMMAND_EVENT_CATALOG.md): implemented command/event name reference plus reserved naming registry; non-authoritative
 - [FIGMA_TRUTH_ALIGNMENT_PASS.md](FIGMA_TRUTH_ALIGNMENT_PASS.md): reference-only Figma sync bridge for the placeholder shell; non-authoritative and subordinate to the relevant design/technical/production docs
 - [CONTENT_BALANCE_TRACKER.md](CONTENT_BALANCE_TRACKER.md): reference-only current content inventory and balance-reading snapshot; subordinate to authority docs and live definitions
+- [ASSET_WAVE_SEMANTIC_SCOPE.md](ASSET_WAVE_SEMANTIC_SCOPE.md): reference-only semantic asset-wave scope; subordinate to `VISUAL_AUDIO_STYLE_GUIDE.md`, `ASSET_PIPELINE.md`, `ASSET_LICENSE_POLICY.md`, and `ASSET_BACKLOG.md`
+- [MAP_COMPOSER_V2_ASSET_REQUIREMENTS.md](MAP_COMPOSER_V2_ASSET_REQUIREMENTS.md): reference-only asset requirements companion for `MAP_COMPOSER_V2_DESIGN.md`; subordinate to the production authority docs
+- [MAP_RUNTIME_STATE_EXTRACTION_PLAN.md](MAP_RUNTIME_STATE_EXTRACTION_PLAN.md): planning-only extraction reference; subordinate to `SOURCE_OF_TRUTH.md`, `MAP_CONTRACT.md`, `SAVE_SCHEMA.md`, and `GAME_FLOW_STATE_MACHINE.md`
+- [MAP_VISUAL_OWNERSHIP_AUDIT.md](MAP_VISUAL_OWNERSHIP_AUDIT.md): reference-only visual ownership/evidence report; subordinate to `MAP_CONTRACT.md`, `SOURCE_OF_TRUTH.md`, and active screenshot evidence
+- [SEMANTIC_ICON_READINESS_CHECKLIST.md](SEMANTIC_ICON_READINESS_CHECKLIST.md): reference-only asset readiness checkpoint; subordinate to the production authority docs and live manifest/runtime paths
+- [UI_INFORMATION_ARCHITECTURE_AUDIT.md](UI_INFORMATION_ARCHITECTURE_AUDIT.md): reference-only UI audit; subordinate to `VISUAL_AUDIO_STYLE_GUIDE.md` and the relevant gameplay contracts
+- [UI_MICROCOPY_AUDIT.md](UI_MICROCOPY_AUDIT.md): reference-only copy audit; subordinate to `VISUAL_AUDIO_STYLE_GUIDE.md` and live runtime text owners
+- [UI_ACCESSIBILITY_AND_MOBILE_AUDIT.md](UI_ACCESSIBILITY_AND_MOBILE_AUDIT.md): reference-only accessibility/mobile audit; subordinate to `VISUAL_AUDIO_STYLE_GUIDE.md`, `TECH_BASELINE.md`, and live UI owners
+- [WINDOWS_PLAYTEST_BRIEF.md](WINDOWS_PLAYTEST_BRIEF.md): playtest launch and feedback brief; not a gameplay authority and subordinate to current `HANDOFF.md` plus the closest authority docs
 - [DECISION_LOG.md](DECISION_LOG.md)
 - [DEFERRED_DECISIONS.md](DEFERRED_DECISIONS.md)
 - [EXPERIMENT_BANK.md](EXPERIMENT_BANK.md)
@@ -118,6 +127,7 @@ Do not infer ownership from convenience accessors exposed on `RunState` or `AppB
 - `FIGMA_TRUTH_ALIGNMENT_PASS.md` is a reference-only corrective-sync bridge, not a gameplay or technical authority file.
 - `FIGMA_TRUTH_ALIGNMENT_PASS.md` must not override `GDD.md`, `MAP_CONTRACT.md`, `REWARD_LEVELUP_CONTRACT.md`, `SUPPORT_INTERACTION_CONTRACT.md`, or the production authority docs it depends on.
 - `ASSET_BACKLOG.md` is an execution backlog, not a style or licensing authority.
+- Every active root `Docs/*.md` file must be routed by this document. If a new root doc is not worth routing here, archive it or keep the information in an existing authority/reference file instead.
 - validator commands, Godot runners, and platform/tooling notes do not belong in `README.md`; they should live in the closest authority doc, typically `TECH_BASELINE.md`.
 - `DECISION_LOG.md` gives historical context, not active rule authority.
 - `DEFERRED_DECISIONS.md` tracks open timing, not active rules.

@@ -41,7 +41,6 @@ Use `Docs/ROADMAP.md` for canonical queue/open-state and `Docs/DOC_PRECEDENCE.md
   - checked-in baselines live under `Tests/VisualBaselines/portrait_review/`
   - current captures and diff artifacts stay under ignored `export/`
   - use `-CleanOldArtifacts` or `Tools/clean_portrait_artifacts.ps1` to prune stale portrait captures/diffs; `export/windows_playtest` is only removed with explicit `-IncludeWindowsPlaytest`
-  - unseeded map captures are still for human review; seeded map captures are pixel-gated
 - Current honesty watchpoints remain open until the new wave rechecks them:
   - baseline screenshot truth vs optimistic closeout wording
   - center-local start identity with varied north/south/east/west outward exploration feel
