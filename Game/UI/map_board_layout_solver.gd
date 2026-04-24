@@ -3,6 +3,7 @@ extends RefCounted
 class_name MapBoardLayoutSolver
 
 const MapBoardGeometryScript = preload("res://Game/UI/map_board_geometry.gd")
+const MapBoardSlotAnchorLayoutScript = preload("res://Game/UI/map_board_slot_anchor_layout.gd")
 
 
 static func build_world_positions(
@@ -42,6 +43,70 @@ static func build_world_positions(
 	var clearing_radius_by_node_id: Dictionary = config.get("clearing_radius_by_node_id", {})
 	var origin: Vector2 = board_size * base_center_factor
 	var board_min_dimension: float = min(board_size.x, board_size.y)
+	var slot_anchor_payload: Dictionary = MapBoardSlotAnchorLayoutScript.build_anchor_payload(
+		graph_snapshot,
+		board_size,
+		layout_context,
+		template_profile,
+		board_seed,
+		config
+	)
+	var slot_anchor_positions: Dictionary = slot_anchor_payload.get("world_positions", {})
+	if not slot_anchor_positions.is_empty():
+		var world_positions: Dictionary = slot_anchor_positions
+		layout_context["slot_anchor_sector_by_node_id"] = (slot_anchor_payload.get("slot_anchor_sector_by_node_id", {}) as Dictionary).duplicate(true)
+		layout_context["slot_anchor_index_by_node_id"] = (slot_anchor_payload.get("slot_anchor_index_by_node_id", {}) as Dictionary).duplicate(true)
+		layout_context["placement_mode"] = String(slot_anchor_payload.get("placement_mode", "runtime_slot_anchor"))
+		_relax_collisions(
+			world_positions,
+			graph_snapshot,
+			board_size,
+			layout_context,
+			clearing_radius_by_node_id,
+			playable_rect
+		)
+		_reapply_depth_silhouette_bands(
+			world_positions,
+			graph_snapshot,
+			board_size,
+			layout_context,
+			playable_rect,
+			origin,
+			template_profile,
+			depth_sector_pull_factors,
+			depth_sector_horizontal_factors,
+			depth_sector_vertical_factors,
+			depth_outer_pocket_pull_factors,
+			depth_outer_pocket_horizontal_factors,
+			depth_outer_pocket_vertical_factors,
+			depth_top_edge_relief_factors
+		)
+		layout_context["post_anchor_relief_mode"] = "depth_silhouette"
+		_reduce_edge_crossings(world_positions, graph_snapshot, board_size, layout_context, playable_rect)
+		_relax_collisions(
+			world_positions,
+			graph_snapshot,
+			board_size,
+			layout_context,
+			clearing_radius_by_node_id,
+			playable_rect
+		)
+		_reduce_edge_crossings(world_positions, graph_snapshot, board_size, layout_context, playable_rect)
+		_relax_collisions(
+			world_positions,
+			graph_snapshot,
+			board_size,
+			layout_context,
+			clearing_radius_by_node_id,
+			playable_rect
+		)
+		_stabilize_slot_anchor_opening_shell(
+			world_positions,
+			slot_anchor_positions,
+			layout_context,
+			playable_rect
+		)
+		return world_positions
 	var world_positions: Dictionary = {}
 	var start_node_id: int = int(layout_context.get("start_node_id", 0))
 	var depth_by_node_id: Dictionary = layout_context.get("depth_by_node_id", {})
@@ -188,6 +253,23 @@ static func build_world_positions(
 		depth_outer_pocket_horizontal_factors,
 		depth_outer_pocket_vertical_factors,
 		depth_top_edge_relief_factors
+	)
+	_relax_collisions(
+		world_positions,
+		graph_snapshot,
+		board_size,
+		layout_context,
+		clearing_radius_by_node_id,
+		playable_rect
+	)
+	_reduce_edge_crossings(world_positions, graph_snapshot, board_size, layout_context, playable_rect)
+	_relax_collisions(
+		world_positions,
+		graph_snapshot,
+		board_size,
+		layout_context,
+		clearing_radius_by_node_id,
+		playable_rect
 	)
 	return world_positions
 
@@ -610,6 +692,33 @@ static func _clamp_to_playable_rect(position: Vector2, playable_rect: Rect2) -> 
 		clampf(position.x, playable_rect.position.x, playable_rect.end.x),
 		clampf(position.y, playable_rect.position.y, playable_rect.end.y)
 	)
+
+
+static func _stabilize_slot_anchor_opening_shell(
+	world_positions: Dictionary,
+	slot_anchor_positions: Dictionary,
+	layout_context: Dictionary,
+	playable_rect: Rect2
+) -> void:
+	var depth_by_node_id: Dictionary = layout_context.get("depth_by_node_id", {})
+	var start_position: Vector2 = Vector2(world_positions.get(int(layout_context.get("start_node_id", 0)), Vector2.ZERO))
+	var lower_opening_floor_y: float = playable_rect.position.y + playable_rect.size.y * 0.74
+	for node_id_variant in slot_anchor_positions.keys():
+		var node_id: int = int(node_id_variant)
+		var node_depth: int = int(depth_by_node_id.get(node_id, 0))
+		if node_depth > 1:
+			continue
+		var anchor_position: Vector2 = Vector2(slot_anchor_positions.get(node_id, Vector2.ZERO))
+		if anchor_position == Vector2.ZERO:
+			continue
+		if node_depth <= 0:
+			world_positions[node_id] = _clamp_to_playable_rect(anchor_position, playable_rect)
+			continue
+		var current_position: Vector2 = Vector2(world_positions.get(node_id, anchor_position))
+		var stabilized_position: Vector2 = current_position.lerp(anchor_position, 0.88)
+		if start_position != Vector2.ZERO and anchor_position.y >= start_position.y - 24.0:
+			stabilized_position.y = lerpf(stabilized_position.y, maxf(anchor_position.y, lower_opening_floor_y), 0.78)
+		world_positions[node_id] = _clamp_to_playable_rect(stabilized_position, playable_rect)
 
 
 static func _relax_collisions(

@@ -121,15 +121,15 @@ Current repo truth:
   - `merchant`
   - `blacksmith`
   - `hamlet`
-- Approved Prompt `27` target note:
+- Current technique continuity note:
   - first-pass training acquisition stays inside the existing `MapExplore -> SupportInteraction` hamlet route
   - using a technique stays inside the existing `Combat` state
   - no `Training`, `TechniqueSelect`, or equivalent new main flow state is approved
-- Approved Prompt `29` target note:
+- Current hand-slot swap note:
   - hand-slot swap stays inside the existing `Combat` state
   - no `SwapMenu`, `EquipmentMenu`, or equivalent new main flow state is approved
   - a compact anchored swap tray or inline swap strip inside combat does not become a main flow state
-- Approved Prompt `30` target note:
+- Future advanced enemy intent note:
   - advanced enemy intents stay inside the existing `Combat` state
   - no `EnemyPrep`, `EnemyBuff`, `EnemyStatus`, or equivalent new main flow state is approved
   - setup/pass windows, multi-hit packet resolution, enemy self-buff windows, and enemy-owned status windows are combat-local substates only

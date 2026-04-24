@@ -8,10 +8,10 @@ const FlowStateScript = preload("res://Game/Application/flow_state.gd")
 const MapOverlayContractScript = preload("res://Game/UI/map_overlay_contract.gd")
 const CONFIRM_ICON_PATH := "res://Assets/Icons/icon_confirm.svg"
 const MAIN_MENU_START_BUTTON_PATH := "Margin/VBox/ActionPanel/ActionVBox/StartRunButton"
-const SUPPORT_ACTION_A_BUTTON_PATH := "Margin/VBox/ActionsRow/ActionAButton"
-const SUPPORT_ACTION_B_BUTTON_PATH := "Margin/VBox/ActionsRow/ActionBButton"
-const SUPPORT_ACTION_C_BUTTON_PATH := "Margin/VBox/ActionsRow/ActionCButton"
-const SUPPORT_LEAVE_BUTTON_PATH := "Margin/VBox/FooterRow/LeaveButton"
+const SUPPORT_ACTION_A_BUTTON_PATH := "Margin/VBox/OffersShell/VBox/ActionsRow/ActionAButton"
+const SUPPORT_ACTION_B_BUTTON_PATH := "Margin/VBox/OffersShell/VBox/ActionsRow/ActionBButton"
+const SUPPORT_ACTION_C_BUTTON_PATH := "Margin/VBox/OffersShell/VBox/ActionsRow/ActionCButton"
+const SUPPORT_LEAVE_BUTTON_PATH := "Margin/VBox/OffersShell/VBox/FooterRow/LeaveButton"
 const SAFE_MENU_SAVE_BUTTON_PATH := "SafeMenuOverlay/MenuLayer/PanelHolder/PanelRow/MenuPanel/VBox/ActionsVBox/SaveRunButton"
 const SAFE_MENU_LOAD_BUTTON_PATH := "SafeMenuOverlay/MenuLayer/PanelHolder/PanelRow/MenuPanel/VBox/ActionsVBox/LoadRunButton"
 const InventoryActionsScript = preload("res://Game/Application/inventory_actions.gd")
@@ -77,7 +77,7 @@ func _on_process_frame() -> void:
 				_require(support_state.offers.size() == 1, "Expected one rest action.")
 				var support_root: Node = _get_scene_root("SupportInteraction")
 				var rest_button: Button = support_root.get_node_or_null(SUPPORT_ACTION_A_BUTTON_PATH) as Button
-				var run_status_card: PanelContainer = support_root.get_node_or_null("Margin/VBox/HeaderRow/RunStatusCard") as PanelContainer
+				var run_status_card: PanelContainer = support_root.get_node_or_null("Margin/VBox/OffersShell/VBox/HeaderRow/RunStatusCard") as PanelContainer
 				var tooltip_panel: PanelContainer = support_root.get_node_or_null("InventoryTooltipPanel") as PanelContainer
 				var tooltip_label: Label = tooltip_panel.get_node_or_null("InventoryTooltipLabel") as Label if tooltip_panel != null else null
 				var rest_tooltip_text: String = String(rest_button.get_meta("custom_tooltip_text", "")) if rest_button != null else ""
@@ -96,7 +96,7 @@ func _on_process_frame() -> void:
 			if current_scene != null and current_scene.name == "MapExplore":
 				var active_overlay: Node = _get_visible_overlay_root()
 				if active_overlay != null:
-					var closing_title_label: Label = active_overlay.get_node_or_null("Margin/VBox/HeaderRow/HeaderCard/HeaderStack/TitleLabel") as Label
+					var closing_title_label: Label = active_overlay.get_node_or_null("Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard/HeaderStack/TitleLabel") as Label
 					_require(
 						closing_title_label == null or closing_title_label.text != "Support unavailable.",
 						"Expected closing support overlay not to flash the unavailable fallback copy."
@@ -422,6 +422,8 @@ func _require_modal_popup_shell() -> void:
 	var margin: Control = scene_root.get_node_or_null("Margin") as Control
 	_require(margin != null, "Expected Margin popup root on %s." % scene_root.name)
 	_require(margin.visible, "Expected Margin popup root to stay visible on %s." % scene_root.name)
+	var offers_shell: PanelContainer = scene_root.get_node_or_null("Margin/VBox/OffersShell") as PanelContainer
+	_require(offers_shell != null and offers_shell.visible, "Expected SupportInteraction to keep the shared OffersShell popup body visible.")
 	var shell: PanelContainer = scene_root.get_node_or_null("Margin/ContentShell") as PanelContainer
 	var uses_full_scene_shell: bool = shell != null and shell.visible
 	if uses_full_scene_shell:

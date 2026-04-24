@@ -13,6 +13,7 @@ const MapExploreSceneUiScript = preload("res://Game/UI/map_explore_scene_ui.gd")
 const RunStatusStripScript = preload("res://Game/UI/run_status_strip.gd")
 const InventoryOverflowPromptScript = preload("res://Game/UI/inventory_overflow_prompt.gd")
 const MapRuntimeStateScript = preload("res://Game/RuntimeState/map_runtime_state.gd")
+const MapRouteMotionHelperScript = preload("res://Game/UI/map_route_motion_helper.gd")
 const EventStateScript = preload("res://Game/RuntimeState/event_state.gd")
 const SceneAudioPlayersScript = preload("res://Game/UI/scene_audio_players.gd")
 const SceneAudioCleanupScript = preload("res://Game/UI/scene_audio_cleanup.gd")
@@ -792,20 +793,13 @@ func _build_emergency_route_slot_factors(visible_count: int) -> Array[Vector2]:
 
 
 func _build_route_move_world_path(current_node_id: int, target_node_id: int, fallback_start_world: Vector2, fallback_target_world: Vector2) -> PackedVector2Array:
-	var points := PackedVector2Array()
-	var start_world: Vector2 = _get_node_world_position(current_node_id)
-	if start_world == Vector2.ZERO:
-		start_world = fallback_start_world
-	var target_world: Vector2 = _get_node_world_position(target_node_id)
-	if target_world == Vector2.ZERO:
-		target_world = fallback_target_world
-	_append_route_move_world_point(points, start_world)
-	for point in _visible_edge_points_for_route(current_node_id, target_node_id):
-		_append_route_move_world_point(points, point)
-	_append_route_move_world_point(points, target_world)
-	if points.size() >= 2:
-		return points
-	return PackedVector2Array([start_world, target_world])
+	return MapRouteMotionHelperScript.build_route_move_world_path(
+		_board_composition_cache,
+		current_node_id,
+		target_node_id,
+		fallback_start_world,
+		fallback_target_world
+	)
 
 
 func _build_pending_roadside_visual_sample() -> Dictionary:

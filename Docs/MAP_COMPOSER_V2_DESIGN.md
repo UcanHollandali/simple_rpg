@@ -3,7 +3,13 @@
 ## Status
 
 - This file is a design/reference document for map presentation v2.
-- This file is a reference presentation companion for one fixed-board map direction.
+- This file is a reference presentation companion for the center-outward fixed-board map direction family.
+- This file currently reflects the stronger fixed-board target:
+  - road network first
+  - landmark pockets second
+  - full board usage
+  - small-world traversal feel
+  - candidate asset spike only after structure is green
 - Authority remains `Docs/MAP_CONTRACT.md` for map structure and `Docs/SOURCE_OF_TRUTH.md` for runtime ownership.
 - This file does not authorize save-shape, flow-state, or gameplay-owner changes by itself.
 - This file is not a queue surface.
@@ -14,6 +20,23 @@
 - authority doc: `Docs/MAP_CONTRACT.md`
 - impact: `runtime truth could be affected if implementation leaks presentation state into runtime owners`; `save shape is not required by the baseline design below`; `asset provenance is out of scope here`
 - minimum validation set: `design-only review against MAP_CONTRACT.md, SOURCE_OF_TRUTH.md, VISUAL_AUDIO_STYLE_GUIDE.md`
+
+## Archived Visual Source Set (Certain)
+
+The archived visual-rule sync used checked-in repo captures as the visual evidence set.
+The earlier audit fallback was not needed because a checked-in reference set exists.
+No extra user-provided reference images were used in the current chat beyond repo state.
+
+Exact checked-in captures reviewed for this sync:
+
+- `export/portrait_review/map_explore_1080x1920.png`
+- `export/portrait_review/prompt42_full_board_footprint_20260423/after/seed11_late_1080x1920.png`
+- `export/portrait_review/prompt42_full_board_footprint_20260423/after/seed29_late_1080x1920.png`
+- `export/portrait_review/prompt42_full_board_footprint_20260423/after/seed41_late_1080x1920.png`
+- `export/portrait_review/prompt20_board_path_hierarchy_20260423/after/map_explore_1080x1920.png`
+- `export/portrait_review/prompt20_board_path_hierarchy_20260423/after/seed11_late_1080x1920.png`
+- `export/portrait_review/prompt20_ground_filler_restraint_20260423/after/map_explore_1080x1920.png`
+- `export/portrait_review/prompt40_final_reaudit_20260423/map_explore_1080x1920.png`
 
 ## Observed Current Baseline (Certain)
 
@@ -39,6 +62,10 @@ The current board is graph-native, but the remaining presentation problem is not
 - route travel can therefore read like the world slides under the walker
 - playable bounds are improved heuristically, but the fixed-board envelope is not yet the explicit target contract
 - world fill and asset layers are now structurally separated, but they still need a stable board model underneath them
+- roads still do not reliably read before node discs, atmosphere, and overlay chrome
+- node identity still reads too much like icon plates sitting on abstract clearings instead of landmark-owned pockets
+- the lower half of the board too often collapses into beam/void/support mass instead of carrying meaningful route structure
+- adjacent UI still risks framing the map as `board inside dashboard` instead of one small world with supporting UI
 
 Map Composer V2 should keep the existing gameplay truth and stage contract while moving to a clearer target:
 
@@ -64,8 +91,105 @@ Map Composer V2 should keep the existing gameplay truth and stage contract while
 - Keep save-safe exact restore without introducing presentation-owned save truth for the baseline.
 - Reveal should change visibility, not layout.
 - Retire moving-board follow as the desired end state.
+- Make road hierarchy the first-read structure.
+- Make landmark pockets the primary node identity surface rather than icon discs alone.
+- Use the full portrait board, including the lower half, as intentional structural space.
+- Keep UI/overlay support from breaking the diorama illusion.
 - Keep all node/path rendering inside a stable board envelope.
 - Match `VISUAL_AUDIO_STYLE_GUIDE.md` `Dark Forest Wayfinder` direction: readable before atmospheric, stylized before realistic.
+
+## Fixed-Board Visual System Rules
+
+These rules translate the checked-in visual evidence into implementation-ready direction.
+They are design rules for later prompts, not runtime-owner changes.
+
+### 1. Road-First Readability
+
+- Primary playable roads must read before node discs, atmosphere halos, and decorative filler.
+- A player should be able to trace the currently meaningful branch structure without needing icon-family recognition first.
+- History/reconnect lanes must remain visibly subordinate to active/decision-shaping roads through lower contrast, thinner presence, or calmer texture treatment.
+- Road segments should begin and end at pocket / clearing edges, not visually at node-center icon discs.
+- Roads must help carve pocket silhouettes; they must not feel like independent strokes laid across a separate abstract board.
+
+### 2. Landmark Pocket Identity
+
+- Each discovered node should own a local landmark pocket whose silhouette is larger and more memorable than the icon badge on top of it.
+- The icon/plate layer should confirm node family and state; it should not be the primary identity carrier.
+- Different high-value node families should be distinguishable by pocket character, anchor shape, local clearing behavior, or road arrival pattern before the icon is read closely.
+- Roads should bend around or into pockets in ways that make the pocket feel authored by structure rather than stamped after the fact.
+
+### 3. Full-Board Usage
+
+- Composition should use the upper, middle, and lower board zones as intentional traversal space instead of clustering almost all semantic mass near one central island.
+- Outer-frame nodes must feel connected by pocket-owning roads, not like isolated circles placed against empty backdrop.
+- A layout is weak when the board footprint grows but the readable neighborhood still collapses into one overloaded central patch.
+- Full-board usage does not mean filling every corner; it means that the occupied zones together read as one small world rather than one island floating in a frame.
+
+### 4. Meaningful Negative Space
+
+- Empty space should separate corridors and pockets on purpose; it should not read as leftover void.
+- Negative space should make route choice legible by isolating branch groups and reducing visual collisions.
+- Canopy, ground, and filler mass should recede around active roads and pocket clearings instead of flattening them into one continuous dark field.
+- Large atmosphere shapes may support the composition, but they must not become the main semantic read.
+
+### 5. Lower-Half Utilization
+
+- The lower half of the board must participate in the neighborhood read, not act mainly as decorative spill, spotlight beam, or dead air.
+- Across representative seeds, lower-half occupancy should carry either an active route continuation, a destination pocket, or a structural counterweight that keeps the board from top-loading.
+- With the walker starting from a center-local pocket by default, the surrounding route read should not leave any cardinal side semantically vacant while the meaningful structure clusters in one direction.
+
+### 6. UI Non-Interference
+
+- HUD, side chips, and bottom inventory surfaces must behave like support rails around the world, not a second primary panel competing with it.
+- Top and bottom UI create hard readability budgets; board composition should not rely on important pockets or tight road turns living directly underneath those slabs.
+- Side overlays such as quest affordances must not obscure major roads, active destinations, or pocket silhouettes.
+- The board should remain readable without always-on text labels on nodes; overlay chrome should support the illusion, not explain it away.
+
+### 7. Structure Before Asset Lift
+
+- Candidate assets may strengthen an already-correct structural read, but they must not be used to fake road hierarchy, pocket identity, or full-board usage.
+- The rule target is procedural feel, not hand-authored pixel matching against one screenshot.
+- If structure still reads as icon discs over abstract atmosphere, asset work is not yet the corrective lane.
+
+## Hidden Sector Grammar Companion
+
+- Authority for the hidden-sector grammar stays in `Docs/MAP_CONTRACT.md`.
+- This section exists only to explain how that grammar should be interpreted by later layout/router work.
+- The hidden sectors are not a visible `3x3` UI grid.
+- The sectors should behave like irregular influence fields clipped by the playable rect, not like equal-sized rendered cells.
+- `center_anchor` is the canonical opening-anchor sector in the unrotated grammar and the default start identity:
+  - it should read as a center-local opening pocket, not an exact pixel-center stamp
+  - the active orientation profile varies outward emphasis and route silhouette
+  - lower-entry/upward exploration is not the default target
+- Sector names are planning labels for implementation only:
+  - not player text
+  - not map-node family labels
+  - not save payload by default
+
+Implementation-facing interpretation:
+
+- Each sector should expose a small local anchor budget, not one mandatory center point.
+- Those local anchors should be asymmetrical within the sector so later placement can avoid visible centroid stacking.
+- The later layout pass should pick from sector-local anchor candidates, then apply pocket-aware jitter and corridor-aware adjustment.
+- A correct result should let the player feel one coherent small world without ever seeing the sector scaffold.
+- A wrong result is easy to recognize:
+  - nodes sit on invisible cell centers
+  - left/right or upper/lower symmetry becomes obvious
+  - the board reads like a checkerboard with icons on top
+
+Corridor interpretation:
+
+- canonical `north_center` is one major outward handoff sector, not the permanent primary spine.
+- `mid_left` and `mid_right` are branch-body sectors, not decorative side gutters.
+- canonical `south_*` sectors exist to support south-side route identity and counterweight structure, not to force a literal bottom row in every seed.
+- Optional outer-late sectors are explicit pressure extensions for key/boss/final-prep staging only.
+- Reconnects should stay local to neighboring sectors so the hidden grammar strengthens route identity instead of producing long-span rescue arcs.
+
+Baseline harness relationship:
+
+- The current pre-sector baseline tests that talk about `cardinal sectors` are only coarse footprint readbacks.
+- They are useful before the hidden-sector implementation lands, but they are not the final sector contract.
+- The structural metrics contract in `Docs/MAP_CONTRACT.md` now defines the later runtime/layout/router/pocket checks more directly.
 
 ## Runtime Owner Boundary
 
@@ -197,12 +321,54 @@ The reopened wave may keep a narrow emergency fallback for exceptional cases, bu
 - Visibility changes must not generate new control points, new trail families, or new alternate path shapes for already-frozen graph edges.
 - If implementation pressure requires saving layout payload or moving owner meaning, stop and escalate first instead of widening the baseline.
 
+## Render Model Payload
+
+Status after Prompt 09 Part B:
+
+- `MapBoardComposerV2` emits a nested UI-only `render_model` payload with `schema_version = 1`.
+- The payload is derived from existing composition truth; it does not add gameplay state, save state, flow state, asset provenance, assets, or canvas ownership.
+- `render_model.path_surfaces` wraps currently visible corridor geometry with role, endpoint, width, cardinal, outward-route hint, and throat metadata.
+- `render_model.junctions` wraps visible node junction/blend points for local choices and branch throats.
+- `render_model.clearing_surfaces` wraps visible clearing discs and their road endpoint links.
+- `render_model.canopy_masks` wraps live canopy-source `forest_shapes` as road/clearing framing masks with cardinal and outward-route relationship metadata.
+- `render_model.landmark_slots` wraps visible node landmark footprints as asset-ready socket metadata with family, role, anchor point, rotation, scale, cardinal, and outward-route relationship fields.
+- `render_model.decor_slots` wraps live filler/decor source shapes as metadata-only socket anchors with route/clearing relation, cardinal side, outward-route hint, rotation, and scale fields.
+- `MapBoardCanvas` uses `render_model.path_surfaces`, `render_model.junctions`, and `render_model.clearing_surfaces` as the default road/junction/clearing presentation lane when those fields are present.
+- Legacy road strokes/decals are fallback-only for compositions without a usable `render_model` surface lane.
+- `MapRouteBinding` refreshes `render_model` after visible-edge continuity fallback so canvas reads the final presentation geometry.
+
+Render-model canvas draw order while Prompt 09 is active:
+
+1. board atmosphere
+2. wrapper terrain bed from `ground_shapes`
+3. wrapper filler shapes
+4. wrapper canopy shapes
+5. landmark pocket underlays from visible node footprint metadata
+6. `render_model.path_surfaces` as filled walkable surface polygons
+7. `render_model.junctions` as local blend points
+8. render-model path-surface highlight pass for selected/preview/current emphasis
+9. `render_model.clearing_surfaces`
+10. secondary landmark/icon identity overlays
+11. wrapper decor shapes
+
+This keeps roads above atmosphere/filler/canopy, lets junctions blend route throats before clearings cap the endpoints, and keeps icon/plate identity secondary to pocket and path-surface structure.
+
+Legacy field status while Prompt 09 is active:
+
+| Legacy field | Status | Meaning after render-model canvas adoption |
+|---|---|---|
+| `layout_edges` | `fallback` | Frozen full-layout path geometry and continuity source; not a canvas default lane. |
+| `visible_edges` | `fallback` | Legacy road geometry and motion/fallback source; not the default canvas road lane when render-model surfaces exist. |
+| `ground_shapes` | `wrapper` | Wrapper terrain-bed input around the render-model road/clearing lane. |
+| `filler_shapes` | `wrapper` | Wrapper decor input and source for `render_model.decor_slots`. |
+| `forest_shapes` | `wrapper` | Wrapper canopy/decor input and source for `render_model.canopy_masks` / `render_model.decor_slots`. |
+
 ## Playable Rect Rule
 
 ### Placement Principle (Proposed)
 
 - The board should use a defined playable rect / generation envelope.
-- The start should remain a readable center-local anchor inside that envelope.
+- The start should remain a readable center-local anchor inside that envelope by default.
 - Node placement should happen inside safe bounds instead of relying on late follow/recenter rescue.
 
 ### Safe-Bounds Coverage (Proposed)
@@ -218,8 +384,8 @@ The playable rect must leave room for:
 ### Placement Steps (Proposed)
 
 1. Define the playable board envelope.
-2. Place the start anchor in a center-local safe zone.
-3. Fit branches/pockets into the board envelope with deterministic jitter.
+2. Place the start anchor in the center-local safe opening zone.
+3. Choose the active center-outward emphasis profile, then fit branches/pockets into the board envelope with deterministic jitter.
 4. Resolve collisions inside local corridors before any broad displacement.
 5. Reject placements that would require moving-board follow to stay readable.
 
@@ -349,7 +515,10 @@ Escalate before implementation if any chosen implementation requires:
 ## Acceptance Criteria
 
 - The board visually reads as a fixed forest pocket built from the realized graph.
+- Roads read first as the player-facing structure of the neighborhood.
+- Landmark pockets read second as the primary node-identity surface.
 - The player-facing board still preserves the compact portrait neighborhood identity from `MAP_CONTRACT.md`.
+- The occupied structure uses the portrait board intentionally, including the lower half, instead of collapsing into one top/mid island.
 - `MapRuntimeState` remains the authoritative owner of graph truth.
 - The scene and UI layers only consume derived composition output plus authoritative runtime truth.
 - Hidden nodes remain hidden and unreadable until discovery.
@@ -358,6 +527,7 @@ Escalate before implementation if any chosen implementation requires:
 - Save/load of the same run reproduces the same board composition without adding presentation fields to the save payload.
 - World fill stays non-routing.
 - Overlay hit targets remain mobile-readable and do not collapse below current practical tap safety.
+- Map-adjacent UI supports the diorama read instead of reframing the scene as a dashboard with a decorative board inset.
 - The board still surfaces current node, reachable options, key progress, and boss push readiness clearly.
 
 ## Risks

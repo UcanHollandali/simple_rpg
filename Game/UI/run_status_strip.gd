@@ -29,11 +29,12 @@ static func render_into(card: PanelContainer, fallback_label: Label, model: Dict
 		return
 
 	var primary_items: Array[Dictionary] = _extract_dictionary_array(model.get("primary_items", []))
+	var primary_rows: Array = _extract_dictionary_rows(model.get("primary_rows", []))
 	var secondary_items: Array[Dictionary] = _extract_dictionary_array(model.get("secondary_items", []))
 	var progress_items: Array[Dictionary] = _extract_dictionary_array(model.get("progress_items", []))
 	var fallback_text: String = String(model.get("fallback_text", ""))
 	var density: String = String(model.get("density", model.get("variant", "compact")))
-	var has_structured_content: bool = not primary_items.is_empty() or not secondary_items.is_empty() or not progress_items.is_empty()
+	var has_structured_content: bool = not primary_rows.is_empty() or not primary_items.is_empty() or not secondary_items.is_empty() or not progress_items.is_empty()
 
 	var root: VBoxContainer = _ensure_root(card)
 	if not has_structured_content:
@@ -53,7 +54,23 @@ static func render_into(card: PanelContainer, fallback_label: Label, model: Dict
 	root.add_theme_constant_override("separation", root_spacing)
 	root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
-	if not primary_items.is_empty():
+	if not primary_rows.is_empty():
+		var primary_stack: VBoxContainer = VBoxContainer.new()
+		primary_stack.name = "PrimaryRows"
+		primary_stack.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		primary_stack.add_theme_constant_override("separation", 6 if density == "standard" else 4 if density == "minimal" else 5)
+		root.add_child(primary_stack)
+		for row_items in primary_rows:
+			var row: HBoxContainer = HBoxContainer.new()
+			row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			row.add_theme_constant_override("separation", 8 if density == "standard" else 4 if density == "minimal" else 6)
+			primary_stack.add_child(row)
+			for item in row_items:
+				var chip: PanelContainer = _build_metric_chip(item, accent, density)
+				chip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				row.add_child(chip)
+	elif not primary_items.is_empty():
 		var primary_flow: HFlowContainer = HFlowContainer.new()
 		primary_flow.name = "PrimaryFlow"
 		primary_flow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -346,6 +363,23 @@ static func _extract_dictionary_array(value: Variant) -> Array[Dictionary]:
 			continue
 		result.append(entry)
 	return result
+
+
+static func _extract_dictionary_rows(value: Variant) -> Array:
+	var rows: Array = []
+	if typeof(value) != TYPE_ARRAY:
+		return rows
+	for row_variant in value:
+		if typeof(row_variant) != TYPE_ARRAY:
+			continue
+		var row_items: Array[Dictionary] = []
+		for item_variant in row_variant:
+			if typeof(item_variant) != TYPE_DICTIONARY:
+				continue
+			row_items.append(item_variant)
+		if not row_items.is_empty():
+			rows.append(row_items)
+	return rows
 
 
 static func _build_status_icon_rect(texture: Texture2D, density: String) -> TextureRect:

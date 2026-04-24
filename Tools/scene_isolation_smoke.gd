@@ -6,6 +6,7 @@ const SceneRouterScript = preload("res://Game/Infrastructure/scene_router.gd")
 const SceneAudioCleanupScript = preload("res://Game/UI/scene_audio_cleanup.gd")
 
 const READY_MARKER_PREFIX := "SCENE_ISOLATION_SMOKE: scene_ready "
+const MAP_SHELL_MARKER_PREFIX := "SCENE_ISOLATION_SMOKE: map_shell_ready "
 const FAIL_MARKER_PREFIX := "SCENE_ISOLATION_SMOKE: failed "
 const DEFAULT_TIMEOUT_MS := 2000
 
@@ -56,6 +57,17 @@ func _run_smoke() -> void:
 		_fail("timeout_before_scene_ready %s" % _scene_path)
 		return
 
+	await process_frame
+	await process_frame
+	await create_timer(0.05).timeout
+
+	if _scene_path.ends_with("map_explore.tscn"):
+		var map_shell_error: String = _validate_map_explore_shell(isolated_scene)
+		if map_shell_error != "":
+			_fail(map_shell_error)
+			return
+		print("%s%s" % [MAP_SHELL_MARKER_PREFIX, _scene_path])
+
 	print("%s%s" % [READY_MARKER_PREFIX, _scene_path])
 	await _cleanup_before_quit()
 	quit()
@@ -82,6 +94,26 @@ func _wait_for_scene(scene_path: String, timeout_ms: int) -> Node:
 			return active_scene
 		await create_timer(0.05).timeout
 	return null
+
+
+func _validate_map_explore_shell(scene_root: Node) -> String:
+	for required_path in [
+		"Margin/VBox/TopRow",
+		"Margin/VBox/RouteGrid",
+		"Margin/VBox/InventorySection",
+		"Margin/VBox/RouteGrid/ComposedBoardCanvas",
+	]:
+		if scene_root.get_node_or_null(required_path) == null:
+			return "missing_map_shell_node %s %s" % [_scene_path, required_path]
+
+	var route_grid: Control = scene_root.get_node_or_null("Margin/VBox/RouteGrid") as Control
+	if route_grid == null:
+		return "missing_map_shell_node %s Margin/VBox/RouteGrid" % _scene_path
+	var route_grid_height: float = maxf(route_grid.size.y, route_grid.custom_minimum_size.y)
+	if route_grid_height <= 0.0:
+		return "invalid_map_shell_route_grid_size %s %.2f" % [_scene_path, route_grid_height]
+
+	return ""
 
 
 func _cleanup_before_quit() -> void:

@@ -8,6 +8,7 @@ const InventoryStateScript = preload("res://Game/RuntimeState/inventory_state.gd
 const RunStatusPresenterScript = preload("res://Game/UI/run_status_presenter.gd")
 const UiCompactCopyScript = preload("res://Game/UI/ui_compact_copy.gd")
 const UiAssetPathsScript = preload("res://Game/UI/ui_asset_paths.gd")
+const TempScreenThemeScript = preload("res://Game/UI/temp_screen_theme.gd")
 const DEFAULT_BUTTON_COUNT: int = 3
 
 var _item_tooltip_builder: ItemDefinitionTooltipBuilder = ItemDefinitionTooltipBuilderScript.new()
@@ -74,6 +75,10 @@ func build_context_text(support_state: RefCounted) -> String:
 func build_summary_text(support_state: RefCounted) -> String:
 	if support_state == null:
 		return ""
+	if _is_hamlet_technique_choice(support_state):
+		var current_technique_name: String = _resolve_current_technique_name(support_state)
+		if not current_technique_name.is_empty():
+			return "Current technique: %s. New choice replaces it." % current_technique_name
 	return _compact_summary_text(String(support_state.summary_text))
 
 
@@ -93,6 +98,9 @@ func build_hint_text(support_state: RefCounted) -> String:
 		"hamlet":
 			var mission_status: String = String(support_state.mission_status)
 			if String(support_state.training_step) == SupportInteractionState.TRAINING_STEP_TECHNIQUE_CHOICE:
+				var current_technique_name: String = _resolve_current_technique_name(support_state)
+				if not current_technique_name.is_empty():
+					return "Pick 1 technique or keep %s." % current_technique_name
 				return "Pick 1 technique or skip."
 			match mission_status:
 				"offered":
@@ -146,10 +154,11 @@ func build_action_view_models(support_state: RefCounted, button_count: int = DEF
 					is_available,
 					String(offer.get("unavailable_reason", ""))
 				),
-				"title_text": _build_action_title_text(offer),
+				"title_text": _build_action_title_text(support_state, offer),
 				"detail_text": _build_action_detail_text(support_state, offer),
 				"icon_texture_path": _build_action_icon_texture_path(support_state, offer),
 				"tooltip_text": _build_offer_tooltip_text(support_state, offer),
+				"accent_color": _build_action_accent_color(offer),
 				"visible": true,
 				"disabled": not is_available,
 			})
@@ -160,6 +169,7 @@ func build_action_view_models(support_state: RefCounted, button_count: int = DEF
 				"detail_text": "",
 				"icon_texture_path": "",
 				"tooltip_text": "",
+				"accent_color": TempScreenThemeScript.TEAL_ACCENT_COLOR,
 				"visible": false,
 				"disabled": true,
 			})
@@ -170,6 +180,11 @@ func build_action_view_models(support_state: RefCounted, button_count: int = DEF
 func build_leave_button_text(support_state: RefCounted) -> String:
 	if support_state != null and String(support_state.support_type) == "blacksmith" and _is_blacksmith_target_selection_active(support_state):
 		return "Back to Services"
+	if _is_hamlet_technique_choice(support_state):
+		var current_technique_name: String = _resolve_current_technique_name(support_state)
+		if not current_technique_name.is_empty():
+			return "Leave and Keep %s" % current_technique_name
+		return "Leave Without Learning"
 	return "Back to the Road"
 
 
@@ -196,7 +211,16 @@ func _build_offer_text(label_text: String, detail_text: String, support_type: St
 			return _join_multiline_parts([title_text, "Spent"])
 
 
-func _build_action_title_text(offer: Dictionary) -> String:
+func _build_action_title_text(support_state: RefCounted, offer: Dictionary) -> String:
+	var effect_type: String = String(offer.get("effect_type", "")).strip_edges()
+	if effect_type == "equip_technique":
+		var technique_definition: Dictionary = _load_technique_definition(offer)
+		if not technique_definition.is_empty():
+			return String(technique_definition.get("display", {}).get("name", offer.get("label", offer.get("offer_id", "")))).strip_edges()
+	if effect_type == "skip_training_choice":
+		var current_technique_name: String = _resolve_current_technique_name(support_state)
+		if not current_technique_name.is_empty():
+			return "Keep %s" % current_technique_name
 	return String(offer.get("label", offer.get("offer_id", ""))).strip_edges()
 
 
@@ -231,7 +255,8 @@ func _build_action_detail_text(support_state: RefCounted, offer: Dictionary) -> 
 		"equip_technique":
 			return _build_technique_detail_text(offer)
 		"skip_training_choice":
-			return "Keep current loadout."
+			var current_technique_name: String = _resolve_current_technique_name(support_state)
+			return "Do not replace it." if not current_technique_name.is_empty() else "Leave the slot empty."
 		"buy_consumable", "buy_weapon", "buy_shield", "buy_armor", "buy_belt", "buy_passive_item", "grant_item", "claim_side_mission_reward":
 			var inventory_family: String = _resolve_inventory_family_for_offer(offer)
 			var definition_id: String = String(offer.get("definition_id", "")).strip_edges()
@@ -249,7 +274,7 @@ func _build_action_detail_text(support_state: RefCounted, offer: Dictionary) -> 
 
 func _build_action_icon_texture_path(support_state: RefCounted, offer: Dictionary) -> String:
 	if String(offer.get("effect_type", "")).strip_edges() == "equip_technique":
-		return _build_technique_icon_texture_path(offer)
+		return UiAssetPathsScript.build_technique_icon_texture_path(_load_technique_definition(offer))
 	if String(offer.get("effect_type", "")).strip_edges() == "skip_training_choice":
 		return UiAssetPathsScript.PASSIVE_ICON_TEXTURE_PATH
 	var inventory_family: String = _resolve_inventory_family_for_offer(offer)
@@ -261,6 +286,16 @@ func _build_action_icon_texture_path(support_state: RefCounted, offer: Dictionar
 	if not effect_icon.is_empty():
 		return effect_icon
 	return UiAssetPathsScript.build_support_type_icon_texture_path(String(support_state.support_type if support_state != null else ""))
+
+
+func _build_action_accent_color(offer: Dictionary) -> Color:
+	match String(offer.get("effect_type", "")).strip_edges():
+		"equip_technique":
+			return TempScreenThemeScript.REWARD_ACCENT_COLOR
+		"skip_training_choice":
+			return TempScreenThemeScript.PANEL_BORDER_COLOR
+		_:
+			return TempScreenThemeScript.TEAL_ACCENT_COLOR
 
 
 func _build_offer_tooltip_text(support_state: RefCounted, offer: Dictionary) -> String:
@@ -320,7 +355,12 @@ func _build_offer_tooltip_text(support_state: RefCounted, offer: Dictionary) -> 
 		"equip_technique":
 			tooltip_text = _build_technique_tooltip_text(offer)
 		"skip_training_choice":
-			tooltip_text = "Keep your current equipped technique. This hamlet lesson will not stay open."
+			var current_technique_name: String = _resolve_current_technique_name(support_state)
+			tooltip_text = (
+				"Keep %s. This hamlet lesson will not stay open." % current_technique_name
+				if not current_technique_name.is_empty()
+				else "Leave the technique slot empty. This hamlet lesson will not stay open."
+			)
 		"buy_consumable", "buy_weapon", "buy_shield", "buy_armor", "buy_belt", "buy_passive_item", "grant_item", "claim_side_mission_reward":
 			var inventory_family: String = _resolve_inventory_family_for_offer(offer)
 			var definition_id: String = String(offer.get("definition_id", "")).strip_edges()
@@ -411,21 +451,6 @@ func _build_technique_tooltip_text(offer: Dictionary) -> String:
 	return _join_tooltip_parts(detail_parts)
 
 
-func _build_technique_icon_texture_path(offer: Dictionary) -> String:
-	var technique_definition: Dictionary = _load_technique_definition(offer)
-	if technique_definition.is_empty():
-		return UiAssetPathsScript.PASSIVE_ICON_TEXTURE_PATH
-	var tags_variant: Variant = technique_definition.get("tags", [])
-	if typeof(tags_variant) == TYPE_ARRAY:
-		for tag_variant in tags_variant:
-			var tag: String = String(tag_variant).strip_edges().to_lower()
-			if tag in ["offense", "armor_break", "tempo", "prime_attack"]:
-				return UiAssetPathsScript.ATTACK_ICON_TEXTURE_PATH
-			if tag in ["sustain", "lifesteal", "cleanse", "utility"]:
-				return UiAssetPathsScript.CONSUMABLE_ICON_TEXTURE_PATH
-	return UiAssetPathsScript.PASSIVE_ICON_TEXTURE_PATH
-
-
 func _load_technique_definition(offer: Dictionary) -> Dictionary:
 	var definition_id: String = String(offer.get("definition_id", "")).strip_edges()
 	if definition_id.is_empty():
@@ -472,3 +497,34 @@ func _compact_summary_text(summary_text: String, max_length: int = 100) -> Strin
 	if normalized.length() <= max_length:
 		return normalized
 	return "%s..." % normalized.substr(0, max_length - 3).rstrip(" ,;:")
+
+
+func _is_hamlet_technique_choice(support_state: RefCounted) -> bool:
+	return (
+		support_state != null
+		and String(support_state.support_type) == "hamlet"
+		and String(support_state.training_step) == SupportInteractionState.TRAINING_STEP_TECHNIQUE_CHOICE
+	)
+
+
+func _resolve_current_technique_name(support_state: RefCounted) -> String:
+	if not _is_hamlet_technique_choice(support_state):
+		return ""
+
+	var offer_groups: Array = [support_state.offers]
+	if support_state is SupportInteractionState:
+		offer_groups.append((support_state as SupportInteractionState).technique_offers)
+	for offer_group in offer_groups:
+		if typeof(offer_group) != TYPE_ARRAY:
+			continue
+		for offer_value in offer_group:
+			if typeof(offer_value) != TYPE_DICTIONARY:
+				continue
+			var offer: Dictionary = offer_value
+			if String(offer.get("effect_type", "")).strip_edges() != "equip_technique":
+				continue
+			var replaces_definition_id: String = String(offer.get("replaces_definition_id", "")).strip_edges()
+			if replaces_definition_id.is_empty():
+				continue
+			return _resolve_technique_display_name(replaces_definition_id)
+	return ""

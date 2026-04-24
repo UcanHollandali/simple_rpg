@@ -17,19 +17,25 @@ static func build_forest_shapes(
 	template_profile: String,
 	board_seed: int,
 	base_center_factor: Vector2,
-	min_board_margin: Vector2
+	min_board_margin: Vector2,
+	surface_mask_context: Dictionary = {}
 ) -> Array[Dictionary]:
 	var canopy_rng := RandomNumberGenerator.new()
 	canopy_rng.seed = _derive_seed(board_seed, "forest")
 	var forest_shapes: Array[Dictionary] = []
 	var layout_edge_polylines: Array[PackedVector2Array] = _build_layout_edge_polylines(layout_edges)
-	var action_bounds: Rect2 = _build_action_bounds(graph_nodes, layout_edge_polylines)
-	var pocket_anchors: Array[Vector2] = _build_pocket_anchors(graph_nodes, layout_edge_polylines, action_bounds)
+	var surface_edge_polylines: Array[PackedVector2Array] = _build_surface_edge_polylines(surface_mask_context)
+	var active_edge_polylines: Array[PackedVector2Array] = surface_edge_polylines if not surface_edge_polylines.is_empty() else layout_edge_polylines
+	var pocket_masks: Array[Dictionary] = _build_pocket_masks(graph_nodes)
+	pocket_masks.append_array(_build_clearing_masks(surface_mask_context))
+	var action_bounds: Rect2 = _build_action_bounds(graph_nodes, active_edge_polylines, pocket_masks)
+	var pocket_anchors: Array[Vector2] = _build_pocket_anchors(graph_nodes, active_edge_polylines, action_bounds, pocket_masks)
+	var mask_source: String = _surface_mask_source(surface_mask_context, "layout_edges")
 	var canopy_count: int = 10
 	var decor_count: int = 12
 	match template_profile:
 		"corridor":
-			canopy_count = 11
+			canopy_count = 8
 			decor_count = 8
 		"openfield":
 			canopy_count = 7
@@ -43,7 +49,8 @@ static func build_forest_shapes(
 			canopy_rng,
 			board_size,
 			graph_nodes,
-			layout_edge_polylines,
+			active_edge_polylines,
+			pocket_masks,
 			pocket_anchors,
 			action_bounds,
 			"canopy",
@@ -51,7 +58,8 @@ static func build_forest_shapes(
 			board_seed,
 			index,
 			base_center_factor,
-			min_board_margin
+			min_board_margin,
+			mask_source
 		)
 		if not canopy_shape.is_empty():
 			forest_shapes.append(canopy_shape)
@@ -61,7 +69,8 @@ static func build_forest_shapes(
 			canopy_rng,
 			board_size,
 			graph_nodes,
-			layout_edge_polylines,
+			active_edge_polylines,
+			pocket_masks,
 			pocket_anchors,
 			action_bounds,
 			"decor",
@@ -69,7 +78,8 @@ static func build_forest_shapes(
 			board_seed,
 			index,
 			base_center_factor,
-			min_board_margin
+			min_board_margin,
+			mask_source
 		)
 		if not decor_shape.is_empty():
 			forest_shapes.append(decor_shape)
@@ -77,25 +87,29 @@ static func build_forest_shapes(
 		forest_shapes,
 		board_size,
 		graph_nodes,
-		layout_edge_polylines,
+		active_edge_polylines,
+		pocket_masks,
 		action_bounds,
 		"canopy",
 		template_profile,
 		board_seed,
 		base_center_factor,
-		min_board_margin
+		min_board_margin,
+		mask_source
 	)
 	_ensure_minimum_forest_shape(
 		forest_shapes,
 		board_size,
 		graph_nodes,
-		layout_edge_polylines,
+		active_edge_polylines,
+		pocket_masks,
 		action_bounds,
 		"decor",
 		template_profile,
 		board_seed,
 		base_center_factor,
-		min_board_margin
+		min_board_margin,
+		mask_source
 	)
 	return forest_shapes
 
@@ -141,7 +155,7 @@ static func _build_layout_edge_polylines(layout_edges: Array) -> Array[PackedVec
 	return polylines
 
 
-static func _build_action_bounds(node_entries: Array[Dictionary], edge_segments: Array[PackedVector2Array]) -> Rect2:
+static func _build_action_bounds(node_entries: Array[Dictionary], edge_segments: Array[PackedVector2Array], pocket_masks: Array[Dictionary]) -> Rect2:
 	var points: Array[Vector2] = []
 	for node_entry in node_entries:
 		var node_position: Vector2 = Vector2(node_entry.get("world_position", Vector2.ZERO))
@@ -150,15 +164,24 @@ static func _build_action_bounds(node_entries: Array[Dictionary], edge_segments:
 	for edge_points in edge_segments:
 		for point in edge_points:
 			points.append(point)
+	for mask_entry in pocket_masks:
+		var mask_center: Vector2 = Vector2(mask_entry.get("center", Vector2.ZERO))
+		var mask_half_size: Vector2 = Vector2(mask_entry.get("half_size", Vector2.ZERO))
+		points.append(mask_center + Vector2(mask_half_size.x, 0.0))
+		points.append(mask_center + Vector2(-mask_half_size.x, 0.0))
+		points.append(mask_center + Vector2(0.0, mask_half_size.y))
+		points.append(mask_center + Vector2(0.0, -mask_half_size.y))
 	return _bounds_for_points(points)
 
 
-static func _build_pocket_anchors(node_entries: Array[Dictionary], edge_segments: Array[PackedVector2Array], action_bounds: Rect2) -> Array[Vector2]:
+static func _build_pocket_anchors(node_entries: Array[Dictionary], edge_segments: Array[PackedVector2Array], action_bounds: Rect2, pocket_masks: Array[Dictionary]) -> Array[Vector2]:
 	var anchors: Array[Vector2] = []
 	for node_entry in node_entries:
 		var node_position: Vector2 = Vector2(node_entry.get("world_position", Vector2.ZERO))
 		if node_position != Vector2.ZERO:
 			anchors.append(node_position)
+	for mask_entry in pocket_masks:
+		anchors.append(Vector2(mask_entry.get("center", Vector2.ZERO)))
 	for edge_points in edge_segments:
 		if edge_points.size() >= 2:
 			anchors.append((edge_points[0] + edge_points[edge_points.size() - 1]) * 0.5)
@@ -174,6 +197,7 @@ static func _build_forest_shape(
 	board_size: Vector2,
 	graph_nodes: Array[Dictionary],
 	layout_edge_polylines: Array[PackedVector2Array],
+	pocket_masks: Array[Dictionary],
 	pocket_anchors: Array[Vector2],
 	action_bounds: Rect2,
 	shape_family: String,
@@ -181,7 +205,8 @@ static func _build_forest_shape(
 	board_seed: int,
 	shape_index: int,
 	base_center_factor: Vector2,
-	min_board_margin: Vector2
+	min_board_margin: Vector2,
+	mask_source: String = "layout_edges"
 ) -> Dictionary:
 	var attempts: int = 0
 	while attempts < 20:
@@ -198,7 +223,7 @@ static func _build_forest_shape(
 			base_center_factor,
 			min_board_margin
 		)
-		if _conflicts_with_pocket(center, radius, board_size, graph_nodes, layout_edge_polylines, shape_family, action_bounds):
+		if _conflicts_with_pocket(center, radius, board_size, graph_nodes, layout_edge_polylines, pocket_masks, shape_family, action_bounds):
 			continue
 		return {
 			"family": shape_family,
@@ -207,6 +232,9 @@ static func _build_forest_shape(
 			"tone": _forest_tone_for(template_profile, shape_family, shape_index),
 			"texture_path": _forest_texture_path_for(shape_family, board_seed, shape_index),
 			"rotation_degrees": _forest_rotation_degrees_for(shape_family, board_seed, shape_index),
+			"terrain_role": "canopy_frame" if shape_family == "canopy" else "negative_space_decor",
+			"mask_source": mask_source,
+			"exclusion_source": "render_model.path_surfaces+clearing_surfaces" if mask_source.begins_with("render_model") else "node_route_pocket_masks",
 		}
 	return {}
 
@@ -216,12 +244,14 @@ static func _ensure_minimum_forest_shape(
 	board_size: Vector2,
 	graph_nodes: Array[Dictionary],
 	layout_edge_polylines: Array[PackedVector2Array],
+	pocket_masks: Array[Dictionary],
 	action_bounds: Rect2,
 	shape_family: String,
 	template_profile: String,
 	board_seed: int,
 	base_center_factor: Vector2,
-	min_board_margin: Vector2
+	min_board_margin: Vector2,
+	mask_source: String = "layout_edges"
 ) -> void:
 	for shape_entry in forest_shapes:
 		if String(shape_entry.get("family", "")) == shape_family:
@@ -230,12 +260,14 @@ static func _ensure_minimum_forest_shape(
 		board_size,
 		graph_nodes,
 		layout_edge_polylines,
+		pocket_masks,
 		action_bounds,
 		shape_family,
 		template_profile,
 		board_seed,
 		base_center_factor,
-		min_board_margin
+		min_board_margin,
+		mask_source
 	)
 	if not fallback_shape.is_empty():
 		forest_shapes.append(fallback_shape)
@@ -245,12 +277,14 @@ static func _build_fallback_forest_shape(
 	board_size: Vector2,
 	graph_nodes: Array[Dictionary],
 	layout_edge_polylines: Array[PackedVector2Array],
+	pocket_masks: Array[Dictionary],
 	action_bounds: Rect2,
 	shape_family: String,
 	template_profile: String,
 	board_seed: int,
 	base_center_factor: Vector2,
-	min_board_margin: Vector2
+	min_board_margin: Vector2,
+	mask_source: String = "layout_edges"
 ) -> Dictionary:
 	var fallback_rng := RandomNumberGenerator.new()
 	fallback_rng.seed = _derive_seed(board_seed, "forest-fallback:%s" % shape_family)
@@ -265,7 +299,7 @@ static func _build_fallback_forest_shape(
 		for offset in range(slots.size()):
 			var slot_index: int = (rotation + offset) % slots.size()
 			var candidate: Vector2 = _clamp_to_board(slots[slot_index], board_size, min_board_margin, radius, shape_family)
-			if _conflicts_with_pocket(candidate, radius, board_size, graph_nodes, layout_edge_polylines, shape_family, action_bounds):
+			if _conflicts_with_pocket(candidate, radius, board_size, graph_nodes, layout_edge_polylines, pocket_masks, shape_family, action_bounds):
 				continue
 			return {
 				"family": shape_family,
@@ -274,6 +308,9 @@ static func _build_fallback_forest_shape(
 				"tone": _forest_tone_for(template_profile, shape_family, slot_index),
 				"texture_path": _forest_texture_path_for(shape_family, board_seed, slot_index),
 				"rotation_degrees": _forest_rotation_degrees_for(shape_family, board_seed, slot_index),
+				"terrain_role": "canopy_frame" if shape_family == "canopy" else "negative_space_decor",
+				"mask_source": mask_source,
+				"exclusion_source": "render_model.path_surfaces+clearing_surfaces" if mask_source.begins_with("render_model") else "node_route_pocket_masks",
 			}
 	for scale in radius_scales:
 		var relaxed_radius: float = maxf(18.0, base_radius * scale)
@@ -284,7 +321,7 @@ static func _build_fallback_forest_shape(
 		for offset in range(relaxed_slots.size()):
 			var slot_index: int = (relaxed_rotation + offset) % relaxed_slots.size()
 			var candidate: Vector2 = _clamp_to_board(relaxed_slots[slot_index], board_size, min_board_margin, relaxed_radius, shape_family)
-			if _conflicts_with_nodes_or_action_bounds(candidate, relaxed_radius, board_size, graph_nodes, shape_family, action_bounds):
+			if _conflicts_with_pocket(candidate, relaxed_radius, board_size, graph_nodes, layout_edge_polylines, pocket_masks, shape_family, action_bounds):
 				continue
 			return {
 				"family": shape_family,
@@ -293,7 +330,26 @@ static func _build_fallback_forest_shape(
 				"tone": _forest_tone_for(template_profile, shape_family, slot_index),
 				"texture_path": _forest_texture_path_for(shape_family, board_seed, slot_index),
 				"rotation_degrees": _forest_rotation_degrees_for(shape_family, board_seed, slot_index),
+				"terrain_role": "canopy_frame" if shape_family == "canopy" else "negative_space_decor",
+				"mask_source": mask_source,
+				"exclusion_source": "render_model.path_surfaces+clearing_surfaces" if mask_source.begins_with("render_model") else "node_route_pocket_masks",
 			}
+	var route_safe_shape: Dictionary = _build_route_safe_fallback_forest_shape(
+		board_size,
+		graph_nodes,
+		layout_edge_polylines,
+		pocket_masks,
+		action_bounds,
+		shape_family,
+		template_profile,
+		board_seed,
+		base_radius,
+		radius_scales,
+		min_board_margin,
+		mask_source
+	)
+	if not route_safe_shape.is_empty():
+		return route_safe_shape
 	var best_effort_radius: float = maxf(18.0, base_radius * float(radius_scales[radius_scales.size() - 1]))
 	var best_effort_slot_index: int = _best_effort_fallback_slot_index(
 		_fallback_forest_slots(board_size, action_bounds, shape_family, best_effort_radius, min_board_margin),
@@ -309,6 +365,8 @@ static func _build_fallback_forest_shape(
 			best_effort_radius,
 			shape_family
 		)
+		if _conflicts_with_pocket(best_effort_candidate, best_effort_radius, board_size, graph_nodes, layout_edge_polylines, pocket_masks, shape_family, action_bounds):
+			return {}
 		return {
 			"family": shape_family,
 			"center": best_effort_candidate,
@@ -316,8 +374,84 @@ static func _build_fallback_forest_shape(
 			"tone": _forest_tone_for(template_profile, shape_family, best_effort_slot_index),
 			"texture_path": _forest_texture_path_for(shape_family, board_seed, best_effort_slot_index),
 			"rotation_degrees": _forest_rotation_degrees_for(shape_family, board_seed, best_effort_slot_index),
+			"terrain_role": "canopy_frame" if shape_family == "canopy" else "negative_space_decor",
+			"mask_source": mask_source,
+			"exclusion_source": "render_model.path_surfaces+clearing_surfaces" if mask_source.begins_with("render_model") else "node_route_pocket_masks",
 		}
 	return {}
+
+
+static func _build_route_safe_fallback_forest_shape(
+	board_size: Vector2,
+	graph_nodes: Array[Dictionary],
+	layout_edge_polylines: Array[PackedVector2Array],
+	pocket_masks: Array[Dictionary],
+	action_bounds: Rect2,
+	shape_family: String,
+	template_profile: String,
+	board_seed: int,
+	base_radius: float,
+	radius_scales: Array,
+	min_board_margin: Vector2,
+	mask_source: String = "layout_edges"
+) -> Dictionary:
+	var best_candidate: Vector2 = Vector2.ZERO
+	var best_radius: float = 0.0
+	var best_score: float = -INF
+	var candidate_index: int = 0
+	var route_safe_radius_scales: Array = radius_scales.duplicate()
+	if shape_family == "canopy":
+		for compact_scale in [0.62, 0.50, 0.42]:
+			route_safe_radius_scales.append(compact_scale)
+	for scale in route_safe_radius_scales:
+		var radius: float = maxf(18.0, base_radius * float(scale))
+		for candidate in _route_safe_forest_grid(board_size, min_board_margin, radius, shape_family):
+			if _conflicts_with_pocket(candidate, radius, board_size, graph_nodes, layout_edge_polylines, pocket_masks, shape_family, Rect2()):
+				candidate_index += 1
+				continue
+			var score: float = _distance_from_action_bounds(candidate, action_bounds)
+			if score > best_score:
+				best_score = score
+				best_candidate = candidate
+				best_radius = radius
+			candidate_index += 1
+	if best_candidate == Vector2.ZERO:
+		return {}
+	var shape_index: int = abs(_derive_seed(board_seed, "forest-route-safe:%s:%d" % [shape_family, candidate_index]))
+	return {
+		"family": shape_family,
+		"center": best_candidate,
+		"radius": best_radius,
+		"tone": _forest_tone_for(template_profile, shape_family, shape_index),
+		"texture_path": _forest_texture_path_for(shape_family, board_seed, shape_index),
+		"rotation_degrees": _forest_rotation_degrees_for(shape_family, board_seed, shape_index),
+		"terrain_role": "canopy_frame" if shape_family == "canopy" else "negative_space_decor",
+		"mask_source": mask_source,
+		"exclusion_source": "render_model.path_surfaces+clearing_surfaces" if mask_source.begins_with("render_model") else "node_route_pocket_masks",
+	}
+
+
+static func _route_safe_forest_grid(board_size: Vector2, min_board_margin: Vector2, radius: float, shape_family: String) -> Array[Vector2]:
+	var edge_padding: float = forest_draw_half_extent(radius, shape_family)
+	var left_x: float = min_board_margin.x + edge_padding + 10.0
+	var right_x: float = board_size.x - min_board_margin.x - edge_padding - 10.0
+	var top_y: float = min_board_margin.y + edge_padding + 14.0
+	var bottom_y: float = board_size.y - min_board_margin.y - edge_padding - 14.0
+	var candidates: Array[Vector2] = []
+	for x_factor in [0.0, 0.18, 0.34, 0.50, 0.66, 0.82, 1.0]:
+		for y_factor in [0.0, 0.18, 0.34, 0.50, 0.66, 0.82, 1.0]:
+			candidates.append(Vector2(lerpf(left_x, right_x, float(x_factor)), lerpf(top_y, bottom_y, float(y_factor))))
+	return candidates
+
+
+static func _distance_from_action_bounds(point: Vector2, action_bounds: Rect2) -> float:
+	if action_bounds.size == Vector2.ZERO:
+		return 0.0
+	var closest_point := Vector2(
+		clampf(point.x, action_bounds.position.x, action_bounds.end.x),
+		clampf(point.y, action_bounds.position.y, action_bounds.end.y)
+	)
+	return point.distance_to(closest_point)
 
 
 static func _fallback_forest_slots(
@@ -448,10 +582,11 @@ static func _conflicts_with_pocket(
 	board_size: Vector2,
 	node_entries: Array[Dictionary],
 	edge_segments: Array[PackedVector2Array],
+	pocket_masks: Array[Dictionary],
 	shape_family: String,
 	action_bounds: Rect2
 ) -> bool:
-	if _conflicts_with_nodes_or_action_bounds(point, radius, board_size, node_entries, shape_family, action_bounds):
+	if _conflicts_with_nodes_or_action_bounds(point, radius, board_size, node_entries, pocket_masks, shape_family, action_bounds):
 		return true
 	for edge_points in edge_segments:
 		var route_clearance: float = route_clearance_radius(radius, shape_family)
@@ -465,6 +600,7 @@ static func _conflicts_with_nodes_or_action_bounds(
 	radius: float,
 	board_size: Vector2,
 	node_entries: Array[Dictionary],
+	pocket_masks: Array[Dictionary],
 	shape_family: String,
 	action_bounds: Rect2
 ) -> bool:
@@ -481,6 +617,15 @@ static func _conflicts_with_nodes_or_action_bounds(
 		var node_radius: float = float(node_entry.get("clearing_radius", 0.0))
 		var exclusion_radius: float = node_clearance_radius(node_radius, radius, shape_family)
 		if point.distance_to(node_center) < exclusion_radius:
+			return true
+	for mask_entry in pocket_masks:
+		var mask_center: Vector2 = Vector2(mask_entry.get("center", Vector2.ZERO))
+		var mask_half_size: Vector2 = Vector2(mask_entry.get("half_size", Vector2.ZERO))
+		var expanded_half_size := Vector2(
+			mask_half_size.x + forest_draw_half_extent(radius, shape_family) * 0.34 + 14.0,
+			mask_half_size.y + forest_draw_half_extent(radius, shape_family) * 0.28 + 14.0
+		)
+		if _point_inside_mask(point, mask_center, expanded_half_size, String(mask_entry.get("shape", "ellipse"))):
 			return true
 	if point.x > board_size.x - 150.0 and point.y < 120.0:
 		return true
@@ -578,6 +723,37 @@ static func _forest_rotation_degrees_for(shape_family: String, board_seed: int, 
 
 static func _derive_seed(board_seed: int, salt: String) -> int:
 	return _hash_seed_string("%d|%s" % [board_seed, salt])
+
+
+static func _build_pocket_masks(node_entries: Array[Dictionary]) -> Array[Dictionary]:
+	var pocket_masks: Array[Dictionary] = []
+	for node_entry in node_entries:
+		var footprint_variant: Variant = node_entry.get("landmark_footprint", {})
+		if typeof(footprint_variant) != TYPE_DICTIONARY:
+			continue
+		var footprint: Dictionary = footprint_variant
+		if footprint.is_empty():
+			continue
+		var pocket_half_size: Vector2 = Vector2(footprint.get("pocket_half_size", Vector2.ZERO))
+		if pocket_half_size.x <= 0.0 or pocket_half_size.y <= 0.0:
+			continue
+		var node_center: Vector2 = Vector2(node_entry.get("world_position", Vector2.ZERO))
+		pocket_masks.append({
+			"center": node_center + Vector2(footprint.get("pocket_center_offset", Vector2.ZERO)),
+			"half_size": pocket_half_size,
+			"shape": String(footprint.get("pocket_shape", "ellipse")),
+		})
+	return pocket_masks
+
+
+static func _point_inside_mask(point: Vector2, center: Vector2, half_size: Vector2, shape: String) -> bool:
+	if half_size.x <= 0.001 or half_size.y <= 0.001:
+		return false
+	if shape == "rect":
+		return Rect2(center - half_size, half_size * 2.0).has_point(point)
+	var normalized_x: float = (point.x - center.x) / half_size.x
+	var normalized_y: float = (point.y - center.y) / half_size.y
+	return normalized_x * normalized_x + normalized_y * normalized_y <= 1.0
 
 
 static func _hash_seed_string(value: String) -> int:

@@ -19,13 +19,15 @@ const CUSTOM_TOOLTIP_META_KEY := "custom_tooltip_text"
 const APP_BOOTSTRAP_PATH := "/root/AppBootstrap"
 const MARGIN_PATH := "Margin"
 const ROOT_VBOX_PATH := MARGIN_PATH + "/VBox"
-const HEADER_CARD_PATH := "Margin/VBox/HeaderRow/HeaderCard"
+const OFFERS_SHELL_PATH := ROOT_VBOX_PATH + "/OffersShell"
+const OFFERS_CONTENT_PATH := OFFERS_SHELL_PATH + "/VBox"
+const HEADER_CARD_PATH := OFFERS_CONTENT_PATH + "/HeaderRow/HeaderCard"
 const HEADER_STACK_PATH := "%s/HeaderStack" % HEADER_CARD_PATH
 const HEADER_CHIP_CARD_PATH := "%s/ChipCard" % HEADER_STACK_PATH
-const RUN_STATUS_CARD_PATH := ROOT_VBOX_PATH + "/HeaderRow/RunStatusCard"
+const RUN_STATUS_CARD_PATH := OFFERS_CONTENT_PATH + "/HeaderRow/RunStatusCard"
 const RUN_STATUS_LABEL_PATH := RUN_STATUS_CARD_PATH + "/StatusLabel"
-const ACTIONS_ROW_PATH := ROOT_VBOX_PATH + "/ActionsRow"
-const FOOTER_ROW_PATH := ROOT_VBOX_PATH + "/FooterRow"
+const ACTIONS_ROW_PATH := OFFERS_CONTENT_PATH + "/ActionsRow"
+const FOOTER_ROW_PATH := OFFERS_CONTENT_PATH + "/FooterRow"
 const LEAVE_BUTTON_PATH := FOOTER_ROW_PATH + "/LeaveButton"
 const SCRIM_PATH := "Scrim"
 const BACKDROP_NODE_NAMES: PackedStringArray = ["BackgroundFar", "BackgroundMid", "BackgroundOverlay"]
@@ -48,9 +50,9 @@ const PORTRAIT_LAYOUT_CONFIG := {
 		{"max_height": 1540.0, "top_margin": 68, "bottom_margin": 64},
 	],
 	"bands": {
-		"large": {"min_width": 760.0, "min_height": 1640.0, "title_font_size": 44, "context_font_size": 20, "summary_font_size": 20, "status_font_size": 16, "button_font_size": 20, "leave_font_size": 18, "button_height": 84.0, "leave_button_height": 60.0, "run_status_width": 300.0, "button_icon_max_width": 30},
-		"medium": {"min_width": 620.0, "min_height": 1460.0, "title_font_size": 38, "context_font_size": 18, "summary_font_size": 18, "status_font_size": 15, "button_font_size": 18, "leave_font_size": 17, "button_height": 76.0, "leave_button_height": 54.0, "run_status_width": 260.0, "button_icon_max_width": 26},
-		"compact": {"title_font_size": 32, "context_font_size": 16, "summary_font_size": 16, "status_font_size": 14, "button_font_size": 17, "leave_font_size": 16, "button_height": 66.0, "leave_button_height": 48.0, "run_status_width": 224.0, "button_icon_max_width": 22},
+		"large": {"min_width": 760.0, "min_height": 1640.0, "title_font_size": 44, "context_font_size": 20, "summary_font_size": 20, "status_font_size": 16, "button_font_size": 20, "leave_font_size": 18, "button_height": 98.0, "leave_button_height": 60.0, "run_status_width": 300.0, "button_icon_max_width": 30},
+		"medium": {"min_width": 620.0, "min_height": 1460.0, "title_font_size": 38, "context_font_size": 18, "summary_font_size": 18, "status_font_size": 15, "button_font_size": 18, "leave_font_size": 17, "button_height": 88.0, "leave_button_height": 54.0, "run_status_width": 260.0, "button_icon_max_width": 26},
+		"compact": {"title_font_size": 32, "context_font_size": 16, "summary_font_size": 16, "status_font_size": 14, "button_font_size": 17, "leave_font_size": 16, "button_height": 80.0, "leave_button_height": 48.0, "run_status_width": 224.0, "button_icon_max_width": 22},
 	},
 }
 
@@ -67,6 +69,7 @@ var _first_run_hint_controller: FirstRunHintController
 
 @onready var _margin: MarginContainer = _scene_node(MARGIN_PATH) as MarginContainer
 @onready var _root_vbox: Control = _scene_node(ROOT_VBOX_PATH) as Control
+@onready var _offers_shell: PanelContainer = _scene_node(OFFERS_SHELL_PATH) as PanelContainer
 @onready var _header_card: PanelContainer = _scene_node(HEADER_CARD_PATH) as PanelContainer
 @onready var _header_chip_card: PanelContainer = _scene_node(HEADER_CHIP_CARD_PATH) as PanelContainer
 @onready var _header_chip_label: Label = _scene_node("%s/ChipCard/ChipLabel" % HEADER_STACK_PATH) as Label
@@ -223,6 +226,12 @@ func _render_support_state() -> void:
 		button.visible = bool(model.get("visible", false))
 		button.disabled = bool(model.get("disabled", true))
 		button.icon = null
+		TempScreenThemeScript.apply_button(
+			button,
+			Color(model.get("accent_color", TempScreenThemeScript.TEAL_ACCENT_COLOR))
+		)
+		if button != null:
+			button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		StackedButtonContentScript.apply(
 			button,
 			String(model.get("title_text", "")),
@@ -324,6 +333,22 @@ func _apply_temp_theme() -> void:
 			34,
 			102
 		)
+	TempScreenThemeScript.apply_panel(
+		_offers_shell,
+		TempScreenThemeScript.PANEL_BORDER_COLOR,
+		28,
+		0.6
+	)
+	TempScreenThemeScript.intensify_panel(
+		_offers_shell,
+		TempScreenThemeScript.PANEL_BORDER_COLOR,
+		3,
+		28,
+		0.01,
+		0.18,
+		20,
+		18
+	)
 	TempScreenThemeScript.apply_choice_card_shell(
 		_header_card,
 		TempScreenThemeScript.TEAL_ACCENT_COLOR
@@ -344,12 +369,37 @@ func _apply_temp_theme() -> void:
 		{"path": "%s/HintLabel" % HEADER_STACK_PATH, "tone": "accent"},
 		{"path": RUN_STATUS_LABEL_PATH, "tone": "muted"},
 	])
+	SceneLayoutHelperScript.apply_control_overrides(self, {}, [
+		{"path": HEADER_STACK_PATH, "size_flags_horizontal": Control.SIZE_EXPAND_FILL},
+		{"paths": [
+			"%s/TitleLabel" % HEADER_STACK_PATH,
+			"%s/ContextLabel" % HEADER_STACK_PATH,
+			"%s/SummaryLabel" % HEADER_STACK_PATH,
+			"%s/HintLabel" % HEADER_STACK_PATH,
+		], "horizontal_alignment": HORIZONTAL_ALIGNMENT_LEFT, "size_flags_horizontal": Control.SIZE_EXPAND_FILL, "autowrap_mode": TextServer.AUTOWRAP_WORD_SMART},
+		{"path": RUN_STATUS_LABEL_PATH, "size_flags_horizontal": Control.SIZE_EXPAND_FILL, "autowrap_mode": TextServer.AUTOWRAP_OFF},
+	])
 
 	for button_name in BUTTON_NODE_NAMES:
 		var action_button: Button = _scene_node(_action_button_path(button_name)) as Button
 		TempScreenThemeScript.apply_button(action_button, TempScreenThemeScript.TEAL_ACCENT_COLOR)
 		if action_button != null:
 			action_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+
+		var content_margin: MarginContainer = _scene_node("%s/ContentMargin" % _action_button_path(button_name)) as MarginContainer
+		if content_margin != null:
+			content_margin.add_theme_constant_override("margin_left", 18)
+			content_margin.add_theme_constant_override("margin_top", 12)
+			content_margin.add_theme_constant_override("margin_right", 18)
+			content_margin.add_theme_constant_override("margin_bottom", 12)
+
+		var content_row: HBoxContainer = _scene_node("%s/ContentMargin/ContentRow" % _action_button_path(button_name)) as HBoxContainer
+		if content_row != null:
+			content_row.add_theme_constant_override("separation", 12)
+
+		var content_vbox: VBoxContainer = _scene_node("%s/ContentMargin/ContentRow/ContentVBox" % _action_button_path(button_name)) as VBoxContainer
+		if content_vbox != null:
+			content_vbox.add_theme_constant_override("separation", 4)
 
 	TempScreenThemeScript.apply_button(_leave_button, TempScreenThemeScript.PANEL_BORDER_COLOR, true)
 	SceneLayoutHelperScript.apply_control_overrides(self, {}, [
@@ -363,12 +413,16 @@ func _apply_temp_theme() -> void:
 	for button_name in BUTTON_NODE_NAMES:
 		var button_path: String = _action_button_path(button_name)
 		SceneLayoutHelperScript.apply_control_overrides(self, {}, [
-			{"path": button_path, "custom_minimum_size": {"x": 0.0, "y": 78.0}},
+			{"path": button_path, "custom_minimum_size": {"x": 0.0, "y": 90.0}},
 			{"path": _action_button_title_path(button_name), "font_size": 19},
 			{"path": _action_button_detail_path(button_name), "font_size": 14},
 			{"path": _action_button_icon_path(button_name), "custom_minimum_size": {"x": 24.0, "y": 24.0}},
 		])
-		TempScreenThemeScript.apply_label(_scene_node(_action_button_title_path(button_name)) as Label, "title")
+		var title_label: Label = _scene_node(_action_button_title_path(button_name)) as Label
+		TempScreenThemeScript.apply_label(title_label, "accent")
+		TempScreenThemeScript.apply_font_role(title_label, "button")
+		if title_label != null:
+			title_label.add_theme_color_override("font_color", TempScreenThemeScript.TEXT_PRIMARY_COLOR)
 		TempScreenThemeScript.apply_label(_scene_node(_action_button_detail_path(button_name)) as Label, "muted")
 	if _leave_button != null:
 		_leave_button.text = "Back to the Road"
@@ -459,7 +513,8 @@ func _apply_portrait_safe_layout() -> void:
 	values["hint_font_size"] = max(14, int(values.get("summary_font_size", 17)) - 2)
 	SceneLayoutHelperScript.apply_control_overrides(self, values, [
 		{"path": ROOT_VBOX_PATH, "theme_constants": {"separation": "vbox_separation"}},
-		{"path": "%s/HeaderRow" % ROOT_VBOX_PATH, "theme_constants": {"separation": "vbox_separation"}},
+		{"path": OFFERS_CONTENT_PATH, "theme_constants": {"separation": "vbox_separation"}},
+		{"path": "%s/HeaderRow" % OFFERS_CONTENT_PATH, "theme_constants": {"separation": "vbox_separation"}},
 		{"path": HEADER_STACK_PATH, "theme_constants": {"separation": 4}},
 		{"path": ACTIONS_ROW_PATH, "theme_constants": {"separation": "vbox_separation"}},
 		{"path": FOOTER_ROW_PATH, "theme_constants": {"separation": "footer_separation"}},

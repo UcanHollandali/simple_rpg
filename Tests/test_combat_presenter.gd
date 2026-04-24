@@ -65,6 +65,17 @@ func test_state_text_reflects_combat_snapshot() -> void:
 		"Expected combat presenter to expose the next enemy hit in damage-first language while still surfacing extra pressure."
 	)
 	assert(
+		presenter.call("build_intent_summary_text", {
+			"action_family": "attack",
+			"effects": [
+				{"type": "deal_damage", "params": {"base": 6}},
+			],
+		}, {
+			"incoming_damage_preview": 0,
+		}) == "Hit for 6",
+		"Expected enemy intent summary to stay on threat copy when current mitigation drives preview damage to zero."
+	)
+	assert(
 		presenter.call("build_intent_detail_text", {
 			"action_family": "attack",
 			"effects": [

@@ -1,9 +1,47 @@
 # MAP VISUAL OWNERSHIP Audit and Runtime Test Report
 
-Last updated: 2026-04-22 (Prompt 13 closeout; `MapBoardGroundBuilder` and `MapBoardFillerBuilder` landed with procedural fallbacks, asset hookup still gated)
+Last updated: 2026-04-23 (Prompt 13 audit baseline retained; archived visual-rule sync preserved as historical reference)
 
 This is a reference-only audit.
 It does not approve assets, hook assets, change gameplay logic, change save shape, or reopen terrain hookup.
+It remains a historical ownership/evidence report, not an authority doc and not a queue surface.
+
+## Archived Visual-Rule Sync (Historical)
+
+This report still matters as ownership/evidence history, but it is no longer sufficient by itself to describe the active wave target.
+
+Historical stronger map target from the now-archived Prompt `43-62` wave:
+
+- road network first
+- landmark pockets second
+- full board usage
+- small-world traversal feel
+- candidate asset spike only after structure is green
+
+The archived sync used checked-in repo captures for this reference pass.
+The earlier audit fallback was not needed because a checked-in reference set exists.
+No extra user-provided reference images were used in the current chat beyond repo state.
+
+Exact checked-in captures reviewed for the archived sync:
+
+- `export/portrait_review/map_explore_1080x1920.png`
+- `export/portrait_review/prompt42_full_board_footprint_20260423/after/seed11_late_1080x1920.png`
+- `export/portrait_review/prompt42_full_board_footprint_20260423/after/seed29_late_1080x1920.png`
+- `export/portrait_review/prompt42_full_board_footprint_20260423/after/seed41_late_1080x1920.png`
+- `export/portrait_review/prompt20_board_path_hierarchy_20260423/after/map_explore_1080x1920.png`
+- `export/portrait_review/prompt20_board_path_hierarchy_20260423/after/seed11_late_1080x1920.png`
+- `export/portrait_review/prompt20_ground_filler_restraint_20260423/after/map_explore_1080x1920.png`
+- `export/portrait_review/prompt40_final_reaudit_20260423/map_explore_1080x1920.png`
+
+The archived sync extracted the following continuation rules from those captures:
+
+- roads must become the first-read structure rather than secondary strokes between node discs
+- roads must help define landmark pockets instead of merely connecting circles
+- landmark pockets must become the primary node-identity surface; icon/plate layers are confirmation surfaces
+- full-board usage includes the lower half; the board should not top-load its semantic mass into one central island
+- negative space must separate pockets/corridors intentionally rather than reading as leftover void
+- UI and overlay surfaces must support the small-world illusion instead of reframing the board as a dashboard inset
+- candidate asset work remains a later support lane only and must not stand in for structural success
 
 ## 1. Repo-Truth Summary
 
@@ -363,9 +401,9 @@ Plain diagnosis:
   3. `b/c` weak semantic identity and insufficient map-specific icon polish
   4. `a` background dominance
 
-## 8. Recommended Next Step
+## 8. Historical Recommendation And Current Continuation Note
 
-**Recommended path: C. add a narrow board-ground ownership patch before any asset work**
+**Historical Prompt 13 recommendation: C. add a narrow board-ground ownership patch before any asset work**
 
 Status after Prompt 13:
 
@@ -389,14 +427,27 @@ What this recommendation does **not** mean:
 - not approving generated assets
 - not changing graph truth or route logic
 
-It means:
+It meant:
 
 - create a narrow renderer-owned board-ground surface or slot
 - keep it presentation-only
 - keep it separate from save / gameplay / graph truth
 - then do semantic icon work on top of a board that has an actual surface owner
 
+Current continuation note:
+
+- that ground/filler-owner recommendation already landed
+- do not treat this historical recommendation as the full active-wave target anymore
+- the active wave is now broader: road-first read, landmark-pocket identity, full-board usage, meaningful negative space, lower-half utilization, and UI non-interference
+- candidate asset work remains delayed until structural review is green
+
 ## 9. Minimal Starter Asset Set If A Tiny Wave Starts After This Audit
+
+Historical note:
+
+- this section remains narrow asset triage from the older audit context
+- it is not the current queue recommendation for the superseded Prompt `43-62` wave
+- use the live `Docs/ROADMAP.md` queue instead of this historical note for current asset timing
 
 If only one tiny asset wave starts after this audit, the highest-leverage three assets are:
 

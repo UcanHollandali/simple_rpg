@@ -13,11 +13,13 @@ func _init() -> void:
 
 func _run() -> void:
 	test_map_presenter_builds_quest_log_model()
-	test_map_scene_toggles_quest_log_panel()
+	await test_map_scene_toggles_quest_log_panel()
 	await test_opening_settings_closes_quest_log_panel()
 	await test_quest_log_toggle_closes_map_safe_menu()
-	test_map_scene_hides_settings_launcher_while_quest_log_is_open()
-	test_quest_log_layout_stays_top_right()
+	await test_map_scene_hides_settings_launcher_while_quest_log_is_open()
+	await test_quest_log_launcher_stays_hidden_until_layout_is_ready()
+	await test_quest_log_launcher_stays_out_of_board_body_when_drawer_anchor_exists()
+	await test_quest_log_layout_stays_top_right()
 	print("test_map_quest_log_ui: all assertions passed")
 	await TestExitCleanupHelperScript.cleanup_and_quit(self)
 
@@ -112,6 +114,7 @@ func test_map_scene_toggles_quest_log_panel() -> void:
 	var quest_log_panel: RefCounted = load("res://Game/UI/map_quest_log_panel.gd").new()
 	map_scene.set("_quest_log_panel", quest_log_panel)
 	quest_log_panel.call("configure", map_scene)
+	await _await_frames()
 	var launcher_button: Button = map_scene.get_node_or_null("QuestLogLauncherButton") as Button
 	assert(launcher_button != null, "Expected MapExplore to expose the quest-log launcher button.")
 	var panel: PanelContainer = map_scene.get_node_or_null("QuestLogPanel") as PanelContainer
@@ -191,6 +194,7 @@ func test_opening_settings_closes_quest_log_panel() -> void:
 	var quest_log_panel: RefCounted = load("res://Game/UI/map_quest_log_panel.gd").new()
 	map_scene.set("_quest_log_panel", quest_log_panel)
 	quest_log_panel.call("configure", host, Callable(map_scene, "_before_quest_log_toggle"))
+	await _await_frames()
 	var launcher_button: Button = host.get_node_or_null("QuestLogLauncherButton") as Button
 	var panel: PanelContainer = host.get_node_or_null("QuestLogPanel") as PanelContainer
 	assert(launcher_button != null and panel != null, "Expected a quest-log launcher and panel for the map settings mutual-exclusion regression test.")
@@ -221,6 +225,7 @@ func test_quest_log_toggle_closes_map_safe_menu() -> void:
 	map_scene.set("_safe_menu", safe_menu)
 	var quest_log_panel: RefCounted = load("res://Game/UI/map_quest_log_panel.gd").new()
 	quest_log_panel.call("configure", host, Callable(map_scene, "_before_quest_log_toggle"))
+	await _await_frames()
 	var launcher_button: Button = host.get_node_or_null("QuestLogLauncherButton") as Button
 	var panel: PanelContainer = host.get_node_or_null("QuestLogPanel") as PanelContainer
 	assert(launcher_button != null and panel != null, "Expected a quest-log launcher and panel for the mutual-exclusion regression test.")
@@ -263,6 +268,7 @@ func test_map_scene_hides_settings_launcher_while_quest_log_is_open() -> void:
 	var quest_log_panel: RefCounted = load("res://Game/UI/map_quest_log_panel.gd").new()
 	map_scene.set("_quest_log_panel", quest_log_panel)
 	quest_log_panel.call("configure", map_scene, Callable(map_scene, "_before_quest_log_toggle"))
+	await _await_frames()
 
 	map_scene.call("_sync_safe_menu_launcher_visibility")
 	assert(settings_button.visible, "Expected the settings launcher to stay available while the quest log is closed.")
@@ -284,9 +290,163 @@ func test_map_scene_hides_settings_launcher_while_quest_log_is_open() -> void:
 	assert(settings_button.mouse_filter == Control.MOUSE_FILTER_STOP, "Expected the settings launcher to regain pointer interaction once the quest-log panel closes.")
 
 
+func test_quest_log_launcher_stays_hidden_until_layout_is_ready() -> void:
+	var root: Control = Control.new()
+	root.size = Vector2(1080.0, 1920.0)
+	get_root().add_child(root)
+
+	var margin: MarginContainer = MarginContainer.new()
+	margin.name = "Margin"
+	margin.size = root.size
+	root.add_child(margin)
+
+	var vbox: VBoxContainer = VBoxContainer.new()
+	vbox.name = "VBox"
+	vbox.size = root.size
+	margin.add_child(vbox)
+
+	var top_row: Control = Control.new()
+	top_row.name = "TopRow"
+	top_row.position = Vector2(0.0, 24.0)
+	top_row.size = Vector2(1048.0, 96.0)
+	vbox.add_child(top_row)
+
+	var inventory_section: VBoxContainer = VBoxContainer.new()
+	inventory_section.name = "InventorySection"
+	inventory_section.position = Vector2(0.0, 1810.0)
+	inventory_section.size = Vector2(1048.0, 96.0)
+	vbox.add_child(inventory_section)
+
+	var drawer_card: PanelContainer = PanelContainer.new()
+	drawer_card.name = "InventoryDrawerCard"
+	drawer_card.position = Vector2(0.0, 0.0)
+	drawer_card.size = Vector2(1048.0, 96.0)
+	inventory_section.add_child(drawer_card)
+
+	var drawer_vbox: VBoxContainer = VBoxContainer.new()
+	drawer_vbox.name = "DrawerVBox"
+	drawer_card.add_child(drawer_vbox)
+
+	var drawer_header_row: HBoxContainer = HBoxContainer.new()
+	drawer_header_row.name = "DrawerHeaderRow"
+	drawer_vbox.add_child(drawer_header_row)
+
+	var title_label: Label = Label.new()
+	title_label.name = "InventoryDrawerTitleLabel"
+	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	drawer_header_row.add_child(title_label)
+
+	var toggle_button: Button = Button.new()
+	toggle_button.name = "InventoryDrawerToggleButton"
+	toggle_button.text = "Show Cards"
+	toggle_button.position = Vector2(936.0, 18.0)
+	toggle_button.size = Vector2(108.0, 48.0)
+	toggle_button.visible = true
+	drawer_header_row.add_child(toggle_button)
+
+	var summary_label: Label = Label.new()
+	summary_label.name = "InventoryDrawerSummaryLabel"
+	drawer_vbox.add_child(summary_label)
+
+	var quest_log_panel: RefCounted = load("res://Game/UI/map_quest_log_panel.gd").new()
+	quest_log_panel.call("configure", root)
+
+	var launcher_button: Button = root.get_node_or_null("QuestLogLauncherButton") as Button
+	assert(launcher_button != null, "Expected the quest launcher button for the initial-layout visibility regression test.")
+	assert(not launcher_button.visible, "Expected the quest launcher to stay hidden until deferred layout anchoring completes.")
+
+	await _await_frames()
+
+	assert(launcher_button.visible, "Expected the quest launcher to appear after deferred layout anchoring completes.")
+	assert(launcher_button.offset_right <= toggle_button.get_global_rect().position.x, "Expected the settled quest launcher to anchor beside the drawer toggle instead of flashing in the top-right lane first.")
+
+	root.queue_free()
+	await process_frame
+
+
+func test_quest_log_launcher_stays_out_of_board_body_when_drawer_anchor_exists() -> void:
+	var root: Control = Control.new()
+	root.size = Vector2(1080.0, 1920.0)
+	get_root().add_child(root)
+
+	var margin: MarginContainer = MarginContainer.new()
+	margin.name = "Margin"
+	margin.size = root.size
+	root.add_child(margin)
+
+	var vbox: VBoxContainer = VBoxContainer.new()
+	vbox.name = "VBox"
+	vbox.size = root.size
+	margin.add_child(vbox)
+
+	var top_row: Control = Control.new()
+	top_row.name = "TopRow"
+	top_row.position = Vector2(0.0, 24.0)
+	top_row.size = Vector2(1048.0, 96.0)
+	vbox.add_child(top_row)
+
+	var route_grid: Control = Control.new()
+	route_grid.name = "RouteGrid"
+	route_grid.position = Vector2(0.0, 148.0)
+	route_grid.size = Vector2(1048.0, 1665.0)
+	vbox.add_child(route_grid)
+
+	var inventory_section: VBoxContainer = VBoxContainer.new()
+	inventory_section.name = "InventorySection"
+	inventory_section.position = Vector2(0.0, 1819.0)
+	inventory_section.size = Vector2(1048.0, 93.0)
+	vbox.add_child(inventory_section)
+
+	var drawer_card: PanelContainer = PanelContainer.new()
+	drawer_card.name = "InventoryDrawerCard"
+	drawer_card.position = Vector2(0.0, 0.0)
+	drawer_card.size = Vector2(1048.0, 93.0)
+	inventory_section.add_child(drawer_card)
+
+	var drawer_vbox: VBoxContainer = VBoxContainer.new()
+	drawer_vbox.name = "DrawerVBox"
+	drawer_card.add_child(drawer_vbox)
+
+	var drawer_header_row: HBoxContainer = HBoxContainer.new()
+	drawer_header_row.name = "DrawerHeaderRow"
+	drawer_vbox.add_child(drawer_header_row)
+
+	var title_label: Label = Label.new()
+	title_label.name = "InventoryDrawerTitleLabel"
+	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	drawer_header_row.add_child(title_label)
+
+	var toggle_button: Button = Button.new()
+	toggle_button.name = "InventoryDrawerToggleButton"
+	toggle_button.text = "Show Cards"
+	toggle_button.position = Vector2(936.0, 18.0)
+	toggle_button.size = Vector2(108.0, 48.0)
+	toggle_button.visible = true
+	drawer_header_row.add_child(toggle_button)
+
+	var quest_log_panel: RefCounted = load("res://Game/UI/map_quest_log_panel.gd").new()
+	quest_log_panel.call("configure", root)
+	await _await_frames()
+
+	var launcher_button: Button = root.get_node_or_null("QuestLogLauncherButton") as Button
+	assert(launcher_button != null, "Expected the quest launcher button for board-clearance coverage.")
+	assert(
+		launcher_button.offset_top >= route_grid.position.y + route_grid.size.y + 10.0,
+		"Expected the quest-log launcher to stay below the board body once the inventory drawer anchor is present."
+	)
+	assert(
+		launcher_button.offset_right <= toggle_button.get_global_rect().position.x,
+		"Expected the settled quest launcher to remain in the drawer lane instead of drifting into the route/landmark body."
+	)
+
+	root.queue_free()
+	await process_frame
+
+
 func test_quest_log_layout_stays_top_right() -> void:
 	var root: Control = Control.new()
 	root.size = Vector2(1080.0, 1920.0)
+	get_root().add_child(root)
 
 	var margin: MarginContainer = MarginContainer.new()
 	margin.name = "Margin"
@@ -306,16 +466,27 @@ func test_quest_log_layout_stays_top_right() -> void:
 
 	var quest_log_panel: RefCounted = load("res://Game/UI/map_quest_log_panel.gd").new()
 	quest_log_panel.call("configure", root)
+	await _await_frames()
 
 	var launcher_button: Button = root.get_node_or_null("QuestLogLauncherButton") as Button
 	var panel: PanelContainer = root.get_node_or_null("QuestLogPanel") as PanelContainer
 	var toast_panel: PanelContainer = root.get_node_or_null("QuestLogUpdateToast") as PanelContainer
 	assert(launcher_button != null and panel != null and toast_panel != null, "Expected the quest-log layout test to create launcher, panel, and toast surfaces.")
 
-	assert(is_equal_approx(launcher_button.offset_top, 130.0), "Expected the quest-log launcher to sit just below the top-row shell in root-local coordinates.")
-	assert(is_equal_approx(launcher_button.offset_right, -16.0), "Expected the quest-log launcher to keep the fixed right margin.")
+	var resolved_top_row_height: float = max(top_row.size.y, top_row.custom_minimum_size.y, 72.0)
+	var expected_launcher_top: float = max(16.0, top_row.position.y + resolved_top_row_height + 10.0)
+	assert(is_equal_approx(launcher_button.offset_top, expected_launcher_top), "Expected the quest-log launcher to sit just below the resolved top-row shell in root-local coordinates.")
+	assert(is_equal_approx(root.size.x - launcher_button.offset_right, 16.0), "Expected the quest-log launcher to keep the fixed right margin.")
 	assert(is_equal_approx(panel.offset_top, launcher_button.offset_bottom + 10.0), "Expected the quest-log panel to stack directly below the launcher button.")
 	assert(toast_panel.offset_top >= launcher_button.offset_bottom, "Expected the compact quest update toast to stay in the launcher lane instead of drifting into the board body.")
+
+	root.queue_free()
+	await process_frame
+
+
+func _await_frames(frame_count: int = 3) -> void:
+	for _frame in range(max(frame_count, 1)):
+		await process_frame
 
 
 func _find_node_id_by_family(map_runtime_state: RefCounted, node_family: String) -> int:

@@ -56,6 +56,7 @@ const WALKER_SHADOW_SIZE := Vector2(40, 10)
 const WALKER_SPRITE_SIZE := Vector2(100, 120)
 const WALKER_IDLE_CENTER_OFFSET := Vector2(0.0, 18.0)
 const WALKER_TRAVEL_CENTER_OFFSET := Vector2(0.0, 10.0)
+const WALKER_IDLE_ROUTE_LEAD_X := 6.0
 const WALKER_DIRECTIONAL_LEAD_X := 5.0
 const WALKER_DIRECTIONAL_LEAD_Y_SCALE := 0.22
 const ROUTE_MOVE_MIN_DURATION := 0.30
@@ -71,9 +72,12 @@ const WALKER_ARRIVAL_PAUSE := 0.08
 const ROADSIDE_INTERRUPTION_PROGRESS := 0.58
 const NODE_PLATE_SIZE := Vector2(116, 116)
 const NODE_ICON_SIZE := Vector2(92, 92)
-const KEY_MARKER_SIZE := Vector2(36, 36)
-const KEY_ICON_SIZE := Vector2(18, 18)
+const KEY_MARKER_SIZE := Vector2(30, 30)
+const KEY_ICON_SIZE := Vector2(14, 14)
 const STATE_PIP_SIZE := Vector2(14, 14)
+const MARKER_FOCUS_NONE := 0
+const MARKER_FOCUS_PREVIEW := 1
+const MARKER_FOCUS_SELECTED := 2
 const EMERGENCY_ROUTE_SLOT_FACTORS_BY_VISIBLE_COUNT := {
 	0: [],
 	1: [EMERGENCY_ROUTE_SLOT_FORWARD],
@@ -183,6 +187,8 @@ func prepare_for_refresh(run_state) -> void:
 	)
 	_board_composition_cache = _build_board_composition(run_state, stable_layout)
 	_board_composition_cache = MapRouteLayoutHelperScript.restore_visible_edge_continuity(_board_composition_cache)
+	if _board_composer != null:
+		_board_composition_cache = _board_composer.rebuild_render_model_for_composition(_board_composition_cache)
 	_board_graph_signature = graph_signature
 	_force_next_layout_recompose = false
 	_composed_board_size = route_grid.size if route_grid != null else Vector2.ZERO
@@ -347,6 +353,7 @@ func _run_route_selection(
 		return
 
 	_active_route_index = route_index
+	_hovered_route_index = -1
 	_refresh_route_roads()
 	_sync_walker_to_current_marker()
 
@@ -474,7 +481,7 @@ func _update_route_marker_view(index: int, model: Dictionary) -> void:
 		String(model.get("state_chip_text", "")),
 		String(model.get("state_semantic", "")),
 		bool(model.get("disabled", true)),
-		_active_route_index == index or _hovered_route_index == index
+		_marker_focus_state_for_index(index)
 	)
 
 
@@ -487,11 +494,29 @@ func _update_current_marker_view(run_state) -> void:
 	_apply_marker_visual_state(_current_marker, "", current_family, "", "", "current", false, false)
 
 
-func _apply_marker_visual_state(marker_rect: TextureRect, icon_texture_path: String, node_family: String, family_label: String, chip_text: String, state_semantic: String, is_disabled: bool, is_selected: bool) -> void:
+func _apply_marker_visual_state(
+	marker_rect: TextureRect,
+	icon_texture_path: String,
+	node_family: String,
+	family_label: String,
+	chip_text: String,
+	state_semantic: String,
+	is_disabled: bool,
+	focus_state: int
+) -> void:
 	if marker_rect == null:
 		return
+	var is_selected: bool = focus_state == MARKER_FOCUS_SELECTED
+	var is_preview_focus: bool = focus_state == MARKER_FOCUS_PREVIEW
 	var is_preview_node: bool = is_disabled and state_semantic == "open"
 	marker_rect.modulate = MapBoardStyleScript.marker_modulate_for_semantic(state_semantic, is_disabled)
+	if is_preview_focus and not is_selected:
+		marker_rect.modulate = Color(
+			marker_rect.modulate.r,
+			marker_rect.modulate.g,
+			marker_rect.modulate.b,
+			marker_rect.modulate.a * 0.84
+		)
 	var node_plate: PanelContainer = marker_rect.get_node_or_null("NodePlate") as PanelContainer
 	if node_plate != null:
 		node_plate.visible = state_semantic != "current"
@@ -507,10 +532,10 @@ func _apply_marker_visual_state(marker_rect: TextureRect, icon_texture_path: Str
 		icon_rect.modulate = MapBoardStyleScript.icon_modulate_for_semantic(node_family, state_semantic, is_disabled, is_preview_node)
 	var selection_ring: PanelContainer = marker_rect.get_node_or_null("SelectionRing") as PanelContainer
 	if selection_ring != null:
-		selection_ring.position = ((marker_rect.size - NODE_PLATE_SIZE) * 0.5) - Vector2(6, 6)
-		selection_ring.size = NODE_PLATE_SIZE + Vector2(12, 12)
-		selection_ring.visible = not is_disabled and is_selected
-		MapBoardStyleScript.apply_selection_ring(selection_ring, state_semantic, is_selected)
+		selection_ring.position = ((marker_rect.size - NODE_PLATE_SIZE) * 0.5) - Vector2(4, 4)
+		selection_ring.size = NODE_PLATE_SIZE + Vector2(8, 8)
+		selection_ring.visible = not is_disabled and focus_state != MARKER_FOCUS_NONE
+		MapBoardStyleScript.apply_selection_ring(selection_ring, state_semantic, is_selected, is_preview_focus)
 	var chip_panel: PanelContainer = marker_rect.get_node_or_null("StateChip") as PanelContainer
 	var chip_label: Label = chip_panel.get_node_or_null("StateChipLabel") as Label if chip_panel != null else null
 	if chip_panel != null and chip_label != null:
@@ -652,23 +677,41 @@ func _sync_route_layout_offset_after_refresh(run_state) -> void:
 func _active_target_node_id() -> int:
 	if _active_route_index < 0 or _active_route_index >= _route_models_cache.size(): return MapRuntimeStateScript.NO_PENDING_NODE_ID
 	return int(_route_models_cache[_active_route_index].get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
+
+
 func _hovered_target_node_id() -> int:
 	if _hovered_route_index < 0 or _hovered_route_index >= _route_models_cache.size(): return MapRuntimeStateScript.NO_PENDING_NODE_ID
 	return int(_route_models_cache[_hovered_route_index].get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
+
+
+func _marker_focus_state_for_index(index: int) -> int:
+	if _active_route_index == index:
+		return MARKER_FOCUS_SELECTED
+	if _hovered_route_index == index:
+		return MARKER_FOCUS_PREVIEW
+	return MARKER_FOCUS_NONE
+
+
+func _focused_target_node_id() -> int:
+	var active_target_node_id: int = _active_target_node_id()
+	if active_target_node_id != MapRuntimeStateScript.NO_PENDING_NODE_ID:
+		return active_target_node_id
+	return _hovered_target_node_id()
 func _layout_auxiliary_board_cards(route_grid: Control) -> void:
 	var key_marker_card: TextureRect = route_grid.get_node_or_null("KeyMarkerCard") as TextureRect
 	if key_marker_card != null:
 		key_marker_card.visible = true
 		key_marker_card.texture = null
 		key_marker_card.size = KEY_MARKER_SIZE
-		key_marker_card.position = Vector2(route_grid.size.x - key_marker_card.size.x - 12.0, 14.0)
+		key_marker_card.position = Vector2(route_grid.size.x - key_marker_card.size.x - 18.0, 18.0)
+		key_marker_card.modulate = Color(1, 1, 1, 0.74)
 		MapExploreSceneUiScript.ensure_key_marker_visual(key_marker_card)
 		var key_icon: TextureRect = key_marker_card.get_node_or_null("KeyMarkerIcon") as TextureRect
 		if key_icon != null:
 			key_icon.texture = KEY_MARKER_ICON_TEXTURE
 			key_icon.size = KEY_ICON_SIZE
 			key_icon.position = Vector2((key_marker_card.size.x - key_icon.size.x) * 0.5, (key_marker_card.size.y - key_icon.size.y) * 0.5)
-			key_icon.modulate = Color(1, 1, 1, 0.96)
+			key_icon.modulate = Color(1, 1, 1, 0.86)
 
 
 func _sync_walker_visual_state() -> void:
@@ -682,10 +725,20 @@ func _sync_walker_to_current_marker() -> void:
 	if _walker_root == null or _current_marker == null or not _current_marker.visible:
 		return
 	_set_walker_texture(MAP_WALKER_IDLE_TEXTURE)
-	_set_walker_facing(_walker_facing_right)
+	var current_center: Vector2 = _get_current_marker_center()
+	var focus_direction: Vector2 = Vector2.ZERO
+	var focused_target_node_id: int = _focused_target_node_id()
+	if focused_target_node_id != MapRuntimeStateScript.NO_PENDING_NODE_ID:
+		var target_world_position: Vector2 = _get_node_world_position(focused_target_node_id)
+		if target_world_position != Vector2.ZERO:
+			focus_direction = target_world_position - current_center
+	if focus_direction.length_squared() > 0.001 and absf(focus_direction.x) >= 0.08:
+		_set_walker_facing(focus_direction.x >= 0.0)
+	else:
+		_set_walker_facing(_walker_facing_right)
 	_reset_walker_stride_visuals()
 	_walker_root.visible = true
-	_walker_root.position = _position_for_walker_center(_walker_idle_center(_get_current_marker_center()))
+	_walker_root.position = _position_for_walker_center(_walker_idle_center(current_center, focus_direction))
 
 
 func _sync_walker_to_pending_roadside_visual() -> void:
@@ -717,8 +770,11 @@ func _position_for_walker_center(center: Vector2) -> Vector2:
 	return center - Vector2(WALKER_ROOT_SIZE.x * 0.5, WALKER_ROOT_SIZE.y * 0.66)
 
 
-func _walker_idle_center(anchor: Vector2) -> Vector2:
-	return anchor + WALKER_IDLE_CENTER_OFFSET
+func _walker_idle_center(anchor: Vector2, focus_direction: Vector2 = Vector2.ZERO) -> Vector2:
+	var focus_lead := Vector2.ZERO
+	if focus_direction.length_squared() > 0.001:
+		focus_lead.x = signf(focus_direction.x) * WALKER_IDLE_ROUTE_LEAD_X
+	return anchor + WALKER_IDLE_CENTER_OFFSET + focus_lead
 
 
 func _walker_travel_center(anchor: Vector2, direction: Vector2, stride_offset: Vector2) -> Vector2:

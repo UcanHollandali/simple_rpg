@@ -23,14 +23,15 @@ func _init() -> void:
 
 
 func _run() -> void:
-	test_map_runtime_state_uses_scatter_template_profile_for_stage_one()
-	test_map_runtime_state_uses_scatter_template_profile_for_stage_two()
-	test_map_runtime_state_uses_scatter_template_profile_for_stage_three()
+	test_map_runtime_state_uses_runtime_backbone_profile_for_stage_one()
+	test_map_runtime_state_uses_runtime_backbone_profile_for_stage_two()
+	test_map_runtime_state_uses_runtime_backbone_profile_for_stage_three()
 	test_procedural_grammar_seed_sweep_keeps_family_placement_readable()
+	test_map_runtime_state_builds_layout_graph_snapshots_without_save_shape()
 	test_map_runtime_state_generation_is_deterministic_per_profile()
 	test_run_state_map_generation_varies_by_seed_but_stays_deterministic()
 	test_map_runtime_state_profile_graphs_stay_distinct()
-	test_map_runtime_state_builds_center_start_graph()
+	test_map_runtime_state_builds_deliberate_opening_anchor_graph()
 	test_map_runtime_state_restricts_movement_to_adjacent_discovered_nodes()
 	test_map_runtime_state_reveals_local_neighbors_on_move()
 	test_event_node_resolution_opens_dedicated_event_flow()
@@ -70,16 +71,16 @@ func _run() -> void:
 	await TestExitCleanupHelperScript.cleanup_and_quit(self)
 
 
-func test_map_runtime_state_uses_scatter_template_profile_for_stage_one() -> void:
-	_assert_scatter_runtime_matches_template_profile("procedural_stage_corridor_v1", 1)
+func test_map_runtime_state_uses_runtime_backbone_profile_for_stage_one() -> void:
+	_assert_runtime_backbone_matches_template_profile("procedural_stage_corridor_v1", 1)
 
 
-func test_map_runtime_state_uses_scatter_template_profile_for_stage_two() -> void:
-	_assert_scatter_runtime_matches_template_profile("procedural_stage_openfield_v1", 2)
+func test_map_runtime_state_uses_runtime_backbone_profile_for_stage_two() -> void:
+	_assert_runtime_backbone_matches_template_profile("procedural_stage_openfield_v1", 2)
 
 
-func test_map_runtime_state_uses_scatter_template_profile_for_stage_three() -> void:
-	_assert_scatter_runtime_matches_template_profile("procedural_stage_loop_v1", 3)
+func test_map_runtime_state_uses_runtime_backbone_profile_for_stage_three() -> void:
+	_assert_runtime_backbone_matches_template_profile("procedural_stage_loop_v1", 3)
 
 
 func test_procedural_grammar_seed_sweep_keeps_family_placement_readable() -> void:
@@ -116,6 +117,74 @@ func test_procedural_grammar_seed_sweep_keeps_family_placement_readable() -> voi
 		assert(observed_blueprint_ids.size() >= 2, "Expected stage %d seed sweep to exercise at least two explicit topology blueprints." % stage_index)
 
 
+func test_map_runtime_state_builds_layout_graph_snapshots_without_save_shape() -> void:
+	var map_runtime_state: RefCounted = MapRuntimeStateScript.new()
+	map_runtime_state.reset_for_new_run(1, 11)
+	var layout_snapshots: Array[Dictionary] = map_runtime_state.build_layout_graph_snapshots()
+	var realized_snapshots: Array[Dictionary] = map_runtime_state.build_realized_graph_snapshots()
+	assert(layout_snapshots.size() == realized_snapshots.size(), "Expected layout graph snapshots to cover the realized runtime graph one-for-one.")
+
+	var allowed_keys: Dictionary = {
+		"node_id": true,
+		"node_family": true,
+		"node_state": true,
+		"adjacent_node_ids": true,
+		"sector_id": true,
+		"route_role": true,
+		"orientation_profile_id": true,
+		"topology_blueprint_id": true,
+	}
+	var realized_by_node_id: Dictionary = {}
+	for realized_snapshot in realized_snapshots:
+		var realized_node_id: int = int(realized_snapshot.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
+		realized_by_node_id[realized_node_id] = realized_snapshot
+
+	var observed_sector_ids: Dictionary = {}
+	var expected_blueprint_id: String = String(map_runtime_state.get_active_topology_blueprint_id())
+	for layout_snapshot in layout_snapshots:
+		assert(layout_snapshot.keys().size() == allowed_keys.size(), "Expected layout graph snapshots to expose only owner-safe Prompt 04 fields.")
+		for key_variant in layout_snapshot.keys():
+			var snapshot_key: String = String(key_variant)
+			assert(bool(allowed_keys.get(snapshot_key, false)), "Expected layout graph snapshot key %s to stay inside the Prompt 04 allowlist." % snapshot_key)
+
+		var node_id: int = int(layout_snapshot.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
+		assert(realized_by_node_id.has(node_id), "Expected layout graph snapshot node %d to exist in the realized runtime graph." % node_id)
+		var realized_snapshot: Dictionary = realized_by_node_id[node_id]
+		assert(String(layout_snapshot.get("node_family", "")) == String(realized_snapshot.get("node_family", "")), "Expected layout graph node family to mirror runtime owner truth.")
+		assert(String(layout_snapshot.get("node_state", "")) == String(realized_snapshot.get("node_state", "")), "Expected layout graph node state to mirror runtime owner truth.")
+		_assert_packed_int32_arrays_match(
+			PackedInt32Array(layout_snapshot.get("adjacent_node_ids", PackedInt32Array())),
+			PackedInt32Array(realized_snapshot.get("adjacent_node_ids", PackedInt32Array())),
+			"layout graph node %d adjacency" % node_id
+		)
+		assert(String(layout_snapshot.get("sector_id", "")).length() > 0, "Expected layout graph snapshots to expose a hidden sector id.")
+		assert(String(layout_snapshot.get("route_role", "")).length() > 0, "Expected layout graph snapshots to expose a hidden route role.")
+		assert(String(layout_snapshot.get("orientation_profile_id", "")).begins_with("center_outward_"), "Expected layout orientation profile ids to keep a center-outward contract.")
+		assert(String(layout_snapshot.get("topology_blueprint_id", "")) == expected_blueprint_id, "Expected layout graph snapshots to publish the active topology blueprint id as read-only metadata.")
+		observed_sector_ids[String(layout_snapshot.get("sector_id", ""))] = true
+		if node_id == MapRuntimeStateScript.DEFAULT_NODE_INDEX:
+			assert(String(layout_snapshot.get("sector_id", "")) == MapRuntimeStateScript.LAYOUT_SECTOR_CENTER_ANCHOR, "Expected layout graph metadata to keep the start anchored center-local.")
+			assert(String(layout_snapshot.get("route_role", "")) == MapRuntimeStateScript.LAYOUT_ROUTE_ROLE_CENTER_START, "Expected layout graph metadata to keep the start route role local.")
+
+	assert(observed_sector_ids.size() >= 5, "Expected layout graph sector metadata to use multiple hidden board sectors.")
+
+	var observed_orientation_profile_ids: Dictionary = {}
+	for generation_seed in [11, 29, 41, 73, 97]:
+		var seeded_map_runtime_state: RefCounted = MapRuntimeStateScript.new()
+		seeded_map_runtime_state.reset_for_new_run(1, int(generation_seed))
+		var seeded_layout_snapshots: Array[Dictionary] = seeded_map_runtime_state.build_layout_graph_snapshots()
+		assert(not seeded_layout_snapshots.is_empty(), "Expected seeded layout graph snapshots to be available for seed %d." % generation_seed)
+		observed_orientation_profile_ids[String(seeded_layout_snapshots[0].get("orientation_profile_id", ""))] = true
+	assert(observed_orientation_profile_ids.size() >= 2, "Expected layout orientation metadata to vary across Prompt 04 seed evidence.")
+
+	var save_data: Dictionary = map_runtime_state.to_save_dict()
+	for forbidden_key in ["sector_id", "route_role", "orientation_profile_id", "topology_blueprint_id"]:
+		assert(not save_data.has(forbidden_key), "Expected layout metadata key %s to stay out of the map save root." % forbidden_key)
+		for graph_entry_variant in save_data.get("map_realized_graph", []):
+			var graph_entry: Dictionary = graph_entry_variant
+			assert(not graph_entry.has(forbidden_key), "Expected layout metadata key %s to stay out of the realized graph save payload." % forbidden_key)
+
+
 func test_map_runtime_state_generation_is_deterministic_per_profile() -> void:
 	for stage_index in [1, 2, 3]:
 		var first_map_runtime_state: RefCounted = MapRuntimeStateScript.new()
@@ -124,7 +193,7 @@ func test_map_runtime_state_generation_is_deterministic_per_profile() -> void:
 		second_map_runtime_state.reset_for_new_run(stage_index)
 		assert(
 			_build_runtime_graph_signature(first_map_runtime_state) == _build_runtime_graph_signature(second_map_runtime_state),
-			"Expected stage %d controlled scatter generation to stay deterministic across repeated new-run builds." % stage_index
+			"Expected stage %d runtime backbone generation to stay deterministic across repeated new-run builds." % stage_index
 		)
 
 
@@ -137,7 +206,7 @@ func test_run_state_map_generation_varies_by_seed_but_stays_deterministic() -> v
 	mirrored_run_a.configure_run_seed(99)
 	assert(
 		_build_runtime_graph_signature(seeded_run_a.map_runtime_state) == _build_runtime_graph_signature(mirrored_run_a.map_runtime_state),
-		"Expected the same run seed to rebuild the same controlled-scatter runtime graph."
+		"Expected the same run seed to rebuild the same runtime backbone graph."
 	)
 
 	var observed_signatures: Dictionary = {}
@@ -148,7 +217,7 @@ func test_run_state_map_generation_varies_by_seed_but_stays_deterministic() -> v
 		observed_signatures[_build_runtime_graph_signature(seeded_run.map_runtime_state)] = true
 	assert(
 		observed_signatures.size() >= 2,
-		"Expected different run seeds to surface at least two distinct controlled-scatter runtime graphs inside the same stage-profile floor."
+		"Expected different run seeds to surface at least two distinct runtime backbone graphs inside the same stage-profile floor."
 	)
 
 
@@ -160,29 +229,29 @@ func test_map_runtime_state_profile_graphs_stay_distinct() -> void:
 		signatures[stage_index] = _build_runtime_topology_signature(map_runtime_state)
 	assert(
 		String(signatures.get(1, "")) != String(signatures.get(2, "")),
-		"Expected stage 1 and stage 2 controlled-scatter graphs to stay profile-distinct."
+		"Expected stage 1 and stage 2 runtime backbone graphs to stay profile-distinct."
 	)
 	assert(
 		String(signatures.get(2, "")) != String(signatures.get(3, "")),
-		"Expected stage 2 and stage 3 controlled-scatter graphs to stay profile-distinct."
+		"Expected stage 2 and stage 3 runtime backbone graphs to stay profile-distinct."
 	)
 	assert(
 		String(signatures.get(1, "")) != String(signatures.get(3, "")),
-		"Expected stage 1 and stage 3 controlled-scatter graphs to stay profile-distinct."
+		"Expected stage 1 and stage 3 runtime backbone graphs to stay profile-distinct."
 	)
 
 
-func test_map_runtime_state_builds_center_start_graph() -> void:
+func test_map_runtime_state_builds_deliberate_opening_anchor_graph() -> void:
 	var run_state: RunState = RunStateScript.new()
 	run_state.reset_for_new_run()
 	var map_runtime_state: RefCounted = run_state.map_runtime_state
 	var start_adjacents: PackedInt32Array = map_runtime_state.get_adjacent_node_ids(0)
 
-	assert(map_runtime_state.current_node_id == 0, "Expected runtime to anchor map center on node 0.")
+	assert(map_runtime_state.current_node_id == 0, "Expected runtime to keep the deliberate opening anchor on node 0.")
 	assert(map_runtime_state.get_current_node_family() == "start", "Expected node 0 to stay the start family.")
 	assert(map_runtime_state.get_node_state(0) == MapRuntimeStateScript.NODE_STATE_RESOLVED, "Expected the start anchor to be a resolved traversal node.")
 	assert(map_runtime_state.get_discovered_node_count() == 1 + start_adjacents.size(), "Expected start to reveal only its adjacent local cluster.")
-	assert(map_runtime_state.get_node_count() == 14, "Expected scatter maps to keep the 14-node target node count.")
+	assert(map_runtime_state.get_node_count() == 14, "Expected runtime backbone maps to keep the 14-node target node count.")
 	assert(map_runtime_state.get_frontier_fog_count() >= 3, "Expected deeper graph nodes to remain under partial fog at run start.")
 	assert(map_runtime_state.get_node_state(map_runtime_state.get_boss_node_id()) != MapRuntimeStateScript.NODE_STATE_DISCOVERED, "Expected boss to remain non-discoverable until later.")
 
@@ -1875,8 +1944,9 @@ func test_run_session_coordinator_builds_content_backed_combat_setup() -> void:
 	var stage_three_expected_enemy_ids: Array[String] = _expected_live_minor_enemy_ids_for_stage(loader, run_state.stage_index)
 	var stage_three_setup: Dictionary = coordinator.call("build_combat_setup_data")
 	var stage_three_enemy_definition: Dictionary = stage_three_setup.get("enemy_definition", {})
+	var stage_three_expected_index: int = posmod(run_state.map_runtime_state.current_node_id - 1, stage_three_expected_enemy_ids.size())
 	assert(
-		String(stage_three_enemy_definition.get("definition_id", "")) == stage_three_expected_enemy_ids[0],
+		String(stage_three_enemy_definition.get("definition_id", "")) == stage_three_expected_enemy_ids[stage_three_expected_index],
 		"Expected stage-3 combat setup to switch to the authored stage-3 minor pool."
 	)
 	_free_node(flow_manager)
@@ -1915,7 +1985,7 @@ func test_combat_enemy_selection_varies_by_seed_but_stays_deterministic() -> voi
 	assert(resolved_a != resolved_b, "Expected different run seeds to shift the stage-local minor enemy order.")
 
 
-func _assert_scatter_runtime_matches_template_profile(template_id: String, stage_index: int) -> void:
+func _assert_runtime_backbone_matches_template_profile(template_id: String, stage_index: int) -> void:
 	var map_runtime_state: RefCounted = MapRuntimeStateScript.new()
 	map_runtime_state.reset_for_new_run(stage_index)
 	var save_data: Dictionary = map_runtime_state.to_save_dict()
@@ -1929,19 +1999,19 @@ func _assert_scatter_runtime_matches_template_profile(template_id: String, stage
 	var expected_opening_support_family: String = String(support_layout.get("opening_support_family", "rest"))
 	var family_counts: Dictionary = _build_family_counts(map_runtime_state)
 
-	assert(int(map_runtime_state.get_node_count()) == 14, "Expected scatter maps to keep the 14-node target count.")
-	assert(int(family_counts.get("start", 0)) == 1, "Expected exactly one start node in scatter maps.")
-	assert(int(family_counts.get("combat", 0)) == 6, "Expected scatter maps to keep 6 combat nodes.")
-	assert(int(family_counts.get("event", 0)) == 1, "Expected scatter maps to keep 1 dedicated event node.")
-	assert(int(family_counts.get("reward", 0)) == 1, "Expected scatter maps to keep 1 reward node.")
-	assert(int(family_counts.get("hamlet", 0)) == 1, "Expected scatter maps to keep 1 dedicated hamlet node.")
-	assert(int(family_counts.get("key", 0)) == 1, "Expected scatter maps to keep 1 key node.")
-	assert(int(family_counts.get("boss", 0)) == 1, "Expected scatter maps to keep 1 boss node.")
+	assert(int(map_runtime_state.get_node_count()) == 14, "Expected runtime backbone maps to keep the 14-node target count.")
+	assert(int(family_counts.get("start", 0)) == 1, "Expected exactly one start node in runtime backbone maps.")
+	assert(int(family_counts.get("combat", 0)) == 6, "Expected runtime backbone maps to keep 6 combat nodes.")
+	assert(int(family_counts.get("event", 0)) == 1, "Expected runtime backbone maps to keep 1 dedicated event node.")
+	assert(int(family_counts.get("reward", 0)) == 1, "Expected runtime backbone maps to keep 1 reward node.")
+	assert(int(family_counts.get("hamlet", 0)) == 1, "Expected runtime backbone maps to keep 1 dedicated hamlet node.")
+	assert(int(family_counts.get("key", 0)) == 1, "Expected runtime backbone maps to keep 1 key node.")
+	assert(int(family_counts.get("boss", 0)) == 1, "Expected runtime backbone maps to keep 1 boss node.")
 	assert(int(family_counts.get(expected_opening_support_family, 0)) == 1, "Expected opening support layout to resolve into one opening support node.")
 	assert(int(family_counts.get(expected_late_support_family, 0)) == 1, "Expected late support layout to resolve into one late support node.")
 
 	var depth_by_node_id: Dictionary = _build_depth_map_from_start(map_runtime_state)
-	assert(depth_by_node_id.size() == 14, "Expected connected scatter maps to have depth map entries for all 14 nodes.")
+	assert(depth_by_node_id.size() == 14, "Expected connected runtime backbone maps to have depth map entries for all 14 nodes.")
 	var family_budget_slots: Dictionary = map_runtime_state.build_family_budget_slot_snapshot()
 	for role_name in [
 		MapRuntimeStateScript.SCATTER_ROLE_OPENING_COMBAT,
@@ -1955,7 +2025,7 @@ func _assert_scatter_runtime_matches_template_profile(template_id: String, stage
 	]:
 		assert(
 			family_budget_slots.has(role_name),
-			"Expected controlled scatter runtime to publish the reserved %s slot for later family placement continuity." % role_name
+			"Expected runtime backbone generation to publish the reserved %s slot for later family placement continuity." % role_name
 		)
 
 	_assert_runtime_same_depth_reconnects_stay_local(map_runtime_state, "stage %d default seed" % stage_index)
@@ -1965,12 +2035,18 @@ func _assert_scatter_runtime_matches_template_profile(template_id: String, stage
 		var node_id: int = int(node_data.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
 		var degree: int = int(map_runtime_state.get_adjacent_node_ids(node_id).size())
 		degree_counts[degree] = int(degree_counts.get(degree, 0)) + 1
-		assert(degree >= 1 and degree <= 4, "Expected controlled scatter nodes to stay within [1, 4] degree.")
-	assert(int(degree_counts.get(1, 0)) >= 2, "Expected controlled scatter to include multiple leaf branches.")
-	assert(int(degree_counts.get(2, 0)) >= 2, "Expected controlled scatter to include at least two 2-way connectors.")
-	assert(int(degree_counts.get(3, 0)) >= 1, "Expected controlled scatter to include branched connectors.")
+		if node_id == 0:
+			assert(degree == MapRuntimeStateScript.SCATTER_REQUIRED_START_DEGREE, "Expected runtime backbone start node to keep the deliberate 4-pocket opening shell.")
+			continue
+		assert(degree >= 1 and degree <= MapRuntimeStateScript.SCATTER_MAX_NON_START_NODE_DEGREE, "Expected runtime backbone non-start nodes to stay inside the local connectivity degree budget.")
+		var node_depth: int = int(depth_by_node_id.get(node_id, -1))
+		if node_depth == 1:
+			assert(degree <= MapRuntimeStateScript.SCATTER_MAX_OPENING_NODE_DEGREE, "Expected opening branch roots to avoid collapsing into dense local hubs.")
+	assert(int(degree_counts.get(1, 0)) >= 2, "Expected runtime backbone generation to include multiple leaf branches.")
+	assert(int(degree_counts.get(2, 0)) >= 2, "Expected runtime backbone generation to include at least two 2-way connectors.")
+	assert(int(degree_counts.get(3, 0)) >= 1, "Expected runtime backbone generation to include branched connectors.")
 
-	assert(_are_all_nodes_reachable_from_start(map_runtime_state), "Expected scatter graph to stay connected to the start node.")
+	assert(_are_all_nodes_reachable_from_start(map_runtime_state), "Expected runtime backbone graph to stay connected to the start node.")
 	var reward_node_id: int = _find_node_id_by_family(map_runtime_state, "reward")
 	var key_node_id: int = map_runtime_state.get_stage_key_node_id()
 	var boss_node_id: int = map_runtime_state.get_boss_node_id()
@@ -1985,12 +2061,12 @@ func _assert_scatter_runtime_matches_template_profile(template_id: String, stage
 	assert(int(family_budget_slots.get(MapRuntimeStateScript.SCATTER_ROLE_SIDE_MISSION, MapRuntimeStateScript.NO_PENDING_NODE_ID)) == side_mission_node_id, "Expected hamlet slot reservation to resolve to the actual hamlet node.")
 	assert(int(family_budget_slots.get(MapRuntimeStateScript.SCATTER_ROLE_KEY, MapRuntimeStateScript.NO_PENDING_NODE_ID)) == key_node_id, "Expected key slot reservation to resolve to the actual key node.")
 	assert(int(family_budget_slots.get(MapRuntimeStateScript.SCATTER_ROLE_BOSS, MapRuntimeStateScript.NO_PENDING_NODE_ID)) == boss_node_id, "Expected boss slot reservation to resolve to the actual boss node.")
-	assert(key_node_id >= 0, "Expected scatter maps to include a key node.")
-	assert(boss_node_id >= 0, "Expected scatter maps to include a boss node.")
-	assert(event_node_id >= 0, "Expected scatter maps to include an event node.")
-	assert(side_mission_node_id >= 0, "Expected scatter maps to include a hamlet node.")
-	assert(late_support_node_id >= 0, "Expected scatter maps to include the late support placement.")
-	assert(opening_support_node_id >= 0, "Expected scatter maps to include the opening support placement.")
+	assert(key_node_id >= 0, "Expected runtime backbone maps to include a key node.")
+	assert(boss_node_id >= 0, "Expected runtime backbone maps to include a boss node.")
+	assert(event_node_id >= 0, "Expected runtime backbone maps to include an event node.")
+	assert(side_mission_node_id >= 0, "Expected runtime backbone maps to include a hamlet node.")
+	assert(late_support_node_id >= 0, "Expected runtime backbone maps to include the late support placement.")
+	assert(opening_support_node_id >= 0, "Expected runtime backbone maps to include the opening support placement.")
 	_assert_runtime_opening_shell_is_readable(map_runtime_state, expected_opening_support_family, "stage %d default seed" % stage_index)
 	_assert_runtime_family_placement_is_readable(
 		map_runtime_state,
@@ -2183,9 +2259,11 @@ func _assert_runtime_opening_shell_is_readable(map_runtime_state: RefCounted, ex
 	var start_adjacent_ids: PackedInt32Array = map_runtime_state.get_adjacent_node_ids(0)
 	var opening_families: Dictionary = {}
 	var low_commitment_combat_count: int = 0
+	var mainline_choice_count: int = 0
+	var counterweight_choice_count: int = 0
 	assert(
-		int(start_adjacent_ids.size()) >= 3 and int(start_adjacent_ids.size()) <= MapRuntimeStateScript.SCATTER_MAX_NODE_DEGREE,
-		"Expected %s to keep a bounded readable opening shell." % context_label
+		int(start_adjacent_ids.size()) == 4,
+		"Expected %s to keep a deliberate 4-pocket opening shell." % context_label
 	)
 	for adjacent_node_id in start_adjacent_ids:
 		var resolved_adjacent_node_id: int = int(adjacent_node_id)
@@ -2195,10 +2273,16 @@ func _assert_runtime_opening_shell_is_readable(map_runtime_state: RefCounted, ex
 		assert(adjacent_family not in ["boss", "key", "event", "hamlet"], "Expected %s opening shell to avoid late-only families." % context_label)
 		if adjacent_family == "combat" and adjacent_degree <= 2:
 			low_commitment_combat_count += 1
+		if adjacent_degree >= 2:
+			mainline_choice_count += 1
+		if adjacent_degree == 1:
+			counterweight_choice_count += 1
 	assert(bool(opening_families.get("combat", false)), "Expected %s opening shell to expose an early combat route." % context_label)
 	assert(bool(opening_families.get("reward", false)), "Expected %s opening shell to expose an early reward route." % context_label)
 	assert(bool(opening_families.get(expected_opening_support_family, false)), "Expected %s opening shell to expose the stage opening support route." % context_label)
 	assert(low_commitment_combat_count >= 1, "Expected %s opening shell to keep at least one low-commitment combat push." % context_label)
+	assert(mainline_choice_count >= 3, "Expected %s opening shell to keep at least three mainline choices." % context_label)
+	assert(counterweight_choice_count >= 1, "Expected %s opening shell to keep one local counterweight pocket instead of a pure top cluster." % context_label)
 
 
 func _assert_runtime_family_placement_is_readable(
@@ -2236,11 +2320,26 @@ func _assert_runtime_family_placement_is_readable(
 
 func _assert_runtime_same_depth_reconnects_stay_local(map_runtime_state: RefCounted, context_label: String) -> void:
 	var reconnect_path_lengths: Array[int] = _collect_same_depth_reconnect_path_lengths(map_runtime_state)
+	var depth_by_node_id: Dictionary = _build_depth_map_from_start(map_runtime_state)
+	var branch_root_by_node_id: Dictionary = _build_branch_root_map_from_runtime(map_runtime_state)
+	var children_count_by_node_id: Dictionary = _build_runtime_children_count_map(map_runtime_state)
 	assert(reconnect_path_lengths.size() >= 1, "Expected %s to keep at least one same-depth reconnect edge." % context_label)
 	assert(_count_extra_edges_from_runtime(map_runtime_state) >= 1 and _count_extra_edges_from_runtime(map_runtime_state) <= 2, "Expected %s to keep reconnect budget inside [1, 2]." % context_label)
-	for reconnect_path_length in reconnect_path_lengths:
+	var reconnect_edges: Array[PackedInt32Array] = _collect_same_depth_reconnect_edges(map_runtime_state)
+	assert(reconnect_edges.size() == reconnect_path_lengths.size(), "Expected %s reconnect edge collection to stay aligned with reconnect span readback." % context_label)
+	for reconnect_index in range(reconnect_path_lengths.size()):
+		var reconnect_path_length: int = reconnect_path_lengths[reconnect_index]
+		var reconnect_edge: PackedInt32Array = reconnect_edges[reconnect_index]
+		var left_id: int = int(reconnect_edge[0])
+		var right_id: int = int(reconnect_edge[1])
 		assert(reconnect_path_length >= MapRuntimeStateScript.SCATTER_MIN_RECONNECT_PATH_LENGTH, "Expected %s reconnect span %d to stay above the minimum local span floor." % [context_label, reconnect_path_length])
 		assert(reconnect_path_length <= MapRuntimeStateScript.SCATTER_MAX_RECONNECT_PATH_LENGTH, "Expected %s reconnect span %d to stay below the cross-map span cap." % [context_label, reconnect_path_length])
+		assert(int(depth_by_node_id.get(left_id, -1)) >= 2 and int(depth_by_node_id.get(left_id, -1)) == int(depth_by_node_id.get(right_id, -1)), "Expected %s reconnects to stay on same-depth forward lanes." % context_label)
+		var left_branch_root: int = int(branch_root_by_node_id.get(left_id, MapRuntimeStateScript.NO_PENDING_NODE_ID))
+		var right_branch_root: int = int(branch_root_by_node_id.get(right_id, MapRuntimeStateScript.NO_PENDING_NODE_ID))
+		assert(abs(left_branch_root - right_branch_root) == 1, "Expected %s reconnects to stay between neighboring opening branches instead of cross-map diagonals." % context_label)
+		assert(int(children_count_by_node_id.get(left_id, 0)) >= 1, "Expected %s reconnects to stay on forward-progress connectors instead of dead-end leaves." % context_label)
+		assert(int(children_count_by_node_id.get(right_id, 0)) >= 1, "Expected %s reconnects to stay on forward-progress connectors instead of dead-end leaves." % context_label)
 
 
 func _expected_stage_blueprint_ids(stage_index: int) -> Dictionary:
@@ -2259,6 +2358,12 @@ func _expected_stage_blueprint_ids(stage_index: int) -> Dictionary:
 		"procedural_stage_corridor_v1:spine": true,
 		"procedural_stage_corridor_v1:switchback": true,
 	}
+
+
+func _assert_packed_int32_arrays_match(left_ids: PackedInt32Array, right_ids: PackedInt32Array, context_label: String) -> void:
+	assert(left_ids.size() == right_ids.size(), "Expected %s to keep the same adjacency count." % context_label)
+	for left_id in left_ids:
+		assert(right_ids.has(left_id), "Expected %s to include adjacency id %d." % [context_label, int(left_id)])
 
 
 func _build_depth_map_from_start(map_runtime_state: RefCounted) -> Dictionary:
@@ -2412,6 +2517,15 @@ func _build_runtime_path_length_without_edge(
 
 func _collect_same_depth_reconnect_path_lengths(map_runtime_state: RefCounted) -> Array[int]:
 	var reconnect_path_lengths: Array[int] = []
+	for reconnect_edge in _collect_same_depth_reconnect_edges(map_runtime_state):
+		var left_id: int = int(reconnect_edge[0])
+		var right_id: int = int(reconnect_edge[1])
+		reconnect_path_lengths.append(_build_runtime_path_length_without_edge(map_runtime_state, left_id, right_id, left_id, right_id))
+	return reconnect_path_lengths
+
+
+func _collect_same_depth_reconnect_edges(map_runtime_state: RefCounted) -> Array[PackedInt32Array]:
+	var reconnect_edges: Array[PackedInt32Array] = []
 	var depth_by_node_id: Dictionary = _build_depth_map_from_start(map_runtime_state)
 	var seen_edges: Dictionary = {}
 	for node_snapshot in map_runtime_state.build_node_snapshots():
@@ -2428,8 +2542,8 @@ func _collect_same_depth_reconnect_path_lengths(map_runtime_state: RefCounted) -
 			seen_edges[edge_key] = true
 			if node_depth < 2 or adjacent_depth < 2 or node_depth != adjacent_depth:
 				continue
-			reconnect_path_lengths.append(_build_runtime_path_length_without_edge(map_runtime_state, left_id, right_id, left_id, right_id))
-	return reconnect_path_lengths
+			reconnect_edges.append(PackedInt32Array([left_id, right_id]))
+	return reconnect_edges
 
 
 func _build_runtime_graph_signature(map_runtime_state: RefCounted) -> String:

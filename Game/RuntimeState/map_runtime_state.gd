@@ -25,7 +25,10 @@ const STAGE_SCAFFOLD_TEMPLATE_IDS: PackedStringArray = [
 const SCATTER_NODE_COUNT: int = 14
 const SCATTER_START_BRANCH_COUNT: int = 3
 const SCATTER_START_SPUR_NODE_COUNT: int = 1
+const SCATTER_REQUIRED_START_DEGREE: int = 4
 const SCATTER_MAX_NODE_DEGREE: int = 4
+const SCATTER_MAX_NON_START_NODE_DEGREE: int = 3
+const SCATTER_MAX_OPENING_NODE_DEGREE: int = 2
 const SCATTER_EXTRA_EDGES_MIN: int = 2
 const SCATTER_EXTRA_EDGES_MAX: int = 4
 const SCATTER_ATTEMPT_LIMIT: int = 16
@@ -48,8 +51,34 @@ const SCATTER_ROLE_HAMLET: String = "hamlet_node_id"
 const SCATTER_ROLE_SIDE_MISSION: String = SCATTER_ROLE_HAMLET
 const SCATTER_ROLE_KEY: String = "key_node_id"
 const SCATTER_ROLE_BOSS: String = "boss_node_id"
+const LAYOUT_SECTOR_CENTER_ANCHOR: String = "center_anchor"
+const LAYOUT_SECTOR_NORTH_WEST: String = "north_west"
+const LAYOUT_SECTOR_NORTH_CENTER: String = "north_center"
+const LAYOUT_SECTOR_NORTH_EAST: String = "north_east"
+const LAYOUT_SECTOR_MID_LEFT: String = "mid_left"
+const LAYOUT_SECTOR_MID_RIGHT: String = "mid_right"
+const LAYOUT_SECTOR_SOUTH_WEST: String = "south_west"
+const LAYOUT_SECTOR_SOUTH_CENTER: String = "south_center"
+const LAYOUT_SECTOR_SOUTH_EAST: String = "south_east"
+const LAYOUT_SECTOR_OUTER_LATE_WEST: String = "outer_late_west"
+const LAYOUT_SECTOR_OUTER_LATE_EAST: String = "outer_late_east"
+const LAYOUT_ROUTE_ROLE_CENTER_START: String = "center_start"
+const LAYOUT_ROUTE_ROLE_OPENING_COMBAT: String = "opening_combat"
+const LAYOUT_ROUTE_ROLE_OPENING_REWARD: String = "opening_reward"
+const LAYOUT_ROUTE_ROLE_OPENING_SUPPORT: String = "opening_support"
+const LAYOUT_ROUTE_ROLE_LATE_SUPPORT: String = "late_support"
+const LAYOUT_ROUTE_ROLE_EVENT_DETOUR: String = "event_detour"
+const LAYOUT_ROUTE_ROLE_HAMLET_DETOUR: String = "hamlet_detour"
+const LAYOUT_ROUTE_ROLE_KEY_PRESSURE: String = "key_pressure"
+const LAYOUT_ROUTE_ROLE_BOSS_PRESSURE: String = "boss_pressure"
+const LAYOUT_ROUTE_ROLE_COMBAT_ROUTE: String = "combat_route"
+const LAYOUT_ROUTE_ROLE_BRANCH_POCKET: String = "branch_pocket"
+const LAYOUT_ORIENTATION_PROFILE_BALANCED: String = "center_outward_balanced"
+const LAYOUT_ORIENTATION_PROFILE_WEST_WEIGHTED: String = "center_outward_west_weighted"
+const LAYOUT_ORIENTATION_PROFILE_EAST_WEIGHTED: String = "center_outward_east_weighted"
 const SCATTER_RECONNECT_DEPTH_MID: int = 2
 const SCATTER_RECONNECT_DEPTH_LATE: int = 3
+const SCATTER_MAX_LOCAL_BRANCH_DISTANCE: int = 1
 const PLACEMENT_BRANCH_TARGET_NODE_COUNT: int = 4
 const PLACEMENT_OPENING_MAX_DEPTH: int = 2
 const PLACEMENT_OUTER_MIN_DEPTH: int = 3
@@ -390,6 +419,29 @@ func build_realized_graph_snapshots() -> Array[Dictionary]:
 	return _graph_codec.build_realized_graph_save_payload(_node_graph, NO_PENDING_NODE_ID, NODE_STATE_UNDISCOVERED)
 
 
+func build_layout_graph_snapshots() -> Array[Dictionary]:
+	var adjacency_by_node_id: Dictionary = _build_adjacency_lookup_from_graph(_node_graph)
+	var depth_by_node_id: Dictionary = _build_scatter_depth_map(adjacency_by_node_id)
+	var route_role_by_node_id: Dictionary = _build_layout_route_role_by_node_id()
+	var sector_by_node_id: Dictionary = _build_layout_sector_by_node_id(adjacency_by_node_id, depth_by_node_id, route_role_by_node_id)
+	var orientation_profile_id: String = _build_layout_orientation_profile_id()
+	var topology_blueprint_id: String = _active_topology_blueprint_id
+	var layout_snapshots: Array[Dictionary] = []
+	for node_data in _node_graph:
+		var node_id: int = int(node_data.get("node_id", NO_PENDING_NODE_ID))
+		layout_snapshots.append({
+			"node_id": node_id,
+			"node_family": String(node_data.get("node_family", "")),
+			"node_state": String(node_data.get("node_state", NODE_STATE_UNDISCOVERED)),
+			"adjacent_node_ids": PackedInt32Array(_coerce_adjacent_ids(node_data.get("adjacent_node_ids", PackedInt32Array()))),
+			"sector_id": String(sector_by_node_id.get(node_id, LAYOUT_SECTOR_CENTER_ANCHOR)),
+			"route_role": String(route_role_by_node_id.get(node_id, LAYOUT_ROUTE_ROLE_BRANCH_POCKET)),
+			"orientation_profile_id": orientation_profile_id,
+			"topology_blueprint_id": topology_blueprint_id,
+		})
+	return layout_snapshots
+
+
 func get_support_node_runtime_state(node_id: int) -> Dictionary:
 	if not has_node(node_id) or not is_support_node(node_id):
 		return {}
@@ -671,6 +723,174 @@ func _build_node_snapshot(node_id: int) -> Dictionary:
 	return snapshot
 
 
+func _build_layout_route_role_by_node_id() -> Dictionary:
+	var role_by_node_id: Dictionary = {
+		DEFAULT_NODE_INDEX: LAYOUT_ROUTE_ROLE_CENTER_START,
+	}
+	var role_name_to_layout_role: Dictionary = {
+		SCATTER_ROLE_OPENING_COMBAT: LAYOUT_ROUTE_ROLE_OPENING_COMBAT,
+		SCATTER_ROLE_OPENING_REWARD: LAYOUT_ROUTE_ROLE_OPENING_REWARD,
+		SCATTER_ROLE_OPENING_SUPPORT: LAYOUT_ROUTE_ROLE_OPENING_SUPPORT,
+		SCATTER_ROLE_LATE_SUPPORT: LAYOUT_ROUTE_ROLE_LATE_SUPPORT,
+		SCATTER_ROLE_EVENT: LAYOUT_ROUTE_ROLE_EVENT_DETOUR,
+		SCATTER_ROLE_SIDE_MISSION: LAYOUT_ROUTE_ROLE_HAMLET_DETOUR,
+		SCATTER_ROLE_KEY: LAYOUT_ROUTE_ROLE_KEY_PRESSURE,
+		SCATTER_ROLE_BOSS: LAYOUT_ROUTE_ROLE_BOSS_PRESSURE,
+	}
+	for role_name_variant in role_name_to_layout_role.keys():
+		var role_name: String = String(role_name_variant)
+		var node_id: int = int(_family_budget_slot_reservations.get(role_name, NO_PENDING_NODE_ID))
+		if node_id == NO_PENDING_NODE_ID:
+			continue
+		role_by_node_id[node_id] = String(role_name_to_layout_role.get(role_name, LAYOUT_ROUTE_ROLE_BRANCH_POCKET))
+
+	for node_data in _node_graph:
+		var node_id: int = int(node_data.get("node_id", NO_PENDING_NODE_ID))
+		if node_id == NO_PENDING_NODE_ID or role_by_node_id.has(node_id):
+			continue
+		var node_family: String = String(node_data.get("node_family", ""))
+		role_by_node_id[node_id] = _fallback_layout_route_role_for_family(node_family)
+	return role_by_node_id
+
+
+func _fallback_layout_route_role_for_family(node_family: String) -> String:
+	match node_family:
+		"start":
+			return LAYOUT_ROUTE_ROLE_CENTER_START
+		"combat":
+			return LAYOUT_ROUTE_ROLE_COMBAT_ROUTE
+		"event":
+			return LAYOUT_ROUTE_ROLE_EVENT_DETOUR
+		NODE_FAMILY_HAMLET:
+			return LAYOUT_ROUTE_ROLE_HAMLET_DETOUR
+		"key":
+			return LAYOUT_ROUTE_ROLE_KEY_PRESSURE
+		"boss":
+			return LAYOUT_ROUTE_ROLE_BOSS_PRESSURE
+		"reward":
+			return LAYOUT_ROUTE_ROLE_OPENING_REWARD
+		_:
+			if _is_support_node_family(node_family):
+				return LAYOUT_ROUTE_ROLE_LATE_SUPPORT
+	return LAYOUT_ROUTE_ROLE_BRANCH_POCKET
+
+
+func _build_layout_sector_by_node_id(
+	adjacency_by_node_id: Dictionary,
+	depth_by_node_id: Dictionary,
+	route_role_by_node_id: Dictionary
+) -> Dictionary:
+	var sector_by_node_id: Dictionary = {}
+	var sorted_node_ids: Array[int] = _sorted_scatter_node_ids(adjacency_by_node_id.keys())
+	var parent_by_node_id: Dictionary = _build_scatter_parent_map(adjacency_by_node_id, depth_by_node_id, sorted_node_ids)
+	var branch_root_by_node_id: Dictionary = {}
+	if not parent_by_node_id.is_empty():
+		branch_root_by_node_id = _build_scatter_branch_root_map(parent_by_node_id, sorted_node_ids)
+	var lane_by_branch_root: Dictionary = _build_layout_lane_index_by_branch_root(adjacency_by_node_id)
+	for node_data in _node_graph:
+		var node_id: int = int(node_data.get("node_id", NO_PENDING_NODE_ID))
+		var node_family: String = String(node_data.get("node_family", ""))
+		var depth: int = int(depth_by_node_id.get(node_id, -1))
+		var branch_root_node_id: int = int(branch_root_by_node_id.get(node_id, node_id))
+		var lane_index: int = int(lane_by_branch_root.get(branch_root_node_id, -1))
+		var route_role: String = String(route_role_by_node_id.get(node_id, _fallback_layout_route_role_for_family(node_family)))
+		sector_by_node_id[node_id] = _resolve_layout_sector_id(node_id, node_family, route_role, depth, lane_index)
+	return sector_by_node_id
+
+
+func _build_layout_lane_index_by_branch_root(adjacency_by_node_id: Dictionary) -> Dictionary:
+	var branch_root_ids: Array[int] = []
+	for adjacent_node_id in _coerce_adjacent_ids(adjacency_by_node_id.get(DEFAULT_NODE_INDEX, PackedInt32Array())):
+		var resolved_adjacent_node_id: int = int(adjacent_node_id)
+		if _coerce_adjacent_ids(adjacency_by_node_id.get(resolved_adjacent_node_id, PackedInt32Array())).size() <= 1:
+			continue
+		branch_root_ids.append(resolved_adjacent_node_id)
+	if branch_root_ids.is_empty():
+		for adjacent_node_id in _coerce_adjacent_ids(adjacency_by_node_id.get(DEFAULT_NODE_INDEX, PackedInt32Array())):
+			branch_root_ids.append(int(adjacent_node_id))
+	branch_root_ids.sort()
+
+	var lane_by_branch_root: Dictionary = {}
+	for index in range(branch_root_ids.size()):
+		var branch_root_id: int = branch_root_ids[index]
+		lane_by_branch_root[branch_root_id] = min(index, SCATTER_START_BRANCH_COUNT - 1)
+	return lane_by_branch_root
+
+
+func _resolve_layout_sector_id(
+	node_id: int,
+	node_family: String,
+	route_role: String,
+	depth: int,
+	lane_index: int
+) -> String:
+	if node_id == DEFAULT_NODE_INDEX:
+		return LAYOUT_SECTOR_CENTER_ANCHOR
+	if lane_index < 0:
+		return LAYOUT_SECTOR_SOUTH_CENTER
+	if _is_layout_pressure_route(node_family, route_role):
+		return _layout_outer_sector_for_lane(lane_index)
+	if route_role == LAYOUT_ROUTE_ROLE_EVENT_DETOUR or route_role == LAYOUT_ROUTE_ROLE_HAMLET_DETOUR:
+		return _layout_south_sector_for_lane(lane_index)
+	if _is_support_node_family(node_family):
+		return _layout_mid_sector_for_lane(lane_index) if depth <= 1 else _layout_south_sector_for_lane(lane_index)
+	if depth <= 1:
+		return _layout_north_sector_for_lane(lane_index)
+	if depth == 2:
+		return _layout_mid_sector_for_lane(lane_index)
+	if depth == 3:
+		return _layout_south_sector_for_lane(lane_index)
+	return _layout_outer_sector_for_lane(lane_index)
+
+
+func _is_layout_pressure_route(node_family: String, route_role: String) -> bool:
+	return node_family == "key" or node_family == "boss" or route_role == LAYOUT_ROUTE_ROLE_KEY_PRESSURE or route_role == LAYOUT_ROUTE_ROLE_BOSS_PRESSURE
+
+
+func _layout_north_sector_for_lane(lane_index: int) -> String:
+	match lane_index:
+		0:
+			return LAYOUT_SECTOR_NORTH_WEST
+		2:
+			return LAYOUT_SECTOR_NORTH_EAST
+	return LAYOUT_SECTOR_NORTH_CENTER
+
+
+func _layout_mid_sector_for_lane(lane_index: int) -> String:
+	match lane_index:
+		0:
+			return LAYOUT_SECTOR_MID_LEFT
+		2:
+			return LAYOUT_SECTOR_MID_RIGHT
+	return LAYOUT_SECTOR_NORTH_CENTER
+
+
+func _layout_south_sector_for_lane(lane_index: int) -> String:
+	match lane_index:
+		0:
+			return LAYOUT_SECTOR_SOUTH_WEST
+		2:
+			return LAYOUT_SECTOR_SOUTH_EAST
+	return LAYOUT_SECTOR_SOUTH_CENTER
+
+
+func _layout_outer_sector_for_lane(lane_index: int) -> String:
+	match lane_index:
+		0:
+			return LAYOUT_SECTOR_OUTER_LATE_WEST
+		2:
+			return LAYOUT_SECTOR_OUTER_LATE_EAST
+	return LAYOUT_SECTOR_NORTH_CENTER
+
+
+func _build_layout_orientation_profile_id() -> String:
+	if _active_topology_blueprint_id.ends_with(":switchback") or _active_topology_blueprint_id.ends_with(":return"):
+		return LAYOUT_ORIENTATION_PROFILE_WEST_WEIGHTED
+	if _active_topology_blueprint_id.ends_with(":lane") or _active_topology_blueprint_id.ends_with(":crossback"):
+		return LAYOUT_ORIENTATION_PROFILE_EAST_WEIGHTED
+	return LAYOUT_ORIENTATION_PROFILE_BALANCED
+
+
 func _reveal_adjacent_nodes(node_id: int) -> void:
 	for adjacent_node_id in get_adjacent_node_ids(node_id):
 		if get_node_state(adjacent_node_id) != NODE_STATE_UNDISCOVERED:
@@ -908,8 +1128,18 @@ func _validate_scatter_runtime_graph_min_floor(graph: Array[Dictionary], allow_r
 		max_depth = max(max_depth, int(depth))
 
 	var start_degree: int = adjacency_by_node_id.get(start_node_id, PackedInt32Array()).size()
-	if start_degree < 2 or start_degree > SCATTER_MAX_NODE_DEGREE:
+	if start_degree != SCATTER_REQUIRED_START_DEGREE:
 		return false
+	for node_id_variant in adjacency_by_node_id.keys():
+		var node_id: int = int(node_id_variant)
+		var node_depth: int = int(depth_by_node_id.get(node_id, -1))
+		var degree: int = int(adjacency_by_node_id.get(node_id, PackedInt32Array()).size())
+		if node_id == start_node_id:
+			continue
+		if degree > SCATTER_MAX_NON_START_NODE_DEGREE:
+			return false
+		if node_depth == 1 and degree > SCATTER_MAX_OPENING_NODE_DEGREE:
+			return false
 	if int(degree_counts.get(1, 0)) < 2:
 		return false
 	if int(degree_counts.get(2, 0)) < 2:
@@ -931,7 +1161,13 @@ func _validate_scatter_runtime_graph_min_floor(graph: Array[Dictionary], allow_r
 	var reconnect_count: int = _count_scatter_same_depth_reconnects(adjacency_by_node_id, depth_by_node_id)
 	if reconnect_count < 1 and not allow_reconnect_shortfall:
 		return false
-	if reconnect_count > 0 and not _same_depth_reconnects_stay_local(adjacency_by_node_id, depth_by_node_id):
+	var sorted_node_ids: Array[int] = _sorted_scatter_node_ids(adjacency_by_node_id.keys())
+	var parent_by_node_id: Dictionary = _build_scatter_parent_map(adjacency_by_node_id, depth_by_node_id, sorted_node_ids)
+	if parent_by_node_id.is_empty():
+		return false
+	var branch_root_by_node_id: Dictionary = _build_scatter_branch_root_map(parent_by_node_id, sorted_node_ids)
+	var children_count_by_node_id: Dictionary = _build_scatter_children_count_map(parent_by_node_id, sorted_node_ids)
+	if reconnect_count > 0 and not _scatter_connectivity_rules_hold(adjacency_by_node_id, depth_by_node_id, branch_root_by_node_id, children_count_by_node_id):
 		return false
 
 	return true
@@ -941,13 +1177,21 @@ func _build_controlled_scatter_topology(template_id: String, attempt_index: int)
 	var blueprint: Dictionary = _select_controlled_scatter_blueprint(template_id, attempt_index, _generation_seed)
 	if blueprint.is_empty():
 		return {}
-	var frontier_tree: Dictionary = _build_controlled_scatter_frontier_tree(blueprint, _generation_seed)
-	var node_adjacency: Dictionary = frontier_tree.get("node_adjacency", {})
-	var branch_node_ids: Array = frontier_tree.get("branch_node_ids", [])
+	var node_adjacency: Dictionary = {}
+	var branch_node_ids: Array = []
+	if blueprint.has("fixed_branch_node_ids"):
+		var fixed_topology: Dictionary = _build_fixed_scatter_backbone_topology(blueprint)
+		node_adjacency = fixed_topology.get("node_adjacency", {})
+		branch_node_ids = fixed_topology.get("branch_node_ids", [])
+	else:
+		var frontier_tree: Dictionary = _build_controlled_scatter_frontier_tree(blueprint, _generation_seed)
+		node_adjacency = frontier_tree.get("node_adjacency", {})
+		branch_node_ids = frontier_tree.get("branch_node_ids", [])
 	if node_adjacency.is_empty() or branch_node_ids.size() != SCATTER_START_BRANCH_COUNT:
 		return {}
 	var depth_by_node_id: Dictionary = _build_scatter_depth_map(node_adjacency)
-	_apply_controlled_scatter_reconnects(node_adjacency, branch_node_ids, depth_by_node_id, blueprint, attempt_index, _generation_seed)
+	if not depth_by_node_id.is_empty():
+		_apply_controlled_scatter_reconnects(node_adjacency, branch_node_ids, depth_by_node_id, blueprint, attempt_index, _generation_seed)
 	var role_targets: Dictionary = _reserve_controlled_scatter_role_targets(node_adjacency, branch_node_ids, blueprint)
 	return {
 		"node_adjacency": node_adjacency,
@@ -970,120 +1214,146 @@ func _select_controlled_scatter_blueprint(template_id: String, attempt_index: in
 func _build_controlled_scatter_blueprint_catalog(template_id: String) -> Array[Dictionary]:
 	if template_id.find("openfield") != -1:
 		return [
-			_build_controlled_scatter_blueprint(
+			_build_fixed_scatter_backbone_blueprint(
 				"%s:fan" % template_id,
-				PackedInt32Array([4, 4, 4]),
-				PackedInt32Array([SCATTER_BRANCH_REWARD, SCATTER_BRANCH_COMBAT, SCATTER_BRANCH_SUPPORT]),
+				PackedInt32Array([1, 6, 9, 13]),
+				PackedInt32Array([2, 5, 10, 12]),
+				PackedInt32Array([3, 7, 8, 11]),
 				[
-					{
-						"left_branch_id": SCATTER_BRANCH_COMBAT,
-						"right_branch_id": SCATTER_BRANCH_SUPPORT,
-						"preferred_depth": SCATTER_RECONNECT_DEPTH_LATE,
-					},
-					{
-						"left_branch_id": SCATTER_BRANCH_REWARD,
-						"right_branch_id": SCATTER_BRANCH_SUPPORT,
-						"preferred_depth": SCATTER_RECONNECT_DEPTH_LATE,
-					},
+					_build_fixed_scatter_reconnect_plan(SCATTER_BRANCH_COMBAT, SCATTER_BRANCH_REWARD, SCATTER_RECONNECT_DEPTH_MID),
+					_build_fixed_scatter_reconnect_plan(SCATTER_BRANCH_REWARD, SCATTER_BRANCH_SUPPORT, SCATTER_RECONNECT_DEPTH_LATE),
 				],
-				SCATTER_BRANCH_COMBAT
+				SCATTER_BRANCH_SUPPORT
 			),
-			_build_controlled_scatter_blueprint(
+			_build_fixed_scatter_backbone_blueprint(
 				"%s:lane" % template_id,
-				PackedInt32Array([5, 4, 3]),
-				PackedInt32Array([SCATTER_BRANCH_COMBAT, SCATTER_BRANCH_REWARD, SCATTER_BRANCH_SUPPORT]),
+				PackedInt32Array([1, 5, 9, 13]),
+				PackedInt32Array([2, 6, 7, 12]),
+				PackedInt32Array([3, 8, 10, 11]),
 				[
-					{
-						"left_branch_id": SCATTER_BRANCH_COMBAT,
-						"right_branch_id": SCATTER_BRANCH_REWARD,
-						"preferred_depth": SCATTER_RECONNECT_DEPTH_LATE,
-					},
-					{
-						"left_branch_id": SCATTER_BRANCH_REWARD,
-						"right_branch_id": SCATTER_BRANCH_SUPPORT,
-						"preferred_depth": SCATTER_RECONNECT_DEPTH_MID,
-					},
+					_build_fixed_scatter_reconnect_plan(SCATTER_BRANCH_COMBAT, SCATTER_BRANCH_REWARD, SCATTER_RECONNECT_DEPTH_MID),
+					_build_fixed_scatter_reconnect_plan(SCATTER_BRANCH_REWARD, SCATTER_BRANCH_SUPPORT, SCATTER_RECONNECT_DEPTH_LATE),
 				],
-				SCATTER_BRANCH_COMBAT
+				SCATTER_BRANCH_REWARD
 			),
 		]
 	if template_id.find("loop") != -1:
 		return [
-			_build_controlled_scatter_blueprint(
+			_build_fixed_scatter_backbone_blueprint(
 				"%s:return" % template_id,
-				PackedInt32Array([4, 4, 4]),
-				PackedInt32Array([SCATTER_BRANCH_SUPPORT, SCATTER_BRANCH_COMBAT, SCATTER_BRANCH_REWARD]),
+				PackedInt32Array([1, 5, 6, 13]),
+				PackedInt32Array([2, 7, 10, 12]),
+				PackedInt32Array([3, 8, 11, 9]),
 				[
-					{
-						"left_branch_id": SCATTER_BRANCH_COMBAT,
-						"right_branch_id": SCATTER_BRANCH_SUPPORT,
-						"preferred_depth": SCATTER_RECONNECT_DEPTH_LATE,
-					},
-					{
-						"left_branch_id": SCATTER_BRANCH_REWARD,
-						"right_branch_id": SCATTER_BRANCH_SUPPORT,
-						"preferred_depth": SCATTER_RECONNECT_DEPTH_LATE,
-					},
+					_build_fixed_scatter_reconnect_plan(SCATTER_BRANCH_COMBAT, SCATTER_BRANCH_REWARD, SCATTER_RECONNECT_DEPTH_LATE),
+					_build_fixed_scatter_reconnect_plan(SCATTER_BRANCH_REWARD, SCATTER_BRANCH_SUPPORT, SCATTER_RECONNECT_DEPTH_MID),
 				],
 				SCATTER_BRANCH_SUPPORT
 			),
-			_build_controlled_scatter_blueprint(
+			_build_fixed_scatter_backbone_blueprint(
 				"%s:crossback" % template_id,
-				PackedInt32Array([4, 4, 4]),
-				PackedInt32Array([SCATTER_BRANCH_SUPPORT, SCATTER_BRANCH_REWARD, SCATTER_BRANCH_COMBAT]),
+				PackedInt32Array([1, 5, 9, 13]),
+				PackedInt32Array([2, 6, 10, 12]),
+				PackedInt32Array([3, 7, 11, 8]),
 				[
-					{
-						"left_branch_id": SCATTER_BRANCH_COMBAT,
-						"right_branch_id": SCATTER_BRANCH_REWARD,
-						"preferred_depth": SCATTER_RECONNECT_DEPTH_LATE,
-					},
-					{
-						"left_branch_id": SCATTER_BRANCH_SUPPORT,
-						"right_branch_id": SCATTER_BRANCH_REWARD,
-						"preferred_depth": SCATTER_RECONNECT_DEPTH_LATE,
-					},
+					_build_fixed_scatter_reconnect_plan(SCATTER_BRANCH_COMBAT, SCATTER_BRANCH_REWARD, SCATTER_RECONNECT_DEPTH_MID),
+					_build_fixed_scatter_reconnect_plan(SCATTER_BRANCH_REWARD, SCATTER_BRANCH_SUPPORT, SCATTER_RECONNECT_DEPTH_LATE),
 				],
 				SCATTER_BRANCH_SUPPORT
 			),
 		]
 	return [
-		_build_controlled_scatter_blueprint(
+			_build_fixed_scatter_backbone_blueprint(
 			"%s:spine" % template_id,
-			PackedInt32Array([5, 4, 3]),
-			PackedInt32Array([SCATTER_BRANCH_COMBAT, SCATTER_BRANCH_REWARD, SCATTER_BRANCH_SUPPORT]),
+			PackedInt32Array([1, 5, 9, 13]),
+			PackedInt32Array([2, 6, 10, 12]),
+			PackedInt32Array([3, 7, 8, 11]),
 			[
-				{
-					"left_branch_id": SCATTER_BRANCH_COMBAT,
-					"right_branch_id": SCATTER_BRANCH_REWARD,
-					"preferred_depth": SCATTER_RECONNECT_DEPTH_LATE,
-				},
-				{
-					"left_branch_id": SCATTER_BRANCH_REWARD,
-					"right_branch_id": SCATTER_BRANCH_SUPPORT,
-					"preferred_depth": SCATTER_RECONNECT_DEPTH_MID,
-				},
+				_build_fixed_scatter_reconnect_plan(SCATTER_BRANCH_COMBAT, SCATTER_BRANCH_REWARD, SCATTER_RECONNECT_DEPTH_MID),
+				_build_fixed_scatter_reconnect_plan(SCATTER_BRANCH_REWARD, SCATTER_BRANCH_SUPPORT, SCATTER_RECONNECT_DEPTH_LATE),
 			],
 			SCATTER_BRANCH_REWARD
 		),
-		_build_controlled_scatter_blueprint(
+		_build_fixed_scatter_backbone_blueprint(
 			"%s:switchback" % template_id,
-			PackedInt32Array([4, 4, 4]),
-			PackedInt32Array([SCATTER_BRANCH_COMBAT, SCATTER_BRANCH_SUPPORT, SCATTER_BRANCH_REWARD]),
+			PackedInt32Array([1, 5, 6, 13]),
+			PackedInt32Array([2, 7, 10, 12]),
+			PackedInt32Array([3, 8, 9, 11]),
 			[
-				{
-					"left_branch_id": SCATTER_BRANCH_COMBAT,
-					"right_branch_id": SCATTER_BRANCH_REWARD,
-					"preferred_depth": SCATTER_RECONNECT_DEPTH_LATE,
-				},
-				{
-					"left_branch_id": SCATTER_BRANCH_COMBAT,
-					"right_branch_id": SCATTER_BRANCH_SUPPORT,
-					"preferred_depth": SCATTER_RECONNECT_DEPTH_LATE,
-				},
+				_build_fixed_scatter_reconnect_plan(SCATTER_BRANCH_COMBAT, SCATTER_BRANCH_REWARD, SCATTER_RECONNECT_DEPTH_MID),
+				_build_fixed_scatter_reconnect_plan(SCATTER_BRANCH_REWARD, SCATTER_BRANCH_SUPPORT, SCATTER_RECONNECT_DEPTH_LATE),
 			],
-			SCATTER_BRANCH_REWARD
+			SCATTER_BRANCH_COMBAT
 		),
 	]
+
+
+func _build_fixed_scatter_backbone_blueprint(
+	blueprint_id: String,
+	combat_branch_node_ids: PackedInt32Array,
+	reward_branch_node_ids: PackedInt32Array,
+	support_branch_node_ids: PackedInt32Array,
+	reconnect_plans: Array,
+	event_branch_id: int
+) -> Dictionary:
+	var fixed_branch_node_ids: Array = [
+		PackedInt32Array(combat_branch_node_ids),
+		PackedInt32Array(reward_branch_node_ids),
+		PackedInt32Array(support_branch_node_ids),
+	]
+	return {
+		"blueprint_id": blueprint_id,
+		"fixed_branch_node_ids": fixed_branch_node_ids,
+		"reconnect_plans": reconnect_plans.duplicate(true),
+		"event_branch_id": event_branch_id,
+	}
+
+
+func _build_fixed_scatter_reconnect_plan(left_branch_id: int, right_branch_id: int, preferred_depth: int) -> Dictionary:
+	return {
+		"left_branch_id": left_branch_id,
+		"right_branch_id": right_branch_id,
+		"preferred_depth": preferred_depth,
+	}
+
+
+func _build_fixed_scatter_backbone_topology(blueprint: Dictionary) -> Dictionary:
+	var fixed_branch_node_ids_variant: Variant = blueprint.get("fixed_branch_node_ids", [])
+	if typeof(fixed_branch_node_ids_variant) != TYPE_ARRAY:
+		return {}
+	var fixed_branch_node_ids: Array = fixed_branch_node_ids_variant
+	if fixed_branch_node_ids.size() != SCATTER_START_BRANCH_COUNT:
+		return {}
+
+	var branch_node_ids: Array = []
+	var used_node_ids: Dictionary = {0: true, 4: true}
+	for branch_nodes_variant in fixed_branch_node_ids:
+		var branch_node_ids_for_lane: PackedInt32Array = _coerce_adjacent_ids(branch_nodes_variant)
+		if branch_node_ids_for_lane.size() != 4:
+			return {}
+		for node_id in branch_node_ids_for_lane:
+			if node_id <= 0 or node_id >= SCATTER_NODE_COUNT or used_node_ids.has(node_id):
+				return {}
+			used_node_ids[node_id] = true
+		branch_node_ids.append(PackedInt32Array(branch_node_ids_for_lane))
+	if used_node_ids.size() != SCATTER_NODE_COUNT:
+		return {}
+
+	var node_adjacency: Dictionary = {}
+	for node_id in range(SCATTER_NODE_COUNT):
+		node_adjacency[node_id] = PackedInt32Array()
+
+	for branch_nodes_variant in branch_node_ids:
+		var branch_nodes: PackedInt32Array = branch_nodes_variant
+		_add_scatter_edge(node_adjacency, 0, int(branch_nodes[0]))
+		for branch_index in range(branch_nodes.size() - 1):
+			_add_scatter_edge(node_adjacency, int(branch_nodes[branch_index]), int(branch_nodes[branch_index + 1]))
+	_add_scatter_edge(node_adjacency, 0, 4)
+
+	return {
+		"node_adjacency": node_adjacency,
+		"branch_node_ids": branch_node_ids,
+	}
 
 
 func _build_controlled_scatter_blueprint(
@@ -1260,6 +1530,8 @@ func _pick_controlled_reconnect_edge(
 		return []
 	if left_branch_id >= branch_node_ids.size() or right_branch_id >= branch_node_ids.size():
 		return []
+	if not _scatter_branches_are_local_neighbors(left_branch_id, right_branch_id):
+		return []
 	var preferred_depth: int = int(reconnect_plan.get("preferred_depth", SCATTER_RECONNECT_DEPTH_MID))
 	var left_candidates: Array[int] = _preferred_reconnect_candidates(branch_node_ids[left_branch_id] as Array, depth_by_node_id, preferred_depth)
 	var right_candidates: Array[int] = _preferred_reconnect_candidates(branch_node_ids[right_branch_id] as Array, depth_by_node_id, preferred_depth)
@@ -1284,6 +1556,10 @@ func _pick_controlled_reconnect_edge(
 				continue
 			return [left_node_id, right_node_id]
 	return []
+
+
+func _scatter_branches_are_local_neighbors(left_branch_id: int, right_branch_id: int) -> bool:
+	return abs(left_branch_id - right_branch_id) <= SCATTER_MAX_LOCAL_BRANCH_DISTANCE
 
 
 func _preferred_reconnect_candidates(branch_nodes: Array, depth_by_node_id: Dictionary, preferred_depth: int) -> Array[int]:
@@ -1368,12 +1644,14 @@ func _validate_controlled_scatter_topology(node_adjacency: Dictionary, role_targ
 	for node_id_variant in node_adjacency.keys():
 		var node_id: int = int(node_id_variant)
 		var degree: int = _get_scatter_degree(node_adjacency, node_id)
-		if degree < 1 or degree > SCATTER_MAX_NODE_DEGREE:
+		if degree < 1:
+			return false
+		if node_id == 0:
+			if degree != SCATTER_REQUIRED_START_DEGREE:
+				return false
+		elif degree > SCATTER_MAX_NON_START_NODE_DEGREE:
 			return false
 		degree_counts[degree] = int(degree_counts.get(degree, 0)) + 1
-	var start_degree: int = _get_scatter_degree(node_adjacency, 0)
-	if start_degree < 2 or start_degree > SCATTER_MAX_NODE_DEGREE:
-		return false
 	if int(degree_counts.get(1, 0)) < SCATTER_MIN_LEAF_COUNT:
 		return false
 	if int(degree_counts.get(2, 0)) < SCATTER_MIN_TWO_WAY_COUNT:
@@ -1386,8 +1664,64 @@ func _validate_controlled_scatter_topology(node_adjacency: Dictionary, role_targ
 	var depth_by_node_id: Dictionary = _build_scatter_depth_map(node_adjacency)
 	if _count_scatter_same_depth_reconnects(node_adjacency, depth_by_node_id) < 1:
 		return false
+	var sorted_node_ids: Array[int] = _sorted_scatter_node_ids(node_adjacency.keys())
+	var parent_by_node_id: Dictionary = _build_scatter_parent_map(node_adjacency, depth_by_node_id, sorted_node_ids)
+	if parent_by_node_id.is_empty():
+		return false
+	var branch_root_by_node_id: Dictionary = _build_scatter_branch_root_map(parent_by_node_id, sorted_node_ids)
+	var children_count_by_node_id: Dictionary = _build_scatter_children_count_map(parent_by_node_id, sorted_node_ids)
+	if not _scatter_connectivity_rules_hold(node_adjacency, depth_by_node_id, branch_root_by_node_id, children_count_by_node_id):
+		return false
+	return true
+
+
+func _scatter_connectivity_rules_hold(
+	node_adjacency: Dictionary,
+	depth_by_node_id: Dictionary,
+	branch_root_by_node_id: Dictionary,
+	children_count_by_node_id: Dictionary
+) -> bool:
+	if depth_by_node_id.size() != SCATTER_NODE_COUNT:
+		return false
 	if not _same_depth_reconnects_stay_local(node_adjacency, depth_by_node_id):
 		return false
+	for node_id_variant in node_adjacency.keys():
+		var node_id: int = int(node_id_variant)
+		var degree: int = _get_scatter_degree(node_adjacency, node_id)
+		var node_depth: int = int(depth_by_node_id.get(node_id, -1))
+		if node_id == 0:
+			if degree != SCATTER_REQUIRED_START_DEGREE:
+				return false
+			continue
+		if degree < 1 or degree > SCATTER_MAX_NON_START_NODE_DEGREE:
+			return false
+		if node_depth == 1 and degree > SCATTER_MAX_OPENING_NODE_DEGREE:
+			return false
+	var seen_edges: Dictionary = {}
+	for node_id_variant in node_adjacency.keys():
+		var node_id: int = int(node_id_variant)
+		var node_depth: int = int(depth_by_node_id.get(node_id, -1))
+		for adjacent_node_id in _coerce_adjacent_ids(node_adjacency.get(node_id, PackedInt32Array())):
+			var resolved_adjacent_node_id: int = int(adjacent_node_id)
+			var adjacent_depth: int = int(depth_by_node_id.get(resolved_adjacent_node_id, -1))
+			var left_id: int = min(node_id, resolved_adjacent_node_id)
+			var right_id: int = max(node_id, resolved_adjacent_node_id)
+			var edge_key: String = "%d:%d" % [left_id, right_id]
+			if seen_edges.has(edge_key):
+				continue
+			seen_edges[edge_key] = true
+			if node_depth < 2 or adjacent_depth < 2 or node_depth != adjacent_depth:
+				continue
+			var left_branch_root: int = int(branch_root_by_node_id.get(left_id, NO_PENDING_NODE_ID))
+			var right_branch_root: int = int(branch_root_by_node_id.get(right_id, NO_PENDING_NODE_ID))
+			if left_branch_root == NO_PENDING_NODE_ID or right_branch_root == NO_PENDING_NODE_ID:
+				return false
+			if not _scatter_branches_are_local_neighbors(left_branch_root - 1, right_branch_root - 1):
+				return false
+			if int(children_count_by_node_id.get(left_id, 0)) <= 0:
+				return false
+			if int(children_count_by_node_id.get(right_id, 0)) <= 0:
+				return false
 	return true
 
 
@@ -2402,15 +2736,21 @@ func _validate_scatter_runtime_graph(graph: Array[Dictionary]) -> bool:
 	if node0_entry.is_empty():
 		return false
 	var start_degree: int = int(_coerce_adjacent_ids(node0_entry.get("adjacent_node_ids", [])).size())
-	if start_degree < 2 or start_degree > 4:
+	if start_degree != SCATTER_REQUIRED_START_DEGREE:
 		return false
 
 	var degree_counts: Dictionary = {}
 	for entry in graph:
+		var node_id: int = int(entry.get("node_id", NO_PENDING_NODE_ID))
 		var adjacent_ids: PackedInt32Array = _coerce_adjacent_ids(entry.get("adjacent_node_ids", []))
 		var degree: int = adjacent_ids.size()
 		degree_counts[degree] = int(degree_counts.get(degree, 0)) + 1
-		if degree < 1 or degree > SCATTER_MAX_NODE_DEGREE:
+		if degree < 1:
+			return false
+		if node_id == 0:
+			if degree != SCATTER_REQUIRED_START_DEGREE:
+				return false
+		elif degree > SCATTER_MAX_NON_START_NODE_DEGREE:
 			return false
 
 	if int(degree_counts.get(1, 0)) < 2:
@@ -2424,7 +2764,13 @@ func _validate_scatter_runtime_graph(graph: Array[Dictionary]) -> bool:
 	if _count_scatter_same_depth_reconnects(adjacency_by_node_id, depth_by_node_id) < 1:
 		# Keep at least one late reconnect so the graph does not collapse into a pure tree.
 		return false
-	if not _same_depth_reconnects_stay_local(adjacency_by_node_id, depth_by_node_id):
+	var sorted_node_ids: Array[int] = _sorted_scatter_node_ids(adjacency_by_node_id.keys())
+	var parent_by_node_id: Dictionary = _build_scatter_parent_map(adjacency_by_node_id, depth_by_node_id, sorted_node_ids)
+	if parent_by_node_id.is_empty():
+		return false
+	var branch_root_by_node_id: Dictionary = _build_scatter_branch_root_map(parent_by_node_id, sorted_node_ids)
+	var children_count_by_node_id: Dictionary = _build_scatter_children_count_map(parent_by_node_id, sorted_node_ids)
+	if not _scatter_connectivity_rules_hold(adjacency_by_node_id, depth_by_node_id, branch_root_by_node_id, children_count_by_node_id):
 		return false
 
 	return true

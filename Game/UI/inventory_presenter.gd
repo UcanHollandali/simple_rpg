@@ -14,6 +14,17 @@ const EQUIPMENT_SLOT_LABELS := {
 	InventoryStateScript.EQUIPMENT_SLOT_ARMOR: "ARMOR",
 	InventoryStateScript.EQUIPMENT_SLOT_BELT: "BELT",
 }
+const CARD_FAMILY_TECHNIQUE := "technique"
+const TECHNIQUE_SLOT_LABEL := "TECHNIQUE"
+const TECHNIQUE_EMPTY_TITLE_TEXT := "No Technique"
+const TECHNIQUE_EMPTY_DETAIL_TEXT := "Learn at Hamlet"
+const TECHNIQUE_EMPTY_TOOLTIP_TEXT := "No technique equipped. Learn one at a Hamlet."
+const TECHNIQUE_DETAIL_TEXT_BY_EFFECT_TYPE := {
+	"remove_statuses": "Clear afflictions",
+	"attack_ignore_armor": "Ignore armor",
+	"attack_lifesteal": "Heal on hit",
+	"prime_next_attack": "Prime next attack",
+}
 
 var _loader: ContentLoader = ContentLoaderScript.new()
 var _item_tooltip_builder: ItemDefinitionTooltipBuilder = ItemDefinitionTooltipBuilderScript.new()
@@ -25,9 +36,9 @@ func build_equipment_title_text() -> String:
 
 func build_equipment_hint_text(is_combat: bool = false) -> String:
 	return (
-		"Only packed hand swaps are legal in combat. Swap ends turn. Armor and belt stay locked."
+		"Only packed hand swaps are legal in combat. Swap ends turn. Armor and belt stay locked. Technique stays read-only."
 		if is_combat
-		else "Tap a slot to equip or unequip. Right/Left hand, armor, and belt stay outside the backpack."
+		else "Tap gear slots to equip or unequip. Right/Left hand, armor, and belt stay outside the backpack. Technique is read-only here."
 	)
 
 
@@ -60,7 +71,11 @@ func build_combat_inventory_hint_text() -> String:
 func build_run_equipment_cards(run_state: RunState) -> Array[Dictionary]:
 	if run_state == null:
 		return _build_empty_equipment_cards()
-	return _build_equipment_cards(run_state.inventory_state, null)
+	return _build_equipment_cards(
+		run_state.inventory_state,
+		null,
+		String(run_state.equipped_technique_definition_id).strip_edges()
+	)
 
 
 func build_run_inventory_cards(run_state: RunState) -> Array[Dictionary]:
@@ -71,9 +86,11 @@ func build_run_inventory_cards(run_state: RunState) -> Array[Dictionary]:
 
 func build_combat_equipment_cards(combat_state: CombatState, inventory_source: Variant = null) -> Array[Dictionary]:
 	var inventory_state: InventoryState = _resolve_combat_inventory_state(combat_state, inventory_source)
+	var technique_definition_id: String = String(combat_state.equipped_technique_definition_id if combat_state != null else "").strip_edges()
+	var technique_definition: Dictionary = combat_state.equipped_technique_definition.duplicate(true) if combat_state != null else {}
 	if inventory_state == null:
-		return _build_empty_equipment_cards(null, combat_state)
-	return _build_equipment_cards(inventory_state, combat_state)
+		return _build_empty_equipment_cards(null, combat_state, technique_definition_id, technique_definition)
+	return _build_equipment_cards(inventory_state, combat_state, technique_definition_id, technique_definition)
 
 
 func build_combat_inventory_cards(combat_state: CombatState, inventory_source: Variant = null) -> Array[Dictionary]:
@@ -105,7 +122,12 @@ func _resolve_combat_inventory_state(combat_state: CombatState, inventory_source
 	return null
 
 
-func _build_equipment_cards(inventory_state: InventoryState, combat_state: CombatState = null) -> Array[Dictionary]:
+func _build_equipment_cards(
+	inventory_state: InventoryState,
+	combat_state: CombatState = null,
+	technique_definition_id: String = "",
+	technique_definition: Dictionary = {}
+) -> Array[Dictionary]:
 	var cards: Array[Dictionary] = []
 	for equipment_slot_name in InventoryStateScript.EQUIPMENT_SLOT_NAMES:
 		var slot: Dictionary = inventory_state.build_equipment_slot_snapshot(equipment_slot_name)
@@ -113,6 +135,7 @@ func _build_equipment_cards(inventory_state: InventoryState, combat_state: Comba
 			cards.append(_build_empty_equipment_card(equipment_slot_name, inventory_state, combat_state))
 			continue
 		cards.append(_build_populated_card(slot, inventory_state, combat_state, _equipment_slot_label(equipment_slot_name), -1, true))
+	cards.append(_build_technique_card(technique_definition_id, technique_definition))
 	return cards
 
 
@@ -142,10 +165,16 @@ func _build_backpack_cards(inventory_state: InventoryState, combat_state: Combat
 	return cards
 
 
-func _build_empty_equipment_cards(inventory_state: InventoryState = null, combat_state: CombatState = null) -> Array[Dictionary]:
+func _build_empty_equipment_cards(
+	inventory_state: InventoryState = null,
+	combat_state: CombatState = null,
+	technique_definition_id: String = "",
+	technique_definition: Dictionary = {}
+) -> Array[Dictionary]:
 	var cards: Array[Dictionary] = []
 	for equipment_slot_name in InventoryStateScript.EQUIPMENT_SLOT_NAMES:
 		cards.append(_build_empty_equipment_card(equipment_slot_name, inventory_state, combat_state))
+	cards.append(_build_technique_card(technique_definition_id, technique_definition))
 	return cards
 
 
@@ -250,6 +279,53 @@ func _build_empty_equipment_detail_text(
 		InventoryStateScript.EQUIPMENT_SLOT_BELT:
 			return "Equip belt for pack space."
 	return ""
+
+
+func _build_technique_card(technique_definition_id: String, technique_definition: Dictionary = {}) -> Dictionary:
+	var resolved_technique_definition: Dictionary = technique_definition.duplicate(true)
+	if resolved_technique_definition.is_empty() and not technique_definition_id.is_empty():
+		resolved_technique_definition = _load_definition("Techniques", technique_definition_id)
+	if technique_definition_id.is_empty() or resolved_technique_definition.is_empty():
+		return _build_empty_technique_card()
+	return _build_card_model(
+		CARD_FAMILY_TECHNIQUE,
+		TECHNIQUE_SLOT_LABEL,
+		-1,
+		-1,
+		_load_display_name(resolved_technique_definition, technique_definition_id),
+		_build_technique_short_detail_text(resolved_technique_definition),
+		"",
+		UiAssetPathsScript.build_technique_icon_texture_path(resolved_technique_definition),
+		_build_technique_tooltip_text(resolved_technique_definition),
+		TempScreenThemeScript.REWARD_ACCENT_COLOR,
+		false
+	)
+
+
+func _build_empty_technique_card() -> Dictionary:
+	return _build_card_model(
+		CARD_FAMILY_TECHNIQUE,
+		TECHNIQUE_SLOT_LABEL,
+		-1,
+		-1,
+		TECHNIQUE_EMPTY_TITLE_TEXT,
+		TECHNIQUE_EMPTY_DETAIL_TEXT,
+		"",
+		UiAssetPathsScript.HAMLET_ICON_TEXTURE_PATH,
+		TECHNIQUE_EMPTY_TOOLTIP_TEXT,
+		TempScreenThemeScript.REWARD_ACCENT_COLOR,
+		false
+	)
+
+
+func _build_technique_short_detail_text(technique_definition: Dictionary) -> String:
+	var effect_type: String = String(technique_definition.get("rules", {}).get("effect", {}).get("type", "")).strip_edges()
+	return String(TECHNIQUE_DETAIL_TEXT_BY_EFFECT_TYPE.get(effect_type, "Once per combat"))
+
+
+func _build_technique_tooltip_text(technique_definition: Dictionary) -> String:
+	var short_description: String = String(technique_definition.get("display", {}).get("short_description", "")).strip_edges()
+	return _join_non_empty_text([short_description, "Once per combat."])
 
 
 func _has_eligible_combat_hand_spare(inventory_state: InventoryState, equipment_slot_name: String) -> bool:
@@ -771,3 +847,12 @@ func _build_action_hint_tone(card_model: Dictionary, is_clickable: bool, is_sele
 
 func _extract_belt_capacity_bonus(definition: Dictionary) -> int:
 	return max(0, int(definition.get("rules", {}).get("backpack_capacity_bonus", InventoryStateScript.DEFAULT_BELT_BACKPACK_CAPACITY_BONUS)))
+
+
+func _join_non_empty_text(parts: Array) -> String:
+	var filtered: PackedStringArray = []
+	for part_value in parts:
+		var part: String = String(part_value).strip_edges()
+		if not part.is_empty():
+			filtered.append(part)
+	return " ".join(filtered)

@@ -73,10 +73,13 @@ static func build_status_model(run_state: RunState, options: Dictionary = {}) ->
 			"semantic": "xp",
 		})
 
+	var primary_rows: Array = _build_primary_rows(primary_items, options.get("primary_row_keys", []))
+
 	return {
 		"variant": variant,
 		"density": density,
 		"primary_items": primary_items,
+		"primary_rows": primary_rows,
 		"secondary_items": secondary_items,
 		"progress_items": progress_items,
 		"fallback_text": build_compact_status_text(run_state),
@@ -102,3 +105,29 @@ static func _build_metric_item(key: String, label_text: String, value_text: Stri
 	if max_value >= 0:
 		item["max_value"] = max_value
 	return item
+
+
+static func _build_primary_rows(primary_items: Array[Dictionary], row_keys_variant: Variant) -> Array:
+	if typeof(row_keys_variant) != TYPE_ARRAY:
+		return []
+
+	var item_by_key: Dictionary = {}
+	for item in primary_items:
+		var item_key: String = String(item.get("key", "")).strip_edges()
+		if item_key.is_empty():
+			continue
+		item_by_key[item_key] = item
+
+	var rows: Array = []
+	for row_keys_variant_entry in row_keys_variant:
+		if typeof(row_keys_variant_entry) != TYPE_ARRAY:
+			continue
+		var row_items: Array[Dictionary] = []
+		for key_variant in row_keys_variant_entry:
+			var item_key: String = String(key_variant).strip_edges()
+			if item_key.is_empty() or not item_by_key.has(item_key):
+				continue
+			row_items.append(item_by_key[item_key])
+		if not row_items.is_empty():
+			rows.append(row_items)
+	return rows

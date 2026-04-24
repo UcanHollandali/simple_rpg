@@ -25,7 +25,7 @@ Derived data, cached data, facade reads, and UI view state do not replace that o
 |---|---|---|
 | active flow state | `GameFlowManager` | reached through `AppBootstrap` only as a facade |
 | run result, stage index, hunger, XP, gold, outside-combat HP, run seed, named RNG stream cursors | `RunState` | stable run-level scalars plus live deterministic stream continuity |
-| current node id, discovery state, resolved state, locked state, pending node context, stage key state, boss-gate state, support-node revisit state, hamlet side-quest state | `MapRuntimeState` | runtime graph materialized from the active procedural stage-profile ids using center-start frontier growth plus controlled reconnect; legacy fixed templates remain load-compat only; current save snapshots still mirror pending-node id/type through `app_state` for compatibility restore, but that mirror does not change the owner |
+| current node id, discovery state, resolved state, locked state, pending node context, stage key state, boss-gate state, support-node revisit state, hamlet side-quest state | `MapRuntimeState` | runtime graph materialized from the active procedural stage-profile ids through a bounded sector-aware backbone plus deterministic role placement; legacy fixed templates remain load-compat only; current save snapshots still mirror pending-node id/type through `app_state` for compatibility restore, but that mirror does not change the owner |
 | backpack slots and order, plus explicit equipment slots for right hand / left hand / armor / belt | `InventoryState` | starter recipe comes from `ContentDefinitions/RunLoadouts/starter_loadout.json`; equipped gear no longer consumes backpack capacity |
 | combat turn state, enemy HP, revealed intent, boss phase tracking, combat-only statuses, combat-local hunger/HP/durability mutation, combat-local guard, and combat-local interpretation of right-hand / left-hand / armor / belt loadout | `CombatState` | committed back to `RunState` at combat end; left-hand shield/offhand behavior and guard truth now live here; boss phase truth stays combat-local only |
 | combat setup selection and post-combat/post-node progression routing | `RunSessionCoordinator` | orchestration owner, not long-lived state owner |
@@ -103,7 +103,10 @@ Derived data, cached data, facade reads, and UI view state do not replace that o
 
 - `MapRuntimeState` owns the stage-local exploration graph and all per-node runtime state.
 - `MapRuntimeState` is the canonical owner of pending-node truth.
-- The current graph is realized from the active controlled-scatter stage profiles, but that does not make the content template the runtime owner.
+- The current graph is realized from the active bounded sector-aware backbone stage profiles, but that does not make the content template the runtime owner.
+- `Game/UI` and `scenes/` may hold derived board data such as layout caches, road geometry, pocket/clearing masks, overlay anchors, and walker samples, but those remain presentation-only and do not become map truth.
+- Side-by-side old/new map presentation lanes may coexist temporarily during replacement work, but neither lane becomes a second owner of node, adjacency, discovery, current-node, pending-node, or boss/key state.
+- Switching which derived presentation lane is the default is not an ownership transfer and must not widen save data by itself.
 - `RunSessionCoordinator` may:
   - validate adjacency-limited movement
   - trigger a travel-scoped roadside interruption during valid movement, then continue the preserved destination flow

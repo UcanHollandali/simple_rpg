@@ -379,14 +379,14 @@ static func apply_portrait_safe_layout(root: Control, max_width: int, min_side_m
 		if header_card != null:
 			header_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			header_card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-			header_card.size_flags_stretch_ratio = 1.02
+			header_card.size_flags_stretch_ratio = 1.0
 			header_card.custom_minimum_size = Vector2(0.0, 0.0)
 		if route_read_label != null:
 			route_read_label.max_lines_visible = 2 if compact_layout else 1
 		if run_summary_card != null:
 			run_summary_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			run_summary_card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-			run_summary_card.size_flags_stretch_ratio = 1.18
+			run_summary_card.size_flags_stretch_ratio = 1.0
 			run_summary_card.custom_minimum_size = Vector2(0.0, 0.0)
 		if top_row_divider != null:
 			top_row_divider.visible = not very_compact_layout

@@ -11,10 +11,13 @@ const TestExitCleanupHelperScript = preload("res://Tests/_exit_cleanup_helper.gd
 const MAIN_MENU_START_BUTTON_PATH := "Margin/VBox/ActionPanel/ActionVBox/StartRunButton"
 const COMBAT_SAFE_MENU_LAUNCHER_BUTTON_PATH := "SafeMenuOverlay/MenuLauncherButton"
 const COMBAT_SAFE_MENU_MENU_LAYER_PATH := "SafeMenuOverlay/MenuLayer"
+const COMBAT_SAFE_MENU_STATUS_LABEL_PATH := "SafeMenuOverlay/MenuLayer/PanelHolder/PanelRow/MenuPanel/VBox/StatusLabel"
 const COMBAT_SAFE_MENU_TITLE_PATH := "SafeMenuOverlay/MenuLayer/PanelHolder/PanelRow/MenuPanel/VBox/TitleLabel"
 const COMBAT_SAFE_MENU_SUBTITLE_PATH := "SafeMenuOverlay/MenuLayer/PanelHolder/PanelRow/MenuPanel/VBox/SubtitleLabel"
 const COMBAT_SAFE_MENU_TUTORIAL_BUTTON_PATH := "SafeMenuOverlay/MenuLayer/PanelHolder/PanelRow/MenuPanel/VBox/ActionsVBox/DisableTutorialHintsButton"
 const COMBAT_SAFE_MENU_MAIN_MENU_BUTTON_PATH := "SafeMenuOverlay/MenuLayer/PanelHolder/PanelRow/MenuPanel/VBox/ActionsVBox/ReturnToMainMenuButton"
+const COMBAT_SAFE_MENU_TOAST_PANEL_PATH := "SafeMenuOverlay/StatusToast"
+const COMBAT_SAFE_MENU_TOAST_LABEL_PATH := "SafeMenuOverlay/StatusToast/StatusToastLabel"
 const ROUTE_BUTTON_NODE_NAMES: PackedStringArray = [
 	"CombatNodeButton",
 	"RewardNodeButton",
@@ -80,10 +83,16 @@ func _on_process_frame() -> void:
 				_advance_phase(4)
 		4:
 			if _is_scene("Combat"):
+				if _phase_frame_count < 12:
+					return
 				var bootstrap: Node = get_root().get_node_or_null("AppBootstrap")
 				var coordinator: RefCounted = bootstrap.run_session_coordinator if bootstrap != null else null
 				var hint_controller: FirstRunHintController = coordinator.get("_first_run_hint_controller") as FirstRunHintController if coordinator != null else null
 				var tutorial_button: Button = current_scene.get_node_or_null(COMBAT_SAFE_MENU_TUTORIAL_BUTTON_PATH) as Button
+				var menu_layer: Control = current_scene.get_node_or_null(COMBAT_SAFE_MENU_MENU_LAYER_PATH) as Control
+				var status_label: Label = current_scene.get_node_or_null(COMBAT_SAFE_MENU_STATUS_LABEL_PATH) as Label
+				var toast_panel: PanelContainer = current_scene.get_node_or_null(COMBAT_SAFE_MENU_TOAST_PANEL_PATH) as PanelContainer
+				var toast_label: Label = current_scene.get_node_or_null(COMBAT_SAFE_MENU_TOAST_LABEL_PATH) as Label
 				var expected_hint_ids: Array[String] = []
 				for hint_id in FirstRunHintControllerScript.FROZEN_HINT_IDS:
 					expected_hint_ids.append(String(hint_id))
@@ -94,6 +103,10 @@ func _on_process_frame() -> void:
 					hint_controller.build_save_data() == expected_hint_ids,
 					"Expected safe-menu tutorial suppression to mark the frozen hint set as shown for this save."
 				)
+				_require(menu_layer == null or not menu_layer.visible, "Expected tutorial suppression to close the safe-menu panel instead of leaving the large settings surface visible.")
+				_require(status_label == null or not status_label.visible, "Expected tutorial suppression status copy to stay out of the large settings panel after the menu closes.")
+				_require(toast_panel != null and toast_panel.visible, "Expected tutorial suppression to fall back to the compact toast lane after the menu closes.")
+				_require(toast_label != null and String(toast_label.text) == "Tutorial hints disabled for this save.", "Expected the tutorial suppression toast to keep the shared status copy.")
 				_require(tutorial_button != null and not tutorial_button.visible, "Expected the tutorial suppression button to hide once no hints remain.")
 				await _finish_success("test_combat_safe_menu")
 

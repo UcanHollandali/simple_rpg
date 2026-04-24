@@ -107,7 +107,7 @@ Current prototype note:
 - `FlowState.is_architecturally_save_safe`, `FlowState.is_implemented_save_safe_now`, and `SaveService.is_implemented_save_safe_now` now name the split explicitly.
 - `FlowState.is_save_safe` remains the older compatibility alias; `SaveService` no longer keeps the older mirror helper.
 
-## Technique Continuity (Live Prompt 27 Additive Surface)
+## Technique Continuity (Current Live Additive Surface)
 
 - First-pass technique ownership is now save-backed, not visit-local only.
 - Run-level continuity now includes:
@@ -125,30 +125,29 @@ Current prototype note:
   - the once-per-combat spent flag lives in `CombatState`
   - queued next-attack multipliers such as `echo_strike` priming also stay combat-local
   - `Combat` is still not save-safe, so those transient fields are not part of the safe-state baseline
-- Prompt `27` does not add a new safe-state flow and does not move combat truth into UI ownership.
+- This additive continuity does not add a new safe-state flow and does not move combat truth into UI ownership.
 
-## Approved Prompt 29 Hand-Slot Swap Save Target (Not Live Yet)
+## Hand-Slot Swap Save Continuity (Current Live Rule)
 
-This section records the approved Prompt `29` continuity target.
-It is not current live save truth yet.
+This section records the current live continuity rule for hand-slot swap.
 
-- Prompt `29` does not approve combat save-safe continuation.
+- Hand-slot swap does not approve combat save-safe continuation.
 - `Combat` remains non-save-safe while a hand-slot swap surface is open or while a broken-weapon follow-up decision is pending.
 - No additive save fields are approved for:
   - pending swap slot focus
   - pending swap candidate lists
   - mid-combat broken-weapon prompt state
-- If Prompt `29` lands, swapped hand truth should continue to persist only through the normal post-combat inventory/runtime copy path.
-- Prompt `29` does not approve a new safe-state flow and does not widen the safe-state baseline beyond the current `RunState` / `InventoryState` continuity surface.
+- Swapped hand truth should continue to persist only through the normal post-combat inventory/runtime copy path.
+- Hand-slot swap does not approve a new safe-state flow and does not widen the safe-state baseline beyond the current `RunState` / `InventoryState` continuity surface.
 
-## Advanced Enemy Intent Escalation Target (Prompt 30, Not Live Yet)
+## Advanced Enemy Intent Escalation Target (Not Live Yet)
 
 This section records the save/continuity target for later advanced enemy-intent work.
 It is not current live save truth yet.
 
-- Prompt `30` does not approve combat save-safe continuation.
+- This future lane does not approve combat save-safe continuation.
 - First advanced-intent runtime work should still keep all advanced enemy state combat-local only.
-- No additive save fields are approved in Prompt `30` for:
+- No additive save fields are approved for:
   - prepared follow-up payloads
   - enemy-owned status instances
   - enemy guard or temporary armor-up state
@@ -163,7 +162,7 @@ It is not current live save truth yet.
   - boss-phase index plus any phase-local advanced-intent cursor that can affect the next reveal
   - any partially resolved multi-hit packet cursor if combat can be resumed mid-action
 - Those fields are future prerequisite questions only.
-- Prompt `30` does not approve those schema additions now.
+- This future lane does not approve those schema additions now.
 
 ## Persisted Runtime Areas
 

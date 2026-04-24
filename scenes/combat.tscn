@@ -297,10 +297,9 @@ size_flags_vertical = 0
 [node name="ActionSectionTitleLabel" type="Label" parent="Margin/VBox/Buttons"]
 text = "Pick Your Move"
 
-[node name="ActionCardsRow" type="HFlowContainer" parent="Margin/VBox/Buttons"]
+[node name="ActionCardsRow" type="HBoxContainer" parent="Margin/VBox/Buttons"]
 size_flags_horizontal = 3
-theme_override_constants/h_separation = 6
-theme_override_constants/v_separation = 6
+theme_override_constants/separation = 6
 alignment = 1
 
 [node name="AttackActionCard" type="PanelContainer" parent="Margin/VBox/Buttons/ActionCardsRow"]

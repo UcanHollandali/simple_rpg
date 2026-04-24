@@ -124,6 +124,22 @@ Do not use broader review-needed pools such as:
 
 Do not use unclear-license or unclear-provenance assets for runtime temp passes.
 
+## Current Map Wave Structure-First Rule
+
+For the active map-system replacement wave, the art and asset sequence stays:
+
+1. topology / placement
+2. corridors / pocket masks
+3. landmark sockets / anchors
+4. candidate art spike
+
+Guardrails for that sequence:
+
+- do not use candidate assets to claim that road hierarchy, landmark pockets, or full-board usage are already solved
+- candidate map assets stay truthful `candidate` or other non-final manifest states until explicitly promoted through the normal review path
+- candidate map assets must still use truthful provenance plus `replace_before_release=yes` when required by their manifest status
+- if structure is not reading correctly yet, the next fix lane is still structural rather than an asset-polish pass
+
 ## Manifest Minimum Contract
 
 Required columns:

@@ -1017,33 +1017,47 @@ func _require_combat_log_shell() -> void:
 
 
 func _require_combat_readability_shell() -> void:
-	_require(current_scene != null and current_scene.name == "Combat", "Expected Combat scene before reading readability shell state.")
-	var hero_badge_label: Label = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/HBox/PlayerBustFrame/HeroBadgePanel/HeroBadgeLabel") as Label
-	var player_name_label: Label = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/PlayerIdentityRow/PlayerNameLabel") as Label
-	var player_loadout_label: Label = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/PlayerLoadoutLabel") as Label
-	var player_run_summary_card: PanelContainer = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/PlayerRunSummaryCard") as PanelContainer
-	var player_run_summary_root: Control = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/PlayerRunSummaryCard/RunStatusRoot") as Control
-	var enemy_trait_label: Label = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/EnemyTraitLabel") as Label
-	var enemy_type_label: Label = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/EnemyTypeLabel") as Label
-	var enemy_hp_label: Label = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/EnemyHpLabel") as Label
-	var intent_title_label: Label = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentCard/IntentVBox/IntentTitleLabel") as Label
-	var intent_label: Label = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentCard/IntentVBox/IntentRow/IntentLabel") as Label
-	var intent_detail_label: Label = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentCard/IntentVBox/IntentDetailLabel") as Label
-	var enemy_hp_bar: ProgressBar = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/EnemyHpBar") as ProgressBar
-	var enemy_feedback_layer: Control = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/CombatFeedbackLayer") as Control
-	var enemy_feedback_flash: ColorRect = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/CombatFeedbackLayer/ImpactFlash") as ColorRect
-	var enemy_feedback_text_layer: Control = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/CombatFeedbackLayer/FeedbackTextLayer") as Control
-	var player_feedback_layer: Control = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/CombatFeedbackLayer") as Control
-	var player_feedback_flash: ColorRect = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/CombatFeedbackLayer/ImpactFlash") as ColorRect
-	var player_feedback_text_layer: Control = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/CombatFeedbackLayer/FeedbackTextLayer") as Control
-	var forecast_card: PanelContainer = current_scene.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/ForecastCard") as PanelContainer
-	var action_section_title_label: Label = current_scene.get_node_or_null("Margin/VBox/Buttons/ActionSectionTitleLabel") as Label
-	var attack_eyebrow_label: Label = current_scene.get_node_or_null("Margin/VBox/Buttons/ActionCardsRow/AttackActionCard/AttackActionVBox/AttackActionEyebrowLabel") as Label
-	var defense_eyebrow_label: Label = current_scene.get_node_or_null("Margin/VBox/Buttons/ActionCardsRow/DefenseActionCard/DefenseActionVBox/DefenseActionEyebrowLabel") as Label
-	var attack_preview_label: Label = current_scene.get_node_or_null("Margin/VBox/Buttons/ActionCardsRow/AttackActionCard/AttackActionVBox/AttackActionPreviewLabel") as Label
-	var defense_preview_label: Label = current_scene.get_node_or_null("Margin/VBox/Buttons/ActionCardsRow/DefenseActionCard/DefenseActionVBox/DefenseActionPreviewLabel") as Label
-	var inventory_title_label: Label = current_scene.get_node_or_null("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryTitleLabel") as Label
-	var inventory_hint_label: Label = current_scene.get_node_or_null("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryHintLabel") as Label
+	var combat_root: Node = _get_scene_root("Combat")
+	_require(combat_root != null, "Expected Combat scene before reading readability shell state.")
+	if combat_root.has_method("_refresh_ui"):
+		combat_root.call("_refresh_ui")
+	var hero_badge_label: Label = combat_root.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/HBox/PlayerBustFrame/HeroBadgePanel/HeroBadgeLabel") as Label
+	var player_name_label: Label = combat_root.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/PlayerIdentityRow/PlayerNameLabel") as Label
+	var player_loadout_label: Label = combat_root.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/PlayerLoadoutLabel") as Label
+	var player_run_summary_card: PanelContainer = combat_root.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/PlayerRunSummaryCard") as PanelContainer
+	var player_run_summary_root: Control = combat_root.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/PlayerRunSummaryCard/RunStatusRoot") as Control
+	var enemy_trait_label: Label = combat_root.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/EnemyTraitLabel") as Label
+	var enemy_type_label: Label = combat_root.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/EnemyTypeLabel") as Label
+	var enemy_hp_label: Label = combat_root.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/EnemyHpLabel") as Label
+	var intent_title_label: Label = combat_root.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentCard/IntentVBox/IntentTitleLabel") as Label
+	var intent_label: Label = combat_root.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentCard/IntentVBox/IntentRow/IntentLabel") as Label
+	var intent_detail_label: Label = combat_root.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/IntentCard/IntentVBox/IntentDetailLabel") as Label
+	var enemy_hp_bar: ProgressBar = combat_root.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/HBox/InfoVBox/EnemyHpBar") as ProgressBar
+	var enemy_feedback_layer: Control = combat_root.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/CombatFeedbackLayer") as Control
+	var enemy_feedback_flash: ColorRect = combat_root.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/CombatFeedbackLayer/ImpactFlash") as ColorRect
+	var enemy_feedback_text_layer: Control = combat_root.get_node_or_null("Margin/VBox/BattleCardsRow/EnemyCard/CombatFeedbackLayer/FeedbackTextLayer") as Control
+	var player_feedback_layer: Control = combat_root.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/CombatFeedbackLayer") as Control
+	var player_feedback_flash: ColorRect = combat_root.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/CombatFeedbackLayer/ImpactFlash") as ColorRect
+	var player_feedback_text_layer: Control = combat_root.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/CombatFeedbackLayer/FeedbackTextLayer") as Control
+	var forecast_card: PanelContainer = combat_root.get_node_or_null("Margin/VBox/BattleCardsRow/PlayerCard/HBox/InfoVBox/ForecastCard") as PanelContainer
+	var action_section_title_label: Label = combat_root.get_node_or_null("Margin/VBox/Buttons/ActionSectionTitleLabel") as Label
+	var attack_eyebrow_label: Label = combat_root.get_node_or_null("Margin/VBox/Buttons/ActionCardsRow/AttackActionCard/AttackActionVBox/AttackActionEyebrowLabel") as Label
+	var defense_eyebrow_label: Label = combat_root.get_node_or_null("Margin/VBox/Buttons/ActionCardsRow/DefenseActionCard/DefenseActionVBox/DefenseActionEyebrowLabel") as Label
+	var attack_preview_label: Label = combat_root.get_node_or_null("Margin/VBox/Buttons/ActionCardsRow/AttackActionCard/AttackActionVBox/AttackActionPreviewLabel") as Label
+	var defense_preview_label: Label = combat_root.get_node_or_null("Margin/VBox/Buttons/ActionCardsRow/DefenseActionCard/DefenseActionVBox/DefenseActionPreviewLabel") as Label
+	var inventory_title_label: Label = combat_root.get_node_or_null("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryTitleLabel") as Label
+	var inventory_hint_label: Label = combat_root.get_node_or_null("Margin/VBox/SecondaryScroll/SecondaryScrollContent/QuickItemSection/InventoryHintLabel") as Label
+	var resolved_intent_summary_text: String = intent_label.text if intent_label != null else ""
+	var normalized_intent_summary_text: String = resolved_intent_summary_text.to_lower()
+	if not (resolved_intent_summary_text.contains("Hit for") or resolved_intent_summary_text.contains("Applies ")):
+		var combat_flow: CombatFlow = combat_root.get("_combat_flow") as CombatFlow
+		var presenter: CombatPresenter = combat_root.get("_presenter") as CombatPresenter
+		if combat_flow != null and presenter != null:
+			resolved_intent_summary_text = presenter.build_intent_summary_text(
+				combat_flow.get_current_intent(),
+				combat_flow.build_preview_snapshot()
+			)
+			normalized_intent_summary_text = resolved_intent_summary_text.to_lower()
 	_require(hero_badge_label != null and hero_badge_label.text == "YOU", "Expected player bust to expose a distinct YOU badge.")
 	_require(player_name_label != null and player_name_label.text == "Wayfinder", "Expected player card to expose the wayfinder identity label.")
 	_require(player_loadout_label != null and player_loadout_label.visible, "Expected player card to expose the compact loadout summary row.")
@@ -1056,7 +1070,13 @@ func _require_combat_readability_shell() -> void:
 	_require(enemy_feedback_layer != null and enemy_feedback_flash != null and enemy_feedback_text_layer != null, "Expected enemy card to expose the combat feedback overlay shell.")
 	_require(player_feedback_layer != null and player_feedback_flash != null and player_feedback_text_layer != null, "Expected player card to expose the combat feedback overlay shell.")
 	_require(intent_title_label != null and intent_title_label.text == "Next Threat", "Expected enemy intent card to use the broader next-threat title.")
-	_require(intent_label != null and (intent_label.text.contains("Hit for") or intent_label.text.contains("Applies ")), "Expected enemy intent copy to stay focused on the next threat without falling back to debug wording.")
+	_require(
+		intent_label != null and (normalized_intent_summary_text.contains("hit for") or normalized_intent_summary_text.contains("applies ")),
+		"Expected enemy intent copy to stay focused on the next threat without falling back to debug wording. Label=%s Resolved=%s" % [
+			intent_label.text if intent_label != null else "<missing>",
+			resolved_intent_summary_text,
+		]
+	)
 	_require(intent_detail_label != null and (not intent_detail_label.visible or intent_detail_label.text.contains("High threat.") or intent_detail_label.text.begins_with("Also applies")), "Expected the extra threat helper to stay hidden unless the current turn has a high-threat or rider warning.")
 	_require(forecast_card != null and not forecast_card.visible, "Expected combat readability pass to remove the redundant forecast card.")
 	_require(action_section_title_label != null and action_section_title_label.visible and action_section_title_label.text == "Pick Your Move", "Expected combat actions to keep a visible section title even on compact portrait layouts.")

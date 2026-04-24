@@ -21,6 +21,10 @@
 
 - Main menu clarity and first-run comprehension.
 - Map readability, route-choice clarity, and safe-screen save/load expectations.
+  - whether roads read first as the structure of the neighborhood
+  - whether landmark pockets read as primary node identity rather than icon discs alone
+  - whether the lower half of the board carries meaningful structure instead of mostly void or decorative spill
+  - whether UI and overlay surfaces support the small-world illusion instead of reframing the map as a dashboard inset
 - Combat pacing inside the current compact loop, especially:
   - whether `Defend` feels worth its `2` hunger turn cost when spike turns are readable
   - whether enemy telegraphs create real decisions instead of noise
@@ -34,4 +38,6 @@
 - The current visual/audio floor is still temporary prototype surface, not final production art/audio.
 - The current music floor is the calmer repo-authored `proto_01` set, but it is still marked temporary and replace-before-release.
 - Feedback about readability, contrast, clarity, and information hierarchy is useful.
+- If candidate map art appears in later playtests, judge structural readability separately from asset polish; candidate art is not proof that the map system is already structurally correct.
+- If portrait review captures are refreshed, use the paired `export/portrait_review/*.review.json` sidecars to confirm the exact screenshot paths reviewed, note lower-half occupancy readback, and call out any visible UI overlap entries before making a human judgment on the PNGs.
 - Feedback that assumes final art polish, final balance breadth, or release-ready content coverage should be treated as provisional.

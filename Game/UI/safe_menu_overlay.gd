@@ -84,7 +84,7 @@ func set_tutorial_hints_available(is_available: bool) -> void:
 	if _tutorial_hints_button != null: _tutorial_hints_button.visible = _tutorial_hints_available
 func set_status_text(text: String) -> void:
 	_status_text = text
-	if _status_label != null: _status_label.text = _status_text; _status_label.visible = not _status_text.is_empty()
+	_sync_status_label()
 	_refresh_status_toast()
 func clear_status_text() -> void:
 	_status_text = ""
@@ -118,6 +118,7 @@ func open_menu() -> void:
 	if _menu_layer == null or _menu_panel == null or _menu_open:
 		return
 	_menu_open = true
+	_sync_status_label()
 	_menu_layer.visible = true
 	_menu_layer.mouse_filter = Control.MOUSE_FILTER_STOP
 	_menu_layer.modulate = Color(1, 1, 1, 0)
@@ -139,6 +140,7 @@ func close_menu() -> void:
 	if _menu_layer == null or _menu_panel == null or not _menu_open:
 		return
 	_menu_open = false
+	_sync_status_label()
 	var tween: Tween = create_tween()
 	tween.set_trans(Tween.TRANS_SINE)
 	tween.set_ease(Tween.EASE_IN)
@@ -146,6 +148,15 @@ func close_menu() -> void:
 	tween.parallel().tween_property(_menu_panel, "scale", Vector2(0.98, 0.98), 0.12)
 	tween.finished.connect(Callable(self, "_finish_menu_close"), CONNECT_ONE_SHOT)
 func is_menu_open() -> bool: return _menu_open
+
+
+func _close_menu_immediately() -> void:
+	if _menu_layer == null or _menu_panel == null or not _menu_open:
+		return
+	_menu_open = false
+	_sync_status_label()
+	_menu_layer.modulate = Color(1, 1, 1, 0)
+	_finish_menu_close()
 func _build_ui() -> void:
 	if _launcher_button != null: return
 	_launcher_button = Button.new()
@@ -319,9 +330,7 @@ func _refresh() -> void:
 		_title_label.text = _title_text
 	if _subtitle_label != null:
 		_subtitle_label.text = _subtitle_text
-	if _status_label != null:
-		_status_label.text = _status_text
-		_status_label.visible = not _status_text.is_empty()
+	_sync_status_label()
 	if _load_button != null:
 		_load_button.disabled = not _load_available
 	if _tutorial_hints_button != null:
@@ -383,7 +392,9 @@ func _on_quit_pressed() -> void:
 
 func _emit_save_requested() -> void: emit_signal("save_requested")
 func _emit_load_requested() -> void: emit_signal("load_requested")
-func _emit_disable_tutorial_hints_requested() -> void: emit_signal("disable_tutorial_hints_requested")
+func _emit_disable_tutorial_hints_requested() -> void:
+	_close_menu_immediately()
+	emit_signal("disable_tutorial_hints_requested")
 
 
 func _emit_return_to_main_menu_requested() -> void:
@@ -623,6 +634,11 @@ func _on_status_toast_fade_out_finished(local_token: int) -> void:
 	_toast_panel.visible = false
 	_toast_label.text = ""
 	_status_text = ""
-	if _status_label != null:
-		_status_label.text = ""
-		_status_label.visible = false
+	_sync_status_label()
+
+
+func _sync_status_label() -> void:
+	if _status_label == null:
+		return
+	_status_label.text = _status_text
+	_status_label.visible = _menu_open and not _status_text.is_empty()

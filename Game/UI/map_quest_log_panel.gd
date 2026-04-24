@@ -6,10 +6,16 @@ const TempScreenThemeScript = preload("res://Game/UI/temp_screen_theme.gd")
 const UiAssetPathsScript = preload("res://Game/UI/ui_asset_paths.gd")
 
 const TOP_ROW_PATH := "Margin/VBox/TopRow"
+const ROUTE_GRID_PATH := "Margin/VBox/RouteGrid"
+const INVENTORY_SECTION_PATH := "Margin/VBox/InventorySection"
+const DRAWER_CARD_PATH := "Margin/VBox/InventorySection/InventoryDrawerCard"
+const DRAWER_TOGGLE_PATH := "Margin/VBox/InventorySection/InventoryDrawerCard/DrawerVBox/DrawerHeaderRow/InventoryDrawerToggleButton"
 const LAUNCHER_NODE_NAME := "QuestLogLauncherButton"
 const PANEL_NODE_NAME := "QuestLogPanel"
 const TOAST_NODE_NAME := "QuestLogUpdateToast"
 const TOAST_HIDE_DELAY_SECONDS := 1.8
+const BOARD_OVERLAY_CLEARANCE := 10.0
+const DRAWER_LAUNCHER_TOP_PADDING := 8.0
 
 var _root: Control
 var _launcher_button: Button
@@ -29,11 +35,16 @@ var _detail_label: Label
 var _hint_label: Label
 var _close_button: Button
 var _is_open: bool = false
+var _interaction_enabled: bool = true
+var _layout_ready: bool = false
 var _before_toggle_handler: Callable
 var _has_seen_first_model: bool = false
 var _has_unread_update: bool = false
 var _last_model_signature: String = ""
 var _toast_cycle_token: int = 0
+var _initial_layout_refresh_attempts: int = 0
+var _post_layout_refresh_queued: bool = false
+const INITIAL_LAYOUT_REFRESH_ATTEMPT_LIMIT := 4
 
 
 func configure(root: Control, before_toggle_handler: Callable = Callable()) -> void:
@@ -44,9 +55,13 @@ func configure(root: Control, before_toggle_handler: Callable = Callable()) -> v
 	_toast_panel = _ensure_toast_panel()
 	_layout_launcher_children()
 	_apply_theme()
-	refresh_layout()
+	_layout_ready = false
+	_initial_layout_refresh_attempts = 0
+	_post_layout_refresh_queued = false
+	interaction_reset_for_initial_layout()
 	apply_model({})
 	set_open(false)
+	Callable(self, "_queue_initial_layout_refresh").call_deferred()
 
 
 func apply_model(model: Dictionary) -> void:
@@ -128,12 +143,13 @@ func is_open() -> bool:
 
 
 func set_interaction_enabled(enabled: bool) -> void:
+	_interaction_enabled = enabled
 	if _launcher_button != null:
-		_launcher_button.visible = enabled
+		_launcher_button.visible = enabled and _layout_ready
 		_launcher_button.disabled = not enabled
 		_launcher_button.focus_mode = Control.FOCUS_ALL if enabled else Control.FOCUS_NONE
 	if _toast_panel != null:
-		_toast_panel.visible = enabled and _toast_panel.visible
+		_toast_panel.visible = enabled and _layout_ready and _toast_panel.visible
 	if not enabled:
 		close()
 
@@ -143,21 +159,51 @@ func refresh_layout() -> void:
 		return
 
 	var root_size: Vector2 = _resolve_root_size()
+	var button_size: Vector2 = _resolve_launcher_button_size()
+	var drawer_toggle: Control = _root.get_node_or_null(DRAWER_TOGGLE_PATH) as Control
+	var drawer_card: Control = _root.get_node_or_null(DRAWER_CARD_PATH) as Control
+	var has_drawer_anchor: bool = drawer_toggle != null and drawer_card != null and drawer_toggle.visible and drawer_card.visible
+
+	if has_drawer_anchor:
+		var toggle_rect: Rect2 = _resolve_control_local_rect(drawer_toggle)
+		var drawer_rect: Rect2 = _resolve_control_local_rect(drawer_card)
+		var inventory_section: Control = _root.get_node_or_null(INVENTORY_SECTION_PATH) as Control
+		var inventory_section_rect: Rect2 = _resolve_control_local_rect(inventory_section)
+		var launcher_left: float = max(16.0, toggle_rect.position.x - button_size.x - 8.0)
+		var launcher_top: float = max(16.0, toggle_rect.position.y + (toggle_rect.size.y - button_size.y) * 0.5)
+		if drawer_rect.size.y > 0.0:
+			launcher_top = max(launcher_top, drawer_rect.position.y + DRAWER_LAUNCHER_TOP_PADDING)
+		if inventory_section_rect.size.y > 0.0:
+			launcher_top = max(launcher_top, inventory_section_rect.position.y + DRAWER_LAUNCHER_TOP_PADDING)
+		var board_body_bottom: float = _resolve_board_body_bottom()
+		if board_body_bottom > 0.0:
+			launcher_top = max(launcher_top, board_body_bottom + BOARD_OVERLAY_CLEARANCE)
+		launcher_top = min(launcher_top, max(16.0, root_size.y - 16.0 - button_size.y))
+		_place_control(_launcher_button, launcher_left, launcher_top, button_size)
+
+		var panel_width: float = min(392.0, max(264.0, root_size.x - 32.0))
+		var panel_height: float = clampf(root_size.y * 0.26, 228.0, 332.0)
+		var panel_left: float = clampf(toggle_rect.position.x + toggle_rect.size.x - panel_width, 16.0, root_size.x - 16.0 - panel_width)
+		var panel_top: float = drawer_rect.position.y - panel_height - 10.0
+		if panel_top < 16.0:
+			panel_top = min(root_size.y - 16.0 - panel_height, drawer_rect.position.y + drawer_rect.size.y + 10.0)
+		_place_control(_panel, panel_left, panel_top, Vector2(panel_width, panel_height))
+
+		var toast_width: float = 264.0
+		var toast_height: float = 56.0
+		var toast_left: float = clampf(toggle_rect.position.x + toggle_rect.size.x - toast_width, 16.0, root_size.x - 16.0 - toast_width)
+		var toast_top: float = panel_top - toast_height - 8.0 if _panel != null and _panel.visible else drawer_rect.position.y - toast_height - 8.0
+		if toast_top < 16.0:
+			toast_top = min(root_size.y - 16.0 - toast_height, drawer_rect.position.y + drawer_rect.size.y + 8.0)
+		_place_control(_toast_panel, toast_left, toast_top, Vector2(toast_width, toast_height))
+		return
+
 	var top_row: Control = _root.get_node_or_null(TOP_ROW_PATH) as Control
 	var top_row_rect: Rect2 = _resolve_top_row_local_rect(top_row, root_size)
 	var local_top: float = max(16.0, top_row_rect.position.y + top_row_rect.size.y + 10.0)
 	var right_margin: float = 16.0
-	var button_size: Vector2 = _resolve_launcher_button_size()
 
-	if _launcher_button != null:
-		_launcher_button.anchor_left = 1.0
-		_launcher_button.anchor_right = 1.0
-		_launcher_button.anchor_top = 0.0
-		_launcher_button.anchor_bottom = 0.0
-		_launcher_button.offset_left = -right_margin - button_size.x
-		_launcher_button.offset_top = local_top
-		_launcher_button.offset_right = -right_margin
-		_launcher_button.offset_bottom = local_top + button_size.y
+	_place_control(_launcher_button, root_size.x - right_margin - button_size.x, local_top, button_size)
 
 	if _panel != null:
 		var panel_width: float = min(392.0, max(264.0, root_size.x - 32.0))
@@ -165,14 +211,7 @@ func refresh_layout() -> void:
 		var panel_top: float = local_top + button_size.y + 10.0
 		if panel_top + panel_height > root_size.y - 16.0:
 			panel_top = max(16.0, root_size.y - 16.0 - panel_height)
-		_panel.anchor_left = 1.0
-		_panel.anchor_right = 1.0
-		_panel.anchor_top = 0.0
-		_panel.anchor_bottom = 0.0
-		_panel.offset_left = -right_margin - panel_width
-		_panel.offset_top = panel_top
-		_panel.offset_right = -right_margin
-		_panel.offset_bottom = panel_top + panel_height
+		_place_control(_panel, root_size.x - right_margin - panel_width, panel_top, Vector2(panel_width, panel_height))
 
 	if _toast_panel != null:
 		var toast_width: float = 264.0
@@ -182,21 +221,24 @@ func refresh_layout() -> void:
 			toast_top = _panel.offset_top - toast_height - 8.0
 		if toast_top + toast_height > root_size.y - 16.0:
 			toast_top = max(16.0, root_size.y - 16.0 - toast_height)
-		_toast_panel.anchor_left = 1.0
-		_toast_panel.anchor_right = 1.0
-		_toast_panel.anchor_top = 0.0
-		_toast_panel.anchor_bottom = 0.0
-		_toast_panel.offset_left = -right_margin - toast_width
-		_toast_panel.offset_top = toast_top
-		_toast_panel.offset_right = -right_margin
-		_toast_panel.offset_bottom = toast_top + toast_height
+		_place_control(_toast_panel, root_size.x - right_margin - toast_width, toast_top, Vector2(toast_width, toast_height))
+
+
+func _resolve_board_body_bottom() -> float:
+	var route_grid: Control = _root.get_node_or_null(ROUTE_GRID_PATH) as Control
+	if route_grid == null:
+		return -1.0
+	var route_grid_rect: Rect2 = _resolve_control_local_rect(route_grid)
+	if route_grid_rect.size == Vector2.ZERO:
+		return -1.0
+	return route_grid_rect.position.y + route_grid_rect.size.y
 
 
 func _resolve_root_size() -> Vector2:
 	var root_size: Vector2 = _root.size
 	if root_size == Vector2.ZERO:
 		root_size = _root.get_rect().size
-	if root_size == Vector2.ZERO:
+	if root_size == Vector2.ZERO and _root != null and _root.is_inside_tree():
 		root_size = _root.get_viewport_rect().size
 	if root_size == Vector2.ZERO:
 		root_size = Vector2(1080.0, 1920.0)
@@ -208,6 +250,27 @@ func _resolve_top_row_local_rect(top_row: Control, root_size: Vector2) -> Rect2:
 		return Rect2(Vector2(0.0, 12.0), Vector2(root_size.x, 72.0))
 	var resolved_height: float = max(top_row.size.y, top_row.custom_minimum_size.y, 72.0)
 	return Rect2(Vector2(top_row.position.x, top_row.position.y), Vector2(max(top_row.size.x, root_size.x), resolved_height))
+
+
+func _resolve_control_local_rect(control: Control) -> Rect2:
+	if control == null or _root == null:
+		return Rect2()
+	var root_global_origin: Vector2 = _root.get_global_rect().position
+	var control_global_rect: Rect2 = control.get_global_rect()
+	return Rect2(control_global_rect.position - root_global_origin, control_global_rect.size)
+
+
+func _place_control(control: Control, left: float, top: float, size: Vector2) -> void:
+	if control == null:
+		return
+	control.anchor_left = 0.0
+	control.anchor_right = 0.0
+	control.anchor_top = 0.0
+	control.anchor_bottom = 0.0
+	control.offset_left = left
+	control.offset_top = top
+	control.offset_right = left + size.x
+	control.offset_bottom = top + size.y
 
 
 func _resolve_launcher_button_size() -> Vector2:
@@ -430,6 +493,65 @@ func _apply_status_label_color(status_semantic: String) -> void:
 	if _launcher_chip_panel != null:
 		var chip_color: Color = status_color if status_semantic != "empty" else TempScreenThemeScript.PANEL_BORDER_COLOR
 		_launcher_chip_panel.add_theme_stylebox_override("panel", _build_launcher_chip_style(chip_color))
+
+
+func interaction_reset_for_initial_layout() -> void:
+	if _launcher_button != null:
+		_launcher_button.visible = false
+		_launcher_button.disabled = not _interaction_enabled
+		_launcher_button.focus_mode = Control.FOCUS_NONE
+	if _toast_panel != null:
+		_toast_panel.visible = false
+
+
+func _queue_initial_layout_refresh() -> void:
+	Callable(self, "_finalize_initial_layout").call_deferred()
+
+
+func _finalize_initial_layout() -> void:
+	if _root == null or not is_instance_valid(_root) or not _root.is_inside_tree():
+		return
+	if not _is_layout_anchor_ready() and _initial_layout_refresh_attempts < INITIAL_LAYOUT_REFRESH_ATTEMPT_LIMIT:
+		_initial_layout_refresh_attempts += 1
+		Callable(self, "_finalize_initial_layout").call_deferred()
+		return
+	_layout_ready = true
+	refresh_layout()
+	set_interaction_enabled(_interaction_enabled)
+	_queue_post_layout_refresh()
+
+
+func _is_layout_anchor_ready() -> bool:
+	var root_size: Vector2 = _resolve_root_size()
+	if root_size == Vector2.ZERO:
+		return false
+	var top_row: Control = _root.get_node_or_null(TOP_ROW_PATH) as Control
+	if top_row != null and _resolve_control_local_rect(top_row).size.y <= 0.0:
+		return false
+	var drawer_toggle: Control = _root.get_node_or_null(DRAWER_TOGGLE_PATH) as Control
+	var drawer_card: Control = _root.get_node_or_null(DRAWER_CARD_PATH) as Control
+	var has_drawer_anchor: bool = drawer_toggle != null and drawer_card != null and drawer_toggle.visible and drawer_card.visible
+	if has_drawer_anchor:
+		var route_grid: Control = _root.get_node_or_null(ROUTE_GRID_PATH) as Control
+		if route_grid == null:
+			return false
+		return _resolve_control_local_rect(route_grid).size.y > 0.0
+	return true
+
+
+func _queue_post_layout_refresh() -> void:
+	if _post_layout_refresh_queued or _root == null or not is_instance_valid(_root) or not _root.is_inside_tree():
+		return
+	_post_layout_refresh_queued = true
+	_root.get_tree().process_frame.connect(Callable(self, "_refresh_layout_after_frame"), CONNECT_ONE_SHOT)
+
+
+func _refresh_layout_after_frame() -> void:
+	_post_layout_refresh_queued = false
+	if _root == null or not is_instance_valid(_root) or not _root.is_inside_tree():
+		return
+	refresh_layout()
+	set_interaction_enabled(_interaction_enabled)
 
 
 func _on_toggle_requested() -> void:

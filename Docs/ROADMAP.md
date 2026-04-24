@@ -1,109 +1,176 @@
 # SIMPLE RPG - Active Roadmap
 
-Last updated: 2026-04-23 (Prompt `36` is closed green; Prompt `21-36` combat/content wave is now closed for the current prototype scope)
+Last updated: 2026-04-24 (Prompt 02 baseline complete as failure evidence; `Prompt 03` is next; archived `43-62` remains superseded historical evidence)
 
 This is the single active roadmap and queue index for the repo.
 It is a planning file, not an authority doc.
-Prompt packs may guide execution, but authority still lives where `Docs/DOC_PRECEDENCE.md` says it lives.
-Use this file for the active prompt-wave order and open/closed state; do not infer that state from prompt packs or design companions.
+Authority still lives where `Docs/DOC_PRECEDENCE.md` says it lives.
 
 ## Measured Current State
 
 - The repo is prototype-playable per `Docs/HANDOFF.md`.
-- Prompt `14-20` is now closed green on this workspace snapshot as the guarded fixed-board map-overhaul wave.
-- Prompt `21-36` are now closed green on this workspace snapshot as the combat/content queue reset, the first executable combat slice, the technique MVP, the narrow hand-slot swap runtime surface, the advanced-enemy-intent escalation spec, the trainer-node necessity/deferral audit, the first technical checkpoint/handoff gate, the combat mechanic UI audit, the onboarding refresh, the post-wave balance checkpoint, and the final integrated review/audit/playtest/screenshot closeout.
-- No further prompt is queued inside the `21-36` combat/content wave; any new continuation now needs a separate approved wave or an explicit deferred/escalation lane.
-- No active execution pack currently remains under `Docs/Promts/`.
-- The fully applied Prompt `06-36` pack set is now archived under `Docs/Archive/Prompts/2026-04-23-closed-green-prompt-packs/`.
-- Runtime/save/flow boundary decisions remain stable:
-  - canonical pending-node owner: `MapRuntimeState`
-  - live `NodeResolve` generic fallback stays until an explicit flow audit approves removal
-  - existing `/root/AppBootstrap` usage may shrink only when owner meaning and live flow behavior stay unchanged
-- Prompt `15` landed the runtime procedural-grammar reset:
-  - explicit stage-local blueprint choice before board placement
-  - deterministic rooted abstract graph generation inside `MapRuntimeState`
-  - bounded/local reconnect rules instead of long-span rescue edges
-  - realized-graph save payload shape preserved
-- Prompt `16` landed the family placement / pacing reset:
-  - topology-aware constrained placement runs after topology generation
-  - exact family quotas and the early combat/reward/support floor stay intact
-  - key/boss remain late-pressure placements
-  - event/hamlet/support remain readable route decisions without widening save or flow contracts
-- Prompt `17` landed the fixed-board presentation reset:
-  - fixed board / fixed camera is now the desired default traversal model
-  - the walker moves on the board instead of moving the board under the walker
-  - playable rect, node safe margins, and path-safe bounds are explicit
-  - route-follow / recenter behavior is retired as the default traversal presentation
-  - save, flow, and graph-truth ownership boundaries stayed unchanged
-- Current map direction is explicitly:
-  - template-driven procedural grammar
-  - constrained family placement
-  - fixed board / no follow
-  - walker on board
-  - world fill after structure
-  - manifest-tracked map-only asset/filler hookup after structure is green
-  - temporary/prototype map assets stay truthful and replace-before-release when required
-- Prompt `20` closeout also landed narrow corrective review fixes without reopening scope:
-  - textured filler / canopy clearance now matches the stamped draw footprint instead of the smaller abstract placement footprint
-  - node-resolve now uses the dedicated map `combat`, `key`, and `boss` icon lane for map-flow consistency
-  - save shape, flow state, and owner meaning stayed unchanged
-- The next combat/content wave is no longer left as generic future drift:
-  - Prompt `22` and Prompt `25` are low-risk visibility passes if they stay presentation-only
-  - Prompt `23`, `24`, `27`, and `29` are guarded runtime/content passes
-  - Prompt `26`, `28`, `30`, and `31` are explicit `escalate first` docs/spec gates
-- Prompt `32-36` are now closed checkpoint, UI-follow-through, onboarding, playtest, and final-audit packs
-- The first technical tranche that actually shipped is now explicit:
-  - Prompt `22` threat readability follow-up
-  - Prompt `23` defend tempo/hunger pass
-  - Prompt `24` enemy pattern pack A
-  - Prompt `25` quest update surface
-  - Prompt `27` technique runtime MVP
-  - Prompt `29` hand-slot swap runtime surface
-- Prompt `32` closed that first technical tranche with narrow corrective fixes only:
-  - post-swap combat truth now follows the actually equipped right-hand weapon
-  - open `hamlet` training choices no longer persist as future revisit offers on `leave`
-  - combat inventory card hints no longer imply a blanket global equipment lock once hand-slot swap is live
-- The allowed first executable combat/content wave is explicitly limited to:
-  - threat readability follow-up
-  - defend rebalance with tempo/hunger cost
-  - enemy pattern variety inside the current sequential-intent grammar
-  - quest/update follow-up visibility where it stays presentation-only
-- The following items remain explicitly deferred behind escalation-first packs:
-  - dedicated trainer node family
-  - persistent top-level skill bar
-  - true multi-hit
-  - enemy self-buff / self-guard / armor-up runtime
-  - stage-count increase
-- Prompt `30` now closes the spec-only half of advanced enemy intents:
-  - Prompt `24` still stayed inside the current sequential grammar
-  - no advanced enemy-intent runtime is live
-  - implementation remains deferred until a later approved runtime wave opens on top of the Prompt `30` spec
+- The current map codebase includes useful replacement-direction work from the archived wave:
+  - runtime topology backbone
+  - slot/anchor placement attempts
+  - corridor/road hierarchy attempts
+  - terrain/filler masking attempts
+  - map-adjacent UI alignment
+- The archived `43-62` wave is not the live queue.
+  - it is stored under `Docs/Archive/Prompts/2026-04-23-superseded-map-wave-reset/`
+  - it stays available as historical execution evidence only
+  - its queue semantics and green/open claims are superseded
+- The active continuation wave is now `Prompt 01-18`.
+- Current cursor: `Prompt 01` is closed as a docs/process target-lock pass; `Prompt 02` is closed as a baseline failure-naming pass; `Prompt 03` is next. This does not claim the current map visuals are structurally green.
+- Candidate art is not the default next step.
+  - current repo candidate assets may be visible from the previous lane, but they are not structural proof
+  - new candidate-art work stays closed through this wave
+  - `Prompt 14` checks asset-socket readiness only
+  - `Prompt 15` decides whether asset smoke and cleanup/hygiene are safe
+  - `Prompt 16` may run a provisional candidate asset dressing smoke only if Prompt 15 allows it
+  - `Prompt 18` chooses the next lane honestly
+- Archived old Prompt `14-20` remains historically closed green as the older guarded fixed-board map-overhaul wave.
+- Archived old Prompt `21-36` remains historically closed green as the combat/content reset and first executable combat slice.
+
+## Active Prompt Queue
+
+Execution order:
+
+1. `Prompt 01` - current truth reset and target lock
+   - fixed-board small-world target
+   - current repo truth vs archived claims
+   - candidate art closed
+   - docs/process target lock only; no structural green claim
+2. `Prompt 02` - baseline reproduction and failure naming
+   - fresh capture/readback
+   - dark blobs, stroke roads, icon plates, weak hunger/exploration feel
+   - test green is not structural green
+3. `Prompt 03` - hidden sector grammar contract recheck
+   - invisible sector grammar
+   - center-outward orientation/emphasis profiles and directional exploration
+   - directional and branch identity
+4. `Prompt 04` - runtime topology and hunger route shape
+   - `MapRuntimeState` owner-preserving graph audit/fix
+   - seed variation and local branch pockets
+   - hunger pressure through route shape, not rule change
+5. `Prompt 05` - slot anchor placement foundation
+   - sector-local anchors
+   - deterministic jitter
+   - center-local start anchors, outward-emphasis variation, and portrait usage
+6. `Prompt 06` - local adjacency and corridor routing
+   - local sector adjacency read
+   - corridor roles and same-corridor conflict
+   - roads define route structure
+7. `Prompt 07` - render model core payload
+   - new nested `render_model.schema_version = 1`
+   - `path_surfaces`, `junctions`, `clearing_surfaces`
+   - legacy top-level field mapping table identified for wrapper/fallback/retired handling
+8. `Prompt 08` - render model masks and slots payload
+   - `canopy_masks`, `landmark_slots`, `decor_slots`
+   - asset-readiness metadata without asset hookup
+   - legacy `ground_shapes`, `filler_shapes`, and `forest_shapes` mapping remains explicit
+9. `Prompt 09` - path surface canvas and default lane
+   - canvas draws from `render_model`
+   - roads as walkable terrain surfaces
+   - default-lane switch only with screenshot/readback evidence
+10. `Prompt 10` - walker traversal and exploration feel
+   - walker follows the board route
+   - path preview and motion agree
+   - hunger feel stays visual/route-shaped
+11. `Prompt 11` - landmark pockets as places
+   - nodes read as places/pockets before icons
+   - family-specific pocket/arrival grammar
+   - key/boss/support distinctness
+12. `Prompt 12` - terrain canopy negative space
+   - terrain/filler/canopy follow structure
+   - dark blob/filler rescue removed or made explicit fallback
+   - empty space separates routes and pockets
+13. `Prompt 13` - map scene shell and adjacent UI read
+   - lower-board/lower-third pressure
+   - map-adjacent UI does not damage board read
+   - wrapper/fallback scene surfaces named before cleanup
+14. `Prompt 14` - asset socket readiness gate
+   - no assets added
+   - sockets and metadata ready for later art
+   - candidate art remains non-proof
+15. `Prompt 15` - integrated structural closeout and cleanup gate
+   - live + seeded screenshot review
+   - exactly one default lane
+   - non-default lanes labeled wrapper/fallback/retired
+   - gate: run Prompt 16 asset smoke / skip asset smoke and run Prompt 17 cleanup / skip asset smoke and cleanup and go to Prompt 18 hygiene / stop for structural continuation
+16. `Prompt 16` - candidate asset dressing smoke
+   - no production art claim
+   - minimal placeholder/candidate dressing to prove sockets carry assets
+   - manifest-tracked provenance with `replace_before_release=yes` where required
+17. `Prompt 17` - map legacy cleanup dead code retirement
+   - retire only proven non-default map lanes
+   - stale code/tests/docs cleanup with reference scans
+   - no deletion without Prompt 15 evidence
+18. `Prompt 18` - map final hygiene closeout
+   - stale prompt/doc/reference scan
+   - final validation and screenshot-grounded truth
+   - next lane: structural continuation / asset candidate / production art / broader cleanup
+
+## Active Wave Scope Lock
+
+Final target:
+- fixed board, not a scrolling diagram
+- every seed feels like a different readable small world
+- center-local start identity with seed/profile-varied outward route emphasis
+- north/south/east/west branch identity, not a fixed upward ladder
+- roads divide the world and create route pressure
+- walker traverses the board, not a UI diagram
+- nodes read as pockets/places before icons
+- hunger pressure is felt through route shape and detours
+- asset dressing is easy later because sockets exist
+
+In scope:
+- structural honesty reproduction
+- hidden-sector contract recheck
+- `MapRuntimeState` topology work only if owner-preserving and save-shape-neutral
+- UI-only placement, corridor, path-surface, walker, landmark, terrain, and socket presentation work
+- map scene shell and adjacent-UI read
+- integrated structural closeout, optional asset smoke, cleanup tail, and final next-lane decision
+
+Out of scope by default:
+- save-schema or save-version changes
+- flow-state additions
+- pending-node ownership moves
+- gameplay truth moving into UI
+- new candidate art or art-pack work inside this wave
+- reframing candidate art as final or release-safe
+- restoring archived `43-62` as live queue
+
+## Validation Checkpoints
+
+- Every implementation prompt runs:
+  - `py -3 Tools/validate_architecture_guards.py`
+  - targeted map tests for the touched slice
+  - `scenes/map_explore.tscn` isolation
+  - portrait capture at `1080x1920`
+  - `git diff --check`
+- Full suite checkpoints:
+  - `Prompt 04`
+  - `Prompt 09`
+  - `Prompt 12`
+  - `Prompt 15`
+  - `Prompt 16`
+  - `Prompt 17`
+  - `Prompt 18`
+- Screenshot review must include:
+  - fresh start frame
+  - seeded mid/late `11`, `29`, `41`
+  - at least two additional random seed sweeps or an explicit deferral reason
 
 ## Archived Summary
 
-- Prompt `01-03`: foundation, guarded cleanup, and first extraction wave are closed green and archived.
-- Prompt `04-05`: the code-first map renderer and layout-regression wave are closed green and archived.
-- Prompt `06-12.5`: the UI overhaul wave is closed green on this workspace and its prompt packs are archived.
-- Prompt `13`: map visual world ownership is closed green; `MapBoardGroundBuilder` and `MapBoardFillerBuilder` live inside the existing composer chain with procedural fallbacks only, and the prompt pack is archived.
+- `Prompt 43-62`: archived as superseded mid-wave history under `Docs/Archive/Prompts/2026-04-23-superseded-map-wave-reset/`
+- Archived old `Prompt 14-20`: historical fixed-board map-overhaul wave
+- Archived old `Prompt 21-36`: historical combat/content reset wave
+- Archived old `Prompt 06-36`: broader closed-green prompt history remains archived under `Docs/Archive/Prompts/2026-04-23-closed-green-prompt-packs/`
 
-## Archived Prompt Pack Index
+## After This Wave
 
-No active prompt queue is open on this snapshot.
-The closed Prompt `14-36` chain is historical only; the detailed packs live under `Docs/Archive/Prompts/2026-04-23-closed-green-prompt-packs/`.
-
-- Prompt `14-20`: closed green fixed-board map-overhaul wave.
-- Prompt `21`: closed green docs-only combat/content queue reset.
-- Prompt `22-25`, `27`, `29`: closed green shipped runtime/UI slice for combat/content.
-- Prompt `26`, `28`, `30`, `31`: closed green docs-only escalation/spec gates.
-- Prompt `32-36`: closed green checkpoint, UI follow-through, onboarding, playtest, and final audit closeout.
-
-## Near Phases
-
-- Phase `D` - Playtest and Telemetry
-  Still a near phase, but the Prompt `21-36` combat/content wave is now closed; any new combat playtest work needs a new approved continuation lane.
-- Phase `E` - Balance and Content Tuning
-  Broader combat/content tuning remains a future lane, not an already-reopened Prompt `21-36` queue.
-- Phase `F` - Broader Asset Wave
-  Expand beyond the map-only asset lane only after Prompt `14-20` are green and the approval/manifest gates remain satisfied.
-- Phase `G` - Expansion
-  Open broader feature/content work only after Phases `D-F` are green.
+- Open later asset candidate work only if `Prompt 18` says the structure and sockets are ready.
+- If `Prompt 18` chooses production art, use `Docs/Promts/Next/production_art_wave_stub.md` only as an inactive starting stub and rewrite it into a real active wave before implementation.
+- Continue structural work if Prompt 15 or Prompt 18 finds the small-world read still short.
+- Open broader balance/content or expansion work only after this map wave stops contradicting itself.

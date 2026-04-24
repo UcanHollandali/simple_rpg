@@ -14,6 +14,7 @@ func _init() -> void:
 	test_inventory_cards_use_family_specific_icon_paths()
 	test_inventory_interaction_hints_explain_backpack_and_equipment_actions()
 	test_inventory_empty_state_copy_stays_intentional()
+	test_technique_equipment_cards_surface_run_and_combat_copy()
 	test_combat_inventory_cards_follow_combat_local_stacks()
 	test_combat_inventory_cards_follow_combat_local_equipment_projection()
 	test_combat_inventory_compat_builder_stays_read_only()
@@ -41,7 +42,7 @@ func test_run_inventory_cards_split_equipment_and_backpack() -> void:
 	var equipment_cards: Array[Dictionary] = presenter.call("build_run_equipment_cards", run_state)
 	var backpack_cards: Array[Dictionary] = presenter.call("build_run_inventory_cards", run_state)
 
-	assert(equipment_cards.size() == 4, "Expected four explicit equipment cards.")
+	assert(equipment_cards.size() == 5, "Expected four gear slots plus the read-only technique card.")
 	assert(String(equipment_cards[0].get("slot_label", "")) == "RIGHT HAND", "Expected the first equipment slot to be the right hand.")
 	assert(String(equipment_cards[0].get("title_text", "")) == "Iron Sword +2", "Expected equipped right-hand weapon display name.")
 	assert(String(equipment_cards[0].get("count_text", "")) == "11/20", "Expected equipped right-hand weapon durability to stay visible.")
@@ -51,6 +52,12 @@ func test_run_inventory_cards_split_equipment_and_backpack() -> void:
 	assert(String(equipment_cards[1].get("detail_text", "")) == "Equip shield or offhand.", "Expected run equipment cards to keep the generic equip copy outside combat.")
 	assert(String(equipment_cards[2].get("title_text", "")) == "Watcher Mail +1", "Expected armor slot to resolve equipped armor.")
 	assert(String(equipment_cards[3].get("detail_text", "")).contains("+2 INV"), "Expected belt slot to expose backpack utility.")
+	assert(String(equipment_cards[4].get("card_family", "")) == "technique", "Expected the last equipment card to expose the UI-only technique family.")
+	assert(String(equipment_cards[4].get("slot_label", "")) == "TECHNIQUE", "Expected the pseudo-slot label to stay stable.")
+	assert(String(equipment_cards[4].get("title_text", "")) == "No Technique", "Expected runs without a learned technique to surface the empty technique title.")
+	assert(String(equipment_cards[4].get("detail_text", "")) == "Learn at Hamlet", "Expected empty technique slots to point players at the hamlet source.")
+	assert(String(equipment_cards[4].get("tooltip_text", "")) == "No technique equipped. Learn one at a Hamlet.", "Expected the empty technique slot tooltip to explain the source clearly.")
+	assert(String(equipment_cards[4].get("icon_texture_path", "")) == "res://Assets/Icons/icon_map_side_mission.svg", "Expected the empty technique slot to point at the hamlet lesson source with the hamlet icon.")
 	assert(
 		String(presenter.call("build_inventory_title_text", run_state.inventory_state)) == "Backpack 3/7",
 		"Expected backpack title text to keep the original used/total format when a belt adds capacity."
@@ -154,6 +161,9 @@ func test_inventory_cards_use_family_specific_icon_paths() -> void:
 	assert(String(equipment_cards[1].get("icon_texture_path", "")) == "res://Assets/Icons/icon_shield.svg", "Expected left-hand shields to use the dedicated shield icon.")
 	assert(String(equipment_cards[2].get("icon_texture_path", "")) == "res://Assets/Icons/icon_armor.svg", "Expected armor cards to use the dedicated armor icon.")
 	assert(String(equipment_cards[3].get("icon_texture_path", "")) == "res://Assets/Icons/icon_belt.svg", "Expected belt cards to use the dedicated belt icon.")
+	run_state.equipped_technique_definition_id = "blood_draw"
+	equipment_cards = presenter.call("build_run_equipment_cards", run_state)
+	assert(String(equipment_cards[4].get("icon_texture_path", "")) == "res://Assets/Icons/icon_consumable.svg", "Expected sustain/cleanse techniques to reuse the consumable-style icon bucket.")
 	assert(String(backpack_cards_by_family.get(InventoryState.INVENTORY_FAMILY_PASSIVE, {}).get("icon_texture_path", "")) == "res://Assets/Icons/icon_passive.svg", "Expected passive cards to stop reusing the generic reward icon.")
 	assert(String(backpack_cards_by_family.get(InventoryState.INVENTORY_FAMILY_QUEST_ITEM, {}).get("icon_texture_path", "")) == "res://Assets/Icons/icon_quest_item.svg", "Expected quest cargo cards to use a dedicated quest-item icon.")
 	assert(String(backpack_cards_by_family.get(InventoryState.INVENTORY_FAMILY_SHIELD_ATTACHMENT, {}).get("icon_texture_path", "")) == "res://Assets/Icons/icon_shield_attachment.svg", "Expected detached shield mods to use a dedicated shield-attachment icon.")
@@ -167,6 +177,10 @@ func test_inventory_interaction_hints_explain_backpack_and_equipment_actions() -
 		"Expected run equipment hint to keep the original equip/unequip and backpack-separation wording."
 	)
 	assert(
+		String(presenter.call("build_equipment_hint_text", false)).contains("Technique is read-only"),
+		"Expected run equipment hint to explain that the technique card is informational instead of an equip lane."
+	)
+	assert(
 		String(presenter.call("build_run_inventory_hint_text")).contains("passives"),
 		"Expected run backpack hint to explain carried item families."
 	)
@@ -176,7 +190,8 @@ func test_inventory_interaction_hints_explain_backpack_and_equipment_actions() -
 	)
 	assert(
 		String(presenter.call("build_equipment_hint_text", true)).contains("Only packed hand swaps are legal in combat.")
-		and String(presenter.call("build_equipment_hint_text", true)).contains("Armor and belt stay locked."),
+		and String(presenter.call("build_equipment_hint_text", true)).contains("Armor and belt stay locked.")
+		and String(presenter.call("build_equipment_hint_text", true)).contains("Technique stays read-only."),
 		"Expected combat equipment hints to explain the narrow live hand-swap legality instead of a full lock."
 	)
 
@@ -243,6 +258,14 @@ func test_inventory_interaction_hints_explain_backpack_and_equipment_actions() -
 		String(combat_attachment_card.get("action_hint_text", "")) == "Shield mods stay locked",
 		"Expected combat shield-mod cards to keep their own locked lane instead of repeating the old blanket equipment lock."
 	)
+	var technique_info_card: Dictionary = presenter.call("decorate_card_interaction_state", {
+		"card_family": "technique",
+		"is_equipped": false,
+	}, false, false, false, false)
+	assert(
+		String(technique_info_card.get("action_hint_tone", "")) == "disabled",
+		"Expected the read-only technique pseudo-slot to stay visually non-interactive."
+	)
 
 
 func test_inventory_empty_state_copy_stays_intentional() -> void:
@@ -278,6 +301,35 @@ func test_inventory_empty_state_copy_stays_intentional() -> void:
 	)
 
 
+func test_technique_equipment_cards_surface_run_and_combat_copy() -> void:
+	var presenter: RefCounted = InventoryPresenterScript.new()
+	var loader: ContentLoader = load("res://Game/Infrastructure/content_loader.gd").new()
+	var run_state: RunState = RunState.new()
+	run_state.reset_for_new_run()
+	var run_equipment_cards: Array[Dictionary] = presenter.call("build_run_equipment_cards", run_state)
+	assert(String(run_equipment_cards[4].get("title_text", "")) == "No Technique", "Expected run equipment rows to surface the empty technique state when no technique is equipped.")
+	assert(String(run_equipment_cards[4].get("detail_text", "")) == "Learn at Hamlet", "Expected run technique empty state detail copy to point at the hamlet source.")
+	assert(String(run_equipment_cards[4].get("icon_texture_path", "")) == "res://Assets/Icons/icon_map_side_mission.svg", "Expected the empty run technique slot to reuse the hamlet icon for stronger source recognition.")
+
+	run_state.equipped_technique_definition_id = "echo_strike"
+	run_equipment_cards = presenter.call("build_run_equipment_cards", run_state)
+	assert(String(run_equipment_cards[4].get("title_text", "")) == "Echo Strike", "Expected run equipment rows to surface the equipped technique display name.")
+	assert(String(run_equipment_cards[4].get("detail_text", "")) == "Prime next attack", "Expected run equipment rows to map the technique effect to the short summary copy.")
+	assert(String(run_equipment_cards[4].get("tooltip_text", "")).contains("Spend this turn to triple your next attack."), "Expected run technique tooltips to reuse the authored short description.")
+	assert(String(run_equipment_cards[4].get("tooltip_text", "")).contains("Once per combat."), "Expected run technique tooltips to remind players about the combat usage limit.")
+
+	var combat_state: CombatState = CombatState.new()
+	var combat_equipment_cards: Array[Dictionary] = presenter.call("build_combat_equipment_cards", combat_state, [])
+	assert(String(combat_equipment_cards[4].get("title_text", "")) == "No Technique", "Expected combat equipment rows to surface the empty technique state when combat has no loaded technique.")
+	assert(String(combat_equipment_cards[4].get("card_family", "")) == "technique", "Expected combat equipment rows to preserve the UI-only technique family metadata.")
+
+	combat_state.equipped_technique_definition_id = "cleanse_pulse"
+	combat_state.equipped_technique_definition = loader.load_definition("Techniques", "cleanse_pulse")
+	combat_equipment_cards = presenter.call("build_combat_equipment_cards", combat_state, [])
+	assert(String(combat_equipment_cards[4].get("title_text", "")) == "Cleanse Pulse", "Expected combat equipment rows to surface the loaded combat technique name.")
+	assert(String(combat_equipment_cards[4].get("detail_text", "")) == "Clear afflictions", "Expected combat equipment rows to map cleanse techniques onto the short utility summary.")
+
+
 func test_combat_inventory_cards_follow_combat_local_stacks() -> void:
 	var presenter: RefCounted = InventoryPresenterScript.new()
 	var combat_state: CombatState = CombatState.new()
@@ -293,11 +345,13 @@ func test_combat_inventory_cards_follow_combat_local_stacks() -> void:
 	]
 	var equipment_cards: Array[Dictionary] = presenter.call("build_combat_equipment_cards", combat_state, passive_slots)
 	var backpack_cards: Array[Dictionary] = presenter.call("build_combat_inventory_cards", combat_state, passive_slots)
+	assert(equipment_cards.size() == 5, "Expected combat equipment rows to include the read-only technique card.")
 	assert(String(equipment_cards[0].get("count_text", "")) == "7/20", "Expected combat equipment to use combat-local durability instead of stale run values.")
 	assert(
 		String(equipment_cards[1].get("detail_text", "")) == "No spare shield/offhand.",
 		"Expected empty combat hand slots without a legal spare to explain the no-spare hand-swap state instead of generic equip copy."
 	)
+	assert(String(equipment_cards[4].get("title_text", "")) == "No Technique", "Expected combat equipment rows without a loaded technique to keep the empty technique card visible.")
 	assert(String(backpack_cards[0].get("title_text", "")) == "Traveler Bread", "Expected combat backpack to keep the active consumable stack visible.")
 	assert(String(backpack_cards[0].get("card_family", "")) == "consumable", "Expected combat backpack cards to keep the consumable family metadata.")
 	assert(int(backpack_cards[0].get("slot_index", -1)) == 0, "Expected combat consumable cards to preserve slot indices for scene-side selection.")
@@ -328,6 +382,7 @@ func test_combat_inventory_cards_follow_combat_local_equipment_projection() -> v
 	var equipment_cards: Array[Dictionary] = presenter.call("build_combat_equipment_cards", combat_state, run_state.inventory_state)
 	var backpack_cards: Array[Dictionary] = presenter.call("build_combat_inventory_cards", combat_state, run_state.inventory_state)
 	var splitter_axe_card: Dictionary = equipment_cards[0]
+	assert(equipment_cards.size() == 5, "Expected projected combat equipment rows to preserve the extra technique slot.")
 	var iron_sword_card: Dictionary = {}
 	for card in backpack_cards:
 		if String(card.get("title_text", "")) == "Iron Sword":

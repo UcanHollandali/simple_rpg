@@ -7,7 +7,7 @@ const SupportInteractionStateScript = preload("res://Game/RuntimeState/support_i
 const InventoryStateScript = preload("res://Game/RuntimeState/inventory_state.gd")
 const TestExitCleanupHelperScript = preload("res://Tests/_exit_cleanup_helper.gd")
 
-const SUPPORT_ACTION_B_BUTTON_PATH := "Margin/VBox/ActionsRow/ActionBButton"
+const SUPPORT_ACTION_B_BUTTON_PATH := "Margin/VBox/OffersShell/VBox/ActionsRow/ActionBButton"
 const OVERFLOW_PROMPT_PATH := "InventoryOverflowPrompt"
 const OVERFLOW_OPTIONS_PATH := "%s/PromptHolder/PromptPanel/PromptVBox/OptionsVBox" % OVERFLOW_PROMPT_PATH
 

@@ -10,19 +10,19 @@ const GROUND_PATCH_COUNT_BY_PROFILE := {
 	"loop": 6,
 }
 const GROUND_BED_SIZE_MULTIPLIERS_BY_PROFILE := {
-	"corridor": Vector2(0.82, 0.68),
-	"openfield": Vector2(1.08, 0.92),
-	"loop": Vector2(1.04, 0.90),
+	"corridor": Vector2(0.60, 0.42),
+	"openfield": Vector2(0.84, 0.70),
+	"loop": Vector2(0.80, 0.66),
 }
 const GROUND_BED_ALPHA_SCALE_BY_PROFILE := {
-	"corridor": 0.68,
-	"openfield": 0.92,
-	"loop": 0.90,
+	"corridor": 0.46,
+	"openfield": 0.72,
+	"loop": 0.70,
 }
 const GROUND_CENTER_PULL_BY_PROFILE := {
-	"corridor": 0.04,
-	"openfield": 0.08,
-	"loop": 0.06,
+	"corridor": 0.02,
+	"openfield": 0.04,
+	"loop": 0.03,
 }
 const GROUND_ACTION_BOUNDS_TRIM_BY_PROFILE := {
 	"corridor": Vector2(0.16, 0.18),
@@ -39,14 +39,50 @@ const GROUND_PATCH_LOCAL_BOUNDS_SCALE_BY_PROFILE := {
 	"openfield": {"patch": Vector2(1.12, 1.16), "breakup": Vector2(1.18, 1.20)},
 	"loop": {"patch": Vector2(1.08, 1.12), "breakup": Vector2(1.14, 1.18)},
 }
+const GROUND_CORRIDOR_SHAPE_CAP_BY_PROFILE := {
+	"corridor": 5,
+	"openfield": 6,
+	"loop": 6,
+}
+const GROUND_CORRIDOR_HALF_HEIGHT_BY_PROFILE := {
+	"corridor": 24.0,
+	"openfield": 28.0,
+	"loop": 26.0,
+}
+const GROUND_BREAKUP_ZONE_FACTORS_BY_PROFILE := {
+	"corridor": [
+		Vector2(0.20, 0.26),
+		Vector2(0.80, 0.28),
+		Vector2(0.24, 0.80),
+		Vector2(0.76, 0.82),
+		Vector2(0.50, 0.90),
+	],
+	"openfield": [
+		Vector2(0.18, 0.24),
+		Vector2(0.82, 0.24),
+		Vector2(0.18, 0.80),
+		Vector2(0.82, 0.80),
+		Vector2(0.50, 0.88),
+	],
+	"loop": [
+		Vector2(0.20, 0.24),
+		Vector2(0.80, 0.24),
+		Vector2(0.18, 0.74),
+		Vector2(0.82, 0.76),
+		Vector2(0.50, 0.88),
+	],
+}
 
 
 # Contract:
 # - Input is limited to existing board-space derived truth: board size, graph-node positions,
-#   template profile, existing board seed, and board margin/center hints.
+#   frozen route geometry, derived landmark-pocket footprints, template profile, existing
+#   board seed, and board margin/center hints.
 # - Output is an ordered array of board-space ground shapes with these fields:
-#   `family`, `center`, `half_size`, `rotation_degrees`, `tone_shift`, `alpha_scale`.
-# - The builder never reads node-family semantics or route adjacency meaning.
+#   `family`, `center`, `half_size`, `rotation_degrees`, `tone_shift`, `alpha_scale`,
+#   and optional derived `shape`.
+# - The builder stays presentation-only. It may read derived route/pocket masks, but it
+#   does not own graph truth, traversal semantics, or save state.
 # - MapBoardCanvas owns drawing, and MapBoardStyle owns every visual token used to render it.
 static func build_ground_shapes(
 	board_size: Vector2,
@@ -55,12 +91,14 @@ static func build_ground_shapes(
 	template_profile: String,
 	board_seed: int,
 	base_center_factor: Vector2,
-	min_board_margin: Vector2
+	min_board_margin: Vector2,
+	surface_mask_context: Dictionary = {}
 ) -> Array[Dictionary]:
 	var ordered_positions: Array[Vector2] = _ordered_node_positions(graph_nodes)
 	if ordered_positions.is_empty():
 		return []
 	var action_points: Array[Vector2] = _action_points(ordered_positions, layout_edges)
+	action_points.append_array(_surface_action_points(surface_mask_context))
 	if action_points.is_empty():
 		action_points = ordered_positions.duplicate()
 
@@ -74,6 +112,8 @@ static func build_ground_shapes(
 	var board_unit: float = maxf(1.0, minf(board_size.x, board_size.y))
 	var bed_half_size: Vector2 = _bed_half_size_for(template_profile, action_bounds.size, board_unit)
 	var bed_rotation_degrees: float = _bed_rotation_degrees_for(board_seed, template_profile)
+	var pocket_masks: Array[Dictionary] = _build_pocket_masks(graph_nodes)
+	pocket_masks.append_array(_build_clearing_masks(surface_mask_context))
 	var shapes: Array[Dictionary] = [{
 		"family": "bed",
 		"center": _clamp_shape_center(ground_center, bed_half_size, board_size, min_board_margin),
@@ -81,38 +121,61 @@ static func build_ground_shapes(
 		"rotation_degrees": bed_rotation_degrees,
 		"tone_shift": 0.0,
 		"alpha_scale": _bed_alpha_scale_for(template_profile),
+		"shape": "ellipse",
+		"terrain_role": "negative_space_bed",
+		"mask_source": _surface_mask_source(surface_mask_context, "action_bounds"),
+		"exclusion_source": _surface_mask_source(surface_mask_context, "landmark_footprints"),
 	}]
+	shapes.append_array(
+		_build_corridor_ground_shapes(
+			board_size,
+			layout_edges,
+			template_profile,
+			board_seed,
+			min_board_margin,
+			pocket_masks,
+			surface_mask_context
+		)
+	)
+	shapes.append_array(_build_pocket_ground_shapes(board_size, graph_nodes, min_board_margin))
 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = _derive_seed(board_seed, "ground")
 	var patch_count: int = int(GROUND_PATCH_COUNT_BY_PROFILE.get(template_profile, GROUND_PATCH_COUNT_BY_PROFILE["corridor"]))
-	for patch_index in range(patch_count):
-		var anchor: Vector2 = ordered_positions[_anchor_index_for(board_seed, patch_index, ordered_positions.size())]
+	var breakup_slots: Array[Vector2] = _breakup_zone_slots(board_size, template_profile, min_board_margin)
+	for patch_index in range(min(patch_count, breakup_slots.size())):
+		var anchor: Vector2 = breakup_slots[patch_index]
 		var offset_basis: Dictionary = _offset_basis_for_anchor(anchor, ground_center, patch_index, patch_count, board_seed)
 		var outward_direction: Vector2 = offset_basis.get("outward_direction", Vector2.UP)
 		var tangent_direction: Vector2 = offset_basis.get("tangent_direction", Vector2.RIGHT)
-		var family: String = "patch" if patch_index < patch_count - 2 else "breakup"
+		var family: String = "breakup"
 		var half_size: Vector2 = _patch_half_size_for(template_profile, bed_half_size, family, rng)
-		var radial_offset: float = rng.randf_range(-half_size.y * 0.40, bed_half_size.y * 0.18)
-		var tangential_offset: float = rng.randf_range(-bed_half_size.x * 0.18, bed_half_size.x * 0.18)
+		var radial_offset: float = rng.randf_range(-half_size.y * 0.18, half_size.y * 0.18)
+		var tangential_offset: float = rng.randf_range(-bed_half_size.x * 0.08, bed_half_size.x * 0.08)
 		var candidate_center: Vector2 = (
 			anchor
 			+ outward_direction * radial_offset
 			+ tangent_direction * tangential_offset
-		).lerp(ground_center, _patch_center_pull_for(template_profile, family))
+		).lerp(anchor, 0.84)
 		candidate_center = _clamp_shape_center_to_local_rect(
 			candidate_center,
 			half_size,
-			ground_center,
-			_patch_local_half_size(template_profile, bed_half_size, family)
+			anchor,
+			Vector2(half_size.x * 1.6, half_size.y * 1.8)
 		)
+		if _center_conflicts_with_pocket_masks(candidate_center, half_size, pocket_masks):
+			continue
 		shapes.append({
 			"family": family,
 			"center": _clamp_shape_center(candidate_center, half_size, board_size, min_board_margin),
 			"half_size": half_size,
 			"rotation_degrees": rng.randf_range(-18.0, 18.0) + bed_rotation_degrees * 0.46,
 			"tone_shift": rng.randf_range(-0.08, 0.08),
-			"alpha_scale": rng.randf_range(0.80, 0.96) if family == "patch" else rng.randf_range(0.66, 0.82),
+			"alpha_scale": rng.randf_range(0.62, 0.76),
+			"shape": "ellipse",
+			"terrain_role": "route_separator_breakup",
+			"mask_source": "negative_space_slots",
+			"exclusion_source": _surface_mask_source(surface_mask_context, "landmark_footprints"),
 		})
 	return shapes
 
@@ -130,6 +193,35 @@ static func _action_points(ordered_positions: Array[Vector2], layout_edges: Arra
 		if edge_points.size() >= 2:
 			points.append(edge_points[edge_points.size() - 1])
 			points.append(_polyline_midpoint(edge_points))
+	return points
+
+
+static func _surface_action_points(surface_mask_context: Dictionary) -> Array[Vector2]:
+	var points: Array[Vector2] = []
+	for surface_variant in surface_mask_context.get("path_surfaces", []):
+		if typeof(surface_variant) != TYPE_DICTIONARY:
+			continue
+		var surface_entry: Dictionary = surface_variant
+		var surface_points: PackedVector2Array = surface_entry.get("centerline_points", PackedVector2Array())
+		if surface_points.is_empty():
+			continue
+		points.append(surface_points[0])
+		if surface_points.size() >= 2:
+			points.append(surface_points[surface_points.size() - 1])
+			points.append(_polyline_midpoint(surface_points))
+	for clearing_variant in surface_mask_context.get("clearing_surfaces", []):
+		if typeof(clearing_variant) != TYPE_DICTIONARY:
+			continue
+		var clearing_entry: Dictionary = clearing_variant
+		var center: Vector2 = Vector2(clearing_entry.get("center", Vector2.ZERO))
+		var radius: float = float(clearing_entry.get("radius", 0.0))
+		if center == Vector2.ZERO or radius <= 0.0:
+			continue
+		points.append(center)
+		points.append(center + Vector2(radius, 0.0))
+		points.append(center + Vector2(-radius, 0.0))
+		points.append(center + Vector2(0.0, radius))
+		points.append(center + Vector2(0.0, -radius))
 	return points
 
 
@@ -354,3 +446,230 @@ static func _clamp_shape_center_to_local_rect(
 
 static func _derive_seed(board_seed: int, salt: String) -> int:
 	return MapBoardLayoutSolverScript.derive_seed(board_seed, salt)
+
+
+static func _build_pocket_masks(graph_nodes: Array[Dictionary]) -> Array[Dictionary]:
+	var pocket_masks: Array[Dictionary] = []
+	for node_entry in graph_nodes:
+		var footprint_variant: Variant = node_entry.get("landmark_footprint", {})
+		if typeof(footprint_variant) != TYPE_DICTIONARY:
+			continue
+		var footprint: Dictionary = footprint_variant
+		if footprint.is_empty():
+			continue
+		var pocket_half_size: Vector2 = Vector2(footprint.get("pocket_half_size", Vector2.ZERO))
+		if pocket_half_size.x <= 0.0 or pocket_half_size.y <= 0.0:
+			continue
+		var node_center: Vector2 = Vector2(node_entry.get("world_position", Vector2.ZERO))
+		pocket_masks.append({
+			"node_id": int(node_entry.get("node_id", -1)),
+			"center": node_center + Vector2(footprint.get("pocket_center_offset", Vector2.ZERO)),
+			"half_size": pocket_half_size,
+			"rotation_degrees": float(footprint.get("pocket_rotation_degrees", 0.0)),
+			"shape": String(footprint.get("pocket_shape", "ellipse")),
+		})
+	return pocket_masks
+
+
+static func _build_clearing_masks(surface_mask_context: Dictionary) -> Array[Dictionary]:
+	var masks: Array[Dictionary] = []
+	for clearing_variant in surface_mask_context.get("clearing_surfaces", []):
+		if typeof(clearing_variant) != TYPE_DICTIONARY:
+			continue
+		var clearing_entry: Dictionary = clearing_variant
+		var radius: float = float(clearing_entry.get("radius", 0.0))
+		if radius <= 0.0:
+			continue
+		masks.append({
+			"node_id": int(clearing_entry.get("node_id", -1)),
+			"center": Vector2(clearing_entry.get("center", Vector2.ZERO)),
+			"half_size": Vector2.ONE * radius,
+			"rotation_degrees": 0.0,
+			"shape": "ellipse",
+			"mask_source": "render_model.clearing_surfaces",
+		})
+	return masks
+
+
+static func _build_corridor_ground_shapes(
+	board_size: Vector2,
+	layout_edges: Array,
+	template_profile: String,
+	board_seed: int,
+	min_board_margin: Vector2,
+	pocket_masks: Array[Dictionary],
+	surface_mask_context: Dictionary = {}
+) -> Array[Dictionary]:
+	var candidate_shapes: Array[Dictionary] = []
+	var board_unit: float = maxf(1.0, minf(board_size.x, board_size.y))
+	for source_entry in _corridor_ground_sources(layout_edges, surface_mask_context):
+		var points: PackedVector2Array = source_entry.get("points", PackedVector2Array())
+		if points.size() < 2:
+			continue
+		var total_length: float = 0.0
+		for point_index in range(points.size() - 1):
+			total_length += points[point_index].distance_to(points[point_index + 1])
+		if total_length <= board_unit * 0.14:
+			continue
+		var midpoint: Vector2 = _polyline_midpoint(points)
+		var direction: Vector2 = points[points.size() - 1] - points[0]
+		if direction.length_squared() <= 0.001:
+			continue
+		var half_size := Vector2(
+			clampf(total_length * 0.18, board_unit * 0.08, board_unit * 0.18),
+			maxf(
+				float(GROUND_CORRIDOR_HALF_HEIGHT_BY_PROFILE.get(template_profile, GROUND_CORRIDOR_HALF_HEIGHT_BY_PROFILE["corridor"])),
+				float(source_entry.get("surface_width", 0.0)) * 0.60
+			)
+		)
+		if _center_conflicts_with_pocket_masks(midpoint, half_size, pocket_masks):
+			continue
+		var edge_key: String = String(source_entry.get("source_key", ""))
+		candidate_shapes.append({
+			"family": "corridor",
+			"center": _clamp_shape_center(midpoint, half_size, board_size, min_board_margin),
+			"half_size": half_size,
+			"rotation_degrees": rad_to_deg(direction.angle()),
+			"tone_shift": float((_derive_seed(board_seed, "ground-corridor-tone:%s" % edge_key) % 17) - 8) * 0.008,
+			"alpha_scale": 0.74,
+			"shape": "ellipse",
+			"terrain_role": "path_surface_ground_frame",
+			"mask_source": String(source_entry.get("mask_source", "layout_edges")),
+			"exclusion_source": _surface_mask_source(surface_mask_context, "landmark_footprints"),
+			"sort_length": total_length,
+			"sort_key": edge_key,
+		})
+	candidate_shapes.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
+		var left_length: float = float(left.get("sort_length", 0.0))
+		var right_length: float = float(right.get("sort_length", 0.0))
+		if not is_equal_approx(left_length, right_length):
+			return left_length > right_length
+		return String(left.get("sort_key", "")) < String(right.get("sort_key", ""))
+	)
+	var capped_shapes: Array[Dictionary] = []
+	var max_shapes: int = int(GROUND_CORRIDOR_SHAPE_CAP_BY_PROFILE.get(template_profile, GROUND_CORRIDOR_SHAPE_CAP_BY_PROFILE["corridor"]))
+	for shape_index in range(min(max_shapes, candidate_shapes.size())):
+		var shape: Dictionary = candidate_shapes[shape_index].duplicate(true)
+		shape.erase("sort_length")
+		shape.erase("sort_key")
+		capped_shapes.append(shape)
+	return capped_shapes
+
+
+static func _corridor_ground_sources(layout_edges: Array, surface_mask_context: Dictionary) -> Array[Dictionary]:
+	var sources: Array[Dictionary] = []
+	for surface_variant in surface_mask_context.get("path_surfaces", []):
+		if typeof(surface_variant) != TYPE_DICTIONARY:
+			continue
+		var surface_entry: Dictionary = surface_variant
+		var points: PackedVector2Array = surface_entry.get("centerline_points", PackedVector2Array())
+		if points.size() < 2:
+			continue
+		sources.append({
+			"points": points,
+			"source_key": String(surface_entry.get("surface_id", "")),
+			"surface_width": maxf(
+				float(surface_entry.get("surface_width", 0.0)),
+				float(surface_entry.get("outer_width", 0.0))
+			),
+			"mask_source": "render_model.path_surfaces",
+		})
+	if not sources.is_empty():
+		return sources
+	for edge_variant in layout_edges:
+		if typeof(edge_variant) != TYPE_DICTIONARY:
+			continue
+		var edge_entry: Dictionary = edge_variant
+		var points: PackedVector2Array = edge_entry.get("points", PackedVector2Array())
+		if points.size() < 2:
+			continue
+		sources.append({
+			"points": points,
+			"source_key": String(edge_entry.get("edge_key", "")),
+			"surface_width": 0.0,
+			"mask_source": "layout_edges",
+		})
+	return sources
+
+
+static func _build_pocket_ground_shapes(
+	board_size: Vector2,
+	graph_nodes: Array[Dictionary],
+	min_board_margin: Vector2
+) -> Array[Dictionary]:
+	var pocket_shapes: Array[Dictionary] = []
+	for node_entry in graph_nodes:
+		var footprint_variant: Variant = node_entry.get("landmark_footprint", {})
+		if typeof(footprint_variant) != TYPE_DICTIONARY:
+			continue
+		var footprint: Dictionary = footprint_variant
+		if footprint.is_empty():
+			continue
+		var pocket_half_size: Vector2 = Vector2(footprint.get("pocket_half_size", Vector2.ZERO)) * Vector2(0.92, 0.88)
+		if pocket_half_size.x <= 0.0 or pocket_half_size.y <= 0.0:
+			continue
+		var node_center: Vector2 = Vector2(node_entry.get("world_position", Vector2.ZERO))
+		pocket_shapes.append({
+			"family": "pocket",
+			"center": _clamp_shape_center(
+				node_center + Vector2(footprint.get("pocket_center_offset", Vector2.ZERO)),
+				pocket_half_size,
+				board_size,
+				min_board_margin
+			),
+			"half_size": pocket_half_size,
+			"rotation_degrees": float(footprint.get("pocket_rotation_degrees", 0.0)),
+			"tone_shift": 0.0,
+			"alpha_scale": 0.76,
+			"shape": String(footprint.get("pocket_shape", "ellipse")),
+			"terrain_role": "landmark_pocket_ground",
+			"mask_source": "landmark_footprints",
+			"exclusion_source": "landmark_footprints",
+		})
+	return pocket_shapes
+
+
+static func _breakup_zone_slots(board_size: Vector2, template_profile: String, min_board_margin: Vector2) -> Array[Vector2]:
+	var slots: Array[Vector2] = []
+	for factor_variant in GROUND_BREAKUP_ZONE_FACTORS_BY_PROFILE.get(
+		template_profile,
+		GROUND_BREAKUP_ZONE_FACTORS_BY_PROFILE["corridor"]
+	):
+		var factor: Vector2 = Vector2(factor_variant)
+		var candidate: Vector2 = board_size * factor
+		slots.append(Vector2(
+			clampf(candidate.x, min_board_margin.x + 48.0, board_size.x - min_board_margin.x - 48.0),
+			clampf(candidate.y, min_board_margin.y + 48.0, board_size.y - min_board_margin.y - 48.0)
+		))
+	return slots
+
+
+static func _center_conflicts_with_pocket_masks(center: Vector2, half_size: Vector2, pocket_masks: Array[Dictionary]) -> bool:
+	for mask_entry in pocket_masks:
+		var mask_center: Vector2 = Vector2(mask_entry.get("center", Vector2.ZERO))
+		var mask_half_size: Vector2 = Vector2(mask_entry.get("half_size", Vector2.ZERO))
+		var expanded_mask_half_size := Vector2(
+			mask_half_size.x + half_size.x * 0.44,
+			mask_half_size.y + half_size.y * 0.40
+		)
+		if _point_inside_mask(center, mask_center, expanded_mask_half_size, String(mask_entry.get("shape", "ellipse"))):
+			return true
+	return false
+
+
+static func _point_inside_mask(point: Vector2, center: Vector2, half_size: Vector2, shape: String) -> bool:
+	if half_size.x <= 0.001 or half_size.y <= 0.001:
+		return false
+	if shape == "rect":
+		return Rect2(center - half_size, half_size * 2.0).has_point(point)
+	if shape == "diamond":
+		return absf(point.x - center.x) / half_size.x + absf(point.y - center.y) / half_size.y <= 1.0
+	var normalized_x: float = (point.x - center.x) / half_size.x
+	var normalized_y: float = (point.y - center.y) / half_size.y
+	return normalized_x * normalized_x + normalized_y * normalized_y <= 1.0
+
+
+static func _surface_mask_source(surface_mask_context: Dictionary, fallback_source: String) -> String:
+	if not (surface_mask_context.get("path_surfaces", []) as Array).is_empty() or not (surface_mask_context.get("clearing_surfaces", []) as Array).is_empty():
+		return "render_model.path_surfaces+clearing_surfaces"
+	return fallback_source

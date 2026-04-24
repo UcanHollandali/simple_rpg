@@ -64,6 +64,14 @@ UI layer decision:
 - Scene scripts must not become the hidden owner of combat, inventory, reward, or save truth.
 - Prototype loop mutations should route through a narrow Application-owned surface, not direct `RunState` writes from scenes.
 
+## Side-By-Side Replacement Rule
+
+- Large presentation replacements may run old and new `Game/UI` / `scenes` lanes in parallel for a bounded period.
+- In that mode, both lanes remain derived presentation surfaces over the same authoritative runtime owners.
+- Old presentation code may survive temporarily only as wrapper, orchestrator, or fallback while the replacement lane is being validated.
+- Keep the replacement side-by-side until the intended screenshots, targeted tests, and integrated review are green; do not hide that switch behind incidental visual cleanup.
+- If a replacement pass needs save-shape changes, flow-state changes, or a source-of-truth ownership move, stop and `escalate first` instead of documenting the boundary shift as normal UI work.
+
 ## RunState Compatibility Facade Rule
 
 - Current repo reality still includes limited compatibility-focused test reads plus save/load compatibility mirrors through `RunState` compatibility accessors.

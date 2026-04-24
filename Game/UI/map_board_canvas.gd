@@ -34,14 +34,23 @@ func set_interaction_state(active_target_node_id: int, hovered_target_node_id: i
 func _draw() -> void:
 	if _composition.is_empty():
 		return
+	var uses_render_model_surface_lane: bool = _uses_render_model_surface_lane()
 	_draw_board_atmosphere()
 	_draw_ground_surface()
 	_draw_filler_shapes()
 	_draw_forest_shapes("canopy")
-	_draw_edges(false)
-	_draw_trail_decals()
-	_draw_clearings()
-	_draw_edges(true)
+	if uses_render_model_surface_lane:
+		_draw_render_landmark_pocket_underlays()
+		_draw_path_surfaces(false)
+		_draw_render_junctions()
+		_draw_path_surfaces(true)
+		_draw_render_clearing_surfaces()
+		_draw_render_identity_overlays()
+	else:
+		_draw_edges(false)
+		_draw_trail_decals()
+		_draw_clearings()
+		_draw_edges(true)
 	_draw_forest_shapes("decor")
 
 
@@ -103,14 +112,22 @@ func _draw_ground_surface() -> void:
 		var tone_shift: float = float(shape.get("tone_shift", 0.0))
 		var alpha_scale: float = float(shape.get("alpha_scale", 1.0))
 		var rotation_radians: float = deg_to_rad(float(shape.get("rotation_degrees", 0.0)))
-		var outer_polygon: PackedVector2Array = _ellipse_polygon(center, half_size, rotation_radians, 28)
+		var shape_name: String = String(shape.get("shape", "ellipse"))
+		var outer_polygon: PackedVector2Array = (
+			_rotated_rect_polygon(center, half_size, rotation_radians)
+			if shape_name == "rect"
+			else _ellipse_polygon(center, half_size, rotation_radians, 28)
+		)
 		draw_colored_polygon(
 			outer_polygon,
 			MapBoardStyleScript.ground_patch_color(template_profile, family, tone_shift, alpha_scale)
 		)
 		var inner_scale: Vector2 = MapBoardStyleScript.ground_patch_inner_scale(family)
+		var inner_half_size := Vector2(half_size.x * inner_scale.x, half_size.y * inner_scale.y)
 		draw_colored_polygon(
-			_ellipse_polygon(center, Vector2(half_size.x * inner_scale.x, half_size.y * inner_scale.y), rotation_radians, 24),
+			_rotated_rect_polygon(center, inner_half_size, rotation_radians)
+				if shape_name == "rect"
+				else _ellipse_polygon(center, inner_half_size, rotation_radians, 24),
 			MapBoardStyleScript.ground_patch_inner_color(template_profile, family, tone_shift, alpha_scale)
 		)
 		_draw_closed_polyline(
@@ -208,6 +225,133 @@ func _draw_forest_shapes(shape_family: String) -> void:
 				circle_radius,
 				Color(tinted_tone.r, tinted_tone.g, tinted_tone.b, tinted_tone.a * alpha_scale)
 			)
+
+
+func _draw_path_surfaces(draw_highlight_pass: bool) -> void:
+	for surface_variant in _path_surface_entries():
+		if typeof(surface_variant) != TYPE_DICTIONARY:
+			continue
+		var surface: Dictionary = surface_variant
+		var display_points: PackedVector2Array = _display_path_surface_points(surface)
+		if display_points.size() < 2:
+			continue
+		var edge_proxy: Dictionary = _edge_proxy_for_path_surface(surface)
+		var emphasis_level: int = _edge_emphasis_level(edge_proxy)
+		var visual_profile: Dictionary = _edge_visual_profile(edge_proxy, emphasis_level)
+		var is_history: bool = bool(surface.get("is_history", false))
+		var state_semantic: String = String(surface.get("state_semantic", "open"))
+		if draw_highlight_pass:
+			if not bool(visual_profile.get("draw_highlight", emphasis_level > 0)):
+				continue
+			var highlight_color: Color = MapBoardStyleScript.road_highlight_color(state_semantic, emphasis_level)
+			highlight_color.a *= float(visual_profile.get("highlight_alpha_scale", 1.0))
+			_draw_polyline_surface(
+				display_points,
+				MapBoardStyleScript.road_highlight_width(is_history, emphasis_level) * float(visual_profile.get("highlight_width_scale", 1.0)),
+				highlight_color
+			)
+			continue
+		var surface_width: float = maxf(1.0, float(surface.get("surface_width", MapBoardStyleScript.road_base_width(is_history, emphasis_level))))
+		var outer_width: float = maxf(surface_width, float(surface.get("outer_width", surface_width + 10.0)))
+		var base_color: Color = MapBoardStyleScript.road_base_color(state_semantic, emphasis_level)
+		base_color.a *= float(visual_profile.get("base_alpha_scale", 1.0))
+		_draw_polyline_surface(
+			display_points,
+			outer_width * float(visual_profile.get("shadow_width_scale", 1.0)),
+			Color(0.02, 0.03, 0.02, MapBoardStyleScript.road_shadow_alpha(is_history) * float(visual_profile.get("shadow_alpha_scale", 1.0)))
+		)
+		_draw_polyline_surface(
+			display_points,
+			surface_width * float(visual_profile.get("base_width_scale", 1.0)),
+			base_color
+		)
+
+
+func _draw_render_junctions() -> void:
+	for junction_variant in _junction_entries():
+		if typeof(junction_variant) != TYPE_DICTIONARY:
+			continue
+		var junction: Dictionary = junction_variant
+		var center: Vector2 = Vector2(junction.get("center", Vector2.ZERO)) + _board_offset
+		var radius: float = float(junction.get("junction_radius", 0.0))
+		if radius <= 0.0:
+			continue
+		var junction_role: String = String(junction.get("junction_role", ""))
+		var alpha_scale: float = 0.40 if junction_role == "local_choice_blend" else 0.26
+		draw_circle(center + Vector2(0.0, radius * 0.10), radius * 1.18, Color(0.01, 0.02, 0.02, 0.18))
+		draw_circle(center, radius, Color(0.56, 0.47, 0.26, alpha_scale))
+
+
+func _draw_render_landmark_pocket_underlays() -> void:
+	for clearing_variant in _clearing_surface_entries():
+		if typeof(clearing_variant) != TYPE_DICTIONARY:
+			continue
+		var clearing: Dictionary = clearing_variant
+		var node_entry: Dictionary = _visible_node_entry_by_id(int(clearing.get("node_id", -1)))
+		if node_entry.is_empty():
+			continue
+		_draw_landmark_pocket_underlay(
+			node_entry,
+			Vector2(clearing.get("center", Vector2.ZERO)) + _board_offset,
+			float(clearing.get("radius", 0.0))
+		)
+
+
+func _draw_render_clearing_surfaces() -> void:
+	var highlight_node_id: int = int(_composition.get("side_quest_highlight_node_id", -1))
+	var highlight_state: String = String(_composition.get("side_quest_highlight_state", ""))
+	for clearing_variant in _clearing_surface_entries():
+		if typeof(clearing_variant) != TYPE_DICTIONARY:
+			continue
+		var clearing: Dictionary = clearing_variant
+		var center: Vector2 = Vector2(clearing.get("center", Vector2.ZERO)) + _board_offset
+		var radius: float = float(clearing.get("radius", 0.0))
+		if radius <= 0.0:
+			continue
+		var state_semantic: String = String(clearing.get("state_semantic", "open"))
+		var node_family: String = String(clearing.get("node_family", ""))
+		var is_current: bool = bool(clearing.get("is_current", false))
+		var node_id: int = int(clearing.get("node_id", -1))
+		draw_circle(
+			center + Vector2(0.0, radius * MapBoardStyleScript.CLEARING_SHADOW_Y_OFFSET_MULTIPLIER),
+			radius * MapBoardStyleScript.CLEARING_SHADOW_RADIUS_MULTIPLIER,
+			Color(0.01, 0.02, 0.02, MapBoardStyleScript.CLEARING_SHADOW_ALPHA)
+		)
+		draw_circle(
+			center,
+			radius * MapBoardStyleScript.CLEARING_RIM_RADIUS_MULTIPLIER,
+			MapBoardStyleScript.clearing_rim_color(node_family, state_semantic, is_current)
+		)
+		draw_circle(
+			center,
+			radius * MapBoardStyleScript.CLEARING_FILL_RADIUS_MULTIPLIER,
+			MapBoardStyleScript.clearing_fill_color(node_family, state_semantic, is_current)
+		)
+		match node_family:
+			"key":
+				draw_arc(center, radius * 1.10, -0.70, 4.90, 30, Color(1.0, 0.92, 0.56, 0.46), 3.2, true)
+			"boss":
+				draw_arc(center, radius * 1.12, -0.18, TAU - 0.18, 36, Color(1.0, 0.58, 0.54, 0.52), 3.8, true)
+				draw_arc(center, radius * 0.72, 0.44, 2.70, 16, Color(0.94, 0.78, 0.72, 0.28), 2.2, true)
+		if node_id == highlight_node_id and not highlight_state.is_empty():
+			var highlight_color: Color = MapBoardStyleScript.side_quest_highlight_color(highlight_state)
+			draw_circle(center, radius * 1.22, Color(highlight_color.r, highlight_color.g, highlight_color.b, 0.06))
+			draw_arc(center, radius * 1.12, 0.0, TAU, 40, highlight_color, 5.0, true)
+			draw_arc(center, radius * 1.24, 0.32, TAU + 0.32, 40, Color(highlight_color.r, highlight_color.g, highlight_color.b, 0.46), 2.8, true)
+
+
+func _draw_render_identity_overlays() -> void:
+	for clearing_variant in _clearing_surface_entries():
+		if typeof(clearing_variant) != TYPE_DICTIONARY:
+			continue
+		var clearing: Dictionary = clearing_variant
+		var node_entry: Dictionary = _visible_node_entry_by_id(int(clearing.get("node_id", -1)))
+		if node_entry.is_empty():
+			continue
+		var center: Vector2 = Vector2(clearing.get("center", Vector2.ZERO)) + _board_offset
+		var radius: float = float(clearing.get("radius", 0.0))
+		_draw_landmark_identity_overlay(node_entry, center, radius)
+		_draw_known_node_icon(node_entry, center, radius)
 
 
 func _draw_trail_decals() -> void:
@@ -319,6 +463,7 @@ func _draw_clearings() -> void:
 		var is_current: bool = bool(node_entry.get("is_current", false))
 		var is_resolved: bool = state_semantic == "resolved"
 		var node_id: int = int(node_entry.get("node_id", -1))
+		_draw_landmark_pocket_underlay(node_entry, center, radius)
 		var plate_texture: Texture2D = SceneLayoutHelperScript.load_texture_or_null(String(node_entry.get("node_plate_texture_path", "")))
 		if plate_texture != null:
 			var plate_size: float = radius * MapBoardStyleScript.CLEARING_PLATE_SCALE
@@ -363,6 +508,7 @@ func _draw_clearings() -> void:
 			draw_circle(center, radius * 1.22, Color(highlight_color.r, highlight_color.g, highlight_color.b, 0.06))
 			draw_arc(center, radius * 1.12, 0.0, TAU, 40, highlight_color, 5.0, true)
 			draw_arc(center, radius * 1.24, 0.32, TAU + 0.32, 40, Color(highlight_color.r, highlight_color.g, highlight_color.b, 0.46), 2.8, true)
+		_draw_landmark_identity_overlay(node_entry, center, radius)
 		_draw_known_node_icon(node_entry, center, radius)
 
 
@@ -371,7 +517,7 @@ func _edge_emphasis_level(edge: Dictionary) -> int:
 	var to_node_id: int = int(edge.get("to_node_id", -1))
 	var current_node_id: int = int(_composition.get("current_node_id", -1))
 	if _active_target_node_id >= 0:
-		return 2 if (
+		return 3 if (
 			(from_node_id == current_node_id and to_node_id == _active_target_node_id)
 			or (to_node_id == current_node_id and from_node_id == _active_target_node_id)
 		) else 0
@@ -394,20 +540,32 @@ func _edge_emphasis_level(edge: Dictionary) -> int:
 func _edge_route_surface_semantic(edge: Dictionary, emphasis_level: int = -1) -> String:
 	if emphasis_level < 0:
 		emphasis_level = _edge_emphasis_level(edge)
-	if emphasis_level >= 2:
+	if emphasis_level >= 3:
 		return "selected"
+	if emphasis_level == 2:
+		return "preview"
 	var route_surface_semantic: String = String(edge.get("route_surface_semantic", ""))
 	match route_surface_semantic:
+		"primary_actionable_corridor":
+			return "primary_actionable_corridor"
+		"branch_actionable_corridor":
+			return "branch_actionable_corridor"
+		"branch_history_corridor":
+			return "branch_history_corridor"
+		"reconnect_corridor":
+			return "reconnect_corridor"
+		"history_corridor":
+			return "history_corridor"
 		"local_actionable":
-			return "actionable_secondary" if _has_route_interaction_target() and emphasis_level <= 0 else "actionable"
+			return "primary_actionable_corridor"
 		"history_reconnect":
-			return "history_reconnect"
+			return "reconnect_corridor"
 		"history":
-			return "history"
+			return "history_corridor"
 	var is_history: bool = bool(edge.get("is_history", false))
 	if not is_history:
-		return "actionable_secondary" if _has_route_interaction_target() and emphasis_level <= 0 else "actionable"
-	return "history_reconnect" if bool(edge.get("is_reconnect_edge", false)) else "history"
+		return "primary_actionable_corridor"
+	return "reconnect_corridor" if bool(edge.get("is_reconnect_edge", false)) else "history_corridor"
 
 
 func _edge_visual_profile(edge: Dictionary, emphasis_level: int = -1) -> Dictionary:
@@ -432,7 +590,24 @@ func _edge_visual_profile(edge: Dictionary, emphasis_level: int = -1) -> Diction
 				"corner_radius_min": 18.0,
 				"corner_radius_max": 52.0,
 			}
-		"actionable":
+		"preview":
+			return {
+				"draw_highlight": true,
+				"draw_trail_decal": true,
+				"base_alpha_scale": 0.88,
+				"base_width_scale": 0.94,
+				"shadow_alpha_scale": 0.84,
+				"shadow_width_scale": 0.94,
+				"highlight_alpha_scale": 0.54,
+				"highlight_width_scale": 0.94,
+				"trail_alpha_scale": 0.72,
+				"trail_size_scale": 0.94,
+				"trim_scale": 0.96,
+				"smoothing_strength": 0.92,
+				"corner_radius_min": 16.0,
+				"corner_radius_max": 46.0,
+			}
+		"primary_actionable_corridor":
 			return {
 				"draw_highlight": emphasis_level > 0,
 				"draw_trail_decal": true,
@@ -449,39 +624,73 @@ func _edge_visual_profile(edge: Dictionary, emphasis_level: int = -1) -> Diction
 				"corner_radius_min": 18.0,
 				"corner_radius_max": 52.0,
 			}
-		"actionable_secondary":
+		"branch_actionable_corridor", "actionable_secondary":
 			return {
 				"draw_highlight": false,
 				"draw_trail_decal": true,
-				"base_alpha_scale": 0.56,
-				"base_width_scale": 0.84,
-				"shadow_alpha_scale": 0.56,
-				"shadow_width_scale": 0.88,
+				"base_alpha_scale": 0.74,
+				"base_width_scale": 0.88,
+				"shadow_alpha_scale": 0.68,
+				"shadow_width_scale": 0.90,
 				"highlight_alpha_scale": 0.0,
 				"highlight_width_scale": 0.84,
-				"trail_alpha_scale": 0.58,
-				"trail_size_scale": 0.90,
+				"trail_alpha_scale": 0.68,
+				"trail_size_scale": 0.92,
 				"trim_scale": 0.92,
-				"smoothing_strength": 0.84,
+				"smoothing_strength": 0.78,
 				"corner_radius_min": 14.0,
 				"corner_radius_max": 40.0,
 			}
-		"history":
+		"branch_history_corridor":
 			return {
 				"draw_highlight": false,
 				"draw_trail_decal": true,
-				"base_alpha_scale": 0.46,
-				"base_width_scale": 0.74,
-				"shadow_alpha_scale": 0.44,
-				"shadow_width_scale": 0.78,
+				"base_alpha_scale": 0.58,
+				"base_width_scale": 0.82,
+				"shadow_alpha_scale": 0.52,
+				"shadow_width_scale": 0.82,
 				"highlight_alpha_scale": 0.0,
 				"highlight_width_scale": 0.78,
-				"trail_alpha_scale": 0.34,
-				"trail_size_scale": 0.78,
+				"trail_alpha_scale": 0.42,
+				"trail_size_scale": 0.82,
 				"trim_scale": 0.86,
-				"smoothing_strength": 0.46,
+				"smoothing_strength": 0.38,
+				"corner_radius_min": 12.0,
+				"corner_radius_max": 30.0,
+			}
+		"history_corridor":
+			return {
+				"draw_highlight": false,
+				"draw_trail_decal": true,
+				"base_alpha_scale": 0.42,
+				"base_width_scale": 0.72,
+				"shadow_alpha_scale": 0.40,
+				"shadow_width_scale": 0.76,
+				"highlight_alpha_scale": 0.0,
+				"highlight_width_scale": 0.76,
+				"trail_alpha_scale": 0.30,
+				"trail_size_scale": 0.76,
+				"trim_scale": 0.84,
+				"smoothing_strength": 0.34,
 				"corner_radius_min": 10.0,
-				"corner_radius_max": 26.0,
+				"corner_radius_max": 24.0,
+			}
+		"reconnect_corridor", "history_reconnect":
+			return {
+				"draw_highlight": false,
+				"draw_trail_decal": false,
+				"base_alpha_scale": 0.22,
+				"base_width_scale": 0.68,
+				"shadow_alpha_scale": 0.28,
+				"shadow_width_scale": 0.72,
+				"highlight_alpha_scale": 0.0,
+				"highlight_width_scale": 0.72,
+				"trail_alpha_scale": 0.0,
+				"trail_size_scale": 0.0,
+				"trim_scale": 0.82,
+				"smoothing_strength": 0.0,
+				"corner_radius_min": 0.0,
+				"corner_radius_max": 0.0,
 			}
 		_:
 			return {
@@ -538,6 +747,70 @@ func _visible_node_entry_by_id(node_id: int) -> Dictionary:
 	return {}
 
 
+func _render_model() -> Dictionary:
+	var render_model_variant: Variant = _composition.get("render_model", {})
+	return render_model_variant if typeof(render_model_variant) == TYPE_DICTIONARY else {}
+
+
+func _uses_render_model_surface_lane() -> bool:
+	return not _path_surface_entries().is_empty() and not _clearing_surface_entries().is_empty()
+
+
+func _path_surface_entries() -> Array:
+	var render_model: Dictionary = _render_model()
+	return (render_model.get("path_surfaces", []) as Array).duplicate(true)
+
+
+func _junction_entries() -> Array:
+	var render_model: Dictionary = _render_model()
+	return (render_model.get("junctions", []) as Array).duplicate(true)
+
+
+func _clearing_surface_entries() -> Array:
+	var render_model: Dictionary = _render_model()
+	return (render_model.get("clearing_surfaces", []) as Array).duplicate(true)
+
+
+func _edge_proxy_for_path_surface(surface: Dictionary) -> Dictionary:
+	return {
+		"from_node_id": int(surface.get("from_node_id", -1)),
+		"to_node_id": int(surface.get("to_node_id", -1)),
+		"is_history": bool(surface.get("is_history", false)),
+		"is_reconnect_edge": bool(surface.get("is_reconnect_edge", false)),
+		"route_surface_semantic": String(surface.get("route_surface_semantic", surface.get("role", ""))),
+		"state_semantic": String(surface.get("state_semantic", "open")),
+	}
+
+
+func _display_path_surface_points(surface: Dictionary) -> PackedVector2Array:
+	var points: PackedVector2Array = surface.get("centerline_points", PackedVector2Array())
+	var edge_proxy: Dictionary = _edge_proxy_for_path_surface(surface)
+	var visual_profile: Dictionary = _edge_visual_profile(edge_proxy)
+	var smoothing_strength: float = float(visual_profile.get("smoothing_strength", 1.0))
+	if points.size() < 3 or smoothing_strength <= 0.01:
+		return _translated_edge_points(points)
+	return _display_edge_points(
+		points,
+		smoothing_strength,
+		float(visual_profile.get("corner_radius_min", 18.0)),
+		float(visual_profile.get("corner_radius_max", 52.0))
+	)
+
+
+func _draw_polyline_surface(points: PackedVector2Array, width: float, color: Color) -> void:
+	if points.size() < 2 or width <= 0.0 or color.a <= 0.0:
+		return
+	var half_width: float = width * 0.5
+	var surface_polygons: Array[PackedVector2Array] = _polyline_surface_segment_polygons(points, half_width)
+	if surface_polygons.is_empty():
+		return
+	for surface_polygon in surface_polygons:
+		draw_colored_polygon(surface_polygon, color)
+	var cap_points: PackedVector2Array = _deduplicated_surface_points(points)
+	for cap_point in cap_points:
+		draw_circle(cap_point, half_width, color)
+
+
 func _draw_known_node_icon(node_entry: Dictionary, center: Vector2, radius: float) -> void:
 	if not bool(node_entry.get("show_known_icon", false)):
 		return
@@ -550,13 +823,166 @@ func _draw_known_node_icon(node_entry: Dictionary, center: Vector2, radius: floa
 	var state_semantic: String = String(node_entry.get("state_semantic", "open"))
 	var node_family: String = String(node_entry.get("node_family", ""))
 	var is_current: bool = bool(node_entry.get("is_current", false))
+	var footprint: Dictionary = _landmark_footprint_for_node(node_entry)
 	var icon_tint: Color = MapBoardStyleScript.icon_modulate_for_semantic(node_family, state_semantic, false, false)
 	if state_semantic == "open":
 		icon_tint.a = min(icon_tint.a, MapBoardStyleScript.KNOWN_ICON_OPEN_ALPHA_CAP)
+	if not footprint.is_empty():
+		icon_tint.a *= MapBoardStyleScript.landmark_icon_alpha_scale(state_semantic, is_current)
+	var icon_rect: Rect2 = _known_icon_rect_for_node(node_entry, center, radius)
+	draw_texture_rect(icon_texture, icon_rect, false, icon_tint)
+
+
+func _draw_landmark_pocket_underlay(node_entry: Dictionary, center: Vector2, radius: float) -> void:
+	var footprint: Dictionary = _landmark_footprint_for_node(node_entry)
+	if footprint.is_empty():
+		return
+	var state_semantic: String = String(node_entry.get("state_semantic", "open"))
+	var node_family: String = String(node_entry.get("node_family", ""))
+	var is_current: bool = bool(node_entry.get("is_current", false))
+	var pocket_polygon: PackedVector2Array = _landmark_pocket_polygon(center, footprint, radius)
+	if pocket_polygon.is_empty():
+		return
+	draw_colored_polygon(
+		pocket_polygon,
+		MapBoardStyleScript.landmark_pocket_fill_color(node_family, state_semantic, is_current)
+	)
+	_draw_closed_polyline(
+		pocket_polygon,
+		MapBoardStyleScript.landmark_pocket_rim_color(node_family, state_semantic, is_current),
+		3.0 if node_family in ["key", "boss"] else 2.4
+	)
+
+
+func _draw_landmark_identity_overlay(node_entry: Dictionary, center: Vector2, radius: float) -> void:
+	var footprint: Dictionary = _landmark_footprint_for_node(node_entry)
+	if footprint.is_empty():
+		return
+	var state_semantic: String = String(node_entry.get("state_semantic", "open"))
+	var node_family: String = String(node_entry.get("node_family", ""))
+	var is_current: bool = bool(node_entry.get("is_current", false))
+	var anchor_color: Color = MapBoardStyleScript.landmark_anchor_color(node_family, state_semantic, is_current)
+	var signage_color: Color = MapBoardStyleScript.landmark_signage_color(node_family, state_semantic, is_current)
+	var route_anchor_direction: Vector2 = Vector2(footprint.get("route_anchor_direction", Vector2.UP))
+	var route_lateral_direction: Vector2 = Vector2(footprint.get("route_lateral_direction", Vector2.RIGHT))
+	var landmark_center: Vector2 = center + Vector2(footprint.get("landmark_center_offset", Vector2.ZERO))
+	var landmark_half_size: Vector2 = Vector2(footprint.get("landmark_half_size", Vector2.ZERO))
+	var landmark_rotation_radians: float = deg_to_rad(float(footprint.get("landmark_rotation_degrees", 0.0)))
+	var landmark_shape: String = String(footprint.get("landmark_shape", ""))
+	_draw_landmark_anchor_shape(
+		landmark_shape,
+		landmark_center,
+		landmark_half_size,
+		landmark_rotation_radians,
+		route_anchor_direction,
+		route_lateral_direction,
+		anchor_color
+	)
+	var signage_center: Vector2 = center + Vector2(footprint.get("signage_center_offset", Vector2.ZERO))
+	var signage_scale: float = float(footprint.get("signage_scale", 0.72))
+	var signage_shape: String = String(footprint.get("signage_shape", "round_badge"))
+	var signage_size: Vector2 = Vector2.ONE * clampf(radius * signage_scale, 18.0, 34.0)
+	if signage_shape == "tab":
+		var tab_polygon: PackedVector2Array = _rotated_rect_polygon(signage_center, Vector2(signage_size.x * 0.78, signage_size.y * 0.44), landmark_rotation_radians)
+		draw_colored_polygon(tab_polygon, signage_color)
+		_draw_closed_polyline(tab_polygon, Color(1, 1, 1, signage_color.a * 0.38), 1.4)
+	else:
+		draw_circle(signage_center, signage_size.x * 0.38, signage_color)
+		draw_arc(signage_center, signage_size.x * 0.38, 0.0, TAU, 24, Color(1, 1, 1, signage_color.a * 0.44), 1.6, true)
+
+
+func _draw_landmark_anchor_shape(
+	landmark_shape: String,
+	landmark_center: Vector2,
+	landmark_half_size: Vector2,
+	landmark_rotation_radians: float,
+	route_anchor_direction: Vector2,
+	route_lateral_direction: Vector2,
+	anchor_color: Color
+) -> void:
+	if landmark_half_size.x <= 0.0 or landmark_half_size.y <= 0.0:
+		return
+	match landmark_shape:
+		"crossed_stakes":
+			var left_stake: PackedVector2Array = _rotated_rect_polygon(landmark_center + route_lateral_direction * landmark_half_size.x * 0.12, Vector2(landmark_half_size.x * 0.14, landmark_half_size.y), landmark_rotation_radians - 0.52)
+			var right_stake: PackedVector2Array = _rotated_rect_polygon(landmark_center - route_lateral_direction * landmark_half_size.x * 0.12, Vector2(landmark_half_size.x * 0.14, landmark_half_size.y), landmark_rotation_radians + 0.52)
+			draw_colored_polygon(left_stake, anchor_color)
+			draw_colored_polygon(right_stake, anchor_color)
+			draw_circle(landmark_center + route_anchor_direction * landmark_half_size.y * 0.10, landmark_half_size.x * 0.28, Color(anchor_color.r, anchor_color.g, anchor_color.b, anchor_color.a * 0.54))
+		"cache_slab":
+			var cache_slab: PackedVector2Array = _rotated_rect_polygon(landmark_center, landmark_half_size, landmark_rotation_radians)
+			draw_colored_polygon(cache_slab, anchor_color)
+			draw_circle(landmark_center - route_lateral_direction * landmark_half_size.x * 0.38, landmark_half_size.y * 0.26, Color(1, 1, 1, anchor_color.a * 0.18))
+			draw_circle(landmark_center + route_lateral_direction * landmark_half_size.x * 0.38, landmark_half_size.y * 0.26, Color(1, 1, 1, anchor_color.a * 0.18))
+		"standing_stone":
+			var stone: PackedVector2Array = _rotated_rect_polygon(landmark_center, Vector2(landmark_half_size.x * 0.60, landmark_half_size.y), landmark_rotation_radians)
+			draw_colored_polygon(stone, anchor_color)
+			draw_arc(landmark_center, landmark_half_size.x * 0.52, -1.2, 1.2, 14, Color(1, 1, 1, anchor_color.a * 0.18), 1.4, true)
+		"waypost":
+			var post: PackedVector2Array = _rotated_rect_polygon(landmark_center + route_anchor_direction * landmark_half_size.y * 0.10, Vector2(landmark_half_size.x * 0.14, landmark_half_size.y), landmark_rotation_radians)
+			var signboard: PackedVector2Array = _rotated_rect_polygon(landmark_center - route_anchor_direction * landmark_half_size.y * 0.22 + route_lateral_direction * landmark_half_size.x * 0.24, Vector2(landmark_half_size.x * 0.46, landmark_half_size.y * 0.22), landmark_rotation_radians)
+			draw_colored_polygon(post, anchor_color)
+			draw_colored_polygon(signboard, Color(anchor_color.r, anchor_color.g, anchor_color.b, anchor_color.a * 0.88))
+		"campfire":
+			draw_circle(landmark_center, landmark_half_size.x * 0.34, anchor_color)
+			var left_roll: PackedVector2Array = _ellipse_polygon(landmark_center - route_lateral_direction * landmark_half_size.x * 0.54 + route_anchor_direction * landmark_half_size.y * 0.18, Vector2(landmark_half_size.x * 0.30, landmark_half_size.y * 0.18), landmark_rotation_radians, 18)
+			var right_roll: PackedVector2Array = _ellipse_polygon(landmark_center + route_lateral_direction * landmark_half_size.x * 0.54 + route_anchor_direction * landmark_half_size.y * 0.18, Vector2(landmark_half_size.x * 0.30, landmark_half_size.y * 0.18), landmark_rotation_radians, 18)
+			draw_colored_polygon(left_roll, Color(anchor_color.r, anchor_color.g, anchor_color.b, anchor_color.a * 0.52))
+			draw_colored_polygon(right_roll, Color(anchor_color.r, anchor_color.g, anchor_color.b, anchor_color.a * 0.52))
+		"stall":
+			var awning: PackedVector2Array = _rotated_rect_polygon(landmark_center - route_anchor_direction * landmark_half_size.y * 0.20, Vector2(landmark_half_size.x, landmark_half_size.y * 0.24), landmark_rotation_radians)
+			var table: PackedVector2Array = _rotated_rect_polygon(landmark_center + route_anchor_direction * landmark_half_size.y * 0.16, Vector2(landmark_half_size.x * 0.72, landmark_half_size.y * 0.20), landmark_rotation_radians)
+			draw_colored_polygon(awning, anchor_color)
+			draw_colored_polygon(table, Color(anchor_color.r, anchor_color.g, anchor_color.b, anchor_color.a * 0.68))
+		"forge":
+			var hearth: PackedVector2Array = _rotated_rect_polygon(landmark_center + route_anchor_direction * landmark_half_size.y * 0.14, Vector2(landmark_half_size.x * 0.72, landmark_half_size.y * 0.28), landmark_rotation_radians)
+			var anvil: PackedVector2Array = _rotated_rect_polygon(landmark_center - route_anchor_direction * landmark_half_size.y * 0.18, Vector2(landmark_half_size.x * 0.42, landmark_half_size.y * 0.18), landmark_rotation_radians)
+			draw_colored_polygon(hearth, anchor_color)
+			draw_colored_polygon(anvil, Color(anchor_color.r, anchor_color.g, anchor_color.b, anchor_color.a * 0.72))
+		"shrine":
+			var pedestal: PackedVector2Array = _rotated_rect_polygon(landmark_center + route_anchor_direction * landmark_half_size.y * 0.14, Vector2(landmark_half_size.x * 0.32, landmark_half_size.y * 0.48), landmark_rotation_radians)
+			draw_colored_polygon(pedestal, anchor_color)
+			draw_circle(landmark_center - route_anchor_direction * landmark_half_size.y * 0.22, landmark_half_size.x * 0.24, Color(1, 1, 1, anchor_color.a * 0.30))
+		"gate":
+			var left_post: PackedVector2Array = _rotated_rect_polygon(landmark_center - route_lateral_direction * landmark_half_size.x * 0.56, Vector2(landmark_half_size.x * 0.18, landmark_half_size.y), landmark_rotation_radians)
+			var right_post: PackedVector2Array = _rotated_rect_polygon(landmark_center + route_lateral_direction * landmark_half_size.x * 0.56, Vector2(landmark_half_size.x * 0.18, landmark_half_size.y), landmark_rotation_radians)
+			var lintel: PackedVector2Array = _rotated_rect_polygon(landmark_center - route_anchor_direction * landmark_half_size.y * 0.42, Vector2(landmark_half_size.x * 0.78, landmark_half_size.y * 0.16), landmark_rotation_radians)
+			draw_colored_polygon(left_post, anchor_color)
+			draw_colored_polygon(right_post, anchor_color)
+			draw_colored_polygon(lintel, Color(anchor_color.r, anchor_color.g, anchor_color.b, anchor_color.a * 0.80))
+		_:
+			var fallback_stone: PackedVector2Array = _ellipse_polygon(landmark_center, landmark_half_size, landmark_rotation_radians, 18)
+			draw_colored_polygon(fallback_stone, anchor_color)
+
+
+func _known_icon_rect_for_node(node_entry: Dictionary, center: Vector2, radius: float) -> Rect2:
+	var is_current: bool = bool(node_entry.get("is_current", false))
 	var icon_size: float = MapBoardStyleScript.known_icon_size(radius, is_current)
 	var icon_center: Vector2 = MapBoardStyleScript.known_icon_center(center, radius, is_current)
-	var icon_rect := Rect2(icon_center - Vector2.ONE * (icon_size * 0.5), Vector2.ONE * icon_size)
-	draw_texture_rect(icon_texture, icon_rect, false, icon_tint)
+	var footprint: Dictionary = _landmark_footprint_for_node(node_entry)
+	if not footprint.is_empty():
+		icon_center = center + Vector2(footprint.get("signage_center_offset", Vector2.ZERO))
+		icon_size *= clampf(float(footprint.get("signage_scale", 0.72)), 0.52, 0.92)
+	return Rect2(icon_center - Vector2.ONE * (icon_size * 0.5), Vector2.ONE * icon_size)
+
+
+func _landmark_pocket_polygon(center: Vector2, footprint: Dictionary, radius: float) -> PackedVector2Array:
+	var pocket_center: Vector2 = center + Vector2(footprint.get("pocket_center_offset", Vector2.ZERO))
+	var pocket_half_size: Vector2 = Vector2(footprint.get("pocket_half_size", Vector2.ZERO))
+	var pocket_rotation_radians: float = deg_to_rad(float(footprint.get("pocket_rotation_degrees", 0.0)))
+	var pocket_shape: String = String(footprint.get("pocket_shape", "ellipse"))
+	if pocket_half_size.x <= radius or pocket_half_size.y <= radius * 0.6:
+		return PackedVector2Array()
+	if pocket_shape == "rect":
+		return _rotated_rect_polygon(pocket_center, pocket_half_size, pocket_rotation_radians)
+	if pocket_shape == "diamond":
+		return _diamond_polygon(pocket_center, pocket_half_size, pocket_rotation_radians)
+	return _ellipse_polygon(pocket_center, pocket_half_size, pocket_rotation_radians, 24)
+
+
+func _landmark_footprint_for_node(node_entry: Dictionary) -> Dictionary:
+	var footprint_variant: Variant = node_entry.get("landmark_footprint", {})
+	return footprint_variant if typeof(footprint_variant) == TYPE_DICTIONARY else {}
 
 
 func _translated_edge_points(points: PackedVector2Array) -> PackedVector2Array:
@@ -606,6 +1032,85 @@ func _display_edge_points(
 			_append_display_point(smoothed_points, curved_points[curved_point_index])
 	_append_display_point(smoothed_points, translated_points[translated_points.size() - 1])
 	return smoothed_points
+
+
+func _polyline_strip_polygon(points: PackedVector2Array, half_width: float) -> PackedVector2Array:
+	var polygon := PackedVector2Array()
+	if points.size() < 2 or half_width <= 0.0:
+		return polygon
+	var left_points := PackedVector2Array()
+	var right_points := PackedVector2Array()
+	for point_index in range(points.size()):
+		var offset: Vector2 = _polyline_strip_offset_at(points, point_index, half_width)
+		left_points.append(points[point_index] + offset)
+		right_points.append(points[point_index] - offset)
+	for point in left_points:
+		polygon.append(point)
+	for reverse_index in range(right_points.size() - 1, -1, -1):
+		polygon.append(right_points[reverse_index])
+	return polygon
+
+
+func _polyline_surface_segment_polygons(points: PackedVector2Array, half_width: float) -> Array[PackedVector2Array]:
+	var surface_polygons: Array[PackedVector2Array] = []
+	var surface_points: PackedVector2Array = _deduplicated_surface_points(points)
+	if surface_points.size() < 2 or half_width <= 0.0:
+		return surface_polygons
+	for point_index in range(surface_points.size() - 1):
+		var segment_polygon: PackedVector2Array = _polyline_surface_segment_polygon(
+			surface_points[point_index],
+			surface_points[point_index + 1],
+			half_width
+		)
+		if segment_polygon.size() >= 3:
+			surface_polygons.append(segment_polygon)
+	return surface_polygons
+
+
+func _polyline_surface_segment_polygon(from_point: Vector2, to_point: Vector2, half_width: float) -> PackedVector2Array:
+	var polygon := PackedVector2Array()
+	var segment: Vector2 = to_point - from_point
+	if segment.length_squared() <= 0.001 or half_width <= 0.0:
+		return polygon
+	var normal: Vector2 = Vector2(-segment.y, segment.x).normalized() * half_width
+	polygon.append(from_point + normal)
+	polygon.append(to_point + normal)
+	polygon.append(to_point - normal)
+	polygon.append(from_point - normal)
+	return polygon
+
+
+func _deduplicated_surface_points(points: PackedVector2Array) -> PackedVector2Array:
+	var deduplicated_points := PackedVector2Array()
+	for point in points:
+		if deduplicated_points.is_empty() or deduplicated_points[deduplicated_points.size() - 1].distance_squared_to(point) > 0.001:
+			deduplicated_points.append(point)
+	return deduplicated_points
+
+
+func _polyline_strip_offset_at(points: PackedVector2Array, point_index: int, half_width: float) -> Vector2:
+	var point_count: int = points.size()
+	var previous_point: Vector2 = points[max(point_index - 1, 0)]
+	var current_point: Vector2 = points[point_index]
+	var next_point: Vector2 = points[min(point_index + 1, point_count - 1)]
+	var tangent: Vector2 = next_point - previous_point
+	if tangent.length_squared() <= 0.001:
+		tangent = Vector2.RIGHT
+	var normal: Vector2 = Vector2(-tangent.y, tangent.x).normalized()
+	if point_index <= 0 or point_index >= point_count - 1:
+		return normal * half_width
+	var incoming: Vector2 = current_point - previous_point
+	var outgoing: Vector2 = next_point - current_point
+	if incoming.length_squared() <= 0.001 or outgoing.length_squared() <= 0.001:
+		return normal * half_width
+	var incoming_normal: Vector2 = Vector2(-incoming.y, incoming.x).normalized()
+	var outgoing_normal: Vector2 = Vector2(-outgoing.y, outgoing.x).normalized()
+	var miter: Vector2 = incoming_normal + outgoing_normal
+	if miter.length_squared() <= 0.001:
+		return outgoing_normal * half_width
+	miter = miter.normalized()
+	var denominator: float = maxf(0.45, absf(miter.dot(outgoing_normal)))
+	return miter * minf(half_width / denominator, half_width * 1.85)
 
 
 func _sample_quadratic_display_curve(
@@ -665,6 +1170,17 @@ func _rotated_rect_polygon(center: Vector2, half_size: Vector2, rotation_radians
 	rect_points.append(center + basis_x * half_size.x + basis_y * half_size.y)
 	rect_points.append(center + basis_x * -half_size.x + basis_y * half_size.y)
 	return rect_points
+
+
+func _diamond_polygon(center: Vector2, half_size: Vector2, rotation_radians: float) -> PackedVector2Array:
+	var diamond_points := PackedVector2Array()
+	var basis_x: Vector2 = Vector2.RIGHT.rotated(rotation_radians)
+	var basis_y: Vector2 = Vector2.DOWN.rotated(rotation_radians)
+	diamond_points.append(center - basis_y * half_size.y)
+	diamond_points.append(center + basis_x * half_size.x)
+	diamond_points.append(center + basis_y * half_size.y)
+	diamond_points.append(center - basis_x * half_size.x)
+	return diamond_points
 
 
 func _draw_closed_polyline(points: PackedVector2Array, color: Color, width: float) -> void:

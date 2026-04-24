@@ -271,7 +271,7 @@ func build_technique_action_label(combat_state: CombatState) -> String:
 
 func build_technique_action_eyebrow_text(combat_state: CombatState) -> String:
 	if combat_state == null or not combat_state.has_equipped_technique():
-		return "TACTICAL TECHNIQUE"
+		return "LEARN AT HAMLET"
 	if bool(combat_state.technique_spent):
 		return "SPENT THIS FIGHT"
 	var effect_type: String = String(

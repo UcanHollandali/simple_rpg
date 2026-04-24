@@ -126,6 +126,8 @@ static func restore_visible_edge_continuity(board_composition_cache: Dictionary)
 	var layout_edges: Array = updated_cache.get("layout_edges", [])
 	var visible_edges: Array = (updated_cache.get("visible_edges", []) as Array).duplicate(true)
 	var current_node_id: int = int(updated_cache.get("current_node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
+	var current_branch_root_id: int = int(updated_cache.get("current_branch_root_id", current_node_id))
+	var branch_root_by_node_id: Dictionary = updated_cache.get("branch_root_by_node_id", {})
 	if visible_nodes.is_empty() or layout_edges.is_empty() or current_node_id == MapRuntimeStateScript.NO_PENDING_NODE_ID:
 		return updated_cache
 	var visible_node_ids: Dictionary = {}
@@ -164,9 +166,31 @@ static func restore_visible_edge_continuity(board_composition_cache: Dictionary)
 		var to_node: Dictionary = visible_node_by_id.get(to_node_id, {})
 		extra_edge["state_semantic"] = "locked" if String(from_node.get("state_semantic", "")) == "locked" or String(to_node.get("state_semantic", "")) == "locked" else ("resolved" if String(from_node.get("node_state", "")) == MapRuntimeStateScript.NODE_STATE_RESOLVED and String(to_node.get("node_state", "")) == MapRuntimeStateScript.NODE_STATE_RESOLVED else "open")
 		extra_edge["is_history"] = not (from_node_id == current_node_id or to_node_id == current_node_id)
+		var corridor_role_semantic: String = "history_corridor"
+		if bool(extra_edge.get("is_reconnect_edge", false)):
+			corridor_role_semantic = "reconnect_corridor"
+		elif (
+			int(extra_edge.get("from_branch_root_id", branch_root_by_node_id.get(from_node_id, from_node_id))) == current_branch_root_id
+			or int(extra_edge.get("to_branch_root_id", branch_root_by_node_id.get(to_node_id, to_node_id))) == current_branch_root_id
+			or from_node_id == current_branch_root_id
+			or to_node_id == current_branch_root_id
+		):
+			corridor_role_semantic = "branch_history_corridor"
+		extra_edge["corridor_role_semantic"] = corridor_role_semantic
+		extra_edge["route_surface_semantic"] = corridor_role_semantic
+		extra_edge["corridor_draw_priority"] = _corridor_draw_priority(corridor_role_semantic)
 		visible_edges.append(extra_edge)
 		accepted_edge_keys[edge_key] = true
 		connected_node_ids = _visible_edge_component_node_ids(visible_edges, current_node_id)
+	visible_edges.sort_custom(func(left_edge: Dictionary, right_edge: Dictionary) -> bool:
+		var left_priority: int = int(left_edge.get("corridor_draw_priority", 0))
+		var right_priority: int = int(right_edge.get("corridor_draw_priority", 0))
+		if left_priority != right_priority:
+			return left_priority < right_priority
+		var left_key: String = "%d:%d" % [min(int(left_edge.get("from_node_id", -1)), int(left_edge.get("to_node_id", -1))), max(int(left_edge.get("from_node_id", -1)), int(left_edge.get("to_node_id", -1)))]
+		var right_key: String = "%d:%d" % [min(int(right_edge.get("from_node_id", -1)), int(right_edge.get("to_node_id", -1))), max(int(right_edge.get("from_node_id", -1)), int(right_edge.get("to_node_id", -1)))]
+		return left_key < right_key
+	)
 	updated_cache["visible_edges"] = visible_edges
 	return updated_cache
 
@@ -209,6 +233,22 @@ static func get_node_world_position(board_composition_cache: Dictionary, node_id
 		return Vector2.ZERO
 	var world_positions: Dictionary = board_composition_cache.get("world_positions", {})
 	return world_positions.get(node_id, Vector2.ZERO)
+
+
+static func _corridor_draw_priority(corridor_role_semantic: String) -> int:
+	match corridor_role_semantic:
+		"reconnect_corridor":
+			return 0
+		"history_corridor":
+			return 1
+		"branch_history_corridor":
+			return 2
+		"branch_actionable_corridor":
+			return 3
+		"primary_actionable_corridor":
+			return 4
+		_:
+			return 1
 
 
 static func desired_focus_offset_for_world_position(

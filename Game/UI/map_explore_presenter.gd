@@ -52,6 +52,10 @@ func build_run_status_model(run_state: RunState) -> Dictionary:
 		"variant": RunStatusPresenterScript.VARIANT_MINIMAL,
 		"include_weapon": false,
 		"include_xp": true,
+		"primary_row_keys": [
+			["hp", "durability"],
+			["hunger", "gold"],
+		],
 	})
 
 

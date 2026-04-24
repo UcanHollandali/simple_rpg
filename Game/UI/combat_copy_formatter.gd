@@ -186,9 +186,12 @@ static func _extract_intent_damage(intent: Dictionary) -> int:
 
 
 static func _extract_visible_intent_damage(intent: Dictionary, preview_snapshot: Dictionary = {}) -> int:
+	var authored_damage: int = _extract_intent_damage(intent)
 	if not preview_snapshot.is_empty() and preview_snapshot.has("incoming_damage_preview"):
-		return max(0, int(preview_snapshot.get("incoming_damage_preview", 0)))
-	return _extract_intent_damage(intent)
+		var preview_damage: int = max(0, int(preview_snapshot.get("incoming_damage_preview", 0)))
+		if preview_damage > 0 or authored_damage <= 0:
+			return preview_damage
+	return authored_damage
 
 
 static func _extract_intent_extra_effect_names(intent: Dictionary) -> PackedStringArray:

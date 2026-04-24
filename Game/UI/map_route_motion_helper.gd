@@ -49,6 +49,14 @@ static func build_route_move_world_path(
 	fallback_start_world: Vector2,
 	fallback_target_world: Vector2
 ) -> PackedVector2Array:
+	var render_model_path_points: PackedVector2Array = _render_model_path_surface_points_for_route(
+		board_composition_cache,
+		current_node_id,
+		target_node_id
+	)
+	if render_model_path_points.size() >= 2:
+		return render_model_path_points
+
 	var points := PackedVector2Array()
 	var start_world: Vector2 = _get_node_world_position(board_composition_cache, current_node_id)
 	if start_world == Vector2.ZERO:
@@ -244,6 +252,42 @@ static func _get_node_world_position(board_composition_cache: Dictionary, node_i
 	return world_positions.get(node_id, Vector2.ZERO)
 
 
+static func _render_model_path_surface_points_for_route(
+	board_composition_cache: Dictionary,
+	current_node_id: int,
+	target_node_id: int
+) -> PackedVector2Array:
+	var render_model_variant: Variant = board_composition_cache.get("render_model", {})
+	if typeof(render_model_variant) != TYPE_DICTIONARY:
+		return PackedVector2Array()
+	var render_model: Dictionary = render_model_variant
+	for surface_variant in render_model.get("path_surfaces", []):
+		if typeof(surface_variant) != TYPE_DICTIONARY:
+			continue
+		var surface: Dictionary = surface_variant
+		var from_node_id: int = int(surface.get("from_node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
+		var to_node_id: int = int(surface.get("to_node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
+		var centerline_points: PackedVector2Array = _path_surface_centerline_points(surface)
+		if centerline_points.size() < 2:
+			continue
+		if from_node_id == current_node_id and to_node_id == target_node_id:
+			return centerline_points
+		if from_node_id == target_node_id and to_node_id == current_node_id:
+			return _reversed_points(centerline_points)
+	return PackedVector2Array()
+
+
+static func _path_surface_centerline_points(surface: Dictionary) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	for point in surface.get("centerline_points", PackedVector2Array()):
+		_append_route_move_world_point(points, point)
+	if points.size() >= 2:
+		return points
+	_append_route_move_world_point(points, Vector2(surface.get("from_endpoint", Vector2.ZERO)))
+	_append_route_move_world_point(points, Vector2(surface.get("to_endpoint", Vector2.ZERO)))
+	return points
+
+
 static func _visible_edge_points_for_route(
 	board_composition_cache: Dictionary,
 	current_node_id: int,
@@ -258,12 +302,16 @@ static func _visible_edge_points_for_route(
 		if from_node_id == current_node_id and to_node_id == target_node_id:
 			return edge.get("points", PackedVector2Array())
 		if from_node_id == target_node_id and to_node_id == current_node_id:
-			var reversed_points := PackedVector2Array()
 			var points: PackedVector2Array = edge.get("points", PackedVector2Array())
-			for index in range(points.size() - 1, -1, -1):
-				reversed_points.append(points[index])
-			return reversed_points
+			return _reversed_points(points)
 	return PackedVector2Array()
+
+
+static func _reversed_points(points: PackedVector2Array) -> PackedVector2Array:
+	var reversed_points := PackedVector2Array()
+	for index in range(points.size() - 1, -1, -1):
+		_append_route_move_world_point(reversed_points, points[index])
+	return reversed_points
 
 
 static func _append_route_move_world_point(points: PackedVector2Array, point: Vector2) -> void:

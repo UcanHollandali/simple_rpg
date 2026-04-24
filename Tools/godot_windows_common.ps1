@@ -94,6 +94,83 @@ function Get-RunningGodotProcesses {
     })
 }
 
+function Get-GodotProcessDetails {
+    return @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+        $_.Name -match "godot"
+    })
+}
+
+function Get-ManagedGodotProfileProcesses {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ProjectRoot
+    )
+
+    $profileRoot = [System.IO.Path]::GetFullPath((Join-Path $ProjectRoot "_godot_profile"))
+    $profileRootTokens = @(
+        $profileRoot.ToLowerInvariant().TrimEnd([char[]]@('\', '/')),
+        ($profileRoot -replace "\\", "/").ToLowerInvariant().TrimEnd([char[]]@('\', '/'))
+    )
+
+    return @(Get-GodotProcessDetails | Where-Object {
+        $commandLine = "$($_.CommandLine)"
+        if ([string]::IsNullOrWhiteSpace($commandLine)) {
+            return $false
+        }
+
+        $normalizedCommandLine = $commandLine.ToLowerInvariant()
+        foreach ($token in $profileRootTokens) {
+            if (-not [string]::IsNullOrWhiteSpace($token) -and $normalizedCommandLine.Contains($token)) {
+                return $true
+            }
+        }
+
+        return $false
+    })
+}
+
+function Stop-ManagedGodotProfileProcesses {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ProjectRoot,
+        [string]$Reason = "cleaning stale repo-local Godot helper processes",
+        [int]$WaitTimeoutMs = 15000,
+        [int]$PollIntervalMs = 250,
+        [switch]$Quiet
+    )
+
+    $managedProcesses = @(Get-ManagedGodotProfileProcesses -ProjectRoot $ProjectRoot)
+    if (-not $managedProcesses -or $managedProcesses.Count -eq 0) {
+        return
+    }
+
+    if (-not $Quiet) {
+        $details = $managedProcesses |
+            Sort-Object Name, ProcessId |
+            ForEach-Object { "$($_.Name)#$($_.ProcessId)" }
+        Write-Warning "Stopping repo-local Godot helper processes before ${Reason}: $($details -join ', ')"
+    }
+
+    $processIds = @($managedProcesses | Select-Object -ExpandProperty ProcessId)
+    if ($processIds.Count -gt 0) {
+        Stop-Process -Id $processIds -Force -ErrorAction SilentlyContinue
+    }
+
+    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+    $remainingProcesses = @(Get-ManagedGodotProfileProcesses -ProjectRoot $ProjectRoot)
+    while ($remainingProcesses.Count -gt 0 -and $stopwatch.ElapsedMilliseconds -lt $WaitTimeoutMs) {
+        Start-Sleep -Milliseconds $PollIntervalMs
+        $remainingProcesses = @(Get-ManagedGodotProfileProcesses -ProjectRoot $ProjectRoot)
+    }
+
+    if ($remainingProcesses.Count -gt 0) {
+        $details = $remainingProcesses |
+            Sort-Object Name, ProcessId |
+            ForEach-Object { "$($_.Name)#$($_.ProcessId)" }
+        throw "Could not stop repo-local Godot helper processes before ${Reason}: $($details -join ', ')"
+    }
+}
+
 function Assert-NoRunningGodot {
     param(
         [string]$Reason = "using Godot repo helpers",
@@ -255,6 +332,36 @@ function Assert-LogContains {
     if (-not $logContent.Contains($Pattern)) {
         throw "Expected log marker missing from ${LogFile}: $Pattern"
     }
+}
+
+function Test-GodotTransientProcessFailure {
+    param(
+        [int]$ExitCode,
+        [Parameter(Mandatory = $true)]
+        [string]$LogFile,
+        [string[]]$FailurePatterns = $script:GodotHiddenFailurePatterns
+    )
+
+    if ($ExitCode -ge 0) {
+        return $false
+    }
+
+    if (-not (Test-Path -LiteralPath $LogFile -PathType Leaf)) {
+        return $true
+    }
+
+    $logContent = Get-Content -LiteralPath $LogFile -Raw -ErrorAction SilentlyContinue
+    if ([string]::IsNullOrWhiteSpace($logContent)) {
+        return $true
+    }
+
+    foreach ($pattern in $FailurePatterns) {
+        if ($logContent.Contains($pattern)) {
+            return $false
+        }
+    }
+
+    return $true
 }
 
 function Write-NonBlockingShutdownWarningNote {

@@ -254,8 +254,10 @@ func _build_compact_combat_equipment_cards(card_models: Array[Dictionary]) -> Ar
 	var compact_models: Array[Dictionary] = []
 	for card_model in card_models:
 		var compact_model: Dictionary = card_model.duplicate(true)
-		compact_model["compact_mode"] = true
-		compact_model["density_preset"] = DENSITY_COMBAT_COMPACT
+		# Keep combat equipment cards at standard density so the full strip stays
+		# readable in portrait, including the read-only technique slot.
+		compact_model["compact_mode"] = false
+		compact_model["density_preset"] = DENSITY_MAP
 		compact_models.append(compact_model)
 	return compact_models
 
@@ -287,6 +289,12 @@ func _build_combat_visible_backpack_cards(card_models: Array[Dictionary], base_h
 	visible_cards.append_array(resting_consumables)
 	if visible_cards.is_empty():
 		visible_cards.append(_build_combat_pack_summary_card(hidden_non_combat_count, hidden_empty_count))
+	elif visible_cards.size() <= 3:
+		for index in range(visible_cards.size()):
+			var readable_card_model: Dictionary = visible_cards[index].duplicate(true)
+			readable_card_model["density_preset"] = DENSITY_MAP
+			readable_card_model["compact_mode"] = false
+			visible_cards[index] = readable_card_model
 
 	return {
 		"visible_cards": visible_cards,

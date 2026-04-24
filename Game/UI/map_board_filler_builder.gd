@@ -40,7 +40,7 @@ const FILLER_FALLBACK_ZONE_FACTORS := [
 	Vector2(0.82, 0.78),
 ]
 const FILLER_MAX_ACCEPTED_BY_PROFILE := {
-	"corridor": 3,
+	"corridor": 2,
 	"openfield": 4,
 	"loop": 4,
 }
@@ -78,7 +78,8 @@ static func build_filler_shapes(
 	template_profile: String,
 	board_seed: int,
 	base_center_factor: Vector2,
-	min_board_margin: Vector2
+	min_board_margin: Vector2,
+	surface_mask_context: Dictionary = {}
 ) -> Array[Dictionary]:
 	var ordered_nodes: Array[Dictionary] = _ordered_graph_nodes(graph_nodes)
 	if ordered_nodes.is_empty():
@@ -86,10 +87,12 @@ static func build_filler_shapes(
 
 	var board_center: Vector2 = board_size * base_center_factor
 	var action_bounds: Rect2 = _trimmed_action_bounds_for_inputs(ordered_nodes, layout_edges, template_profile)
+	var pocket_masks: Array[Dictionary] = _build_pocket_masks(ordered_nodes)
+	var occupied_bounds: Rect2 = _occupied_bounds_for_inputs(action_bounds, pocket_masks)
 	var accepted_shapes: Array[Dictionary] = []
 	var zone_anchors: Array[Vector2] = _zone_anchors_for_profile(
 		board_size,
-		action_bounds,
+		occupied_bounds,
 		template_profile,
 		base_center_factor,
 		min_board_margin
@@ -112,7 +115,7 @@ static func build_filler_shapes(
 				min_board_margin,
 				candidate_rng
 			)
-			if not _is_candidate_clear(candidate_center, family, half_size, ordered_nodes, layout_edges, accepted_shapes, action_bounds, template_profile):
+			if not _is_candidate_clear(candidate_center, family, half_size, ordered_nodes, layout_edges, accepted_shapes, occupied_bounds, template_profile, pocket_masks, surface_mask_context):
 				continue
 			accepted_shapes.append({
 				"family": family,
@@ -123,6 +126,9 @@ static func build_filler_shapes(
 				"alpha_scale": _alpha_scale_for_family(family, candidate_rng),
 				"texture_path": _texture_path_for_family(family, board_seed, zone_index, accepted_shapes.size()),
 				"texture_scale": _texture_scale_for_family(family),
+				"slot_role": "negative_space_decor",
+				"mask_source": _surface_mask_source(surface_mask_context, "layout_edges"),
+				"exclusion_source": _surface_mask_source(surface_mask_context, "node_route_pocket_masks"),
 			})
 			break
 	if accepted_shapes.is_empty():
@@ -134,7 +140,9 @@ static func build_filler_shapes(
 			board_seed,
 			min_board_margin,
 			max_accepted,
-			action_bounds
+			occupied_bounds,
+			pocket_masks,
+			surface_mask_context
 		)
 	return accepted_shapes
 
@@ -242,12 +250,24 @@ static func _is_candidate_clear(
 	layout_edges: Array,
 	accepted_shapes: Array[Dictionary],
 	action_bounds: Rect2,
-	template_profile: String
+	template_profile: String,
+	pocket_masks: Array[Dictionary],
+	surface_mask_context: Dictionary = {}
 ) -> bool:
 	for node_entry in graph_nodes:
 		var node_center: Vector2 = Vector2(node_entry.get("world_position", Vector2.ZERO))
 		var node_clearance: float = node_exclusion_radius(float(node_entry.get("clearing_radius", 0.0)), half_size, family)
 		if candidate_center.distance_to(node_center) < node_clearance:
+			return false
+	for mask_entry in pocket_masks:
+		var mask_center: Vector2 = Vector2(mask_entry.get("center", Vector2.ZERO))
+		var mask_half_size: Vector2 = Vector2(mask_entry.get("half_size", Vector2.ZERO))
+		var candidate_half_size: Vector2 = footprint_half_size(half_size, family)
+		var expanded_half_size := Vector2(
+			mask_half_size.x + candidate_half_size.x * 0.68 + 10.0,
+			mask_half_size.y + candidate_half_size.y * 0.56 + 10.0
+		)
+		if _point_inside_mask(candidate_center, mask_center, expanded_half_size, String(mask_entry.get("shape", "ellipse"))):
 			return false
 	for edge_variant in layout_edges:
 		if typeof(edge_variant) != TYPE_DICTIONARY:
@@ -257,6 +277,29 @@ static func _is_candidate_clear(
 		if route_points.size() < 2:
 			continue
 		if MapBoardGeometryScript.polyline_distance_to_point(route_points, candidate_center) < route_exclusion_radius(half_size, family):
+			return false
+	var candidate_half_size: Vector2 = footprint_half_size(half_size, family)
+	for surface_variant in surface_mask_context.get("path_surfaces", []):
+		if typeof(surface_variant) != TYPE_DICTIONARY:
+			continue
+		var surface_entry: Dictionary = surface_variant
+		var surface_points: PackedVector2Array = surface_entry.get("centerline_points", PackedVector2Array())
+		if surface_points.size() < 2:
+			continue
+		var surface_width: float = maxf(float(surface_entry.get("surface_width", 0.0)), float(surface_entry.get("outer_width", 0.0)))
+		var required_surface_clearance: float = route_exclusion_radius(half_size, family) + surface_width * 0.50
+		if MapBoardGeometryScript.polyline_distance_to_point(surface_points, candidate_center) < required_surface_clearance:
+			return false
+	for clearing_variant in surface_mask_context.get("clearing_surfaces", []):
+		if typeof(clearing_variant) != TYPE_DICTIONARY:
+			continue
+		var clearing_entry: Dictionary = clearing_variant
+		var clearing_center: Vector2 = Vector2(clearing_entry.get("center", Vector2.ZERO))
+		var clearing_radius: float = float(clearing_entry.get("radius", 0.0))
+		if clearing_radius <= 0.0:
+			continue
+		var required_clearing_clearance: float = clearing_radius + maxf(candidate_half_size.x, candidate_half_size.y) + 18.0
+		if candidate_center.distance_to(clearing_center) < required_clearing_clearance:
 			return false
 	for shape_entry in accepted_shapes:
 		var other_center: Vector2 = Vector2(shape_entry.get("center", Vector2.ZERO))
@@ -302,7 +345,9 @@ static func _build_corner_fallback_shapes(
 	board_seed: int,
 	min_board_margin: Vector2,
 	max_accepted: int,
-	action_bounds: Rect2
+	action_bounds: Rect2,
+	pocket_masks: Array[Dictionary],
+	surface_mask_context: Dictionary = {}
 ) -> Array[Dictionary]:
 	var fallback_shapes: Array[Dictionary] = []
 	for zone_index in range(FILLER_FALLBACK_ZONE_FACTORS.size()):
@@ -320,7 +365,7 @@ static func _build_corner_fallback_shapes(
 			min_board_margin,
 			attempt_rng
 		)
-		if not _is_candidate_clear(candidate_center, family, half_size, graph_nodes, layout_edges, fallback_shapes, action_bounds, template_profile):
+		if not _is_candidate_clear(candidate_center, family, half_size, graph_nodes, layout_edges, fallback_shapes, action_bounds, template_profile, pocket_masks, surface_mask_context):
 			continue
 		fallback_shapes.append({
 			"family": family,
@@ -331,6 +376,9 @@ static func _build_corner_fallback_shapes(
 			"alpha_scale": _alpha_scale_for_family(family, attempt_rng),
 			"texture_path": _texture_path_for_family(family, board_seed, zone_index, fallback_shapes.size()),
 			"texture_scale": _texture_scale_for_family(family),
+			"slot_role": "negative_space_decor",
+			"mask_source": _surface_mask_source(surface_mask_context, "fallback_zone"),
+			"exclusion_source": _surface_mask_source(surface_mask_context, "node_route_pocket_masks"),
 		})
 	return fallback_shapes
 
@@ -418,10 +466,11 @@ static func _zone_anchors_for_profile(
 			]
 		_:
 			return [
-				Vector2(left_x, middle_y),
-				Vector2(right_x, middle_y),
+				Vector2(left_x, upper_y),
+				Vector2(right_x, upper_y),
 				Vector2(lerpf(action_bounds.position.x, board_center.x, 0.42), lower_y),
 				Vector2(lerpf(board_center.x, action_bounds.end.x, 0.58), lower_y),
+				Vector2(board_center.x, lower_y),
 			]
 
 
@@ -456,12 +505,68 @@ static func _action_pocket_exclusion_rect(action_bounds: Rect2, half_size: Vecto
 	)
 	var clearance_half_size: Vector2 = footprint_half_size(half_size, family)
 	return action_bounds.grow_individual(
-		clearance_half_size.x * 0.72 + pocket_padding.x * 0.26,
-		clearance_half_size.y * 0.64 + pocket_padding.y * 0.18,
-		clearance_half_size.x * 0.72 + pocket_padding.x * 0.26,
-		clearance_half_size.y * 0.82 + pocket_padding.y * 0.24
+		clearance_half_size.x * 0.42 + pocket_padding.x * 0.12,
+		clearance_half_size.y * 0.36 + pocket_padding.y * 0.10,
+		clearance_half_size.x * 0.42 + pocket_padding.x * 0.12,
+		clearance_half_size.y * 0.46 + pocket_padding.y * 0.14
 	)
 
 
 static func _derive_seed(board_seed: int, salt: String) -> int:
 	return MapBoardLayoutSolverScript.derive_seed(board_seed, salt)
+
+
+static func _build_pocket_masks(graph_nodes: Array[Dictionary]) -> Array[Dictionary]:
+	var pocket_masks: Array[Dictionary] = []
+	for node_entry in graph_nodes:
+		var footprint_variant: Variant = node_entry.get("landmark_footprint", {})
+		if typeof(footprint_variant) != TYPE_DICTIONARY:
+			continue
+		var footprint: Dictionary = footprint_variant
+		if footprint.is_empty():
+			continue
+		var pocket_half_size: Vector2 = Vector2(footprint.get("pocket_half_size", Vector2.ZERO))
+		if pocket_half_size.x <= 0.0 or pocket_half_size.y <= 0.0:
+			continue
+		var node_center: Vector2 = Vector2(node_entry.get("world_position", Vector2.ZERO))
+		pocket_masks.append({
+			"center": node_center + Vector2(footprint.get("pocket_center_offset", Vector2.ZERO)),
+			"half_size": pocket_half_size,
+			"shape": String(footprint.get("pocket_shape", "ellipse")),
+		})
+	return pocket_masks
+
+
+static func _occupied_bounds_for_inputs(action_bounds: Rect2, pocket_masks: Array[Dictionary]) -> Rect2:
+	if not action_bounds.has_area() and pocket_masks.is_empty():
+		return Rect2()
+	var min_point: Vector2 = action_bounds.position if action_bounds.has_area() else Vector2(INF, INF)
+	var max_point: Vector2 = action_bounds.end if action_bounds.has_area() else Vector2(-INF, -INF)
+	for mask_entry in pocket_masks:
+		var mask_center: Vector2 = Vector2(mask_entry.get("center", Vector2.ZERO))
+		var mask_half_size: Vector2 = Vector2(mask_entry.get("half_size", Vector2.ZERO))
+		min_point.x = minf(min_point.x, mask_center.x - mask_half_size.x)
+		min_point.y = minf(min_point.y, mask_center.y - mask_half_size.y)
+		max_point.x = maxf(max_point.x, mask_center.x + mask_half_size.x)
+		max_point.y = maxf(max_point.y, mask_center.y + mask_half_size.y)
+	if min_point.x >= max_point.x or min_point.y >= max_point.y:
+		return action_bounds
+	return Rect2(min_point, max_point - min_point)
+
+
+static func _point_inside_mask(point: Vector2, center: Vector2, half_size: Vector2, shape: String) -> bool:
+	if half_size.x <= 0.001 or half_size.y <= 0.001:
+		return false
+	if shape == "rect":
+		return Rect2(center - half_size, half_size * 2.0).has_point(point)
+	if shape == "diamond":
+		return absf(point.x - center.x) / half_size.x + absf(point.y - center.y) / half_size.y <= 1.0
+	var normalized_x: float = (point.x - center.x) / half_size.x
+	var normalized_y: float = (point.y - center.y) / half_size.y
+	return normalized_x * normalized_x + normalized_y * normalized_y <= 1.0
+
+
+static func _surface_mask_source(surface_mask_context: Dictionary, fallback_source: String) -> String:
+	if not (surface_mask_context.get("path_surfaces", []) as Array).is_empty() or not (surface_mask_context.get("clearing_surfaces", []) as Array).is_empty():
+		return "render_model.path_surfaces+clearing_surfaces"
+	return fallback_source

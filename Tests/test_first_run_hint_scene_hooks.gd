@@ -25,9 +25,9 @@ const EVENT_CHOICE_BUTTON_PATHS := [
 	"Margin/VBox/OffersShell/VBox/CardsRow/ChoiceBCard/VBox/ActionShell/ChoiceBButton",
 ]
 const SUPPORT_ACTION_BUTTON_PATHS := [
-	"Margin/VBox/ActionsRow/ActionAButton",
-	"Margin/VBox/ActionsRow/ActionBButton",
-	"Margin/VBox/ActionsRow/ActionCButton",
+	"Margin/VBox/OffersShell/VBox/ActionsRow/ActionAButton",
+	"Margin/VBox/OffersShell/VBox/ActionsRow/ActionBButton",
+	"Margin/VBox/OffersShell/VBox/ActionsRow/ActionCButton",
 ]
 const MAP_ROUTE_BUTTON_PATHS := [
 	"Margin/VBox/RouteGrid/CombatNodeButton",

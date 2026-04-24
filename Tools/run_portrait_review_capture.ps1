@@ -85,16 +85,87 @@ function New-CaptureLogName {
         [Parameter(Mandatory = $true)]
         [string]$SceneResourcePath,
         [Parameter(Mandatory = $true)]
-        [string]$ViewportSize
+        [string]$ViewportSize,
+        [string]$ScenarioTag = ""
     )
 
-    $slug = ("{0}_{1}" -f $SceneResourcePath, $ViewportSize -replace '[^A-Za-z0-9]+', '_').Trim('_')
+    $slugParts = @($SceneResourcePath, $ViewportSize)
+    if (-not [string]::IsNullOrWhiteSpace($ScenarioTag)) {
+        $slugParts += $ScenarioTag
+    }
+    $slug = (($slugParts -join "_") -replace '[^A-Za-z0-9]+', '_').Trim('_')
     if ([string]::IsNullOrWhiteSpace($slug)) {
         $slug = "portrait_capture"
     }
 
     $token = [System.Guid]::NewGuid().ToString("N").Substring(0, 8)
     return "godot_portrait_capture_${slug}_${token}.log"
+}
+
+function Invoke-PortraitCapture {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ProjectRoot,
+        [Parameter(Mandatory = $true)]
+        [string]$GodotExe,
+        [Parameter(Mandatory = $true)]
+        [string]$CaptureScriptPath,
+        [Parameter(Mandatory = $true)]
+        [string]$SceneResourcePath,
+        [Parameter(Mandatory = $true)]
+        [string]$ViewportSize,
+        [Parameter(Mandatory = $true)]
+        [string]$OutputPath,
+        [Parameter(Mandatory = $true)]
+        [string]$ReviewOutputPath,
+        [Parameter(Mandatory = $true)]
+        [int]$TimeoutSeconds,
+        [Parameter(Mandatory = $true)]
+        [int]$SettleMs,
+        [int]$RunSeed = 0,
+        [int]$AdvanceSteps = 0,
+        [string]$ScenarioTag = ""
+    )
+
+    $logFile = Get-GodotLogFilePath -ProjectRoot $ProjectRoot -Name (New-CaptureLogName -SceneResourcePath $SceneResourcePath -ViewportSize $ViewportSize -ScenarioTag $ScenarioTag)
+    Write-Host "Capturing $SceneResourcePath at $ViewportSize -> $OutputPath"
+    Reset-GodotLogFile -LogFile $logFile
+
+    $godotArgs = @(
+        "--path", $ProjectRoot,
+        "--log-file", $logFile,
+        "--script", $CaptureScriptPath,
+        "--",
+        "--scene", $SceneResourcePath,
+        "--size", $ViewportSize,
+        "--output", $OutputPath,
+        "--review-output", $ReviewOutputPath,
+        "--timeout-ms", [Math]::Max($TimeoutSeconds * 1000, 4000),
+        "--settle-ms", $SettleMs
+    )
+    if ($RunSeed -gt 0) {
+        $godotArgs += @("--run-seed", [string]$RunSeed)
+    }
+    if ($AdvanceSteps -gt 0) {
+        $godotArgs += @("--advance-steps", [string]$AdvanceSteps)
+    }
+    if (-not [string]::IsNullOrWhiteSpace($ScenarioTag)) {
+        $godotArgs += @("--scenario-tag", $ScenarioTag)
+    }
+
+    Invoke-GodotWithTimeout -Executable $GodotExe -Arguments $godotArgs -TimeoutSeconds $TimeoutSeconds
+    Assert-NoHiddenLogFailures -LogFile $logFile -ContextLabel "$SceneResourcePath portrait capture"
+    Assert-LogContains -LogFile $logFile -Pattern "PORTRAIT_REVIEW_CAPTURE: wrote $($OutputPath -replace '\\', '/')"
+    Assert-LogContains -LogFile $logFile -Pattern "PORTRAIT_REVIEW_CAPTURE: review $($ReviewOutputPath -replace '\\', '/')"
+    Write-NonBlockingShutdownWarningNote -LogFile $logFile -ContextLabel "$SceneResourcePath portrait capture"
+
+    if (-not (Test-Path -LiteralPath $OutputPath -PathType Leaf)) {
+        throw "Expected portrait capture output was not created: $OutputPath"
+    }
+
+    if (-not (Test-Path -LiteralPath $ReviewOutputPath -PathType Leaf)) {
+        throw "Expected portrait review sidecar was not created: $ReviewOutputPath"
+    }
 }
 
 try {
@@ -110,6 +181,15 @@ try {
     Write-Host "Using repo-local Godot profile: $($profilePaths.Root)"
 
     New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null
+
+    $mapSeedScenarios = @(
+        @{ Label = "seed11_mid"; RunSeed = 11; AdvanceSteps = 3 },
+        @{ Label = "seed29_mid"; RunSeed = 29; AdvanceSteps = 3 },
+        @{ Label = "seed41_mid"; RunSeed = 41; AdvanceSteps = 3 },
+        @{ Label = "seed11_late"; RunSeed = 11; AdvanceSteps = 5 },
+        @{ Label = "seed29_late"; RunSeed = 29; AdvanceSteps = 5 },
+        @{ Label = "seed41_late"; RunSeed = 41; AdvanceSteps = 5 }
+    )
 
     $importLogFile = Get-GodotLogFilePath -ProjectRoot $projectRoot -Name "godot_portrait_capture_import.log"
     Write-Host "Running import step before portrait capture..."
@@ -129,27 +209,16 @@ try {
         foreach ($viewportSize in $ViewportSizes) {
             $sizeSlug = $viewportSize -replace '[^0-9x]', ''
             $outputPath = Join-Path $outputDirectory "${sceneSlug}_${sizeSlug}.png"
-            $logFile = Get-GodotLogFilePath -ProjectRoot $projectRoot -Name (New-CaptureLogName -SceneResourcePath $scene.ResourcePath -ViewportSize $viewportSize)
+            $reviewOutputPath = Join-Path $outputDirectory "${sceneSlug}_${sizeSlug}.review.json"
+            Invoke-PortraitCapture -ProjectRoot $projectRoot -GodotExe $godotExe -CaptureScriptPath $captureScriptPath -SceneResourcePath $scene.ResourcePath -ViewportSize $viewportSize -OutputPath $outputPath -ReviewOutputPath $reviewOutputPath -TimeoutSeconds $TimeoutSeconds -SettleMs $SettleMs
 
-            Write-Host "Capturing $($scene.ResourcePath) at $viewportSize -> $outputPath"
-            Reset-GodotLogFile -LogFile $logFile
-            Invoke-GodotWithTimeout -Executable $godotExe -Arguments @(
-                "--path", $projectRoot,
-                "--log-file", $logFile,
-                "--script", $captureScriptPath,
-                "--",
-                "--scene", $scene.ResourcePath,
-                "--size", $viewportSize,
-                "--output", $outputPath,
-                "--timeout-ms", [Math]::Max($TimeoutSeconds * 1000, 4000),
-                "--settle-ms", $SettleMs
-            ) -TimeoutSeconds $TimeoutSeconds
-            Assert-NoHiddenLogFailures -LogFile $logFile -ContextLabel "$($scene.ResourcePath) portrait capture"
-            Assert-LogContains -LogFile $logFile -Pattern "PORTRAIT_REVIEW_CAPTURE: wrote $($outputPath -replace '\\', '/')"
-            Write-NonBlockingShutdownWarningNote -LogFile $logFile -ContextLabel "$($scene.ResourcePath) portrait capture"
-
-            if (-not (Test-Path -LiteralPath $outputPath -PathType Leaf)) {
-                throw "Expected portrait capture output was not created: $outputPath"
+            if ($sceneSlug -eq "map_explore" -and $sizeSlug -eq "1080x1920") {
+                foreach ($scenario in $mapSeedScenarios) {
+                    $scenarioLabel = [string]$scenario.Label
+                    $scenarioOutputPath = Join-Path $outputDirectory "${sceneSlug}_${scenarioLabel}_${sizeSlug}.png"
+                    $scenarioReviewOutputPath = Join-Path $outputDirectory "${sceneSlug}_${scenarioLabel}_${sizeSlug}.review.json"
+                    Invoke-PortraitCapture -ProjectRoot $projectRoot -GodotExe $godotExe -CaptureScriptPath $captureScriptPath -SceneResourcePath $scene.ResourcePath -ViewportSize $viewportSize -OutputPath $scenarioOutputPath -ReviewOutputPath $scenarioReviewOutputPath -TimeoutSeconds $TimeoutSeconds -SettleMs $SettleMs -RunSeed ([int]$scenario.RunSeed) -AdvanceSteps ([int]$scenario.AdvanceSteps) -ScenarioTag $scenarioLabel
+                }
             }
         }
     }

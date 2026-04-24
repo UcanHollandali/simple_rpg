@@ -82,75 +82,83 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+alignment = 1
+theme_override_constants/separation = 10
+
+[node name="OffersShell" type="PanelContainer" parent="Margin/VBox"]
+size_flags_horizontal = 3
+size_flags_vertical = 1
+
+[node name="VBox" type="VBoxContainer" parent="Margin/VBox/OffersShell"]
+theme_override_constants/separation = 10
+
+[node name="HeaderRow" type="VBoxContainer" parent="Margin/VBox/OffersShell/VBox"]
 theme_override_constants/separation = 8
 
-[node name="HeaderRow" type="VBoxContainer" parent="Margin/VBox"]
-theme_override_constants/separation = 8
-
-[node name="HeaderCard" type="PanelContainer" parent="Margin/VBox/HeaderRow"]
+[node name="HeaderCard" type="PanelContainer" parent="Margin/VBox/OffersShell/VBox/HeaderRow"]
 size_flags_horizontal = 3
 
-[node name="HeaderStack" type="VBoxContainer" parent="Margin/VBox/HeaderRow/HeaderCard"]
+[node name="HeaderStack" type="VBoxContainer" parent="Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard"]
 size_flags_horizontal = 3
 theme_override_constants/separation = 4
 
-[node name="ChipCard" type="PanelContainer" parent="Margin/VBox/HeaderRow/HeaderCard/HeaderStack"]
+[node name="ChipCard" type="PanelContainer" parent="Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard/HeaderStack"]
 size_flags_horizontal = 0
 
-[node name="ChipLabel" type="Label" parent="Margin/VBox/HeaderRow/HeaderCard/HeaderStack/ChipCard"]
+[node name="ChipLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard/HeaderStack/ChipCard"]
 text = "SUPPORT"
 
-[node name="TitleLabel" type="Label" parent="Margin/VBox/HeaderRow/HeaderCard/HeaderStack"]
+[node name="TitleLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard/HeaderStack"]
 text = "Support Interaction"
 autowrap_mode = 3
 
-[node name="ContextLabel" type="Label" parent="Margin/VBox/HeaderRow/HeaderCard/HeaderStack"]
+[node name="ContextLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard/HeaderStack"]
 text = "Take one stop action, then return to the road."
 autowrap_mode = 3
 
-[node name="SummaryLabel" type="Label" parent="Margin/VBox/HeaderRow/HeaderCard/HeaderStack"]
+[node name="SummaryLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard/HeaderStack"]
 text = "Summary"
 autowrap_mode = 3
 
-[node name="HintLabel" type="Label" parent="Margin/VBox/HeaderRow/HeaderCard/HeaderStack"]
+[node name="HintLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/HeaderRow/HeaderCard/HeaderStack"]
 text = "Choose one support action, then return to the road."
 autowrap_mode = 3
 
-[node name="RunStatusCard" type="PanelContainer" parent="Margin/VBox/HeaderRow"]
+[node name="RunStatusCard" type="PanelContainer" parent="Margin/VBox/OffersShell/VBox/HeaderRow"]
 size_flags_horizontal = 3
 
-[node name="StatusLabel" type="Label" parent="Margin/VBox/HeaderRow/RunStatusCard"]
+[node name="StatusLabel" type="Label" parent="Margin/VBox/OffersShell/VBox/HeaderRow/RunStatusCard"]
 text = "HP 0 | Hunger 0 | Gold 0 | Durability 0"
 autowrap_mode = 3
 
-[node name="ActionsRow" type="VBoxContainer" parent="Margin/VBox"]
+[node name="ActionsRow" type="VBoxContainer" parent="Margin/VBox/OffersShell/VBox"]
 size_flags_vertical = 1
 theme_override_constants/separation = 8
 
-[node name="ActionAButton" type="Button" parent="Margin/VBox/ActionsRow"]
+[node name="ActionAButton" type="Button" parent="Margin/VBox/OffersShell/VBox/ActionsRow"]
 text = "Action A"
 size_flags_horizontal = 3
 size_flags_vertical = 1
 custom_minimum_size = Vector2(0, 58)
 
-[node name="ActionBButton" type="Button" parent="Margin/VBox/ActionsRow"]
+[node name="ActionBButton" type="Button" parent="Margin/VBox/OffersShell/VBox/ActionsRow"]
 text = "Action B"
 size_flags_horizontal = 3
 size_flags_vertical = 1
 custom_minimum_size = Vector2(0, 58)
 
-[node name="ActionCButton" type="Button" parent="Margin/VBox/ActionsRow"]
+[node name="ActionCButton" type="Button" parent="Margin/VBox/OffersShell/VBox/ActionsRow"]
 text = "Action C"
 size_flags_horizontal = 3
 size_flags_vertical = 1
 custom_minimum_size = Vector2(0, 58)
 
-[node name="FooterRow" type="VBoxContainer" parent="Margin/VBox"]
+[node name="FooterRow" type="VBoxContainer" parent="Margin/VBox/OffersShell/VBox"]
 theme_override_constants/separation = 6
 
-[node name="FooterSpacer" type="Control" parent="Margin/VBox/FooterRow"]
+[node name="FooterSpacer" type="Control" parent="Margin/VBox/OffersShell/VBox/FooterRow"]
 visible = false
 
-[node name="LeaveButton" type="Button" parent="Margin/VBox/FooterRow"]
+[node name="LeaveButton" type="Button" parent="Margin/VBox/OffersShell/VBox/FooterRow"]
 text = "Back to the Road"
 size_flags_horizontal = 3

@@ -24,13 +24,16 @@ func _run() -> void:
 	test_map_scene_prefers_composer_world_positions()
 	test_map_scene_keeps_emergency_route_slot_fallback_narrow()
 	test_map_scene_only_assigns_emergency_slots_to_missing_world_positions()
-	test_map_scene_builds_route_move_path_from_composed_edge_geometry()
-	test_map_scene_builds_pending_roadside_visual_sample_from_edge_geometry()
+	test_map_scene_builds_route_move_path_from_render_model_surface_geometry()
+	test_map_route_motion_helper_falls_back_to_visible_edge_geometry_without_render_model()
+	test_map_scene_builds_pending_roadside_visual_sample_from_render_model_surface_geometry()
 	test_map_scene_accepts_deferred_roadside_transition_for_destination_restore()
 	test_map_scene_reports_zero_fixed_board_offset_for_focus_requests()
 	test_map_route_binding_keeps_fixed_board_offset_after_refresh()
 	test_map_scene_keeps_roadside_visual_offset_fixed()
 	test_map_route_binding_places_idle_walker_below_current_node_center()
+	test_map_route_binding_keeps_hover_preview_marker_weaker_than_active_selection()
+	test_map_route_binding_leans_idle_walker_toward_focused_route_lane()
 	test_map_route_motion_helper_emits_grounded_stride_sway()
 	test_map_route_binding_recomposes_board_positions_after_route_grid_resize()
 	test_map_route_binding_refreshes_cached_node_radii_after_moderate_resize()
@@ -107,10 +110,17 @@ func test_map_presenter_builds_runtime_graph_labels() -> void:
 		String((primary_status_items[3] as Dictionary).get("value_text", "")) == "9",
 		"Expected the map HUD status model to expose durability through the structured chip values."
 	)
+	var cluster_read_text: String = String(presenter.call("build_cluster_read_text", run_state))
 	assert(
-		String(presenter.call("build_cluster_read_text", run_state)).contains("Ahead:")
-		and String(presenter.call("build_cluster_read_text", run_state)).contains(reward_family_name),
-		"Expected the map presenter to summarize discovered pockets beyond the immediate adjacent shell, including the off-path reward pocket."
+		cluster_read_text.contains("Ahead:"),
+		"Expected the map presenter to summarize discovered pockets beyond the immediate adjacent shell."
+	)
+	var ahead_payload: String = cluster_read_text.split("Ahead:", false, 1)[1].strip_edges()
+	if ahead_payload.contains("|"):
+		ahead_payload = ahead_payload.split("|", false, 1)[0].strip_edges()
+	assert(
+		not ahead_payload.is_empty(),
+		"Expected the map presenter to keep a non-empty discovered-destination summary beyond the immediate adjacent shell after local-connectivity tightening."
 	)
 	assert(
 		presenter.call("build_current_anchor_text", run_state) == "At %s" % current_family_name,
@@ -405,7 +415,7 @@ func test_map_scene_only_assigns_emergency_slots_to_missing_world_positions() ->
 	_free_control(scene)
 
 
-func test_map_scene_builds_route_move_path_from_composed_edge_geometry() -> void:
+func test_map_scene_builds_route_move_path_from_render_model_surface_geometry() -> void:
 	var scene: Control = MapExploreSceneScript.new()
 	scene.set("_board_composition_cache", {
 		"current_node_id": 3,
@@ -424,6 +434,22 @@ func test_map_scene_builds_route_move_path_from_composed_edge_geometry() -> void
 				]),
 			},
 		],
+		"render_model": {
+			"schema_version": 1,
+			"path_surfaces": [
+				{
+					"from_node_id": 3,
+					"to_node_id": 5,
+					"centerline_points": PackedVector2Array([
+						Vector2(162.0, 270.0),
+						Vector2(214.0, 306.0),
+						Vector2(258.0, 344.0),
+					]),
+					"from_endpoint": Vector2(162.0, 270.0),
+					"to_endpoint": Vector2(258.0, 344.0),
+				},
+			],
+		},
 	})
 	var route_points: PackedVector2Array = scene.call(
 		"_build_route_move_world_path",
@@ -432,14 +458,45 @@ func test_map_scene_builds_route_move_path_from_composed_edge_geometry() -> void
 		Vector2.ZERO,
 		Vector2.ZERO
 	)
-	assert(route_points.size() == 5, "Expected route travel to include start, composed edge points, and target in the walker path.")
-	assert(route_points[0].distance_to(Vector2(128.0, 244.0)) <= 0.001, "Expected route travel to start from the current node world position.")
-	assert(route_points[1].distance_to(Vector2(154.0, 262.0)) <= 0.001, "Expected route travel to preserve the composed trail geometry for departure.")
-	assert(route_points[route_points.size() - 1].distance_to(Vector2(302.0, 388.0)) <= 0.001, "Expected route travel to end at the target node world position.")
+	assert(route_points.size() == 3, "Expected route travel to use the render_model path-surface centerline instead of adding node-center endpoints.")
+	assert(route_points[0].distance_to(Vector2(162.0, 270.0)) <= 0.001, "Expected route travel to depart from the render_model clearing throat.")
+	assert(route_points[1].distance_to(Vector2(214.0, 306.0)) <= 0.001, "Expected route travel to preserve the selected render_model path surface centerline.")
+	assert(route_points[route_points.size() - 1].distance_to(Vector2(258.0, 344.0)) <= 0.001, "Expected route travel to arrive through the render_model clearing throat.")
+	assert(route_points[0].distance_to(Vector2(128.0, 244.0)) > 8.0, "Expected route travel not to collapse back onto the source node center when a render_model path surface exists.")
 	_free_control(scene)
 
 
-func test_map_scene_builds_pending_roadside_visual_sample_from_edge_geometry() -> void:
+func test_map_route_motion_helper_falls_back_to_visible_edge_geometry_without_render_model() -> void:
+	var route_points: PackedVector2Array = MapRouteMotionHelperScript.build_route_move_world_path(
+		{
+			"world_positions": {
+				3: Vector2(128.0, 244.0),
+				5: Vector2(302.0, 388.0),
+			},
+			"visible_edges": [
+				{
+					"from_node_id": 3,
+					"to_node_id": 5,
+					"points": PackedVector2Array([
+						Vector2(154.0, 262.0),
+						Vector2(210.0, 302.0),
+						Vector2(264.0, 350.0),
+					]),
+				},
+			],
+		},
+		3,
+		5,
+		Vector2.ZERO,
+		Vector2.ZERO
+	)
+	assert(route_points.size() == 5, "Expected legacy visible_edges to remain the fallback route-motion source when no render_model path surface exists.")
+	assert(route_points[0].distance_to(Vector2(128.0, 244.0)) <= 0.001, "Expected fallback route travel to keep source node world position coverage.")
+	assert(route_points[1].distance_to(Vector2(154.0, 262.0)) <= 0.001, "Expected fallback route travel to keep legacy visible edge points.")
+	assert(route_points[route_points.size() - 1].distance_to(Vector2(302.0, 388.0)) <= 0.001, "Expected fallback route travel to keep target node world position coverage.")
+
+
+func test_map_scene_builds_pending_roadside_visual_sample_from_render_model_surface_geometry() -> void:
 	var scene: Control = MapExploreSceneScript.new()
 	scene.set("_board_composition_cache", {
 		"current_node_id": 0,
@@ -458,6 +515,22 @@ func test_map_scene_builds_pending_roadside_visual_sample_from_edge_geometry() -
 				]),
 			},
 		],
+		"render_model": {
+			"schema_version": 1,
+			"path_surfaces": [
+				{
+					"from_node_id": 0,
+					"to_node_id": 4,
+					"centerline_points": PackedVector2Array([
+						Vector2(258.0, 462.0),
+						Vector2(334.0, 384.0),
+						Vector2(426.0, 294.0),
+					]),
+					"from_endpoint": Vector2(258.0, 462.0),
+					"to_endpoint": Vector2(426.0, 294.0),
+				},
+			],
+		},
 	})
 	scene.set("_route_layout_offset", Vector2.ZERO)
 	scene.call("_prime_roadside_visual_state", 0, 4)
@@ -467,6 +540,10 @@ func test_map_scene_builds_pending_roadside_visual_sample_from_edge_geometry() -
 	assert(
 		sample_point.distance_to(Vector2(180.0, 520.0)) > 32.0 and sample_point.distance_to(Vector2(520.0, 220.0)) > 32.0,
 		"Expected roadside interruption visuals not to collapse back onto the source node or jump all the way to the destination node."
+	)
+	assert(
+		sample_point.distance_to(Vector2(334.0, 384.0)) < sample_point.distance_to(Vector2(324.0, 392.0)),
+		"Expected roadside interruption visuals to sample the render_model path-surface lane before legacy visible_edges."
 	)
 	_free_control(scene)
 
@@ -627,6 +704,164 @@ func test_map_route_binding_places_idle_walker_below_current_node_center() -> vo
 	_free_control(owner)
 
 
+func test_map_route_binding_keeps_hover_preview_marker_weaker_than_active_selection() -> void:
+	var owner := Control.new()
+	var margin := MarginContainer.new()
+	margin.name = "Margin"
+	owner.add_child(margin)
+	var vbox := VBoxContainer.new()
+	vbox.name = "VBox"
+	margin.add_child(vbox)
+	var route_grid := Control.new()
+	route_grid.name = "RouteGrid"
+	route_grid.size = Vector2(1052.0, 1008.0)
+	route_grid.custom_minimum_size = route_grid.size
+	vbox.add_child(route_grid)
+	var selected_marker := TextureRect.new()
+	selected_marker.name = String(MapRouteBindingScript.ROUTE_MARKER_NODE_NAMES[0])
+	route_grid.add_child(selected_marker)
+	var preview_marker := TextureRect.new()
+	preview_marker.name = String(MapRouteBindingScript.ROUTE_MARKER_NODE_NAMES[1])
+	route_grid.add_child(preview_marker)
+	var route_binding: RefCounted = MapRouteBindingScript.new()
+	route_binding.call("configure", owner, Callable(owner, "get_node_or_null"), MapBoardComposerV2Script.new())
+	route_binding.call("ensure_runtime_board_nodes")
+	var route_models: Array[Dictionary] = [
+		{
+			"visible": true,
+			"icon_texture_path": "res://Assets/Icons/icon_map_combat.svg",
+			"node_family": "combat",
+			"family_label": "Skirmish",
+			"state_chip_text": "OPEN",
+			"state_semantic": "open",
+			"disabled": false,
+			"node_id": 1,
+		},
+		{
+			"visible": true,
+			"icon_texture_path": "res://Assets/Icons/icon_reward.svg",
+			"node_family": "reward",
+			"family_label": "Cache",
+			"state_chip_text": "OPEN",
+			"state_semantic": "open",
+			"disabled": false,
+			"node_id": 2,
+		},
+	]
+	route_binding.call("set_route_models", route_models)
+	route_binding.set("_active_route_index", 0)
+	route_binding.set("_hovered_route_index", 1)
+	route_binding.call("_refresh_route_visual_state")
+
+	assert(selected_marker != null and preview_marker != null, "Expected runtime route markers before marker focus-state coverage.")
+	var selected_ring: PanelContainer = selected_marker.get_node_or_null("SelectionRing") as PanelContainer
+	var preview_ring: PanelContainer = preview_marker.get_node_or_null("SelectionRing") as PanelContainer
+	var selected_chip: PanelContainer = selected_marker.get_node_or_null("StateChip") as PanelContainer
+	var preview_chip: PanelContainer = preview_marker.get_node_or_null("StateChip") as PanelContainer
+	var selected_label: Label = selected_chip.get_node_or_null("StateChipLabel") as Label if selected_chip != null else null
+	var preview_label: Label = preview_chip.get_node_or_null("StateChipLabel") as Label if preview_chip != null else null
+	assert(selected_ring != null and preview_ring != null, "Expected route markers to keep dedicated selection rings for focus-state coverage.")
+	assert(bool(selected_ring.visible) and bool(preview_ring.visible), "Expected both selected and preview markers to surface their focus rings.")
+	assert(
+		selected_ring.modulate.a > preview_ring.modulate.a,
+		"Expected hover preview focus to stay visibly weaker than the committed route selection ring."
+	)
+	var selected_ring_style: StyleBoxFlat = selected_ring.get_theme_stylebox("panel") as StyleBoxFlat
+	var preview_ring_style: StyleBoxFlat = preview_ring.get_theme_stylebox("panel") as StyleBoxFlat
+	assert(selected_ring_style != null and preview_ring_style != null, "Expected route markers to expose style overrides for focus-ring hierarchy.")
+	assert(
+		selected_ring_style.border_width_left > preview_ring_style.border_width_left and selected_ring_style.shadow_size > preview_ring_style.shadow_size,
+		"Expected the active route marker to keep a stronger ring border and shadow than a hover preview."
+	)
+	assert(
+		selected_chip != null and bool(selected_chip.visible) and selected_label != null and selected_label.text == "Skirmish",
+		"Expected only the active route marker to expose the family pill label."
+	)
+	assert(
+		preview_chip != null and not bool(preview_chip.visible) and preview_label != null and preview_label.text.is_empty(),
+		"Expected hover preview markers not to claim the active-route pill treatment."
+	)
+	_free_control(owner)
+
+
+func test_map_route_binding_leans_idle_walker_toward_focused_route_lane() -> void:
+	var owner := Control.new()
+	var margin := MarginContainer.new()
+	margin.name = "Margin"
+	owner.add_child(margin)
+	var vbox := VBoxContainer.new()
+	vbox.name = "VBox"
+	margin.add_child(vbox)
+	var route_grid := Control.new()
+	route_grid.name = "RouteGrid"
+	route_grid.size = Vector2(1052.0, 1008.0)
+	route_grid.custom_minimum_size = route_grid.size
+	vbox.add_child(route_grid)
+	var route_binding: RefCounted = MapRouteBindingScript.new()
+	route_binding.call("configure", owner, Callable(owner, "get_node_or_null"), MapBoardComposerV2Script.new())
+	route_binding.call("ensure_runtime_board_nodes")
+	var current_marker: TextureRect = route_binding.get("_current_marker") as TextureRect
+	var walker_root: Control = route_binding.get("_walker_root") as Control
+	var walker_sprite: TextureRect = route_binding.get("_walker_sprite") as TextureRect
+	assert(current_marker != null and walker_root != null and walker_sprite != null, "Expected runtime board nodes before walker focus-lane coverage.")
+	current_marker.visible = true
+	current_marker.size = MapRouteBindingScript.CURRENT_MARKER_SIZE
+	current_marker.position = Vector2(420.0, 340.0)
+	var current_center: Vector2 = current_marker.position + current_marker.size * 0.5
+	var route_models: Array[Dictionary] = [
+		{
+			"visible": true,
+			"icon_texture_path": "res://Assets/Icons/icon_map_combat.svg",
+			"node_family": "combat",
+			"family_label": "Skirmish",
+			"state_chip_text": "OPEN",
+			"state_semantic": "open",
+			"disabled": false,
+			"node_id": 7,
+		},
+	]
+	route_binding.call("set_route_models", route_models)
+
+	route_binding.set("_active_route_index", -1)
+	route_binding.set("_hovered_route_index", -1)
+	route_binding.call("_sync_walker_to_current_marker")
+	var neutral_position: Vector2 = walker_root.position
+
+	route_binding.set("_board_composition_cache", {
+		"world_positions": {
+			7: current_center + Vector2(160.0, -24.0),
+		},
+	})
+	route_binding.set("_active_route_index", 0)
+	route_binding.call("_sync_walker_to_current_marker")
+	var right_focus_position: Vector2 = walker_root.position
+	assert(
+		right_focus_position.x > neutral_position.x + 4.0,
+		"Expected the idle walker to lean toward the committed route lane instead of staying perfectly centered on the clearing."
+	)
+	assert(
+		walker_sprite.scale.x > 0.0,
+		"Expected the idle walker to face toward a right-side focused route lane."
+	)
+
+	route_binding.set("_board_composition_cache", {
+		"world_positions": {
+			7: current_center + Vector2(-160.0, -24.0),
+		},
+	})
+	route_binding.call("_sync_walker_to_current_marker")
+	var left_focus_position: Vector2 = walker_root.position
+	assert(
+		left_focus_position.x < neutral_position.x - 4.0,
+		"Expected the idle walker to lean toward a left-side focused route lane instead of drifting generically."
+	)
+	assert(
+		walker_sprite.scale.x < 0.0,
+		"Expected the idle walker to face toward a left-side focused route lane."
+	)
+	_free_control(owner)
+
+
 func test_map_route_motion_helper_emits_grounded_stride_sway() -> void:
 	var start_offset: Vector2 = MapRouteMotionHelperScript.walker_stride_offset(0.0, 320.0, 2.25, 6.0)
 	var mid_offset: Vector2 = MapRouteMotionHelperScript.walker_stride_offset(0.33, 320.0, 2.25, 6.0)
@@ -675,13 +910,21 @@ func test_map_route_binding_recomposes_board_positions_after_route_grid_resize()
 	var resized_world_positions: Dictionary = route_binding.get("_board_composition_cache").get("world_positions", {})
 	var resized_visible_edges: Array = (route_binding.get("_board_composition_cache").get("visible_edges", []) as Array).duplicate(true)
 	var resized_position: Vector2 = resized_world_positions.get(0, Vector2.ZERO)
+	var resized_playable_rect: Rect2 = MapBoardComposerV2Script.build_playable_rect(route_grid.size)
+	var center_local_x: float = resized_playable_rect.position.x + resized_playable_rect.size.x * 0.5
+	var lower_center_floor_y: float = resized_playable_rect.position.y + resized_playable_rect.size.y * 0.55
+	var lower_center_ceiling_y: float = resized_playable_rect.position.y + resized_playable_rect.size.y * 0.78
 	assert(
 		resized_position.y > opening_position.y + 200.0,
 		"Expected route-grid resize to recompose board positions against the larger map height instead of keeping the startup-sized opening anchor."
 	)
 	assert(
-		absf(resized_position.y - route_grid.size.y * MapBoardComposerV2Script.BASE_CENTER_FACTOR.y) <= 0.01,
-		"Expected the recomposed start anchor to track the composer vertical center factor after the route grid expands."
+		absf(resized_position.x - center_local_x) <= resized_playable_rect.size.x * 0.08,
+		"Expected the recomposed start anchor to stay center-local after the route grid expands."
+	)
+	assert(
+		resized_position.y >= lower_center_floor_y and resized_position.y <= lower_center_ceiling_y,
+		"Expected the recomposed start anchor to stay inside the locked lower-center / lower-third slot-anchor band after the route grid expands."
 	)
 	assert(not resized_visible_edges.is_empty(), "Expected the expanded route grid recompose to keep visible roads cached.")
 	route_grid.size = Vector2(1052.0, 1008.0)

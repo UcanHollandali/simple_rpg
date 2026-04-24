@@ -82,15 +82,15 @@ const ROAD_ENDPOINT_TRIM_DEFAULT := 4.0
 const ROAD_ENDPOINT_TRIM_CURRENT := 6.0
 const ROAD_ENDPOINT_TRIM_TARGET := 8.0
 
-const CLEARING_PLATE_SCALE := 2.32
-const CLEARING_PLATE_ALPHA_CURRENT := 0.78
-const CLEARING_PLATE_ALPHA_RESOLVED := 0.72
-const CLEARING_PLATE_ALPHA_DEFAULT := 0.66
+const CLEARING_PLATE_SCALE := 2.12
+const CLEARING_PLATE_ALPHA_CURRENT := 0.64
+const CLEARING_PLATE_ALPHA_RESOLVED := 0.56
+const CLEARING_PLATE_ALPHA_DEFAULT := 0.46
 const CLEARING_DECAL_SIZE_MULTIPLIER := Vector2(2.38, 1.70)
 const CLEARING_DECAL_Y_OFFSET_MULTIPLIER := 0.01
-const CLEARING_DECAL_ALPHA_CURRENT := 0.46
-const CLEARING_DECAL_ALPHA_RESOLVED := 0.40
-const CLEARING_DECAL_ALPHA_DEFAULT := 0.32
+const CLEARING_DECAL_ALPHA_CURRENT := 0.40
+const CLEARING_DECAL_ALPHA_RESOLVED := 0.34
+const CLEARING_DECAL_ALPHA_DEFAULT := 0.24
 const CLEARING_SHADOW_Y_OFFSET_MULTIPLIER := 0.09
 const CLEARING_SHADOW_RADIUS_MULTIPLIER := 0.92
 const CLEARING_SHADOW_ALPHA := 0.18
@@ -106,14 +106,18 @@ const CLEARING_RESOLVED_RIM_ALPHA := 0.20
 const CLEARING_LOCKED_RIM_COLOR := Color(0.78, 0.52, 0.30, 0.30)
 const CLEARING_CURRENT_RIM_COLOR := Color(0.94, 0.84, 0.58, 0.28)
 const CLEARING_DEFAULT_RIM_ALPHA := 0.24
-const KNOWN_ICON_OPEN_ALPHA_CAP := 0.82
-const KNOWN_ICON_SIZE_MULTIPLIER_DEFAULT := 0.98
-const KNOWN_ICON_SIZE_MULTIPLIER_CURRENT := 0.74
-const KNOWN_ICON_MIN_SIZE_DEFAULT := 28.0
-const KNOWN_ICON_MIN_SIZE_CURRENT := 26.0
-const KNOWN_ICON_MAX_SIZE_DEFAULT := 42.0
-const KNOWN_ICON_MAX_SIZE_CURRENT := 38.0
+const KNOWN_ICON_OPEN_ALPHA_CAP := 0.54
+const KNOWN_ICON_SIZE_MULTIPLIER_DEFAULT := 0.80
+const KNOWN_ICON_SIZE_MULTIPLIER_CURRENT := 0.64
+const KNOWN_ICON_MIN_SIZE_DEFAULT := 22.0
+const KNOWN_ICON_MIN_SIZE_CURRENT := 20.0
+const KNOWN_ICON_MAX_SIZE_DEFAULT := 34.0
+const KNOWN_ICON_MAX_SIZE_CURRENT := 30.0
 const KNOWN_ICON_CURRENT_Y_OFFSET_MULTIPLIER := 0.20
+const LANDMARK_POCKET_FILL_ALPHA := 0.38
+const LANDMARK_POCKET_RIM_ALPHA := 0.44
+const LANDMARK_ANCHOR_ALPHA := 0.82
+const LANDMARK_SIGNAGE_ALPHA := 0.58
 
 
 static func marker_modulate_for_semantic(state_semantic: String, is_disabled: bool) -> Color:
@@ -150,7 +154,12 @@ static func icon_modulate_for_semantic(node_family: String, state_semantic: Stri
 			return _family_icon_color(node_family).lightened(0.22)
 
 
-static func apply_selection_ring(selection_ring: PanelContainer, state_semantic: String, is_selected: bool) -> void:
+static func apply_selection_ring(
+	selection_ring: PanelContainer,
+	state_semantic: String,
+	is_selected: bool,
+	is_preview_focus: bool = false
+) -> void:
 	if selection_ring == null:
 		return
 
@@ -158,18 +167,23 @@ static func apply_selection_ring(selection_ring: PanelContainer, state_semantic:
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0, 0, 0, 0)
 	style.border_color = accent.lightened(0.1) if is_selected else accent
-	style.border_width_left = 3 if is_selected else 2
-	style.border_width_top = 3 if is_selected else 2
-	style.border_width_right = 3 if is_selected else 2
-	style.border_width_bottom = 3 if is_selected else 2
+	style.border_width_left = 2 if is_selected else 1 if is_preview_focus else 1
+	style.border_width_top = 2 if is_selected else 1 if is_preview_focus else 1
+	style.border_width_right = 2 if is_selected else 1 if is_preview_focus else 1
+	style.border_width_bottom = 2 if is_selected else 1 if is_preview_focus else 1
 	style.corner_radius_top_left = 36
 	style.corner_radius_top_right = 36
 	style.corner_radius_bottom_right = 36
 	style.corner_radius_bottom_left = 36
-	style.shadow_color = Color(0, 0, 0, 0.26)
-	style.shadow_size = 8
+	style.shadow_color = Color(0, 0, 0, 0.22 if is_selected else 0.12 if is_preview_focus else 0.0)
+	style.shadow_size = 6 if is_selected else 3 if is_preview_focus else 0
 	selection_ring.add_theme_stylebox_override("panel", style)
-	selection_ring.modulate = Color(1, 1, 1, 1.0) if is_selected else Color(1, 1, 1, 0.86)
+	selection_ring.modulate = (
+		Color(1, 1, 1, 0.90)
+		if is_selected
+		else Color(1, 1, 1, 0.52) if is_preview_focus
+		else Color(1, 1, 1, 0.0)
+	)
 
 
 static func apply_node_plate_style(node_plate: PanelContainer, node_family: String, state_semantic: String, is_disabled: bool, is_preview_node: bool) -> void:
@@ -289,6 +303,10 @@ static func board_atmosphere_upper_glow_center(board_size: Vector2, board_offset
 static func ground_patch_color(template_profile: String, family: String, tone_shift: float, alpha_scale: float) -> Color:
 	var ground_color: Color = _ground_profile_base_color(template_profile)
 	match family:
+		"corridor":
+			ground_color = ground_color.lightened(0.10).lerp(Color(0.23, 0.18, 0.11, ground_color.a), 0.18)
+		"pocket":
+			ground_color = ground_color.lightened(0.14).lerp(Color(0.26, 0.20, 0.12, ground_color.a), 0.24)
 		"patch":
 			ground_color = ground_color.lightened(0.05).lerp(Color(0.17, 0.14, 0.09, ground_color.a), 0.12)
 		"breakup":
@@ -302,8 +320,13 @@ static func ground_patch_color(template_profile: String, family: String, tone_sh
 
 static func ground_patch_inner_color(template_profile: String, family: String, tone_shift: float, alpha_scale: float) -> Color:
 	var inner_color: Color = _ground_profile_base_color(template_profile).lightened(0.09)
-	if family == "breakup":
-		inner_color = inner_color.darkened(0.02)
+	match family:
+		"corridor":
+			inner_color = inner_color.lightened(0.04)
+		"pocket":
+			inner_color = inner_color.lightened(0.06)
+		"breakup":
+			inner_color = inner_color.darkened(0.02)
 	inner_color = _apply_ground_tone_shift(inner_color, tone_shift * 0.65)
 	inner_color.a *= _ground_inner_alpha_scale(family) * alpha_scale
 	return inner_color
@@ -311,8 +334,13 @@ static func ground_patch_inner_color(template_profile: String, family: String, t
 
 static func ground_patch_rim_color(template_profile: String, family: String, tone_shift: float, alpha_scale: float) -> Color:
 	var rim_color: Color = _ground_profile_base_color(template_profile).lightened(0.18)
-	if family == "breakup":
-		rim_color = rim_color.darkened(0.02)
+	match family:
+		"corridor":
+			rim_color = rim_color.lightened(0.04)
+		"pocket":
+			rim_color = rim_color.lightened(0.08)
+		"breakup":
+			rim_color = rim_color.darkened(0.02)
 	rim_color = _apply_ground_tone_shift(rim_color, tone_shift * 0.42)
 	rim_color.a *= GROUND_RIM_ALPHA_SCALE * alpha_scale
 	return rim_color
@@ -320,6 +348,10 @@ static func ground_patch_rim_color(template_profile: String, family: String, ton
 
 static func ground_patch_rim_width(family: String) -> float:
 	match family:
+		"corridor":
+			return GROUND_PATCH_RIM_WIDTH
+		"pocket":
+			return GROUND_PATCH_RIM_WIDTH + 0.8
 		"patch":
 			return GROUND_PATCH_RIM_WIDTH
 		"breakup":
@@ -330,6 +362,10 @@ static func ground_patch_rim_width(family: String) -> float:
 
 static func ground_patch_inner_scale(family: String) -> Vector2:
 	match family:
+		"corridor":
+			return Vector2(0.80, 0.72)
+		"pocket":
+			return Vector2(0.84, 0.78)
 		"patch":
 			return GROUND_PATCH_INNER_SCALE
 		"breakup":
@@ -549,6 +585,62 @@ static func known_icon_center(center: Vector2, radius: float, is_current: bool) 
 	if not is_current:
 		return center
 	return center + Vector2(0.0, radius * KNOWN_ICON_CURRENT_Y_OFFSET_MULTIPLIER)
+
+
+static func landmark_pocket_fill_color(node_family: String, state_semantic: String, is_current: bool) -> Color:
+	var base_color: Color = family_ground_tint(node_family).darkened(0.20)
+	if state_semantic == "resolved":
+		base_color = base_color.lerp(Color(0.12, 0.14, 0.12, 1.0), 0.34)
+	elif state_semantic == "locked":
+		base_color = Color(0.22, 0.14, 0.10, 1.0)
+	elif is_current:
+		base_color = base_color.lightened(0.06)
+	base_color.a = LANDMARK_POCKET_FILL_ALPHA
+	return base_color
+
+
+static func landmark_pocket_rim_color(node_family: String, state_semantic: String, is_current: bool) -> Color:
+	var rim_color: Color = _family_border_color(node_family).darkened(0.10)
+	if state_semantic == "resolved":
+		rim_color = rim_color.lerp(Color(0.54, 0.58, 0.52, 1.0), 0.28)
+	elif state_semantic == "locked":
+		rim_color = Color(0.88, 0.64, 0.42, 1.0)
+	elif is_current:
+		rim_color = rim_color.lightened(0.08)
+	rim_color.a = LANDMARK_POCKET_RIM_ALPHA
+	return rim_color
+
+
+static func landmark_anchor_color(node_family: String, state_semantic: String, is_current: bool) -> Color:
+	var anchor_color: Color = _family_border_color(node_family).lerp(family_ground_tint(node_family).lightened(0.08), 0.34)
+	if state_semantic == "resolved":
+		anchor_color = anchor_color.lerp(Color(0.56, 0.58, 0.54, 1.0), 0.32)
+	elif state_semantic == "locked":
+		anchor_color = Color(0.92, 0.72, 0.46, 1.0)
+	elif is_current:
+		anchor_color = anchor_color.lightened(0.10)
+	anchor_color.a = LANDMARK_ANCHOR_ALPHA
+	return anchor_color
+
+
+static func landmark_signage_color(node_family: String, state_semantic: String, is_current: bool) -> Color:
+	var signage_color: Color = _family_plate_fill_color(node_family).lightened(0.08)
+	if state_semantic == "resolved":
+		signage_color = signage_color.lerp(Color(0.20, 0.22, 0.20, 1.0), 0.36)
+	elif state_semantic == "locked":
+		signage_color = Color(0.30, 0.18, 0.12, 1.0)
+	elif is_current:
+		signage_color = signage_color.lightened(0.06)
+	signage_color.a = LANDMARK_SIGNAGE_ALPHA
+	return signage_color
+
+
+static func landmark_icon_alpha_scale(state_semantic: String, is_current: bool) -> float:
+	if is_current:
+		return 0.82
+	if state_semantic == "resolved":
+		return 0.58
+	return 0.62
 
 
 static func _accent_color_for_semantic(state_semantic: String) -> Color:

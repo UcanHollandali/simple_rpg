@@ -7,7 +7,9 @@ This file defines the minimum map topology, traversal, and viability contract fo
 ## Map Spine
 
 - Each stage uses a bounded node graph centered on local exploration.
-- The player starts from a center anchor node.
+- The default map identity starts the player from one center-local opening anchor.
+- The opening anchor may jitter inside a safe center-local pocket, but the active target is not an edge-entry ladder.
+- Routes should open toward readable north/south/east/west board directions so the player feels they are exploring outward from a small-world center.
 - Stage visibility uses partial undiscovered information; the player explores from local revealed information rather than full-route certainty.
 - Board presentation may pre-compose a full derived stage layout at stage start, but discovery should only change visibility/readability, not graph truth or traversal semantics.
 - Dedicated fog presentation on the board is currently suspended; hidden nodes stay runtime-undiscovered without separate fog cards or fog labels.
@@ -15,6 +17,14 @@ This file defines the minimum map topology, traversal, and viability contract fo
 - Revisit is allowed inside a stage.
 - Movement consumes hunger.
 - The map must not create infinite farm loops.
+
+## Derived Presentation Boundary
+
+- Board composition, road rendering, pocket/clearing masks, overlay anchors, and walker path presentation remain derived readability layers over the runtime graph.
+- Those presentation layers may evolve or be replaced side-by-side during implementation work, but they do not become a second gameplay map.
+- During such replacement work, old and new presentation lanes may coexist temporarily as presentation surfaces only; this does not transfer node, adjacency, discovery, current-node, pending-node, or key/boss truth out of the current runtime owners.
+- Discovery may change what becomes readable on the board, but it must not change graph truth, traversal semantics, or save ownership just because the board surface changes.
+- If a presentation implementation would require new save fields, a new flow state, a pending-node owner move, or behavior-changing removal of a live compatibility fallback, stop and `escalate first`.
 
 ## Node Families
 
@@ -40,6 +50,190 @@ Current runtime-backed prototype node families:
 - This model is bounded exploration, not full free-roam.
 - Exact ring counts, spoke counts, edge layouts, and reveal percentages remain deferred.
 - Overall graph density should still stay inside the compact portrait readability target.
+
+## Hidden Sector Grammar Contract
+
+- This section defines the replacement target for board partition grammar.
+- It does not claim that the current runtime already implements hidden sectors.
+- Sectors are hidden implementation partitions inside the portrait playable rect.
+- Sectors are not player-facing labels, not save payload by default, and not a second ownership layer.
+- `center_anchor` is the canonical opening-anchor sector name for the unrotated grammar.
+  - normal runs should start in a center-local pocket, not at an edge-entry band
+  - center-local does not mean the exact screen midpoint or a visibly fixed pixel position
+  - outward direction emphasis may vary by deterministic profile, but the start does not move to a Slay-the-Spire-style edge by default
+- Sector occupancy should usually stay sparse:
+  - default expectation: `0-2` nodes in a sector
+  - one justified dense pocket may rise to `3` only when route role or late-pressure staging clearly needs it
+- Slot/anchor budget means the number of local anchor candidates the later layout system may expose inside that sector.
+- Node placement must consume sector-local anchor candidates with jitter, offset, and asymmetry.
+- Node placement must not silently collapse to sector centroids.
+- Corridors may connect only allowed neighboring sectors, except for the optional outer-late extension rule below.
+- Visible checkerboard, visible cell-centering, or obvious mirrored symmetry is contract failure, not acceptable randomness.
+
+### Orientation Profile Contract
+
+- The map must not collapse into a fixed Slay-the-Spire-style upward ladder.
+- The default supported profile family is `center_outward`: opening anchor center-local, with multiple outward route directions.
+- Each run or stage profile may choose a deterministic `orientation_profile_id` from the run seed to vary outward emphasis, silhouette, and risk/support placement.
+- Required center-outward emphasis variants:
+  - `center_outward_balanced`: no single cardinal direction owns the whole route read
+  - `center_outward_north_weighted`: north-side route pressure is stronger but south/east/west still contribute
+  - `center_outward_south_weighted`: south-side route pressure is stronger but north/east/west still contribute
+  - `center_outward_west_weighted`: west-side route pressure is stronger but north/south/east still contribute
+  - `center_outward_east_weighted`: east-side route pressure is stronger but north/south/west still contribute
+- Edge-entry profiles are not the default identity. If a later stage profile intentionally starts from an edge, it must say so explicitly and must not be reported as the general map target.
+- The chosen profile must keep screen north/south/east/west readable through route layout, branch labels in developer data, or review metadata, without showing sector labels to the player.
+- Direction variation must preserve bounded exploration, local adjacency, key/boss viability, and the `2-4` first-choice readability target.
+- If UI needs layout metadata, `orientation_profile_id` / outward-emphasis reads must remain read-only non-save metadata and must not become UI-owned gameplay truth.
+
+Baseline hidden sectors:
+
+| Sector | Allowed neighboring sectors | Min/max occupancy | Optional empty chance | Slot/anchor budget | Role bias | Corridor exits |
+|---|---|---:|---:|---:|---|---|
+| `center_anchor` | `north_west`, `north_center`, `north_east`, `mid_left`, `mid_right`, `south_center` | `1-2` | `0%` | `3` | center start pocket, readable first `2-4` north/south/east/west choices, one local opening-value stop allowed, never default key/boss | primary `north_center` / `mid_left` / `mid_right` / `south_center`; optional diagonal handoffs through `north_west` / `north_east` |
+| `north_west` | `center_anchor`, `north_center`, `mid_left`, optional `outer_late_west` | `0-2` | `25%` | `2` | upper-left flank pocket, event/reward/support detour, local reconnect only | primary `north_center` or `mid_left`; optional `outer_late_west` |
+| `north_center` | `center_anchor`, `north_west`, `north_east`, `mid_left`, `mid_right` | `1-2` | `5%` | `2` | north outward continuation, early combat/readability handoff, route split staging | primary `north_west` / `north_east`; secondary `mid_left` / `mid_right` |
+| `north_east` | `center_anchor`, `north_center`, `mid_right`, optional `outer_late_east` | `0-2` | `25%` | `2` | upper-right flank pocket, reward/support/event detour, local reconnect only | primary `north_center` or `mid_right`; optional `outer_late_east` |
+| `mid_left` | `center_anchor`, `north_west`, `north_center`, `south_west`, `south_center` | `0-2` | `15%` | `2` | left branch body, opening-side choice, reward/support pocket, landmark counterweight | primary `north_west` / `south_west`; secondary `south_center` |
+| `mid_right` | `center_anchor`, `north_east`, `north_center`, `south_east`, `south_center` | `0-2` | `15%` | `2` | right branch body, opening-side choice, reward/support pocket, landmark counterweight | primary `north_east` / `south_east`; secondary `south_center` |
+| `south_west` | `mid_left`, `south_center` | `0-2` | `35%` | `2` | lower-left structural counterweight, short prep/support detour, not default key/boss | primary `mid_left`; secondary `south_center` |
+| `south_center` | `center_anchor`, `mid_left`, `mid_right`, `south_west`, `south_east` | `0-1` | `45%` | `1` | lower-center counterweight, support detour, or local reconnect staging, not mandatory | primary `center_anchor`; secondary `south_west` / `south_east` |
+| `south_east` | `mid_right`, `south_center` | `0-2` | `35%` | `2` | lower-right structural counterweight, short prep/support detour, not default key/boss | primary `mid_right`; secondary `south_center` |
+
+Allowed later extension:
+
+| Sector | Allowed neighboring sectors | Min/max occupancy | Optional empty chance | Slot/anchor budget | Role bias | Corridor exits |
+|---|---|---:|---:|---:|---|---|
+| `outer_late_west` | `north_west`, `mid_left` | `0-1` | `55%` | `1` | explicit late-pressure extension for key/boss/final-prep staging only | return through `north_west` or `mid_left` |
+| `outer_late_east` | `north_east`, `mid_right` | `0-1` | `55%` | `1` | explicit late-pressure extension for key/boss/final-prep staging only | return through `north_east` or `mid_right` |
+
+Hidden-sector grammar rules:
+
+- `center_anchor` never goes empty.
+- Canonical `north_center` should usually remain occupied because it carries one major outward handoff; an empty canonical `north_center` must be an explicit stage-shape exception, not the default.
+- At least one of `mid_left` or `mid_right` should usually participate in the opening readable-choice shell.
+- Canonical `south_*` sectors exist to create back-side/counterweight structure after orientation mapping; the numeric enforcement now lives in the structural-metrics contract below.
+- Optional outer-late sectors are late-pressure tools only:
+  - they must not become opening pockets
+  - they must not become general overflow bins for ordinary branch clutter
+- Key/boss pressure should favor outward sectors (`north_*`, `mid_*`, `south_*`, or optional outer-late sectors) rather than collapsing back into `center_anchor`.
+- Local reconnects may only bridge neighboring sectors or return through an already allowed sector chain.
+- Direct cross-board jumps such as `north_west -> south_east` or `south_west -> north_east` are contract failure unless a later explicit contract update changes the grammar and says `escalate first`.
+
+## Structural Metrics Contract
+
+- This section defines the structural metrics contract for later map implementation work.
+- These metrics are layered on top of the hidden-sector grammar above; they do not replace it.
+- They do not claim that the current checked-in runtime already satisfies them.
+- Structural metrics do not replace screenshot review. If captures still read wrong, a metrics-only pass is not green.
+
+### Sector Occupancy And Spread Metrics
+
+- `occupied_baseline_sector_count`
+  - normal seeds should occupy `6-8` baseline sectors
+  - `5` occupied baseline sectors is allowed only as an explicit stage-shape exception when one justified dense pocket or one optional outer-late sector still preserves opening readability and lower-half structure
+  - fewer than `5` occupied baseline sectors is structural failure
+- `dense_pocket_cap`
+  - at most one sector may rise to `3` occupied nodes
+  - no sector may exceed its stated occupancy cap
+- `north_outward_presence`
+  - canonical `north_center` should remain occupied in normal seeds because it is one readable cardinal outward handoff
+  - an empty canonical `north_center` is an explicit stage-shape exception, not a default outcome
+- `opening_lateral_presence`
+  - at least one of `mid_left` or `mid_right` must participate in the opening readable-choice shell
+- `back_or_counterweight_sector_presence`
+  - representative default seeds should usually occupy at least one canonical `south_*` sector after orientation mapping
+  - a fully back-side-empty layout counts as one-direction pressure failure unless a documented stage-shape exception still preserves visible counterweight structure
+- `single_direction_pressure`
+  - node count across any one cardinal direction cluster should not dominate `center_anchor + the other cardinal clusters` by more than `2`
+- `one_direction_ladder_failure`
+  - any layout whose occupied sectors collapse to `center_anchor + one cardinal direction only` is structural failure
+
+### Start Anchor And Opening Choice Metrics
+
+- `start_anchor_zone`
+  - the realized opening pocket should be center-local by default, not a lower/upper/left/right edge-entry band
+  - center-local placement may jitter by seed inside safe bounds so repeated runs do not look stamped
+  - any edge-entry start is a stage-specific exception and must be called out as such
+  - the opening pocket must preserve safe margins, first-choice readability, and room for north/south/east/west route identity
+- `opening_outward_choice_count`
+  - the opening pocket should expose `2-4` readable outward choices
+- `opening_cardinal_read`
+  - at least two opening choices should claim distinct cardinal route reads by the first pocket throat
+  - representative sweeps should show north, south, east, and west routes as meaningful at least once unless a stage profile explicitly narrows direction use
+- `opening_lateral_read`
+  - at least one opening choice should hand off through `mid_left` or `mid_right`
+- `opening_choice_separation`
+  - if `3+` opening choices are visible, at least two of them must claim distinct corridor silhouettes by the first turn or first pocket throat
+  - choices that keep sharing the same departure lane beyond that point count as same-corridor conflict
+
+### Symmetry And Uniformity Rejection
+
+- `bilateral_mirror_failure`
+  - a layout fails if all three left/right sector pairs (`north_west` / `north_east`, `mid_left` / `mid_right`, `south_west` / `south_east`) resolve to matching occupancies and mirrored opening exits in the same seed
+- `uniform_occupancy_failure`
+  - a layout fails if `5+` occupied baseline sectors all resolve to one-node pockets with no dense / empty contrast
+- `checkerboard_rejection`
+  - evenly spaced centroid-like placement or obvious visible grid cadence is structural failure even if occupancy counts technically pass
+
+### Landmark Pocket And Clearing Metrics
+
+- `pocket_owner_coverage`
+  - every discovered non-start destination must belong to one local pocket owner
+- `special_pocket_distinctness`
+  - `key`, `boss`, `reward`, and support-family destinations must each read as a distinct pocket or arrival pattern before icon read
+  - `combat` and `event` pockets may reuse families, but they still need a local pocket owner rather than floating icon discs
+- `pocket_merge_limit`
+  - adjacent actionable destinations may not collapse into one ambiguous pocket mass unless a corridor throat or clearing split keeps them distinguishable
+- `clearing_integrity`
+  - each actionable pocket must preserve one local arrival clearing plus one landmark silhouette gap
+  - roads may enter and exit through pocket throats, but they must not cut through the interaction clearing
+  - canopy and filler mass must recede from the pocket core rather than occluding it
+- `icon_secondary_read`
+  - icons are confirmation surfaces only
+  - screenshot review should still leave `key`, `boss`, `reward`, and support-family identity understandable when icons are mentally suppressed
+  - later automated checks may validate pocket ownership metadata, but screenshot review remains the authority for this read
+
+### Corridor And Lane Metrics
+
+- `outward_lane_count`
+  - `center_anchor` should usually expose `2-4` outward choices
+  - canonical `north_center`, `mid_left`, and `mid_right` should usually expose `2-3` readable outward lanes when they act as decision pockets
+  - `outer_late_*` sectors should behave as pressure terminals or short return pockets, not fresh wide-fanout hubs
+- `same_corridor_conflict`
+  - two actionable outward choices fail if they share the same visible departure lane for more than one short corridor segment (`one junction-to-junction step`) before separating
+  - clearly secondary reconnect/history lanes do not count as primary outward choices
+- `route_overlap_limit`
+  - active corridors should not stack so tightly that one pocket exit reads like one undecidable bundle of lines
+- `support_detour_readability`
+  - at least one support-family opportunity should live on a short readable detour off the opening shell or one outward route
+  - a support detour should not require passing the boss gate or collapse into the same corridor as the mandatory boss push
+- `risk_safety_route_contrast`
+  - branch risk/safety must read from route structure, node-family pressure, detour depth, reconnect cost, support/prep placement, and key/boss staging rather than from player-facing sector labels or hardcoded `safe` / `risky` route text
+  - representative review should be able to name at least one pressure-oriented route and one prep/support-oriented route when the stage profile and reveal state expose enough choices
+  - this contrast is presentation and topology readability only; it does not add a new gameplay owner, save field, node family, or route-state truth source
+- `late_pressure_separation`
+  - `key` and `boss` must not share `center_anchor`, the same pocket, or the same immediate arrival read
+  - boss pressure should remain outward and late, typically in a cardinal/outside pressure sector rather than the opening center
+  - after key resolution, the map should still preserve at least one additional step or one readable final-prep detour before boss commitment by default
+
+### Seed Variance Metrics
+
+- `representative_seed_sweep_floor`
+  - structural review should use a representative seed sweep, not one cherry-picked screenshot
+  - working floor: at least `5` seeds per active stage profile, or an explicitly named equivalent curated set if a later prompt justifies it
+- `occupancy_silhouette_variance`
+  - occupied-sector silhouettes should produce at least `3` distinct patterns inside each representative sweep
+  - no single occupied-sector silhouette should dominate more than `50%` of the reviewed seeds for the same stage profile
+- `opening_pattern_dominance_rejection`
+  - the exact same cardinal opening-choice pattern should not dominate more than `50%` of the representative sweep by default
+- `lower_half_participation_variance`
+  - representative sweeps should include more than one way of using the board area around and beyond the center-local opening pocket
+  - repeated one-direction/top-loaded silhouettes are failure even when individual seeds remain technically valid
+- `orientation_profile_variance`
+  - representative sweeps should include more than one center-outward emphasis profile unless a stage profile explicitly locks one for a documented reason
+  - the same outward emphasis profile should not dominate more than `60%` of a general representative sweep by default
+  - if a narrow stage profile intentionally locks one emphasis, the report must say so and must not describe the whole map system as direction-varied
 
 ## Portrait Readability Guardrail
 
@@ -76,15 +270,15 @@ Current runtime-backed prototype node families:
 
 ## Generation Baseline
 
-- Prototype map generation should target bounded profile-driven controlled-scatter graphs first.
+- Prototype map generation should target bounded profile-driven sector-aware backbone graphs first.
 - Full free-graph generation is still deferred.
-- The current runtime-backed slice now uses stage-profile-driven controlled scatter generation keyed by the `procedural_stage_*` ids inside the locked compact portrait envelope.
-- Fresh runs may now vary the realized controlled-scatter topology and role placement within that stage-profile floor by consuming the active run seed.
+- The current runtime-backed slice now uses stage-profile-driven sector-aware backbone generation keyed by the `procedural_stage_*` ids inside the locked compact portrait envelope.
+- Fresh runs may now vary the realized sector-aware backbone blueprint and role placement within that stage-profile floor by consuming the active run seed.
 - That seeded variation must preserve the same stage guarantee floor, bounded compact envelope, and center-start readability contract rather than widening into free-form graph generation.
-- Current controlled-scatter v1 truth uses a two-step runtime model:
-  - first build the bounded connected center-start frontier-growth scatter graph with controlled late reconnect
+- Current runtime backbone truth uses a two-step runtime model:
+  - first build the bounded connected sector-aware backbone with a deliberate center-local start anchor, `3` mainline opening choices, one local counterweight opening pocket, and `1-2` local same-depth reconnects
   - then assign node families onto that graph through a separate structural role-scoring placement step
-- Current controlled-scatter v1 truth keeps the opening readable shell explicit: start reveals an early combat route, an early reward route, and an early support route under fixed stage quotas across a denser `14`-node stage graph.
+- Current runtime backbone truth keeps the opening readable shell explicit: start reveals an early combat route, an early reward route, and an early support route under fixed stage quotas across a denser `14`-node stage graph.
 - Current controlled family placement also keeps one support branch explicit:
   - one opening support node is adjacent to start
   - one late support node stays directly adjacent on that opening support branch
@@ -98,7 +292,7 @@ Current runtime-backed prototype node families:
   - that hamlet node may later host side-quest targeting and return flow, but it is additive to the existing combat/reward/support/key/boss floor rather than replacing them
 - Current key/boss placement is also controlled:
   - they are biased to the outer region
-  - they are placed on the same late route line or flank
+  - they are placed on late-pressure outer pockets or flanks rather than collapsing back into the opening shell
   - they must not collapse into an immediate adjacent boss click once the key is secured
 
 ## Stage Guarantee Floor
@@ -159,7 +353,7 @@ Current runtime-backed prototype node families:
 
 - `MapRuntimeState` now exists as the current implemented owner of:
   - stable stage-local node identity
-  - runtime node-state truth over the current controlled-scatter procedural slice
+  - runtime node-state truth over the current bounded sector-aware backbone slice
   - current node position
   - node discovery / resolved / locked state
   - stage-local key resolution
@@ -176,15 +370,15 @@ Current runtime-backed prototype node families:
 - Runtime graph construction no longer depends on authored scaffold node adjacency from those files.
 - Legacy fixed templates `fixed_stage_cluster.json` and `fixed_stage_detour.json` remain only for backward-compatible load reconstruction of schema-1 saves.
 - `RunSessionCoordinator` routes node entry and node resolution through that state.
-- The current implemented slice now owns adjacency movement, local undiscovered-node reveal, stage-local key/gate truth, support-node revisit persistence, resolved traversal, controlled-scatter graph construction, and separate role-based family assignment across that bounded graph set.
-- The current controlled-scatter role fill places `event` nodes through one dedicated late-route event role; it does not disguise events as reward or support nodes.
-- The current controlled-scatter role fill also places `hamlet` nodes through one dedicated late-route settlement role.
+- The current implemented slice now owns adjacency movement, local undiscovered-node reveal, stage-local key/gate truth, support-node revisit persistence, resolved traversal, sector-aware backbone graph construction, and separate role-based family assignment across that bounded graph set.
+- The current role fill places `event` nodes through one dedicated late-route event role; it does not disguise events as reward or support nodes.
+- The current role fill also places `hamlet` nodes through one dedicated late-route settlement role.
 - Boss-clear stage progression currently routes through `RunSessionCoordinator` plus `RunState`, not through UI.
-- The current implemented slice now owns controlled-scatter v1 generation, but not broader free-form graph generation.
+- The current implemented slice now owns bounded sector-aware backbone generation, but not broader free-form graph generation.
 - Save-safe exact restore now depends on the realized graph payload, not on re-running scaffold fill from seed alone.
 - Current runtime node snapshots may expose a derived `hamlet_personality` read for `hamlet` nodes.
   - this read is stage-derived selection/presentation context, not extra saved graph payload
-- Target authority direction is fuller exploration graph state in `MapRuntimeState`; current implementation is still a bounded controlled-scatter foundation rather than the complete long-term graph-generation slice.
+- Target authority direction is fuller exploration graph state in `MapRuntimeState`; current implementation is still a bounded sector-aware backbone foundation rather than the complete long-term graph-generation slice.
 
 ## Current Runtime-Backed Node Resolution
 

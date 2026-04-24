@@ -571,25 +571,95 @@ func test_support_interaction_presenter_builds_hamlet_contract_models() -> void:
 		"Expected hamlet training choice to keep the context copy compact and action-focused."
 	)
 	assert(
-		presenter.call("build_hint_text", training_state) == "Pick 1 technique or skip.",
-		"Expected hamlet training choice to explain the lightweight 2-offer-plus-skip contract."
+		presenter.call("build_summary_text", training_state) == "Current technique: Blood Draw. New choice replaces it.",
+		"Expected hamlet training choice to surface the current-technique replacement warning in the summary lane."
+	)
+	assert(
+		presenter.call("build_hint_text", training_state) == "Pick 1 technique or keep Blood Draw.",
+		"Expected hamlet training choice to explain the keep-vs-replace decision using the current technique name."
 	)
 	var training_models: Array = presenter.call("build_action_view_models", training_state, 3)
 	assert(
+		String((training_models[0] as Dictionary).get("title_text", "")) == "Cleanse Pulse",
+		"Expected technique training button titles to use the technique name directly instead of the verb-prefixed offer label."
+	)
+	assert(
 		String((training_models[0] as Dictionary).get("detail_text", "")).contains("gain 2 guard"),
 		"Expected technique training offers to surface the authored technique short description."
+	)
+	assert(
+		Color((training_models[0] as Dictionary).get("accent_color", Color.WHITE)) == TempScreenTheme.REWARD_ACCENT_COLOR,
+		"Expected technique training offers to opt into the reward accent for cleaner hamlet lesson presentation."
 	)
 	assert(
 		String((training_models[0] as Dictionary).get("tooltip_text", "")).contains("Replaces Blood Draw."),
 		"Expected technique training tooltips to explain replacement when the offer would overwrite the carried technique."
 	)
 	assert(
-		String((training_models[2] as Dictionary).get("detail_text", "")) == "Keep current loadout.",
+		String((training_models[2] as Dictionary).get("title_text", "")) == "Keep Blood Draw",
+		"Expected the hamlet training skip button title to keep the current technique by name."
+	)
+	assert(
+		String((training_models[2] as Dictionary).get("detail_text", "")) == "Do not replace it.",
 		"Expected the hamlet training skip button to explain that it leaves the current technique untouched."
 	)
 	assert(
-		String((training_models[2] as Dictionary).get("tooltip_text", "")).contains("will not stay open"),
+		Color((training_models[2] as Dictionary).get("accent_color", Color.WHITE)) == TempScreenTheme.PANEL_BORDER_COLOR,
+		"Expected the hamlet keep-skip action to stay visually quieter than the real technique choices."
+	)
+	assert(
+		String((training_models[2] as Dictionary).get("tooltip_text", "")).contains("Keep Blood Draw."),
 		"Expected the hamlet training skip tooltip to explain that the same-visit lesson closes instead of staying unclaimed."
+	)
+	assert(
+		presenter.call("build_leave_button_text", training_state) == "Leave and Keep Blood Draw",
+		"Expected the training-step leave button to explain that leaving closes the lesson while preserving the current technique."
+	)
+
+	var empty_slot_training_state: SupportInteractionState = SupportInteractionStateScript.new()
+	empty_slot_training_state.setup_for_type("hamlet", side_mission_node_id, {
+		"mission_definition_id": "trail_contract_hunt",
+		"mission_status": "claimed",
+		"training_step": "technique_choice",
+		"technique_offers": [
+			{
+				"offer_id": "equip_cleanse_pulse",
+				"label": "Take Cleanse Pulse",
+				"effect_type": "equip_technique",
+				"definition_id": "cleanse_pulse",
+				"available": true,
+			},
+			{
+				"offer_id": "equip_echo_strike",
+				"label": "Take Echo Strike",
+				"effect_type": "equip_technique",
+				"definition_id": "echo_strike",
+				"available": true,
+			},
+			{
+				"offer_id": "skip_hamlet_training",
+				"label": "Skip for now",
+				"effect_type": "skip_training_choice",
+				"available": true,
+			},
+		],
+	}, 1, run_state.inventory_state, run_state.map_runtime_state)
+	assert(
+		presenter.call("build_hint_text", empty_slot_training_state) == "Pick 1 technique or skip.",
+		"Expected hamlet training without a current technique to keep the lighter skip wording."
+	)
+	var empty_slot_training_models: Array = presenter.call("build_action_view_models", empty_slot_training_state, 3)
+	assert(
+		String((empty_slot_training_models[2] as Dictionary).get("title_text", "")) == "Skip for now",
+		"Expected the empty-slot hamlet skip button to keep the generic skip title."
+	)
+	assert(
+		String((empty_slot_training_models[2] as Dictionary).get("detail_text", "")) == "Leave the slot empty.",
+		"Expected the empty-slot hamlet skip button to explain that no technique will be equipped."
+	)
+	assert(
+		presenter.call("build_leave_button_text", empty_slot_training_state) == "Leave Without Learning",
+		"Expected the empty-slot training leave button to explain that leaving closes the lesson without learning a technique."
 	)
 
 

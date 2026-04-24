@@ -165,6 +165,21 @@ static func build_inventory_family_icon_texture_path(inventory_family: String) -
 			return ""
 
 
+static func build_technique_icon_texture_path(technique_definition: Dictionary) -> String:
+	if technique_definition.is_empty():
+		return PASSIVE_ICON_TEXTURE_PATH
+
+	var tags_variant: Variant = technique_definition.get("tags", [])
+	if typeof(tags_variant) == TYPE_ARRAY:
+		for tag_variant in tags_variant:
+			var tag: String = String(tag_variant).strip_edges().to_lower()
+			if tag in ["offense", "armor_break", "tempo", "prime_attack"]:
+				return ATTACK_ICON_TEXTURE_PATH
+			if tag in ["sustain", "lifesteal", "cleanse", "utility"]:
+				return CONSUMABLE_ICON_TEXTURE_PATH
+	return PASSIVE_ICON_TEXTURE_PATH
+
+
 static func build_effect_icon_texture_path(
 	effect_type: String,
 	inventory_family: String = "",
