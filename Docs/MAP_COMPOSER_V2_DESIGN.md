@@ -335,23 +335,21 @@ Status after the closed map wave:
 - `render_model.decor_slots` wraps filler/decor source shapes as metadata-only socket anchors with route/clearing relation, cardinal side, outward-route hint, rotation, and scale fields.
 - `MapBoardCanvas` uses `render_model.path_surfaces`, `render_model.junctions`, and `render_model.clearing_surfaces` as the default road/junction/clearing presentation lane when those fields are present.
 - Legacy road strokes/decals and node-plate/decal candidate hooks are retired; `visible_edges` remains fallback data for continuity/motion, not a canvas default lane.
-- The old visual wrapper blob/stamp layer is retired from default canvas drawing; `ground_shapes`, `filler_shapes`, and `forest_shapes` remain metadata sources for masks/sockets only.
+- The old visual wrapper blob/stamp layer is retired from default canvas drawing; `ground_shapes`, `filler_shapes`, `forest_shapes`, landmark pocket underlays, procedural landmark identity silhouettes, and prototype/candidate socket dressing remain metadata or explicit debug/prototype surfaces only.
 - `ui_map_board_backdrop.svg` is a plain framed board shell; non-routing oval/blob atmosphere marks were removed from the runtime asset and source master.
 - `MapRouteBinding` refreshes `render_model` after visible-edge continuity fallback so canvas reads the final presentation geometry.
 
-Render-model canvas draw order after the closed map wave:
+Default render-model canvas draw order:
 
 1. plain board background
-2. landmark pocket underlays from visible node footprint metadata
-3. `render_model.path_surfaces` as filled walkable surface polygons
-4. path-surface socket-smoke placeholder dressing
-5. `render_model.junctions` as local blend points
-6. render-model path-surface highlight pass for selected/preview/current emphasis
-7. `render_model.clearing_surfaces`
-8. secondary landmark/icon identity overlays
-9. landmark/decor socket-smoke placeholder dressing
+2. `render_model.path_surfaces` as filled walkable surface polygons
+3. render-model-derived road/pocket throat blends
+4. `render_model.junctions` as local blend points
+5. render-model path-surface highlight pass for selected/preview/current emphasis
+6. `render_model.clearing_surfaces`
+7. centered known-node icon overlays
 
-This keeps roads above the plain board background, lets junctions blend route throats before clearings cap the endpoints, and keeps icon/plate identity secondary to pocket and path-surface structure. Socket-smoke placeholders are still provisional and do not prove final art quality.
+This keeps roads above the plain board background, lets junctions blend route throats before clearings cap the endpoints, and keeps default node identity on clearings instead of letting large prototype footprint shapes dominate the board. Landmark pocket underlays, procedural landmark identity silhouettes, art-pilot candidate dressing, and socket-smoke placeholders are explicit debug/prototype surfaces only; they do not prove final art quality.
 
 Legacy field status after the closed map wave:
 

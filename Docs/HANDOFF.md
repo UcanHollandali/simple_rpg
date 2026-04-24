@@ -1,6 +1,6 @@
 # SIMPLE RPG - Handoff
 
-Last updated: 2026-04-24 (map prompt wave archived; art-pilot candidate pass extended; next lane is hunger/exploration UX pilot)
+Last updated: 2026-04-24 (map visual cleanup hides prototype/candidate dressing by default; next lane is hunger/exploration UX pilot)
 
 This file is a current-state snapshot only.
 It is not a rule contract. If it conflicts with an authority doc, the authority doc wins.
@@ -30,14 +30,15 @@ Use `Docs/ROADMAP.md` for next-lane planning and `Docs/DOC_PRECEDENCE.md` for au
 - The visual wrapper blob/stamp lane is retired from the default board read:
   - `MapBoardCanvas` no longer draws atmosphere circles/arcs or `ground_shapes`, `filler_shapes`, and `forest_shapes` as default visible layers
   - `ui_map_board_backdrop.svg` no longer carries non-routing oval/blob atmosphere marks in front of the board field
+  - landmark pocket underlays and procedural landmark identity silhouettes are hidden from normal/default board render and are available only through explicit prototype/debug canvas flags
 - The first production-art pilot is socket-driven and provisional:
   - runtime candidate assets live under `Assets/UI/Map/ArtPilot/`
   - source masters live under `SourceArt/Edited/Map/ArtPilot/`
   - manifest rows are `candidate` with `replace_before_release=yes`
-  - `MapBoardCanvas` consumes the pilot path brush, boss landmark, key landmark, rest landmark, merchant landmark, and decor stamp from `render_model` socket metadata
+  - `MapBoardCanvas` can consume the pilot path brush, boss landmark, key landmark, rest landmark, merchant landmark, and decor stamp from `render_model` socket metadata only when explicit prototype socket dressing is enabled
   - source-only production-art candidates live under `SourceArt/Generated/Map/ProductionArtPilotCandidates/`; they are not runtime assets and are not structural proof
   - path brush and decor stamp are v2 selected candidates under the same runtime asset ids
-  - unsupported landmark families do not draw socket-smoke placeholder art during normal/default board render
+  - candidate art and unsupported-family socket-smoke placeholder art do not draw during normal/default board render
   - socket-smoke placeholder drawing is available only through an explicit debug/prototype canvas flag
   - these assets prove socket carry only; they do not prove final art, route truth, pocket quality, terrain quality, or hunger pressure
 - The latest visual cleanup pass added a render-model-derived road/pocket throat blend layer:
@@ -118,7 +119,7 @@ Use `Docs/ROADMAP.md` for next-lane planning and `Docs/DOC_PRECEDENCE.md` for au
 - Candidate/prototype art remains non-proof, including the current art-pilot map assets.
 - Socket-smoke placeholders remain provisional and must not be treated as final art.
 - Socket-smoke placeholders remain manifest-tracked but hidden from normal/default board render.
-- Art-pilot assets remain provisional and must not be treated as final art or release-safe art.
+- Art-pilot assets remain provisional, hidden from normal/default board render, and must not be treated as final art or release-safe art.
 - Source-only candidate SVGs under `SourceArt/Generated/Map/ProductionArtPilotCandidates/` are not runtime assets until promoted through `SourceArt/Edited/`, `Assets/`, and manifest rows.
 - Wrapper/orchestrator/fallback map data surfaces still exist and must not silently become gameplay owners.
 - Manual portrait playtest and screenshot review are required for map readability, overlay feel, and landmark/route read.

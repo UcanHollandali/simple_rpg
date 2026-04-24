@@ -12,6 +12,9 @@ var _board_offset: Vector2 = Vector2.ZERO
 var _active_target_node_id: int = -1
 var _hovered_target_node_id: int = -1
 var _draw_socket_smoke_placeholders: bool = false
+var _draw_prototype_socket_dressing: bool = false
+var _draw_landmark_pocket_underlays: bool = false
+var _draw_procedural_landmark_identity_overlays: bool = false
 
 
 func set_composition(composition: Dictionary) -> void:
@@ -41,22 +44,46 @@ func set_socket_smoke_placeholder_drawing_enabled(enabled: bool) -> void:
 	queue_redraw()
 
 
+func set_prototype_socket_dressing_enabled(enabled: bool) -> void:
+	if _draw_prototype_socket_dressing == enabled:
+		return
+	_draw_prototype_socket_dressing = enabled
+	queue_redraw()
+
+
+func set_landmark_pocket_underlay_drawing_enabled(enabled: bool) -> void:
+	if _draw_landmark_pocket_underlays == enabled:
+		return
+	_draw_landmark_pocket_underlays = enabled
+	queue_redraw()
+
+
+func set_procedural_landmark_identity_overlay_enabled(enabled: bool) -> void:
+	if _draw_procedural_landmark_identity_overlays == enabled:
+		return
+	_draw_procedural_landmark_identity_overlays = enabled
+	queue_redraw()
+
+
 func _draw() -> void:
 	if _composition.is_empty():
 		return
 	var uses_render_model_surface_lane: bool = _uses_render_model_surface_lane()
 	_draw_board_background()
 	if uses_render_model_surface_lane:
-		_draw_render_landmark_pocket_underlays()
+		if _draw_landmark_pocket_underlays:
+			_draw_render_landmark_pocket_underlays()
 		_draw_path_surfaces(false)
 		_draw_road_pocket_throat_blends()
-		_draw_path_surface_socket_smoke_dressing()
+		if _draw_prototype_socket_dressing:
+			_draw_path_surface_socket_smoke_dressing()
 		_draw_render_junctions()
 		_draw_path_surfaces(true)
 		_draw_render_clearing_surfaces()
 		_draw_render_identity_overlays()
-		_draw_landmark_socket_smoke_dressing()
-	if uses_render_model_surface_lane:
+		if _draw_prototype_socket_dressing:
+			_draw_landmark_socket_smoke_dressing()
+	if uses_render_model_surface_lane and _draw_prototype_socket_dressing:
 		_draw_decor_socket_smoke_dressing()
 
 
@@ -239,7 +266,8 @@ func _draw_render_identity_overlays() -> void:
 			continue
 		var center: Vector2 = Vector2(clearing.get("center", Vector2.ZERO)) + _board_offset
 		var radius: float = float(clearing.get("radius", 0.0))
-		_draw_landmark_identity_overlay(node_entry, center, radius)
+		if _draw_procedural_landmark_identity_overlays:
+			_draw_landmark_identity_overlay(node_entry, center, radius)
 		_draw_known_node_icon(node_entry, center, radius)
 
 
@@ -449,6 +477,18 @@ func _uses_render_model_surface_lane() -> bool:
 	return not _path_surface_entries().is_empty() and not _clearing_surface_entries().is_empty()
 
 
+func _draws_prototype_socket_dressing_by_default() -> bool:
+	return _draw_prototype_socket_dressing
+
+
+func _draws_landmark_pocket_underlays_by_default() -> bool:
+	return _draw_landmark_pocket_underlays
+
+
+func _draws_procedural_landmark_identity_overlays_by_default() -> bool:
+	return _draw_procedural_landmark_identity_overlays
+
+
 func _path_surface_entries() -> Array:
 	var render_model: Dictionary = _render_model()
 	return (render_model.get("path_surfaces", []) as Array).duplicate(true)
@@ -466,6 +506,8 @@ func _decor_slot_entries() -> Array:
 
 func _path_surface_socket_smoke_entries() -> Array:
 	var entries: Array = []
+	if not _draw_prototype_socket_dressing:
+		return entries
 	var texture_path: String = UiAssetPathsScript.build_map_path_surface_socket_texture_path(_draw_socket_smoke_placeholders)
 	if texture_path.is_empty():
 		return entries
@@ -496,6 +538,8 @@ func _path_surface_socket_smoke_entries() -> Array:
 
 func _landmark_socket_smoke_entries() -> Array:
 	var entries: Array = []
+	if not _draw_prototype_socket_dressing:
+		return entries
 	for slot_variant in _landmark_slot_entries():
 		if typeof(slot_variant) != TYPE_DICTIONARY:
 			continue
@@ -524,6 +568,8 @@ func _landmark_socket_smoke_entries() -> Array:
 
 func _decor_socket_smoke_entries() -> Array:
 	var entries: Array = []
+	if not _draw_prototype_socket_dressing:
+		return entries
 	for slot_variant in _decor_slot_entries():
 		if typeof(slot_variant) != TYPE_DICTIONARY:
 			continue
@@ -782,10 +828,14 @@ func _known_icon_rect_for_node(node_entry: Dictionary, center: Vector2, radius: 
 	var icon_size: float = MapBoardStyleScript.known_icon_size(radius, is_current)
 	var icon_center: Vector2 = MapBoardStyleScript.known_icon_center(center, radius, is_current)
 	var footprint: Dictionary = _landmark_footprint_for_node(node_entry)
-	if not footprint.is_empty():
+	if _uses_landmark_signage_slots() and not footprint.is_empty():
 		icon_center = center + Vector2(footprint.get("signage_center_offset", Vector2.ZERO))
 		icon_size *= clampf(float(footprint.get("signage_scale", 0.72)), 0.52, 0.92)
 	return Rect2(icon_center - Vector2.ONE * (icon_size * 0.5), Vector2.ONE * icon_size)
+
+
+func _uses_landmark_signage_slots() -> bool:
+	return _draw_procedural_landmark_identity_overlays or _draw_prototype_socket_dressing
 
 
 func _landmark_pocket_polygon(center: Vector2, footprint: Dictionary, radius: float) -> PackedVector2Array:

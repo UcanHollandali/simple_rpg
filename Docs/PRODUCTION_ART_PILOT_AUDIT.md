@@ -14,7 +14,7 @@ Last updated: 2026-04-24
 
 - Runtime source: `render_model.path_surfaces`.
 - Current texture routing: `UiAssetPaths.build_map_path_surface_socket_texture_path(...)`.
-- Default coverage: covered by `Assets/UI/Map/ArtPilot/ui_map_art_pilot_path_brush.svg` when that asset exists.
+- Prototype coverage: covered by `Assets/UI/Map/ArtPilot/ui_map_art_pilot_path_brush.svg` when that asset exists and explicit prototype socket dressing is enabled.
 - Placeholder coverage: socket-smoke path brush is hidden by default and only allowed through the explicit debug/prototype flag.
 - Placement:
   - center: midpoint of the rendered path polyline
@@ -30,13 +30,14 @@ Last updated: 2026-04-24
 
 - Runtime source: `render_model.landmark_slots`.
 - Current texture routing: `UiAssetPaths.build_map_landmark_socket_texture_path(asset_family_key, node_family, ...)`.
-- Current default coverage:
+- Current prototype coverage:
   - `boss:*` -> `Assets/UI/Map/ArtPilot/ui_map_art_pilot_boss_landmark.svg`
   - `key:*` -> `Assets/UI/Map/ArtPilot/ui_map_art_pilot_key_landmark.svg`
   - `rest:*` -> `Assets/UI/Map/ArtPilot/ui_map_art_pilot_rest_landmark.svg`
   - `merchant:*` -> `Assets/UI/Map/ArtPilot/ui_map_art_pilot_merchant_landmark.svg`
-- Current blocked/default-skipped coverage:
-  - unsupported landmark families skip socket-smoke placeholders in normal/default render.
+- Current normal/default render:
+  - all candidate art-pilot landmark dressing is hidden.
+  - unsupported landmark families skip socket-smoke placeholders.
 - Placement:
   - center: `slot.anchor_point + board_offset`
   - rotation: `slot.rotation_degrees`
@@ -52,7 +53,7 @@ Last updated: 2026-04-24
 
 - Runtime source: `render_model.decor_slots`.
 - Current texture routing: `UiAssetPaths.build_map_decor_socket_texture_path(...)`.
-- Current default coverage: all decor slots use `Assets/UI/Map/ArtPilot/ui_map_art_pilot_decor_stamp.svg` when that asset exists.
+- Prototype coverage: all decor slots use `Assets/UI/Map/ArtPilot/ui_map_art_pilot_decor_stamp.svg` when that asset exists and explicit prototype socket dressing is enabled.
 - Placeholder coverage: socket-smoke decor stamp is hidden by default and only allowed through the explicit debug/prototype flag.
 - Placement:
   - center: `slot.anchor_point + board_offset`
@@ -67,14 +68,14 @@ Last updated: 2026-04-24
 
 ## Current Candidate Runtime Assets
 
-| Runtime asset | Manifest status | ViewBox | Default use |
+| Runtime asset | Manifest status | ViewBox | Prototype use |
 |---|---:|---:|---|
-| `Assets/UI/Map/ArtPilot/ui_map_art_pilot_path_brush.svg` | candidate, replace before release | `128x64` | path surface sockets |
-| `Assets/UI/Map/ArtPilot/ui_map_art_pilot_boss_landmark.svg` | candidate, replace before release | `128x128` | `boss:*` landmark sockets |
-| `Assets/UI/Map/ArtPilot/ui_map_art_pilot_key_landmark.svg` | candidate, replace before release | `128x128` | `key:*` landmark sockets |
-| `Assets/UI/Map/ArtPilot/ui_map_art_pilot_rest_landmark.svg` | candidate, replace before release | `128x128` | `rest:*` landmark sockets |
-| `Assets/UI/Map/ArtPilot/ui_map_art_pilot_merchant_landmark.svg` | candidate, replace before release | `128x128` | `merchant:*` landmark sockets |
-| `Assets/UI/Map/ArtPilot/ui_map_art_pilot_decor_stamp.svg` | candidate, replace before release | `96x96` | decor sockets |
+| `Assets/UI/Map/ArtPilot/ui_map_art_pilot_path_brush.svg` | candidate, replace before release | `128x64` | path surface sockets when prototype dressing is enabled |
+| `Assets/UI/Map/ArtPilot/ui_map_art_pilot_boss_landmark.svg` | candidate, replace before release | `128x128` | `boss:*` landmark sockets when prototype dressing is enabled |
+| `Assets/UI/Map/ArtPilot/ui_map_art_pilot_key_landmark.svg` | candidate, replace before release | `128x128` | `key:*` landmark sockets when prototype dressing is enabled |
+| `Assets/UI/Map/ArtPilot/ui_map_art_pilot_rest_landmark.svg` | candidate, replace before release | `128x128` | `rest:*` landmark sockets when prototype dressing is enabled |
+| `Assets/UI/Map/ArtPilot/ui_map_art_pilot_merchant_landmark.svg` | candidate, replace before release | `128x128` | `merchant:*` landmark sockets when prototype dressing is enabled |
+| `Assets/UI/Map/ArtPilot/ui_map_art_pilot_decor_stamp.svg` | candidate, replace before release | `96x96` | decor sockets when prototype dressing is enabled |
 
 ## Recommended Family Order
 
@@ -88,6 +89,7 @@ Last updated: 2026-04-24
 - Do not use candidate art as proof that route topology, hunger pressure, or pocket quality is solved.
 - Do not restore retired `ui_map_v2_*` trail/decal/node-plate lanes.
 - Do not draw socket-smoke placeholders in normal/default render.
+- Do not draw art-pilot candidate dressing in normal/default render unless a future review explicitly promotes replacement assets.
 - Do not add gameplay truth, save shape, or flow state changes.
 
 ## Assumptions

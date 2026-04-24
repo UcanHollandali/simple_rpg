@@ -23,8 +23,8 @@ func _run() -> void:
 	test_map_board_canvas_derives_road_pocket_throat_blends_from_render_model_links()
 	test_map_board_canvas_keeps_selected_route_lane_above_other_choices()
 	test_map_board_canvas_keeps_hover_preview_below_selected_route_lane()
-	test_map_board_canvas_uses_landmark_signage_slots_for_known_icons()
-	test_map_board_canvas_subdues_icon_disc_support_when_landmark_footprints_exist()
+	test_map_board_canvas_uses_landmark_signage_slots_only_for_prototype_identity_mode()
+	test_map_board_canvas_keeps_landmark_underlays_and_procedural_identity_debug_only_by_default()
 	test_map_board_canvas_builds_key_diamond_pocket_polygon()
 	test_map_board_canvas_avoids_extra_curve_smoothing_on_history_reconnects()
 	print("test_map_board_canvas: all assertions passed")
@@ -259,7 +259,18 @@ func test_map_board_canvas_derives_socket_art_from_render_model_slots() -> void:
 		SceneLayoutHelperScript.load_texture_or_null(UiAssetPathsScript.MAP_ART_PILOT_DECOR_TEXTURE_PATH) != null,
 		"Expected the decor art-pilot runtime asset to be loadable."
 	)
+	assert(
+		not bool(board_canvas.call("_draws_prototype_socket_dressing_by_default")),
+		"Expected candidate/prototype socket dressing to stay out of the normal board render until an explicit prototype flag enables it."
+	)
+	assert(
+		(board_canvas.call("_path_surface_socket_smoke_entries") as Array).is_empty()
+			and (board_canvas.call("_landmark_socket_smoke_entries") as Array).is_empty()
+			and (board_canvas.call("_decor_socket_smoke_entries") as Array).is_empty(),
+		"Expected draw-entry helpers to hide art-pilot and socket-smoke dressing by default while keeping socket metadata intact."
+	)
 
+	board_canvas.call("set_prototype_socket_dressing_enabled", true)
 	var path_entries: Array = board_canvas.call("_path_surface_socket_smoke_entries")
 	var landmark_entries: Array = board_canvas.call("_landmark_socket_smoke_entries")
 	var decor_entries: Array = board_canvas.call("_decor_socket_smoke_entries")
@@ -454,7 +465,7 @@ func test_map_board_canvas_keeps_hover_preview_below_selected_route_lane() -> vo
 	board_canvas.free()
 
 
-func test_map_board_canvas_uses_landmark_signage_slots_for_known_icons() -> void:
+func test_map_board_canvas_uses_landmark_signage_slots_only_for_prototype_identity_mode() -> void:
 	var board_canvas: Control = MapBoardCanvasScript.new()
 	var default_icon_rect: Rect2 = board_canvas.call("_known_icon_rect_for_node", {
 		"show_known_icon": true,
@@ -477,27 +488,53 @@ func test_map_board_canvas_uses_landmark_signage_slots_for_known_icons() -> void
 	var default_center: Vector2 = default_icon_rect.position + default_icon_rect.size * 0.5
 	var landmark_center: Vector2 = landmark_icon_rect.position + landmark_icon_rect.size * 0.5
 	assert(
+		landmark_center.distance_to(default_center) <= 0.001,
+		"Expected normal board render to keep known icons centered instead of using hidden prototype landmark signage slots."
+	)
+	board_canvas.call("set_procedural_landmark_identity_overlay_enabled", true)
+	landmark_icon_rect = board_canvas.call("_known_icon_rect_for_node", {
+		"show_known_icon": true,
+		"icon_texture_path": "res://Assets/Icons/icon_reward.svg",
+		"state_semantic": "open",
+		"node_family": "reward",
+		"is_current": false,
+		"landmark_footprint": {
+			"signage_center_offset": Vector2(18.0, -14.0),
+			"signage_scale": 0.66,
+		},
+	}, Vector2(64.0, 64.0), 24.0)
+	landmark_center = landmark_icon_rect.position + landmark_icon_rect.size * 0.5
+	assert(
 		landmark_center.distance_to(Vector2(64.0, 64.0)) > default_center.distance_to(Vector2(64.0, 64.0)) + 8.0,
-		"Expected known icons to move onto the landmark signage slot instead of staying pinned to the clearing center."
+		"Expected explicit prototype identity mode to move known icons onto the landmark signage slot instead of staying pinned to the clearing center."
 	)
 	assert(
 		landmark_icon_rect.size.x < default_icon_rect.size.x,
-		"Expected landmark signage icons to shrink below the default icon-disc size so the pocket remains primary."
+		"Expected prototype landmark signage icons to shrink below the default icon-disc size."
 	)
 	board_canvas.free()
 
 
-func test_map_board_canvas_subdues_icon_disc_support_when_landmark_footprints_exist() -> void:
+func test_map_board_canvas_keeps_landmark_underlays_and_procedural_identity_debug_only_by_default() -> void:
+	var board_canvas: Control = MapBoardCanvasScript.new()
+	assert(
+		not bool(board_canvas.call("_draws_landmark_pocket_underlays_by_default")),
+		"Expected large landmark footprint pocket underlays to stay hidden from the normal board render."
+	)
+	assert(
+		not bool(board_canvas.call("_draws_procedural_landmark_identity_overlays_by_default")),
+		"Expected procedural landmark anchor silhouettes to stay hidden from the normal board render until explicitly enabled for prototype review."
+	)
 	assert(
 		MapBoardStyleScript.KNOWN_ICON_OPEN_ALPHA_CAP <= 0.56
 			and MapBoardStyleScript.landmark_icon_alpha_scale("open", false) <= 0.64,
-		"Expected open-node icons to stay below the older icon-disc dominance cap once pocket-first read is live."
+		"Expected open-node icons to stay below the older icon-disc dominance cap when prototype landmark identity mode is enabled."
 	)
 	assert(
-		MapBoardStyleScript.landmark_pocket_fill_color("reward", "open", false).a >= 0.36
-			and MapBoardStyleScript.landmark_anchor_color("reward", "open", false).a >= 0.80,
-		"Expected pocket and landmark-anchor layers to carry materially more of the node read than the older generic plate-only shell."
+		MapBoardStyleScript.landmark_anchor_color("reward", "open", false).a >= 0.80,
+		"Expected the prototype landmark-anchor style to remain available for explicit debug/prototype review."
 	)
+	board_canvas.free()
 
 
 func test_map_board_canvas_builds_key_diamond_pocket_polygon() -> void:
