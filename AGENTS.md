@@ -177,7 +177,6 @@ For content additions, reason using:
 - For new scene/UI/test work, prefer the real runtime owner or narrow application surface over adding new `RunState` compatibility-facade usage.
 - Prefer the smallest safe patch.
 - Validate the changed area.
-- Keep development local-first: do not push every local iteration; push only when the user asks, a checkpoint/closeout needs remote CI, or cross-agent handoff needs `origin` updated.
 - Report what changed, what did not, and what still needs checking.
 
 ## Maintainability Guardrails
