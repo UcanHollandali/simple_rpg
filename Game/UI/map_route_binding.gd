@@ -43,14 +43,7 @@ const ROUTE_HITBOX_SIZE := Vector2(160, 160)
 const CURRENT_MARKER_SIZE := Vector2(36, 36)
 const BOARD_FOCUS_ANCHOR_FACTOR := Vector2(0.5, 0.68)
 const BOARD_MAX_OFFSET_FACTOR := Vector2(0.05, 0.16)
-const BOARD_FOCUS_DEADZONE_FACTOR := Vector2(0.18, 0.18)
-const BOARD_FOCUS_DAMPING := 0.42
-const BOARD_FOCUS_CONTEXT_BLEND_MIN := 0.08
-const BOARD_FOCUS_CONTEXT_BLEND_MAX := 0.20
 const BOARD_VISIBLE_CONTENT_PADDING := Vector2(72.0, 96.0)
-const BOARD_FOCUS_CLAMP_EXTRA_PADDING := Vector2(56.0, 36.0)
-const BOARD_FOCUS_CLAMP_PADDING := BOARD_VISIBLE_CONTENT_PADDING + BOARD_FOCUS_CLAMP_EXTRA_PADDING
-const BOARD_LOWER_FILL_TARGET_FACTOR := 0.68
 const WALKER_ROOT_SIZE := Vector2(122, 150)
 const WALKER_SHADOW_SIZE := Vector2(40, 10)
 const WALKER_SPRITE_SIZE := Vector2(100, 120)
@@ -70,8 +63,8 @@ const WALKER_STRIDE_PIXELS_PER_CYCLE := 118.0
 const WALKER_STRIDE_BOB_MAX := 6.0
 const WALKER_ARRIVAL_PAUSE := 0.08
 const ROADSIDE_INTERRUPTION_PROGRESS := 0.58
-const NODE_PLATE_SIZE := Vector2(116, 116)
-const NODE_ICON_SIZE := Vector2(92, 92)
+const NODE_PLATE_SIZE := Vector2(88, 88)
+const NODE_ICON_SIZE := Vector2(56, 56)
 const KEY_MARKER_SIZE := Vector2(30, 30)
 const KEY_ICON_SIZE := Vector2(14, 14)
 const STATE_PIP_SIZE := Vector2(14, 14)
@@ -105,8 +98,6 @@ var _walker_facing_right: bool = true
 var _active_route_index: int = -1
 var _hovered_route_index: int = -1
 var _route_layout_offset: Vector2 = Vector2.ZERO
-var _route_move_start_offset: Vector2 = Vector2.ZERO
-var _route_move_target_offset: Vector2 = Vector2.ZERO
 var _route_move_world_path: PackedVector2Array = PackedVector2Array()
 var _route_move_path_length: float = 0.0
 var _route_move_stride_cycles: float = 0.0
@@ -852,8 +843,6 @@ func _animate_route_move_camera_follow(
 		WALKER_FRAME_INTERVAL_MIN,
 		WALKER_FRAME_INTERVAL_MAX
 	)
-	_route_move_start_offset = _fixed_board_layout_offset()
-	_route_move_target_offset = _fixed_board_layout_offset()
 	_route_move_sample_start_progress = segment_start
 	_route_move_sample_end_progress = segment_end
 	if _walker_root != null:

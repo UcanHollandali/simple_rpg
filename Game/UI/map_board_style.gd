@@ -18,30 +18,30 @@ const ROAD_BASE_WIDTH_HISTORY := 8.4
 const ROAD_BASE_WIDTH_CURRENT := 13.5
 const ROAD_BASE_WIDTH_TARGET := 16.0
 const ROAD_SHADOW_ALPHA_DEFAULT := 0.22
-const ROAD_SHADOW_ALPHA_HISTORY := 0.12
+const ROAD_SHADOW_ALPHA_HISTORY := 0.10
 
-const CLEARING_SHADOW_Y_OFFSET_MULTIPLIER := 0.09
-const CLEARING_SHADOW_RADIUS_MULTIPLIER := 0.92
-const CLEARING_SHADOW_ALPHA := 0.18
+const CLEARING_SHADOW_Y_OFFSET_MULTIPLIER := 0.07
+const CLEARING_SHADOW_RADIUS_MULTIPLIER := 0.82
+const CLEARING_SHADOW_ALPHA := 0.11
 const CLEARING_RIM_RADIUS_MULTIPLIER := 1.02
 const CLEARING_FILL_RADIUS_MULTIPLIER := 0.90
 const CLEARING_CURRENT_FILL_LIGHTEN := 0.12
 const CLEARING_RESOLVED_FILL_MIX := 0.48
-const CLEARING_RESOLVED_FILL_ALPHA := 0.60
-const CLEARING_LOCKED_FILL_COLOR := Color(0.28, 0.18, 0.12, 0.74)
+const CLEARING_RESOLVED_FILL_ALPHA := 0.42
+const CLEARING_LOCKED_FILL_COLOR := Color(0.22, 0.15, 0.11, 0.50)
 const CLEARING_RIM_LIGHTEN := 0.18
 const CLEARING_RESOLVED_RIM_MIX := 0.40
-const CLEARING_RESOLVED_RIM_ALPHA := 0.20
-const CLEARING_LOCKED_RIM_COLOR := Color(0.78, 0.52, 0.30, 0.30)
-const CLEARING_CURRENT_RIM_COLOR := Color(0.94, 0.84, 0.58, 0.28)
-const CLEARING_DEFAULT_RIM_ALPHA := 0.24
-const KNOWN_ICON_OPEN_ALPHA_CAP := 0.54
-const KNOWN_ICON_SIZE_MULTIPLIER_DEFAULT := 0.80
-const KNOWN_ICON_SIZE_MULTIPLIER_CURRENT := 0.64
-const KNOWN_ICON_MIN_SIZE_DEFAULT := 22.0
-const KNOWN_ICON_MIN_SIZE_CURRENT := 20.0
-const KNOWN_ICON_MAX_SIZE_DEFAULT := 34.0
-const KNOWN_ICON_MAX_SIZE_CURRENT := 30.0
+const CLEARING_RESOLVED_RIM_ALPHA := 0.15
+const CLEARING_LOCKED_RIM_COLOR := Color(0.78, 0.52, 0.30, 0.24)
+const CLEARING_CURRENT_RIM_COLOR := Color(0.94, 0.84, 0.58, 0.23)
+const CLEARING_DEFAULT_RIM_ALPHA := 0.18
+const KNOWN_ICON_OPEN_ALPHA_CAP := 0.46
+const KNOWN_ICON_SIZE_MULTIPLIER_DEFAULT := 0.62
+const KNOWN_ICON_SIZE_MULTIPLIER_CURRENT := 0.52
+const KNOWN_ICON_MIN_SIZE_DEFAULT := 18.0
+const KNOWN_ICON_MIN_SIZE_CURRENT := 18.0
+const KNOWN_ICON_MAX_SIZE_DEFAULT := 28.0
+const KNOWN_ICON_MAX_SIZE_CURRENT := 24.0
 const KNOWN_ICON_CURRENT_Y_OFFSET_MULTIPLIER := 0.20
 const LANDMARK_POCKET_FILL_ALPHA := 0.38
 const LANDMARK_POCKET_RIM_ALPHA := 0.44
@@ -119,30 +119,32 @@ static func apply_node_plate_style(node_plate: PanelContainer, node_family: Stri
 	if node_plate == null:
 		return
 
-	var fill_color := _family_plate_fill_color(node_family)
+	var fill_color := _family_plate_fill_color(node_family).lerp(Color(0.10, 0.13, 0.10, 1.0), 0.58)
+	fill_color.a = 0.24
 	var border_color := _family_border_color(node_family)
-	var border_width := 2
+	border_color.a = 0.26
+	var border_width := 1
 	match state_semantic:
 		"resolved":
-			fill_color = Color(0.06, 0.08, 0.06, 0.48)
-			border_color = Color(0.48, 0.48, 0.42, 0.26)
+			fill_color = Color(0.06, 0.08, 0.06, 0.16)
+			border_color = Color(0.48, 0.48, 0.42, 0.14)
 			border_width = 1
 		"locked":
-			fill_color = Color(0.20, 0.12, 0.10, 0.94)
-			border_color = Color(0.88, 0.56, 0.34, 0.92)
+			fill_color = Color(0.20, 0.12, 0.10, 0.40)
+			border_color = Color(0.88, 0.56, 0.34, 0.46)
 		"current":
-			fill_color = Color(0.67, 0.56, 0.30, 0.92)
+			fill_color = Color(0.67, 0.56, 0.30, 0.42)
 			border_color = Color(1, 0.94, 0.72, 0.0)
 			border_width = 0
 	if is_preview_node:
-		fill_color = Color(0.08, 0.12, 0.09, 0.70)
-		border_color = Color(0.40, 0.48, 0.40, 0.32)
+		fill_color = Color(0.08, 0.12, 0.09, 0.18)
+		border_color = Color(0.40, 0.48, 0.40, 0.18)
 		border_width = 1
 	if is_disabled:
-		fill_color.a *= 0.88
+		fill_color.a *= 0.74
 	elif state_semantic == "open":
 		fill_color = fill_color.lightened(0.05)
-		fill_color.a = 0.96
+		fill_color.a = 0.26
 
 	var style := StyleBoxFlat.new()
 	style.bg_color = fill_color
@@ -155,8 +157,8 @@ static func apply_node_plate_style(node_plate: PanelContainer, node_family: Stri
 	style.corner_radius_top_right = 999
 	style.corner_radius_bottom_right = 999
 	style.corner_radius_bottom_left = 999
-	style.shadow_color = Color(0, 0, 0, 0.26)
-	style.shadow_size = 10 if state_semantic == "open" else 4
+	style.shadow_color = Color(0, 0, 0, 0.10)
+	style.shadow_size = 3 if state_semantic == "open" else 1
 	node_plate.add_theme_stylebox_override("panel", style)
 
 
@@ -193,11 +195,11 @@ static func road_base_color(state_semantic: String, emphasis_level: int = 0) -> 
 	var base_color: Color
 	match state_semantic:
 		"resolved":
-			base_color = Color(0.30, 0.30, 0.28, 0.56)
+			base_color = Color(0.42, 0.38, 0.25, 0.46)
 		"locked":
 			base_color = Color(0.50, 0.28, 0.18, 0.76)
 		_:
-			base_color = Color(0.60, 0.52, 0.30, 0.82)
+			base_color = Color(0.58, 0.50, 0.31, 0.66)
 	if emphasis_level >= 2:
 		return _apply_color_emphasis(base_color, 0.08, 0.05)
 	if emphasis_level == 1:
@@ -209,11 +211,11 @@ static func road_highlight_color(state_semantic: String, emphasis_level: int = 0
 	var highlight_color: Color
 	match state_semantic:
 		"resolved":
-			highlight_color = Color(0.70, 0.69, 0.64, 0.38)
+			highlight_color = Color(0.62, 0.56, 0.38, 0.18)
 		"locked":
-			highlight_color = Color(0.90, 0.70, 0.46, 0.56)
+			highlight_color = Color(0.82, 0.62, 0.40, 0.42)
 		_:
-			highlight_color = Color(0.92, 0.88, 0.76, 0.60)
+			highlight_color = Color(0.84, 0.78, 0.58, 0.38)
 	if emphasis_level >= 2:
 		return _apply_color_emphasis(highlight_color, 0.05, 0.04)
 	if emphasis_level == 1:
@@ -254,8 +256,12 @@ static func clearing_fill_color(node_family: String, state_semantic: String, is_
 	if state_semantic == "locked":
 		return CLEARING_LOCKED_FILL_COLOR
 	if is_current:
-		return base_color.lightened(CLEARING_CURRENT_FILL_LIGHTEN)
-	return base_color
+		var current_fill: Color = base_color.lerp(Color(0.16, 0.20, 0.13, 1.0), 0.26).lightened(CLEARING_CURRENT_FILL_LIGHTEN)
+		current_fill.a = 0.58
+		return current_fill
+	var pocket_fill: Color = base_color.lerp(Color(0.13, 0.17, 0.12, 1.0), 0.42)
+	pocket_fill.a = 0.46
+	return pocket_fill
 
 
 static func clearing_rim_color(node_family: String, state_semantic: String, is_current: bool) -> Color:

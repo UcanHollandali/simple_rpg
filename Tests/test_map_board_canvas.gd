@@ -19,14 +19,14 @@ func _run() -> void:
 	test_map_board_canvas_demotes_history_reconnect_edges_below_actionable_roads()
 	test_map_board_canvas_uses_render_model_surface_lane_by_default()
 	test_map_board_canvas_derives_socket_art_from_render_model_slots()
-	test_map_board_canvas_splits_tight_surface_paths_into_safe_segment_polygons()
+	test_map_board_canvas_draws_only_endpoint_caps_for_surface_roads()
 	test_map_board_canvas_derives_road_pocket_throat_blends_from_render_model_links()
 	test_map_board_canvas_keeps_selected_route_lane_above_other_choices()
 	test_map_board_canvas_keeps_hover_preview_below_selected_route_lane()
 	test_map_board_canvas_uses_landmark_signage_slots_only_for_prototype_identity_mode()
 	test_map_board_canvas_keeps_landmark_underlays_and_procedural_identity_debug_only_by_default()
 	test_map_board_canvas_builds_key_diamond_pocket_polygon()
-	test_map_board_canvas_avoids_extra_curve_smoothing_on_history_reconnects()
+	test_map_board_canvas_decimates_sampled_path_surfaces_for_clean_default_roads()
 	print("test_map_board_canvas: all assertions passed")
 	await TestExitCleanupHelperScript.cleanup_and_quit(self)
 
@@ -105,7 +105,9 @@ func test_map_board_canvas_demotes_history_reconnect_edges_below_actionable_road
 			and float(branch_history_profile.get("base_alpha_scale", 0.0)) > float(reconnect_profile.get("base_alpha_scale", 1.0)),
 		"Expected the owner-level corridor hierarchy to keep primary corridors above branch corridors, branch history above generic reconnect detours."
 	)
-	assert(float(reconnect_profile.get("base_alpha_scale", 1.0)) < 0.30, "Expected reconnect history roads to stay below actionable roads in the render-model surface lane.")
+	assert(float(branch_history_profile.get("base_width_scale", 0.0)) >= 0.74, "Expected discovered history branches to keep the same filled path-surface grammar as active roads.")
+	assert(float(reconnect_profile.get("base_alpha_scale", 1.0)) < 0.34, "Expected reconnect history roads to stay below actionable roads in the render-model surface lane.")
+	assert(float(reconnect_profile.get("base_width_scale", 0.0)) >= 0.62, "Expected reconnect history roads to remain surface-like rather than collapsing into thin strokes.")
 	board_canvas.free()
 
 
@@ -168,8 +170,8 @@ func test_map_board_canvas_uses_render_model_surface_lane_by_default() -> void:
 		PackedVector2Array(first_surface.get("centerline_points", PackedVector2Array()))[0] == Vector2(18.0, 22.0),
 		"Expected render_model centerline geometry to win over mismatched legacy visible_edges geometry."
 	)
-	var strip_polygon: PackedVector2Array = board_canvas.call("_polyline_strip_polygon", PackedVector2Array(render_surface.get("centerline_points", PackedVector2Array())), 17.0)
-	assert(strip_polygon.size() >= 4, "Expected render-model roads to expand into terrain surface polygons, not remain line-only strokes.")
+	var cap_points: PackedVector2Array = board_canvas.call("_surface_cap_points_for_path", PackedVector2Array(render_surface.get("centerline_points", PackedVector2Array())))
+	assert(cap_points.size() == 2, "Expected render-model roads to keep endpoint caps without adding bead-like sampled-point markers.")
 	board_canvas.free()
 
 
@@ -302,31 +304,26 @@ func test_map_board_canvas_derives_socket_art_from_render_model_slots() -> void:
 	board_canvas.free()
 
 
-func test_map_board_canvas_splits_tight_surface_paths_into_safe_segment_polygons() -> void:
+func test_map_board_canvas_draws_only_endpoint_caps_for_surface_roads() -> void:
 	var board_canvas: Control = MapBoardCanvasScript.new()
-	var tight_backtrack_points := PackedVector2Array([
-		Vector2(40.0, 40.0),
-		Vector2(160.0, 42.0),
-		Vector2(72.0, 50.0),
-		Vector2(170.0, 58.0),
+	var smooth_curve_points := PackedVector2Array([
+		Vector2(12.0, 12.0),
+		Vector2(28.0, 20.0),
+		Vector2(44.0, 34.0),
+		Vector2(62.0, 54.0),
+		Vector2(84.0, 72.0),
+		Vector2(108.0, 84.0),
 	])
-	var segment_polygons: Array = board_canvas.call("_polyline_surface_segment_polygons", tight_backtrack_points, 18.0)
-	assert(
-		segment_polygons.size() == tight_backtrack_points.size() - 1,
-		"Expected tight render-model paths to draw as independent filled segment polygons instead of one self-intersecting strip."
-	)
-	for polygon_variant in segment_polygons:
-		var polygon: PackedVector2Array = polygon_variant
-		assert(polygon.size() == 4, "Expected each path-surface segment polygon to stay a simple quad.")
-		var signed_area: float = 0.0
-		for point_index in range(polygon.size()):
-			var current_point: Vector2 = polygon[point_index]
-			var next_point: Vector2 = polygon[(point_index + 1) % polygon.size()]
-			signed_area += current_point.x * next_point.y - next_point.x * current_point.y
-		assert(
-			absf(signed_area * 0.5) > 1.0,
-			"Expected every path-surface segment polygon to keep non-zero drawable area."
-		)
+	var backtrack_points := PackedVector2Array([
+		Vector2(12.0, 12.0),
+		Vector2(96.0, 12.0),
+		Vector2(28.0, 18.0),
+		Vector2(108.0, 28.0),
+	])
+	var smooth_caps: PackedVector2Array = board_canvas.call("_surface_cap_points_for_path", smooth_curve_points)
+	var backtrack_caps: PackedVector2Array = board_canvas.call("_surface_cap_points_for_path", backtrack_points)
+	assert(smooth_caps.size() == 2, "Expected normal surface roads to avoid bead-like caps along sampled curve interiors.")
+	assert(backtrack_caps.size() == 2, "Expected segmented fallback roads to avoid bead-like caps along sampled interiors.")
 	board_canvas.free()
 
 
@@ -370,7 +367,7 @@ func test_map_board_canvas_derives_road_pocket_throat_blends_from_render_model_l
 	)
 	assert(
 		float(blend_entry.get("base_radius", 0.0)) > 7.0 and float(blend_entry.get("base_radius", 0.0)) < 16.0,
-		"Expected throat blends to stay small enough to soften the road/pocket seam without masking pocket shape."
+		"Expected throat blend entries to stay compact and render-model-derived while the canvas draws them over the pocket edge."
 	)
 	board_canvas.call("set_composition", {
 		"render_model": {
@@ -526,9 +523,13 @@ func test_map_board_canvas_keeps_landmark_underlays_and_procedural_identity_debu
 		"Expected procedural landmark anchor silhouettes to stay hidden from the normal board render until explicitly enabled for prototype review."
 	)
 	assert(
-		MapBoardStyleScript.KNOWN_ICON_OPEN_ALPHA_CAP <= 0.56
+		MapBoardStyleScript.KNOWN_ICON_OPEN_ALPHA_CAP <= 0.48
 			and MapBoardStyleScript.landmark_icon_alpha_scale("open", false) <= 0.64,
 		"Expected open-node icons to stay below the older icon-disc dominance cap when prototype landmark identity mode is enabled."
+	)
+	assert(
+		MapBoardStyleScript.known_icon_size(48.0, false) <= 28.0,
+		"Expected normal known-node icons to stay subordinate to the place/pocket read."
 	)
 	assert(
 		MapBoardStyleScript.landmark_anchor_color("reward", "open", false).a >= 0.80,
@@ -557,7 +558,7 @@ func test_map_board_canvas_builds_key_diamond_pocket_polygon() -> void:
 	board_canvas.free()
 
 
-func test_map_board_canvas_avoids_extra_curve_smoothing_on_history_reconnects() -> void:
+func test_map_board_canvas_decimates_sampled_path_surfaces_for_clean_default_roads() -> void:
 	var board_canvas: Control = MapBoardCanvasScript.new()
 	var reconnect_edge := {
 		"from_node_id": 4,
@@ -565,7 +566,7 @@ func test_map_board_canvas_avoids_extra_curve_smoothing_on_history_reconnects() 
 		"is_history": true,
 		"is_reconnect_edge": true,
 		"route_surface_semantic": "reconnect_corridor",
-		"centerline_points": PackedVector2Array([Vector2(24.0, 24.0), Vector2(72.0, 84.0), Vector2(128.0, 36.0)]),
+		"centerline_points": _sampled_curve_points(),
 	}
 	var actionable_edge := {
 		"from_node_id": 0,
@@ -573,16 +574,26 @@ func test_map_board_canvas_avoids_extra_curve_smoothing_on_history_reconnects() 
 		"is_history": false,
 		"is_reconnect_edge": false,
 		"route_surface_semantic": "primary_actionable_corridor",
-		"centerline_points": PackedVector2Array([Vector2(24.0, 24.0), Vector2(72.0, 84.0), Vector2(128.0, 36.0)]),
+		"centerline_points": _sampled_curve_points(),
 	}
 	var reconnect_display: PackedVector2Array = board_canvas.call("_display_path_surface_points", reconnect_edge)
 	var actionable_display: PackedVector2Array = board_canvas.call("_display_path_surface_points", actionable_edge)
 	assert(
-		reconnect_display.size() == PackedVector2Array(reconnect_edge.get("centerline_points", PackedVector2Array())).size(),
-		"Expected reconnect history surfaces to keep their raw routed polyline instead of adding extra decorative smoothing."
+		reconnect_display.size() < PackedVector2Array(reconnect_edge.get("centerline_points", PackedVector2Array())).size(),
+		"Expected sampled render-model paths to decimate draw points so wide roads do not show per-sample triangle seams."
 	)
 	assert(
-		actionable_display.size() > reconnect_display.size(),
-		"Expected actionable render-model roads to keep the softer display smoothing that helps the chosen lane read as one continuous trail."
+		actionable_display.size() == reconnect_display.size(),
+		"Expected active and history roads to share the same clean path-surface draw geometry while differing only in visual emphasis."
 	)
 	board_canvas.free()
+
+
+func _sampled_curve_points() -> PackedVector2Array:
+	var points := PackedVector2Array()
+	for index in range(17):
+		var t: float = float(index) / 16.0
+		var x: float = lerpf(24.0, 180.0, t)
+		var y: float = 48.0 + sin(t * PI) * 76.0
+		points.append(Vector2(x, y))
+	return points

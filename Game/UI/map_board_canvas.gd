@@ -74,12 +74,12 @@ func _draw() -> void:
 		if _draw_landmark_pocket_underlays:
 			_draw_render_landmark_pocket_underlays()
 		_draw_path_surfaces(false)
-		_draw_road_pocket_throat_blends()
 		if _draw_prototype_socket_dressing:
 			_draw_path_surface_socket_smoke_dressing()
 		_draw_render_junctions()
 		_draw_path_surfaces(true)
 		_draw_render_clearing_surfaces()
+		_draw_road_pocket_throat_blends()
 		_draw_render_identity_overlays()
 		if _draw_prototype_socket_dressing:
 			_draw_landmark_socket_smoke_dressing()
@@ -173,14 +173,18 @@ func _draw_road_pocket_throat_blends() -> void:
 		var inner_radius: float = float(blend.get("inner_radius", 0.0))
 		if outer_radius <= 0.0 or base_radius <= 0.0:
 			continue
+		var road_color: Color = blend.get("road_color", Color(0.60, 0.52, 0.30, 0.24))
+		road_color.a = minf(road_color.a * 0.72, 0.24)
+		var clearing_color: Color = blend.get("clearing_color", Color(0.28, 0.34, 0.18, 0.18))
+		clearing_color.a = minf(clearing_color.a * 0.82, 0.18)
 		draw_circle(
-			center + Vector2(0.0, outer_radius * 0.08),
-			outer_radius,
-			Color(0.01, 0.02, 0.02, 0.10)
+			center + Vector2(0.0, outer_radius * 0.05),
+			outer_radius * 0.72,
+			Color(0.01, 0.02, 0.02, 0.045)
 		)
-		draw_circle(center, base_radius, blend.get("road_color", Color(0.60, 0.52, 0.30, 0.24)))
+		draw_circle(center, base_radius * 0.82, road_color)
 		if inner_radius > 0.0:
-			draw_circle(inner_center, inner_radius, blend.get("clearing_color", Color(0.28, 0.34, 0.18, 0.18)))
+			draw_circle(inner_center, inner_radius * 0.72, clearing_color)
 
 
 func _draw_render_junctions() -> void:
@@ -193,9 +197,11 @@ func _draw_render_junctions() -> void:
 		if radius <= 0.0:
 			continue
 		var junction_role: String = String(junction.get("junction_role", ""))
-		var alpha_scale: float = 0.40 if junction_role == "local_choice_blend" else 0.26
-		draw_circle(center + Vector2(0.0, radius * 0.10), radius * 1.18, Color(0.01, 0.02, 0.02, 0.18))
-		draw_circle(center, radius, Color(0.56, 0.47, 0.26, alpha_scale))
+		var junction_radius_scale: float = 0.64 if junction_role == "local_choice_blend" else 0.44
+		var alpha_scale: float = 0.18 if junction_role == "local_choice_blend" else 0.09
+		var draw_radius: float = radius * junction_radius_scale
+		draw_circle(center + Vector2(0.0, draw_radius * 0.10), draw_radius * 1.16, Color(0.01, 0.02, 0.02, 0.055))
+		draw_circle(center, draw_radius, Color(0.56, 0.47, 0.26, alpha_scale))
 
 
 func _draw_render_landmark_pocket_underlays() -> void:
@@ -228,27 +234,36 @@ func _draw_render_clearing_surfaces() -> void:
 		var node_family: String = String(clearing.get("node_family", ""))
 		var is_current: bool = bool(clearing.get("is_current", false))
 		var node_id: int = int(clearing.get("node_id", -1))
-		draw_circle(
+		var shadow_polygon: PackedVector2Array = _clearing_pocket_polygon(
 			center + Vector2(0.0, radius * MapBoardStyleScript.CLEARING_SHADOW_Y_OFFSET_MULTIPLIER),
 			radius * MapBoardStyleScript.CLEARING_SHADOW_RADIUS_MULTIPLIER,
-			Color(0.01, 0.02, 0.02, MapBoardStyleScript.CLEARING_SHADOW_ALPHA)
+			node_id,
+			node_family
 		)
-		draw_circle(
+		var rim_polygon: PackedVector2Array = _clearing_pocket_polygon(
 			center,
 			radius * MapBoardStyleScript.CLEARING_RIM_RADIUS_MULTIPLIER,
-			MapBoardStyleScript.clearing_rim_color(node_family, state_semantic, is_current)
+			node_id,
+			node_family
 		)
-		draw_circle(
+		var fill_polygon: PackedVector2Array = _clearing_pocket_polygon(
 			center,
 			radius * MapBoardStyleScript.CLEARING_FILL_RADIUS_MULTIPLIER,
-			MapBoardStyleScript.clearing_fill_color(node_family, state_semantic, is_current)
+			node_id,
+			node_family
 		)
+		if not shadow_polygon.is_empty():
+			draw_colored_polygon(shadow_polygon, Color(0.01, 0.02, 0.02, MapBoardStyleScript.CLEARING_SHADOW_ALPHA))
+		if not rim_polygon.is_empty():
+			draw_colored_polygon(rim_polygon, MapBoardStyleScript.clearing_rim_color(node_family, state_semantic, is_current))
+		if not fill_polygon.is_empty():
+			draw_colored_polygon(fill_polygon, MapBoardStyleScript.clearing_fill_color(node_family, state_semantic, is_current))
 		match node_family:
 			"key":
-				draw_arc(center, radius * 1.10, -0.70, 4.90, 30, Color(1.0, 0.92, 0.56, 0.46), 3.2, true)
+				draw_arc(center, radius * 1.06, -0.70, 4.90, 30, Color(1.0, 0.92, 0.56, 0.28), 2.4, true)
 			"boss":
-				draw_arc(center, radius * 1.12, -0.18, TAU - 0.18, 36, Color(1.0, 0.58, 0.54, 0.52), 3.8, true)
-				draw_arc(center, radius * 0.72, 0.44, 2.70, 16, Color(0.94, 0.78, 0.72, 0.28), 2.2, true)
+				draw_arc(center, radius * 1.08, -0.18, TAU - 0.18, 36, Color(1.0, 0.58, 0.54, 0.34), 2.8, true)
+				draw_arc(center, radius * 0.70, 0.44, 2.70, 16, Color(0.94, 0.78, 0.72, 0.18), 1.8, true)
 		if node_id == highlight_node_id and not highlight_state.is_empty():
 			var highlight_color: Color = MapBoardStyleScript.side_quest_highlight_color(highlight_state)
 			draw_circle(center, radius * 1.22, Color(highlight_color.r, highlight_color.g, highlight_color.b, 0.06))
@@ -341,108 +356,76 @@ func _edge_visual_profile(edge: Dictionary, emphasis_level: int = -1) -> Diction
 				"shadow_width_scale": 1.04,
 				"highlight_alpha_scale": 1.0,
 				"highlight_width_scale": 1.08,
-				"trim_scale": 1.0,
-				"smoothing_strength": 1.0,
-				"corner_radius_min": 18.0,
-				"corner_radius_max": 52.0,
 			}
 		"preview":
 			return {
 				"draw_highlight": true,
-				"base_alpha_scale": 0.88,
-				"base_width_scale": 0.94,
+				"base_alpha_scale": 0.78,
+				"base_width_scale": 0.88,
 				"shadow_alpha_scale": 0.84,
 				"shadow_width_scale": 0.94,
-				"highlight_alpha_scale": 0.54,
-				"highlight_width_scale": 0.94,
-				"trim_scale": 0.96,
-				"smoothing_strength": 0.92,
-				"corner_radius_min": 16.0,
-				"corner_radius_max": 46.0,
+				"highlight_alpha_scale": 0.42,
+				"highlight_width_scale": 0.84,
 			}
 		"primary_actionable_corridor":
 			return {
-				"draw_highlight": emphasis_level > 0,
-				"base_alpha_scale": 1.0,
-				"base_width_scale": 1.0,
-				"shadow_alpha_scale": 1.0,
-				"shadow_width_scale": 1.0,
-				"highlight_alpha_scale": 1.0,
-				"highlight_width_scale": 1.0,
-				"trim_scale": 1.0,
-				"smoothing_strength": 1.0,
-				"corner_radius_min": 18.0,
-				"corner_radius_max": 52.0,
+				"draw_highlight": emphasis_level >= 2,
+				"base_alpha_scale": 0.82,
+				"base_width_scale": 0.84,
+				"shadow_alpha_scale": 0.76,
+				"shadow_width_scale": 0.88,
+				"highlight_alpha_scale": 0.62,
+				"highlight_width_scale": 0.72,
 			}
 		"branch_actionable_corridor", "actionable_secondary":
 			return {
 				"draw_highlight": false,
-				"base_alpha_scale": 0.74,
-				"base_width_scale": 0.88,
-				"shadow_alpha_scale": 0.68,
-				"shadow_width_scale": 0.90,
+				"base_alpha_scale": 0.68,
+				"base_width_scale": 0.80,
+				"shadow_alpha_scale": 0.58,
+				"shadow_width_scale": 0.82,
 				"highlight_alpha_scale": 0.0,
 				"highlight_width_scale": 0.84,
-				"trim_scale": 0.92,
-				"smoothing_strength": 0.78,
-				"corner_radius_min": 14.0,
-				"corner_radius_max": 40.0,
 			}
 		"branch_history_corridor":
 			return {
 				"draw_highlight": false,
-				"base_alpha_scale": 0.58,
-				"base_width_scale": 0.82,
-				"shadow_alpha_scale": 0.52,
-				"shadow_width_scale": 0.82,
+				"base_alpha_scale": 0.50,
+				"base_width_scale": 0.76,
+				"shadow_alpha_scale": 0.36,
+				"shadow_width_scale": 0.76,
 				"highlight_alpha_scale": 0.0,
 				"highlight_width_scale": 0.78,
-				"trim_scale": 0.86,
-				"smoothing_strength": 0.38,
-				"corner_radius_min": 12.0,
-				"corner_radius_max": 30.0,
 			}
 		"history_corridor":
 			return {
 				"draw_highlight": false,
 				"base_alpha_scale": 0.42,
-				"base_width_scale": 0.72,
-				"shadow_alpha_scale": 0.40,
-				"shadow_width_scale": 0.76,
+				"base_width_scale": 0.70,
+				"shadow_alpha_scale": 0.32,
+				"shadow_width_scale": 0.70,
 				"highlight_alpha_scale": 0.0,
 				"highlight_width_scale": 0.76,
-				"trim_scale": 0.84,
-				"smoothing_strength": 0.34,
-				"corner_radius_min": 10.0,
-				"corner_radius_max": 24.0,
 			}
 		"reconnect_corridor", "history_reconnect":
 			return {
 				"draw_highlight": false,
-				"base_alpha_scale": 0.22,
-				"base_width_scale": 0.68,
-				"shadow_alpha_scale": 0.28,
-				"shadow_width_scale": 0.72,
+				"base_alpha_scale": 0.32,
+				"base_width_scale": 0.64,
+				"shadow_alpha_scale": 0.26,
+				"shadow_width_scale": 0.64,
 				"highlight_alpha_scale": 0.0,
 				"highlight_width_scale": 0.72,
-				"trim_scale": 0.82,
-				"smoothing_strength": 0.0,
-				"corner_radius_min": 0.0,
-				"corner_radius_max": 0.0,
 			}
 		_:
 			return {
 				"draw_highlight": false,
-				"base_alpha_scale": 0.22,
-				"base_width_scale": 0.68,
-				"shadow_alpha_scale": 0.28,
-				"shadow_width_scale": 0.72,
+				"base_alpha_scale": 0.32,
+				"base_width_scale": 0.64,
+				"shadow_alpha_scale": 0.26,
+				"shadow_width_scale": 0.64,
 				"highlight_alpha_scale": 0.0,
 				"highlight_width_scale": 0.72,
-				"trim_scale": 0.82,
-				"smoothing_strength": 0.0,
-				"corner_radius_min": 0.0,
-				"corner_radius_max": 0.0,
 			}
 
 
@@ -652,31 +635,20 @@ func _edge_proxy_for_path_surface(surface: Dictionary) -> Dictionary:
 
 func _display_path_surface_points(surface: Dictionary) -> PackedVector2Array:
 	var points: PackedVector2Array = surface.get("centerline_points", PackedVector2Array())
-	var edge_proxy: Dictionary = _edge_proxy_for_path_surface(surface)
-	var visual_profile: Dictionary = _edge_visual_profile(edge_proxy)
-	var smoothing_strength: float = float(visual_profile.get("smoothing_strength", 1.0))
-	if points.size() < 3 or smoothing_strength <= 0.01:
-		return _translated_edge_points(points)
-	return _display_edge_points(
-		points,
-		smoothing_strength,
-		float(visual_profile.get("corner_radius_min", 18.0)),
-		float(visual_profile.get("corner_radius_max", 52.0))
-	)
+	return _decimated_surface_draw_points(_translated_edge_points(points))
 
 
 func _draw_polyline_surface(points: PackedVector2Array, width: float, color: Color) -> void:
 	if points.size() < 2 or width <= 0.0 or color.a <= 0.0:
 		return
 	var half_width: float = width * 0.5
-	var surface_polygons: Array[PackedVector2Array] = _polyline_surface_segment_polygons(points, half_width)
-	if surface_polygons.is_empty():
+	var surface_points: PackedVector2Array = _deduplicated_surface_points(points)
+	if surface_points.size() < 2:
 		return
-	for surface_polygon in surface_polygons:
-		draw_colored_polygon(surface_polygon, color)
-	var cap_points: PackedVector2Array = _deduplicated_surface_points(points)
+	draw_polyline(surface_points, color, width, false)
+	var cap_points: PackedVector2Array = _surface_cap_points_for_path(surface_points)
 	for cap_point in cap_points:
-		draw_circle(cap_point, half_width, color)
+		draw_circle(cap_point, half_width * 0.72, color)
 
 
 func _draw_known_node_icon(node_entry: Dictionary, center: Vector2, radius: float) -> void:
@@ -834,6 +806,22 @@ func _known_icon_rect_for_node(node_entry: Dictionary, center: Vector2, radius: 
 	return Rect2(icon_center - Vector2.ONE * (icon_size * 0.5), Vector2.ONE * icon_size)
 
 
+func _clearing_pocket_polygon(center: Vector2, radius: float, node_id: int, node_family: String) -> PackedVector2Array:
+	var pocket_points := PackedVector2Array()
+	if radius <= 0.0:
+		return pocket_points
+	var point_count: int = 18
+	var seed_angle: float = deg_to_rad(float((abs(node_id) * 37 + node_family.length() * 19) % 360))
+	var rotation_radians: float = deg_to_rad(float(((abs(node_id) * 23 + node_family.length() * 11) % 32) - 16))
+	var half_size := Vector2(radius * 1.08, radius * 0.84)
+	for index in range(point_count):
+		var angle: float = TAU * float(index) / float(point_count)
+		var wobble: float = 1.0 + sin(angle * 3.0 + seed_angle) * 0.045 + cos(angle * 5.0 + seed_angle * 0.7) * 0.025
+		var local_point := Vector2(cos(angle) * half_size.x * wobble, sin(angle) * half_size.y * wobble).rotated(rotation_radians)
+		pocket_points.append(center + local_point)
+	return pocket_points
+
+
 func _uses_landmark_signage_slots() -> bool:
 	return _draw_procedural_landmark_identity_overlays or _draw_prototype_socket_dressing
 
@@ -864,94 +852,6 @@ func _translated_edge_points(points: PackedVector2Array) -> PackedVector2Array:
 	return translated_points
 
 
-func _display_edge_points(
-	points: PackedVector2Array,
-	smoothing_strength: float = 1.0,
-	corner_radius_min: float = 18.0,
-	corner_radius_max: float = 52.0
-) -> PackedVector2Array:
-	var translated_points: PackedVector2Array = _translated_edge_points(points)
-	if translated_points.size() < 3:
-		return translated_points
-	var smoothed_points := PackedVector2Array()
-	_append_display_point(smoothed_points, translated_points[0])
-	for point_index in range(1, translated_points.size() - 1):
-		var previous_point: Vector2 = translated_points[point_index - 1]
-		var corner_point: Vector2 = translated_points[point_index]
-		var next_point: Vector2 = translated_points[point_index + 1]
-		var incoming: Vector2 = corner_point - previous_point
-		var outgoing: Vector2 = next_point - corner_point
-		var incoming_length: float = incoming.length()
-		var outgoing_length: float = outgoing.length()
-		if incoming_length <= 0.001 or outgoing_length <= 0.001:
-			_append_display_point(smoothed_points, corner_point)
-			continue
-		var incoming_direction: Vector2 = incoming / incoming_length
-		var outgoing_direction: Vector2 = outgoing / outgoing_length
-		if absf(incoming_direction.dot(outgoing_direction)) >= 0.999:
-			_append_display_point(smoothed_points, corner_point)
-			continue
-		var corner_radius: float = clampf(
-			minf(incoming_length, outgoing_length) * 0.26 * smoothing_strength,
-			corner_radius_min,
-			corner_radius_max
-		)
-		var entry_point: Vector2 = corner_point - incoming_direction * corner_radius
-		var exit_point: Vector2 = corner_point + outgoing_direction * corner_radius
-		_append_display_point(smoothed_points, entry_point)
-		var curved_points: PackedVector2Array = _sample_quadratic_display_curve(entry_point, corner_point, exit_point, 5)
-		for curved_point_index in range(1, curved_points.size()):
-			_append_display_point(smoothed_points, curved_points[curved_point_index])
-	_append_display_point(smoothed_points, translated_points[translated_points.size() - 1])
-	return smoothed_points
-
-
-func _polyline_strip_polygon(points: PackedVector2Array, half_width: float) -> PackedVector2Array:
-	var polygon := PackedVector2Array()
-	if points.size() < 2 or half_width <= 0.0:
-		return polygon
-	var left_points := PackedVector2Array()
-	var right_points := PackedVector2Array()
-	for point_index in range(points.size()):
-		var offset: Vector2 = _polyline_strip_offset_at(points, point_index, half_width)
-		left_points.append(points[point_index] + offset)
-		right_points.append(points[point_index] - offset)
-	for point in left_points:
-		polygon.append(point)
-	for reverse_index in range(right_points.size() - 1, -1, -1):
-		polygon.append(right_points[reverse_index])
-	return polygon
-
-
-func _polyline_surface_segment_polygons(points: PackedVector2Array, half_width: float) -> Array[PackedVector2Array]:
-	var surface_polygons: Array[PackedVector2Array] = []
-	var surface_points: PackedVector2Array = _deduplicated_surface_points(points)
-	if surface_points.size() < 2 or half_width <= 0.0:
-		return surface_polygons
-	for point_index in range(surface_points.size() - 1):
-		var segment_polygon: PackedVector2Array = _polyline_surface_segment_polygon(
-			surface_points[point_index],
-			surface_points[point_index + 1],
-			half_width
-		)
-		if segment_polygon.size() >= 3:
-			surface_polygons.append(segment_polygon)
-	return surface_polygons
-
-
-func _polyline_surface_segment_polygon(from_point: Vector2, to_point: Vector2, half_width: float) -> PackedVector2Array:
-	var polygon := PackedVector2Array()
-	var segment: Vector2 = to_point - from_point
-	if segment.length_squared() <= 0.001 or half_width <= 0.0:
-		return polygon
-	var normal: Vector2 = Vector2(-segment.y, segment.x).normalized() * half_width
-	polygon.append(from_point + normal)
-	polygon.append(to_point + normal)
-	polygon.append(to_point - normal)
-	polygon.append(from_point - normal)
-	return polygon
-
-
 func _deduplicated_surface_points(points: PackedVector2Array) -> PackedVector2Array:
 	var deduplicated_points := PackedVector2Array()
 	for point in points:
@@ -960,53 +860,29 @@ func _deduplicated_surface_points(points: PackedVector2Array) -> PackedVector2Ar
 	return deduplicated_points
 
 
-func _polyline_strip_offset_at(points: PackedVector2Array, point_index: int, half_width: float) -> Vector2:
-	var point_count: int = points.size()
-	var previous_point: Vector2 = points[max(point_index - 1, 0)]
-	var current_point: Vector2 = points[point_index]
-	var next_point: Vector2 = points[min(point_index + 1, point_count - 1)]
-	var tangent: Vector2 = next_point - previous_point
-	if tangent.length_squared() <= 0.001:
-		tangent = Vector2.RIGHT
-	var normal: Vector2 = Vector2(-tangent.y, tangent.x).normalized()
-	if point_index <= 0 or point_index >= point_count - 1:
-		return normal * half_width
-	var incoming: Vector2 = current_point - previous_point
-	var outgoing: Vector2 = next_point - current_point
-	if incoming.length_squared() <= 0.001 or outgoing.length_squared() <= 0.001:
-		return normal * half_width
-	var incoming_normal: Vector2 = Vector2(-incoming.y, incoming.x).normalized()
-	var outgoing_normal: Vector2 = Vector2(-outgoing.y, outgoing.x).normalized()
-	var miter: Vector2 = incoming_normal + outgoing_normal
-	if miter.length_squared() <= 0.001:
-		return outgoing_normal * half_width
-	miter = miter.normalized()
-	var denominator: float = maxf(0.45, absf(miter.dot(outgoing_normal)))
-	return miter * minf(half_width / denominator, half_width * 1.85)
+func _surface_cap_points_for_path(points: PackedVector2Array) -> PackedVector2Array:
+	var surface_points: PackedVector2Array = _deduplicated_surface_points(points)
+	var cap_points := PackedVector2Array()
+	if surface_points.size() <= 2:
+		return surface_points
+	cap_points.append(surface_points[0])
+	cap_points.append(surface_points[surface_points.size() - 1])
+	return cap_points
 
 
-func _sample_quadratic_display_curve(
-	p0: Vector2,
-	p1: Vector2,
-	p2: Vector2,
-	segment_count: int
-) -> PackedVector2Array:
-	var sampled_points := PackedVector2Array()
-	for index in range(segment_count + 1):
-		var t: float = float(index) / float(segment_count)
-		var one_minus_t: float = 1.0 - t
-		var point: Vector2 = (
-			p0 * one_minus_t * one_minus_t
-			+ p1 * 2.0 * one_minus_t * t
-			+ p2 * t * t
-		)
-		sampled_points.append(point)
-	return sampled_points
-
-
-func _append_display_point(points: PackedVector2Array, point: Vector2) -> void:
-	if points.is_empty() or points[points.size() - 1].distance_to(point) > 0.5:
-		points.append(point)
+func _decimated_surface_draw_points(points: PackedVector2Array) -> PackedVector2Array:
+	var surface_points: PackedVector2Array = _deduplicated_surface_points(points)
+	if surface_points.size() <= 6:
+		return surface_points
+	var draw_points := PackedVector2Array()
+	var stride: int = 4
+	draw_points.append(surface_points[0])
+	for point_index in range(stride, surface_points.size() - 1, stride):
+		draw_points.append(surface_points[point_index])
+	if draw_points.size() <= 1 and surface_points.size() > 2:
+		draw_points.append(surface_points[int(surface_points.size() / 2)])
+	draw_points.append(surface_points[surface_points.size() - 1])
+	return draw_points
 
 
 func _ellipse_polygon(center: Vector2, half_size: Vector2, rotation_radians: float, point_count: int) -> PackedVector2Array:

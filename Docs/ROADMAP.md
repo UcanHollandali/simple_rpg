@@ -1,6 +1,6 @@
 # SIMPLE RPG - Active Roadmap
 
-Last updated: 2026-04-24 (map visual cleanup hides prototype/candidate dressing by default; next lane is hunger/exploration UX pilot)
+Last updated: 2026-04-24 (retired map art references/source-only candidates cleaned; next lane is hunger/exploration UX pilot)
 
 This is the active short-horizon roadmap for the repo.
 It is a planning file, not an authority doc.
@@ -19,6 +19,8 @@ Authority still lives where `Docs/DOC_PRECEDENCE.md` says it lives.
   - They do not route future agents by default.
 - The stale map-runtime extraction planning snapshot is archived under `Docs/Archive/Plans/2026-04-24-stale-reference-plans/`.
   - Future extraction work should remeasure current code before planning.
+- Retired map art scope/requirements/brief/audit references are archived under `Docs/Archive/Plans/2026-04-24-retired-map-art-reference/`.
+  - They are historical reference only and do not route future agents by default.
 - The archived `43-62` wave remains superseded history under `Docs/Archive/Prompts/2026-04-23-superseded-map-wave-reset/`.
 - The current fixed-board map replacement is closed as prototype structural/presentation evidence, not final art or release-ready visual proof.
 - Exactly one default map presentation lane remains:
@@ -46,9 +48,8 @@ Authority still lives where `Docs/DOC_PRECEDENCE.md` says it lives.
   - decor/filler stamp: `ui_map_art_pilot_decor_stamp`
   - all remain manifest-tracked candidates with `replace_before_release=yes`
   - art-pilot candidates and socket-smoke placeholders remain manifest-tracked but are hidden from normal/default board render unless explicit prototype/debug canvas flags are enabled
-- A source-only candidate pack now exists under `SourceArt/Generated/Map/ProductionArtPilotCandidates/`.
-  - it is candidate source only
-  - it is not runtime proof and has no manifest rows until promoted
+- Source-only candidate SVGs and superseded v1 path/decor masters were removed after selected art-pilot candidates were promoted into manifest-backed source masters and runtime exports.
+- Retired `ui_map_v2_*` source-only map art under old ground/landmark/prop lanes was removed; active runtime map assets remain manifest-backed.
 - The map canvas now has a narrow road/pocket throat blend pass derived from `render_model` path/clearing links.
   - it is presentation-only and does not change runtime topology or ownership
 - Archived old prompt `14-20` remains historically closed as the older guarded fixed-board map-overhaul wave.
@@ -125,6 +126,7 @@ Add these when map presentation code, scenes, assets, or tests change:
 - old `Prompt 14-20`: historical fixed-board map-overhaul wave
 - old `Prompt 21-36`: historical combat/content reset wave
 - old `Prompt 06-36`: broader closed-green prompt history archived under `Docs/Archive/Prompts/2026-04-23-closed-green-prompt-packs/`
+- retired map art scope/requirements/brief/audit references: archived under `Docs/Archive/Plans/2026-04-24-retired-map-art-reference/`
 
 ## After Hunger / Exploration UX Pilot
 
