@@ -56,8 +56,12 @@ This file locks the technical baseline that should not stay ambiguous.
   - default action is linter-only with noisy existing style-debt rules disabled; pass `-DisabledRules @()` only for an explicit strict style audit
   - add `-FormatCheck` for non-mutating formatter checks
   - formatting writes require explicit `-Format` plus `-Files` or `-All`; do not auto-format broad gameplay work by default
+- Windows portrait image-diff regression: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_portrait_image_diff.ps1 -Capture`
+  - captures the standard portrait review set, compares stable images against `Tests/VisualBaselines/portrait_review/`, and writes report/diff artifacts under ignored `export/portrait_image_diff/`
+  - use `-UpdateBaselines` only after the visual change is intentional and reviewed
 - GitHub Actions validation: `.github/workflows/validate.yml`
-  - runs on Windows with Godot `4.6.2`, Python, and `Tools/run_ai_check.ps1`
+  - runs on Windows with Godot `4.6.2` and Python
+  - current CI gate runs environment diagnostics, content/assets/architecture validators, bounded Godot tests, portrait image diff, and `git diff --check`
   - this is the current PR/push safety lane; local targeted/full/map checks still apply when a task needs more evidence
 - Windows content validator: `py -3 Tools/validate_content.py`
 - macOS/Linux content validator: `python3 Tools/validate_content.py`

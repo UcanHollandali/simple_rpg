@@ -80,6 +80,10 @@ jobs:
             throw
           }
 
+      - name: Portrait image diff
+        shell: powershell
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_portrait_image_diff.ps1 -Capture -TimeoutSeconds 180
+
       - name: Diff whitespace check
         shell: powershell
         run: git diff --check

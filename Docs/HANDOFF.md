@@ -30,13 +30,17 @@ Use `Docs/ROADMAP.md` for canonical queue/open-state and `Docs/DOC_PRECEDENCE.md
   - corridor/road hierarchy attempts exist
   - terrain/filler masking exists
   - map-adjacent UI alignment exists
-- GitHub Actions `Validate` is active on `main` and last passed on commit `73945db`.
+- GitHub Actions `Validate` is active on `main` and last passed on commit `3b358a0`.
   - earlier tooling commit `79bb501` failed because `test_phase2_loop.gd` exposed missing map presentation helpers such as `build_forest_shapes`
   - the failure was addressed by `7e47fd7`, which keeps terrain/filler/forest masks derived from render-model path and clearing surfaces
   - later CI commits split validation steps and made environment diagnostics non-blocking so validator/Godot failures are easier to locate
 - Optional GDQuest `gdscript-formatter` `0.19.0` is installed outside the repo at `../Tools/gdscript-formatter/gdscript-formatter.exe`.
   - repo helper: `Tools/run_gdscript_static_check.ps1`
   - use it as an opt-in changed-file linter/format-check helper; broad formatting remains a separate explicit cleanup pass
+- Portrait image-diff regression harness is now available through `Tools/run_portrait_image_diff.ps1`.
+  - checked-in baselines live under `Tests/VisualBaselines/portrait_review/`
+  - current captures and diff artifacts stay under ignored `export/`
+  - unseeded map captures are still for human review; seeded map captures are pixel-gated
 - Current honesty watchpoints remain open until the new wave rechecks them:
   - baseline screenshot truth vs optimistic closeout wording
   - center-local start identity with varied north/south/east/west outward exploration feel
@@ -57,7 +61,8 @@ Use `Docs/ROADMAP.md` for canonical queue/open-state and `Docs/DOC_PRECEDENCE.md
 
 ## Last Verified Validation Checkpoint
 
-- Passed latest GitHub Actions `Validate` on `main`: `73945db`.
+- Passed latest GitHub Actions `Validate` on `main`: `3b358a0`.
+- Passed latest local portrait image diff: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_portrait_image_diff.ps1 -Capture -TimeoutSeconds 180`.
 - Passed latest local AI check: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_ai_check.ps1 -TimeoutSeconds 240`.
 - Passed latest local map review check: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_ai_check.ps1 -MapReview -TimeoutSeconds 240`.
 - Passed latest explicit full suite: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_full_suite.ps1`

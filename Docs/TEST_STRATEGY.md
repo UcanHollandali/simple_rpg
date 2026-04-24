@@ -32,7 +32,7 @@ Current validator commands:
   - use `-MapReview` for the current map-targeted test/isolation/portrait-capture floor
   - use `-FullSuite` only when an explicit full-suite checkpoint is needed
 - GitHub Actions validation: `.github/workflows/validate.yml`
-  - Windows PR/push lane installs Godot `4.6.2`, sets up Python, verifies the toolchain, and runs `Tools/run_ai_check.ps1`
+  - Windows PR/push lane installs Godot `4.6.2`, sets up Python, verifies the toolchain, then runs environment diagnostics, content/assets/architecture validators, bounded Godot tests, portrait image diff, and `git diff --check`
   - CI green is a baseline safety signal, not a substitute for prompt-specific targeted checks or manual screenshot review
 - Optional GDScript static check: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_gdscript_static_check.ps1`
   - default scope is changed `.gd` files only and default action is linter-only with noisy existing style-debt rules disabled
@@ -65,10 +65,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_scene_isolat
 ```
 
 Current limitation:
-- there is no dedicated image-diff regression harness in the repo yet
 - Windows portrait screenshot review can now be generated through `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_portrait_review_capture.ps1`
 - the default portrait review set covers the always-meaningful playtest scenes (`main_menu`, `map_explore`, `combat`, `run_end`) instead of state-empty overlays
-- visual screenshot confidence still depends on human review of those captures or live scene/editor/device checks layered on top of the automated suite
+- Windows portrait image-diff regression can be run through `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_portrait_image_diff.ps1 -Capture`
+  - checked-in baselines live under `Tests/VisualBaselines/portrait_review/`
+  - current captures and diff artifacts stay under ignored `export/`
+  - unseeded `map_explore` captures are not pixel-gated by default because they intentionally generate a different board; seeded map scenarios are pixel-gated instead
+  - use `-UpdateBaselines` only after an intentional visual change has been reviewed
+- visual screenshot confidence still depends on human review of captures or live scene/editor/device checks layered on top of the automated suite; image diff catches unexpected pixel drift, not design quality
 
 ## Pure Core Tests
 
