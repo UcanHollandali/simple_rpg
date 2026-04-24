@@ -30,7 +30,7 @@ Use `Docs/ROADMAP.md` for canonical queue/open-state and `Docs/DOC_PRECEDENCE.md
   - corridor/road hierarchy attempts exist
   - terrain/filler masking exists
   - map-adjacent UI alignment exists
-- GitHub Actions `Validate` is active on `main` and last passed on commit `3b358a0`.
+- GitHub Actions `Validate` is active on `main` and last passed on commit `d085ad4`.
   - earlier tooling commit `79bb501` failed because `test_phase2_loop.gd` exposed missing map presentation helpers such as `build_forest_shapes`
   - the failure was addressed by `7e47fd7`, which keeps terrain/filler/forest masks derived from render-model path and clearing surfaces
   - later CI commits split validation steps and made environment diagnostics non-blocking so validator/Godot failures are easier to locate
@@ -61,7 +61,7 @@ Use `Docs/ROADMAP.md` for canonical queue/open-state and `Docs/DOC_PRECEDENCE.md
 
 ## Last Verified Validation Checkpoint
 
-- Passed latest GitHub Actions `Validate` on `main`: `3b358a0`.
+- Passed latest GitHub Actions `Validate` on `main`: `d085ad4`.
 - Passed latest local portrait image diff: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_portrait_image_diff.ps1 -Capture -TimeoutSeconds 180`.
 - Passed latest local AI check: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_ai_check.ps1 -TimeoutSeconds 240`.
 - Passed latest local map review check: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_ai_check.ps1 -MapReview -TimeoutSeconds 240`.
