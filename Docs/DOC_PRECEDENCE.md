@@ -54,6 +54,8 @@ Do not infer ownership from convenience accessors exposed on `RunState` or `AppB
 - [CONTENT_BALANCE_TRACKER.md](CONTENT_BALANCE_TRACKER.md): reference-only current content inventory and balance-reading snapshot; subordinate to authority docs and live definitions
 - [ASSET_WAVE_SEMANTIC_SCOPE.md](ASSET_WAVE_SEMANTIC_SCOPE.md): reference-only semantic asset-wave scope; subordinate to `VISUAL_AUDIO_STYLE_GUIDE.md`, `ASSET_PIPELINE.md`, `ASSET_LICENSE_POLICY.md`, and `ASSET_BACKLOG.md`
 - [MAP_COMPOSER_V2_ASSET_REQUIREMENTS.md](MAP_COMPOSER_V2_ASSET_REQUIREMENTS.md): reference-only asset requirements companion for `MAP_COMPOSER_V2_DESIGN.md`; subordinate to the production authority docs
+- [PRODUCTION_ART_PILOT_AUDIT.md](PRODUCTION_ART_PILOT_AUDIT.md): reference-only map socket/art-pilot audit; subordinate to `ASSET_PIPELINE.md`, `ASSET_LICENSE_POLICY.md`, `VISUAL_AUDIO_STYLE_GUIDE.md`, and `MAP_CONTRACT.md`
+- [MAP_ASSET_BRIEF_PACK.md](MAP_ASSET_BRIEF_PACK.md): reference-only candidate-generation brief pack; subordinate to `ASSET_PIPELINE.md`, `ASSET_LICENSE_POLICY.md`, and `VISUAL_AUDIO_STYLE_GUIDE.md`
 - [Archive/Audits/2026-04-24-closed-reference-audits/](Archive/Audits/2026-04-24-closed-reference-audits/): archived map/UI audit and checklist snapshots only; non-authoritative and not part of default routing
 - [Archive/Plans/2026-04-24-stale-reference-plans/](Archive/Plans/2026-04-24-stale-reference-plans/): archived stale planning snapshots only; non-authoritative and not part of default routing
 - [WINDOWS_PLAYTEST_BRIEF.md](WINDOWS_PLAYTEST_BRIEF.md): playtest launch and feedback brief; not a gameplay authority and subordinate to current `HANDOFF.md` plus the closest authority docs
@@ -101,6 +103,8 @@ Do not infer ownership from convenience accessors exposed on `RunState` or `AppB
 | asset source-of-truth, folder flow, promotion stages, and runtime approval boundary | `ASSET_PIPELINE.md` |
 | first-pass visual/audio backlog, reusable UI component scope, and event-to-audio mapping | `ASSET_BACKLOG.md` |
 | license, provenance, and AI-assisted asset rules | `ASSET_LICENSE_POLICY.md` |
+| map production-art socket audit | `PRODUCTION_ART_PILOT_AUDIT.md` (reference only; authority stays in `ASSET_PIPELINE.md`, `ASSET_LICENSE_POLICY.md`, `VISUAL_AUDIO_STYLE_GUIDE.md`, and `MAP_CONTRACT.md`) |
+| map candidate-generation prompts | `MAP_ASSET_BRIEF_PACK.md` (reference only; authority stays in the production docs) |
 | corrective Figma placeholder sync reference | `FIGMA_TRUTH_ALIGNMENT_PASS.md` (bridge only; authority stays in the relevant design/technical/production docs) |
 
 ## Important Clarifications

@@ -63,11 +63,13 @@ const MAP_ART_PILOT_PATH_SURFACE_TEXTURE_PATH := "res://Assets/UI/Map/ArtPilot/u
 const MAP_ART_PILOT_BOSS_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/ArtPilot/ui_map_art_pilot_boss_landmark.svg"
 const MAP_ART_PILOT_KEY_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/ArtPilot/ui_map_art_pilot_key_landmark.svg"
 const MAP_ART_PILOT_REST_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/ArtPilot/ui_map_art_pilot_rest_landmark.svg"
+const MAP_ART_PILOT_MERCHANT_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/ArtPilot/ui_map_art_pilot_merchant_landmark.svg"
 const MAP_ART_PILOT_DECOR_TEXTURE_PATH := "res://Assets/UI/Map/ArtPilot/ui_map_art_pilot_decor_stamp.svg"
 const MAP_ART_PILOT_LANDMARK_TEXTURE_PATHS_BY_FAMILY_PREFIX := {
 	"boss": MAP_ART_PILOT_BOSS_LANDMARK_TEXTURE_PATH,
 	"key": MAP_ART_PILOT_KEY_LANDMARK_TEXTURE_PATH,
 	"rest": MAP_ART_PILOT_REST_LANDMARK_TEXTURE_PATH,
+	"merchant": MAP_ART_PILOT_MERCHANT_LANDMARK_TEXTURE_PATH,
 }
 
 

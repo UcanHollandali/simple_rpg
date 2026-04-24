@@ -1,6 +1,6 @@
 # SIMPLE RPG - Active Roadmap
 
-Last updated: 2026-04-24 (prompt wave archived; production art pilot landed; next lane is hunger/exploration UX pilot)
+Last updated: 2026-04-24 (prompt wave archived; art-pilot candidate pass extended; next lane is hunger/exploration UX pilot)
 
 This is the active short-horizon roadmap for the repo.
 It is a planning file, not an authority doc.
@@ -41,10 +41,15 @@ Authority still lives where `Docs/DOC_PRECEDENCE.md` says it lives.
   - Socket-smoke placeholder assets remain provisional until a later art pilot replaces or narrows them with manifest-backed assets.
 - The first production-art pilot has landed as candidate socket dressing, not final map art:
   - path-surface brush: `ui_map_art_pilot_path_brush`
-  - landmark pilots: `ui_map_art_pilot_boss_landmark`, `ui_map_art_pilot_key_landmark`, `ui_map_art_pilot_rest_landmark`
+  - landmark pilots: `ui_map_art_pilot_boss_landmark`, `ui_map_art_pilot_key_landmark`, `ui_map_art_pilot_rest_landmark`, `ui_map_art_pilot_merchant_landmark`
   - decor/filler stamp: `ui_map_art_pilot_decor_stamp`
   - all remain manifest-tracked candidates with `replace_before_release=yes`
   - socket-smoke placeholders remain manifest-tracked but are hidden from normal/default board render unless an explicit debug/prototype canvas flag is enabled
+- A source-only candidate pack now exists under `SourceArt/Generated/Map/ProductionArtPilotCandidates/`.
+  - it is candidate source only
+  - it is not runtime proof and has no manifest rows until promoted
+- The map canvas now has a narrow road/pocket throat blend pass derived from `render_model` path/clearing links.
+  - it is presentation-only and does not change runtime topology or ownership
 - Archived old prompt `14-20` remains historically closed as the older guarded fixed-board map-overhaul wave.
 - Archived old prompt `21-36` remains historically closed as the combat/content reset and first executable combat slice.
 
@@ -71,14 +76,14 @@ Still out of scope without a dedicated lane:
 
 Result:
 - real repo-authored candidate SVG assets now ride the socket system through `render_model` metadata
-- boss/key/rest landmark sockets can resolve to family-specific art-pilot assets
+- boss/key/rest/merchant landmark sockets can resolve to family-specific art-pilot assets
 - path-surface and decor sockets resolve to pilot art assets
 - unsupported landmark families skip placeholder dressing in normal/default board render instead of inventing broader art coverage
 
 Still true:
 - these assets are not final art
 - these assets are not structural proof
-- merchant, blacksmith, hamlet, combat, event, reward, canopy, and broader filler families are not production-art covered by this pilot
+- blacksmith, hamlet, combat, event, reward, canopy, and broader filler families are not production-art covered by this pilot
 
 ## Next Lane - Hunger / Exploration UX Pilot
 

@@ -214,6 +214,15 @@ func test_map_board_canvas_derives_socket_art_from_render_model_slots() -> void:
 				"landmark_half_size": Vector2(16.0, 18.0),
 				"rotation_degrees": -6.0,
 				"asset_family_key": "merchant:stall",
+			}, {
+				"slot_id": "landmark:2",
+				"asset_socket_kind": "landmark",
+				"node_family": "blacksmith",
+				"slot_role": "visible_landmark",
+				"anchor_point": Vector2(116.0, 90.0),
+				"landmark_half_size": Vector2(16.0, 18.0),
+				"rotation_degrees": 4.0,
+				"asset_family_key": "blacksmith:forge",
 			}],
 			"decor_slots": [{
 				"slot_id": "decor:filler:0",
@@ -243,6 +252,10 @@ func test_map_board_canvas_derives_socket_art_from_render_model_slots() -> void:
 		"Expected the rest landmark art-pilot runtime asset to be loadable."
 	)
 	assert(
+		SceneLayoutHelperScript.load_texture_or_null(UiAssetPathsScript.MAP_ART_PILOT_MERCHANT_LANDMARK_TEXTURE_PATH) != null,
+		"Expected the merchant landmark art-pilot runtime asset to be loadable."
+	)
+	assert(
 		SceneLayoutHelperScript.load_texture_or_null(UiAssetPathsScript.MAP_ART_PILOT_DECOR_TEXTURE_PATH) != null,
 		"Expected the decor art-pilot runtime asset to be loadable."
 	)
@@ -251,26 +264,30 @@ func test_map_board_canvas_derives_socket_art_from_render_model_slots() -> void:
 	var landmark_entries: Array = board_canvas.call("_landmark_socket_smoke_entries")
 	var decor_entries: Array = board_canvas.call("_decor_socket_smoke_entries")
 	assert(path_entries.size() == 1, "Expected path-surface socket art to derive from render_model.path_surfaces.")
-	assert(landmark_entries.size() == 1, "Expected normal landmark socket art to skip uncovered socket-smoke placeholder families.")
+	assert(landmark_entries.size() == 2, "Expected normal landmark socket art to cover shipped pilot families while skipping uncovered placeholders.")
 	assert(decor_entries.size() == 1, "Expected decor socket art to derive from render_model.decor_slots.")
 
 	var path_entry: Dictionary = path_entries[0]
-	var landmark_entry: Dictionary = landmark_entries[0]
+	var boss_entry: Dictionary = landmark_entries[0]
+	var merchant_entry: Dictionary = landmark_entries[1]
 	var decor_entry: Dictionary = decor_entries[0]
 	assert(String(path_entry.get("texture_path", "")) == UiAssetPathsScript.MAP_ART_PILOT_PATH_SURFACE_TEXTURE_PATH, "Expected path-surface sockets to use the art-pilot path brush.")
-	assert(String(landmark_entry.get("texture_path", "")) == UiAssetPathsScript.MAP_ART_PILOT_BOSS_LANDMARK_TEXTURE_PATH, "Expected boss landmark sockets to use the art-pilot boss landmark.")
+	assert(String(boss_entry.get("texture_path", "")) == UiAssetPathsScript.MAP_ART_PILOT_BOSS_LANDMARK_TEXTURE_PATH, "Expected boss landmark sockets to use the art-pilot boss landmark.")
+	assert(String(merchant_entry.get("texture_path", "")) == UiAssetPathsScript.MAP_ART_PILOT_MERCHANT_LANDMARK_TEXTURE_PATH, "Expected merchant landmark sockets to use the art-pilot merchant landmark.")
 	assert(String(decor_entry.get("texture_path", "")) == UiAssetPathsScript.MAP_ART_PILOT_DECOR_TEXTURE_PATH, "Expected decor sockets to use the art-pilot decor stamp.")
 	assert(UiAssetPathsScript.build_map_landmark_socket_texture_path("key:shrine", "") == UiAssetPathsScript.MAP_ART_PILOT_KEY_LANDMARK_TEXTURE_PATH, "Expected key landmark sockets to resolve to the key art-pilot asset.")
 	assert(UiAssetPathsScript.build_map_landmark_socket_texture_path("rest:camp", "") == UiAssetPathsScript.MAP_ART_PILOT_REST_LANDMARK_TEXTURE_PATH, "Expected rest landmark sockets to resolve to the rest art-pilot asset.")
-	assert(UiAssetPathsScript.build_map_landmark_socket_texture_path("merchant:stall", "merchant") == "", "Expected unsupported landmark pilot families to skip socket-smoke placeholders by default.")
-	assert(UiAssetPathsScript.build_map_landmark_socket_texture_path("merchant:stall", "merchant", true) == UiAssetPathsScript.MAP_SOCKET_SMOKE_LANDMARK_TEXTURE_PATH, "Expected explicit debug socket-smoke mode to reveal placeholder landmark art.")
-	assert(Vector2(landmark_entry.get("center", Vector2.ZERO)) == Vector2(64.0, 72.0), "Expected landmark smoke placement to come from the socket anchor point.")
+	assert(UiAssetPathsScript.build_map_landmark_socket_texture_path("merchant:stall", "merchant") == UiAssetPathsScript.MAP_ART_PILOT_MERCHANT_LANDMARK_TEXTURE_PATH, "Expected merchant landmark sockets to resolve to the merchant art-pilot asset.")
+	assert(UiAssetPathsScript.build_map_landmark_socket_texture_path("blacksmith:forge", "blacksmith") == "", "Expected unsupported landmark pilot families to skip socket-smoke placeholders by default.")
+	assert(UiAssetPathsScript.build_map_landmark_socket_texture_path("blacksmith:forge", "blacksmith", true) == UiAssetPathsScript.MAP_SOCKET_SMOKE_LANDMARK_TEXTURE_PATH, "Expected explicit debug socket-smoke mode to reveal placeholder landmark art.")
+	assert(Vector2(boss_entry.get("center", Vector2.ZERO)) == Vector2(64.0, 72.0), "Expected landmark smoke placement to come from the socket anchor point.")
+	assert(Vector2(merchant_entry.get("center", Vector2.ZERO)) == Vector2(96.0, 82.0), "Expected merchant art placement to come from the socket anchor point.")
 	assert(Vector2(decor_entry.get("center", Vector2.ZERO)) == Vector2(128.0, 88.0), "Expected decor smoke placement to come from the socket anchor point.")
 	assert(Vector2(path_entry.get("draw_size", Vector2.ZERO)).x <= 52.0, "Expected path smoke to stay small enough to avoid becoming road truth.")
 	board_canvas.call("set_socket_smoke_placeholder_drawing_enabled", true)
 	var debug_landmark_entries: Array = board_canvas.call("_landmark_socket_smoke_entries")
-	assert(debug_landmark_entries.size() == 2, "Expected explicit debug socket-smoke mode to include uncovered landmark placeholders.")
-	assert(String((debug_landmark_entries[1] as Dictionary).get("texture_path", "")) == UiAssetPathsScript.MAP_SOCKET_SMOKE_LANDMARK_TEXTURE_PATH, "Expected debug socket-smoke mode to use the placeholder landmark texture.")
+	assert(debug_landmark_entries.size() == 3, "Expected explicit debug socket-smoke mode to include uncovered landmark placeholders.")
+	assert(String((debug_landmark_entries[2] as Dictionary).get("texture_path", "")) == UiAssetPathsScript.MAP_SOCKET_SMOKE_LANDMARK_TEXTURE_PATH, "Expected debug socket-smoke mode to use the placeholder landmark texture.")
 	board_canvas.free()
 
 
