@@ -24,6 +24,16 @@ Manual checks are for feel, pacing, and fairness.
 Current automated tests are headless Godot `SceneTree` scripts under `Tests/`.
 Active runnable checks are every `Tests/test_*.gd` file present in the repo; do not re-list them here, because this doc is not an inventory.
 Current validator commands:
+- Windows AI working check: `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_ai_check.ps1`
+  - default lane runs environment check, content/assets/architecture validators, bounded Godot tests, and `git diff --check`
+  - it reaps stale repo-local `_godot_profile` Godot helper processes before preflight, then fails if any other Godot process remains open
+  - validator Python calls prefer `py -3` when available and fall back to `python` for CI/runner portability
+  - use `-Tests test_name.gd,other_test.gd` for targeted Godot checks
+  - use `-MapReview` for the current map-targeted test/isolation/portrait-capture floor
+  - use `-FullSuite` only when an explicit full-suite checkpoint is needed
+- GitHub Actions validation: `.github/workflows/validate.yml`
+  - Windows PR/push lane installs Godot `4.6.2`, sets up Python, verifies the toolchain, and runs `Tools/run_ai_check.ps1`
+  - CI green is a baseline safety signal, not a substitute for prompt-specific targeted checks or manual screenshot review
 - Windows: `py -3 Tools/validate_content.py`
 - macOS/Linux: `python3 Tools/validate_content.py`
 - Windows asset validator: `py -3 Tools/validate_assets.py`
@@ -36,6 +46,7 @@ Current bounded-time regression runner:
 - Windows: `Tools/run_godot_tests.ps1` or `Tools/run_godot_tests.cmd`
 - Default `Tools/run_godot_tests.*` behavior is a bounded subset only when no explicit test list is passed; do not treat that default lane as the full `Tests/test_*.gd` union.
 - Current helper runner clears stale local `_godot_profile/logs/*.log` files before each run and treats generic `SCRIPT ERROR:` rows as hidden failures.
+- `Tools/check_environment.ps1` is the Windows preflight for Godot/Python/Git/GitHub CLI availability and running Godot process detection; `Tools/run_ai_check.ps1` calls it with `-FailOnRunningGodot`.
 Current explicit full-suite Windows command:
 
 ```powershell
