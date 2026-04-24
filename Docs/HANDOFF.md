@@ -35,7 +35,8 @@ Use `Docs/ROADMAP.md` for next-lane planning and `Docs/DOC_PRECEDENCE.md` for au
   - source masters live under `SourceArt/Edited/Map/ArtPilot/`
   - manifest rows are `candidate` with `replace_before_release=yes`
   - `MapBoardCanvas` consumes the pilot path brush, boss landmark, key landmark, rest landmark, and decor stamp from `render_model` socket metadata
-  - unsupported landmark families still fall back to socket-smoke placeholder art
+  - unsupported landmark families do not draw socket-smoke placeholder art during normal/default board render
+  - socket-smoke placeholder drawing is available only through an explicit debug/prototype canvas flag
   - these assets prove socket carry only; they do not prove final art, route truth, pocket quality, terrain quality, or hunger pressure
 - Current map-direction truth remains ahead of the old scatter lane:
   - runtime topology backbone exists
@@ -91,8 +92,8 @@ Use `Docs/ROADMAP.md` for next-lane planning and `Docs/DOC_PRECEDENCE.md` for au
   - `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_scene_isolation.ps1 -ScenePath scenes/map_explore.tscn -QuitAfter 2`
   - `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_portrait_review_capture.ps1 -ScenePaths scenes/map_explore.tscn -ViewportSizes 1080x1920 -TimeoutSeconds 120`
   - `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_portrait_image_diff.ps1 -Capture -CleanOldArtifacts -TimeoutSeconds 180`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_full_suite.ps1`
   - `git diff --check`
-- Local full Godot suite did not complete because a Godot editor instance was open for this project; rerun it after closing editor/headless Godot processes before using local full-suite green as evidence.
 - Portrait image diff passed after refreshing the seeded map baselines for the closed `render_model` surface lane.
 - `Tools/run_ai_check.ps1` was not rerun during final closeout; do not cite it as current evidence without rerunning.
 
@@ -101,6 +102,7 @@ Use `Docs/ROADMAP.md` for next-lane planning and `Docs/DOC_PRECEDENCE.md` for au
 - Test green and full-suite green do not substitute for visual honesty on the map lane.
 - Candidate/prototype art remains non-proof, including the current art-pilot map assets.
 - Socket-smoke placeholders remain provisional and must not be treated as final art.
+- Socket-smoke placeholders remain manifest-tracked but hidden from normal/default board render.
 - Art-pilot assets remain provisional and must not be treated as final art or release-safe art.
 - Wrapper/orchestrator/fallback map data surfaces still exist and must not silently become gameplay owners.
 - Manual portrait playtest and screenshot review are required for map readability, overlay feel, and landmark/route read.

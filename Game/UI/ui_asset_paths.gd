@@ -249,25 +249,35 @@ static func build_map_socket_smoke_texture_path(socket_kind: String) -> String:
 	return String(MAP_SOCKET_SMOKE_TEXTURE_PATHS_BY_KIND.get(String(socket_kind).strip_edges().to_lower(), ""))
 
 
-static func build_map_path_surface_socket_texture_path() -> String:
+static func build_map_path_surface_socket_texture_path(allow_socket_smoke_placeholder: bool = false) -> String:
 	if _texture_path_exists(MAP_ART_PILOT_PATH_SURFACE_TEXTURE_PATH):
 		return MAP_ART_PILOT_PATH_SURFACE_TEXTURE_PATH
+	if not allow_socket_smoke_placeholder:
+		return ""
 	return build_map_socket_smoke_texture_path(MAP_SOCKET_SMOKE_KIND_PATH_SURFACE)
 
 
-static func build_map_landmark_socket_texture_path(asset_family_key: String, node_family: String = "") -> String:
+static func build_map_landmark_socket_texture_path(
+	asset_family_key: String,
+	node_family: String = "",
+	allow_socket_smoke_placeholder: bool = false
+) -> String:
 	var family_prefix: String = String(asset_family_key).strip_edges().to_lower().get_slice(":", 0)
 	if family_prefix.is_empty():
 		family_prefix = String(node_family).strip_edges().to_lower()
 	var texture_path: String = String(MAP_ART_PILOT_LANDMARK_TEXTURE_PATHS_BY_FAMILY_PREFIX.get(family_prefix, ""))
 	if _texture_path_exists(texture_path):
 		return texture_path
+	if not allow_socket_smoke_placeholder:
+		return ""
 	return build_map_socket_smoke_texture_path(MAP_SOCKET_SMOKE_KIND_LANDMARK)
 
 
-static func build_map_decor_socket_texture_path(_asset_family_key: String = "") -> String:
+static func build_map_decor_socket_texture_path(_asset_family_key: String = "", allow_socket_smoke_placeholder: bool = false) -> String:
 	if _texture_path_exists(MAP_ART_PILOT_DECOR_TEXTURE_PATH):
 		return MAP_ART_PILOT_DECOR_TEXTURE_PATH
+	if not allow_socket_smoke_placeholder:
+		return ""
 	return build_map_socket_smoke_texture_path(MAP_SOCKET_SMOKE_KIND_DECOR)
 
 

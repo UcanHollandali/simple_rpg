@@ -44,6 +44,7 @@ Authority still lives where `Docs/DOC_PRECEDENCE.md` says it lives.
   - landmark pilots: `ui_map_art_pilot_boss_landmark`, `ui_map_art_pilot_key_landmark`, `ui_map_art_pilot_rest_landmark`
   - decor/filler stamp: `ui_map_art_pilot_decor_stamp`
   - all remain manifest-tracked candidates with `replace_before_release=yes`
+  - socket-smoke placeholders remain manifest-tracked but are hidden from normal/default board render unless an explicit debug/prototype canvas flag is enabled
 - Archived old prompt `14-20` remains historically closed as the older guarded fixed-board map-overhaul wave.
 - Archived old prompt `21-36` remains historically closed as the combat/content reset and first executable combat slice.
 
@@ -72,7 +73,7 @@ Result:
 - real repo-authored candidate SVG assets now ride the socket system through `render_model` metadata
 - boss/key/rest landmark sockets can resolve to family-specific art-pilot assets
 - path-surface and decor sockets resolve to pilot art assets
-- unsupported landmark families fall back to socket-smoke placeholders instead of inventing broader art coverage
+- unsupported landmark families skip placeholder dressing in normal/default board render instead of inventing broader art coverage
 
 Still true:
 - these assets are not final art

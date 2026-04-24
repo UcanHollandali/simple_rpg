@@ -10,6 +10,7 @@ var _composition: Dictionary = {}
 var _board_offset: Vector2 = Vector2.ZERO
 var _active_target_node_id: int = -1
 var _hovered_target_node_id: int = -1
+var _draw_socket_smoke_placeholders: bool = false
 
 
 func set_composition(composition: Dictionary) -> void:
@@ -29,6 +30,13 @@ func set_interaction_state(active_target_node_id: int, hovered_target_node_id: i
 		return
 	_active_target_node_id = active_target_node_id
 	_hovered_target_node_id = hovered_target_node_id
+	queue_redraw()
+
+
+func set_socket_smoke_placeholder_drawing_enabled(enabled: bool) -> void:
+	if _draw_socket_smoke_placeholders == enabled:
+		return
+	_draw_socket_smoke_placeholders = enabled
 	queue_redraw()
 
 
@@ -434,7 +442,7 @@ func _decor_slot_entries() -> Array:
 
 func _path_surface_socket_smoke_entries() -> Array:
 	var entries: Array = []
-	var texture_path: String = UiAssetPathsScript.build_map_path_surface_socket_texture_path()
+	var texture_path: String = UiAssetPathsScript.build_map_path_surface_socket_texture_path(_draw_socket_smoke_placeholders)
 	if texture_path.is_empty():
 		return entries
 	for surface_variant in _path_surface_entries():
@@ -470,7 +478,8 @@ func _landmark_socket_smoke_entries() -> Array:
 		var slot: Dictionary = slot_variant
 		var texture_path: String = UiAssetPathsScript.build_map_landmark_socket_texture_path(
 			String(slot.get("asset_family_key", "")),
-			String(slot.get("node_family", ""))
+			String(slot.get("node_family", "")),
+			_draw_socket_smoke_placeholders
 		)
 		if texture_path.is_empty():
 			continue
@@ -495,7 +504,10 @@ func _decor_socket_smoke_entries() -> Array:
 		if typeof(slot_variant) != TYPE_DICTIONARY:
 			continue
 		var slot: Dictionary = slot_variant
-		var texture_path: String = UiAssetPathsScript.build_map_decor_socket_texture_path(String(slot.get("asset_family_key", "")))
+		var texture_path: String = UiAssetPathsScript.build_map_decor_socket_texture_path(
+			String(slot.get("asset_family_key", "")),
+			_draw_socket_smoke_placeholders
+		)
 		if texture_path.is_empty():
 			continue
 		var half_size: Vector2 = Vector2(slot.get("half_size", Vector2.ZERO))
