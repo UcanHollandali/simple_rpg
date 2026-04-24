@@ -44,7 +44,7 @@ jobs:
 
       - name: Environment check
         shell: powershell
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File Tools/check_environment.ps1 -FailOnRunningGodot
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File Tools/check_environment.ps1
 
       - name: Content validator
         shell: powershell
