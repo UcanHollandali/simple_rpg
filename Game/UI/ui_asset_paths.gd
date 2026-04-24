@@ -59,6 +59,16 @@ const MAP_SOCKET_SMOKE_TEXTURE_PATHS_BY_KIND := {
 	"landmark": MAP_SOCKET_SMOKE_LANDMARK_TEXTURE_PATH,
 	"decor": MAP_SOCKET_SMOKE_DECOR_TEXTURE_PATH,
 }
+const MAP_ART_PILOT_PATH_SURFACE_TEXTURE_PATH := "res://Assets/UI/Map/ArtPilot/ui_map_art_pilot_path_brush.svg"
+const MAP_ART_PILOT_BOSS_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/ArtPilot/ui_map_art_pilot_boss_landmark.svg"
+const MAP_ART_PILOT_KEY_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/ArtPilot/ui_map_art_pilot_key_landmark.svg"
+const MAP_ART_PILOT_REST_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/ArtPilot/ui_map_art_pilot_rest_landmark.svg"
+const MAP_ART_PILOT_DECOR_TEXTURE_PATH := "res://Assets/UI/Map/ArtPilot/ui_map_art_pilot_decor_stamp.svg"
+const MAP_ART_PILOT_LANDMARK_TEXTURE_PATHS_BY_FAMILY_PREFIX := {
+	"boss": MAP_ART_PILOT_BOSS_LANDMARK_TEXTURE_PATH,
+	"key": MAP_ART_PILOT_KEY_LANDMARK_TEXTURE_PATH,
+	"rest": MAP_ART_PILOT_REST_LANDMARK_TEXTURE_PATH,
+}
 
 
 static func build_enemy_bust_texture_path(definition_id: String) -> String:
@@ -237,6 +247,28 @@ static func build_enemy_token_texture_path(icon_key: String, definition_id: Stri
 
 static func build_map_socket_smoke_texture_path(socket_kind: String) -> String:
 	return String(MAP_SOCKET_SMOKE_TEXTURE_PATHS_BY_KIND.get(String(socket_kind).strip_edges().to_lower(), ""))
+
+
+static func build_map_path_surface_socket_texture_path() -> String:
+	if _texture_path_exists(MAP_ART_PILOT_PATH_SURFACE_TEXTURE_PATH):
+		return MAP_ART_PILOT_PATH_SURFACE_TEXTURE_PATH
+	return build_map_socket_smoke_texture_path(MAP_SOCKET_SMOKE_KIND_PATH_SURFACE)
+
+
+static func build_map_landmark_socket_texture_path(asset_family_key: String, node_family: String = "") -> String:
+	var family_prefix: String = String(asset_family_key).strip_edges().to_lower().get_slice(":", 0)
+	if family_prefix.is_empty():
+		family_prefix = String(node_family).strip_edges().to_lower()
+	var texture_path: String = String(MAP_ART_PILOT_LANDMARK_TEXTURE_PATHS_BY_FAMILY_PREFIX.get(family_prefix, ""))
+	if _texture_path_exists(texture_path):
+		return texture_path
+	return build_map_socket_smoke_texture_path(MAP_SOCKET_SMOKE_KIND_LANDMARK)
+
+
+static func build_map_decor_socket_texture_path(_asset_family_key: String = "") -> String:
+	if _texture_path_exists(MAP_ART_PILOT_DECOR_TEXTURE_PATH):
+		return MAP_ART_PILOT_DECOR_TEXTURE_PATH
+	return build_map_socket_smoke_texture_path(MAP_SOCKET_SMOKE_KIND_DECOR)
 
 
 static func _texture_path_exists(texture_path: String) -> bool:

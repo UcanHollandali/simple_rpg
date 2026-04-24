@@ -1,6 +1,6 @@
 # SIMPLE RPG - Handoff
 
-Last updated: 2026-04-24 (map prompt wave closed and archived; broader cleanup audit closed; next lane is production art pilot)
+Last updated: 2026-04-24 (map prompt wave closed and archived; production art pilot landed; next lane is hunger/exploration UX pilot)
 
 This file is a current-state snapshot only.
 It is not a rule contract. If it conflicts with an authority doc, the authority doc wins.
@@ -30,6 +30,13 @@ Use `Docs/ROADMAP.md` for next-lane planning and `Docs/DOC_PRECEDENCE.md` for au
 - The visual wrapper blob/stamp lane is retired from the default board read:
   - `MapBoardCanvas` no longer draws atmosphere circles/arcs or `ground_shapes`, `filler_shapes`, and `forest_shapes` as default visible layers
   - `ui_map_board_backdrop.svg` no longer carries non-routing oval/blob atmosphere marks in front of the board field
+- The first production-art pilot is socket-driven and provisional:
+  - runtime candidate assets live under `Assets/UI/Map/ArtPilot/`
+  - source masters live under `SourceArt/Edited/Map/ArtPilot/`
+  - manifest rows are `candidate` with `replace_before_release=yes`
+  - `MapBoardCanvas` consumes the pilot path brush, boss landmark, key landmark, rest landmark, and decor stamp from `render_model` socket metadata
+  - unsupported landmark families still fall back to socket-smoke placeholder art
+  - these assets prove socket carry only; they do not prove final art, route truth, pocket quality, terrain quality, or hunger pressure
 - Current map-direction truth remains ahead of the old scatter lane:
   - runtime topology backbone exists
   - slot/anchor placement exists
@@ -77,14 +84,24 @@ Use `Docs/ROADMAP.md` for next-lane planning and `Docs/DOC_PRECEDENCE.md` for au
   - active prompt-execution stale scan outside `Docs/Archive/`
   - active archived-audit/plan filename reference scan outside `Docs/Archive/`
   - `git diff --check`
+- Production art pilot local checks passed:
+  - `py -3 Tools/validate_assets.py`
+  - `py -3 Tools/validate_architecture_guards.py` with existing hotspot warnings only
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_tests.ps1 -Tests test_map_board_canvas.gd`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_scene_isolation.ps1 -ScenePath scenes/map_explore.tscn -QuitAfter 2`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_portrait_review_capture.ps1 -ScenePaths scenes/map_explore.tscn -ViewportSizes 1080x1920 -TimeoutSeconds 120`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_portrait_image_diff.ps1 -Capture -CleanOldArtifacts -TimeoutSeconds 180`
+  - `git diff --check`
+- Local full Godot suite did not complete because a Godot editor instance was open for this project; rerun it after closing editor/headless Godot processes before using local full-suite green as evidence.
 - Portrait image diff passed after refreshing the seeded map baselines for the closed `render_model` surface lane.
 - `Tools/run_ai_check.ps1` was not rerun during final closeout; do not cite it as current evidence without rerunning.
 
 ## Open Risks
 
 - Test green and full-suite green do not substitute for visual honesty on the map lane.
-- Candidate/prototype art remains non-proof.
+- Candidate/prototype art remains non-proof, including the current art-pilot map assets.
 - Socket-smoke placeholders remain provisional and must not be treated as final art.
+- Art-pilot assets remain provisional and must not be treated as final art or release-safe art.
 - Wrapper/orchestrator/fallback map data surfaces still exist and must not silently become gameplay owners.
 - Manual portrait playtest and screenshot review are required for map readability, overlay feel, and landmark/route read.
 - `NodeResolve` remains live legacy flow code; do not behavior-change or remove it without a dedicated flow audit.
@@ -93,10 +110,10 @@ Use `Docs/ROADMAP.md` for next-lane planning and `Docs/DOC_PRECEDENCE.md` for au
 
 ## Next Step
 
-1. Open a small `production art pilot`, not a broad asset wave.
+1. Open a `hunger/exploration UX pilot`.
 2. Keep runtime truth, save shape, flow state, and source-of-truth ownership unchanged.
-3. Add or wire only the minimum socket-driven art needed to prove real assets can replace socket-smoke placeholders without damaging board read.
-4. Keep hunger/exploration UX as a separate later lane; UI may only reflect runtime-derived truth.
+3. UI may only surface runtime-derived route/hunger pressure; do not add gameplay truth to presentation.
+4. Keep production-art expansion separate until the UX pilot has its own audit result.
 
 ## Locked Decisions
 

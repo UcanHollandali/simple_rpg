@@ -1,6 +1,6 @@
 # SIMPLE RPG - Active Roadmap
 
-Last updated: 2026-04-24 (prompt wave archived; broader cleanup audit closed; next lane is production art pilot)
+Last updated: 2026-04-24 (prompt wave archived; production art pilot landed; next lane is hunger/exploration UX pilot)
 
 This is the active short-horizon roadmap for the repo.
 It is a planning file, not an authority doc.
@@ -39,6 +39,11 @@ Authority still lives where `Docs/DOC_PRECEDENCE.md` says it lives.
 - Broader cleanup audit preserved one unambiguous default presentation lane and found no evidence-backed active code/asset deletion beyond stale current-state doc cleanup.
   - `visible_edges`, `layout_edges`, `ground_shapes`, `filler_shapes`, and `forest_shapes` remain live fallback/wrapper/prototype metadata as labeled above.
   - Socket-smoke placeholder assets remain provisional until a later art pilot replaces or narrows them with manifest-backed assets.
+- The first production-art pilot has landed as candidate socket dressing, not final map art:
+  - path-surface brush: `ui_map_art_pilot_path_brush`
+  - landmark pilots: `ui_map_art_pilot_boss_landmark`, `ui_map_art_pilot_key_landmark`, `ui_map_art_pilot_rest_landmark`
+  - decor/filler stamp: `ui_map_art_pilot_decor_stamp`
+  - all remain manifest-tracked candidates with `replace_before_release=yes`
 - Archived old prompt `14-20` remains historically closed as the older guarded fixed-board map-overhaul wave.
 - Archived old prompt `21-36` remains historically closed as the combat/content reset and first executable combat slice.
 
@@ -61,24 +66,36 @@ Still out of scope without a dedicated lane:
 - using candidate art as structural proof
 - restoring archived prompt packs as active queue truth
 
-## Next Lane - Production Art Pilot
+## Closed Lane - Production Art Pilot
+
+Result:
+- real repo-authored candidate SVG assets now ride the socket system through `render_model` metadata
+- boss/key/rest landmark sockets can resolve to family-specific art-pilot assets
+- path-surface and decor sockets resolve to pilot art assets
+- unsupported landmark families fall back to socket-smoke placeholders instead of inventing broader art coverage
+
+Still true:
+- these assets are not final art
+- these assets are not structural proof
+- merchant, blacksmith, hamlet, combat, event, reward, canopy, and broader filler families are not production-art covered by this pilot
+
+## Next Lane - Hunger / Exploration UX Pilot
 
 Goal:
-- prove real, manifest-backed map art can ride the socket system without becoming structural proof or damaging the fixed-board read
+- make route choice, hunger pressure, support detours, and branch commitment easier to read without changing gameplay ownership
 
-Pilot scope:
-- one boss landmark
-- one key landmark
-- one merchant or rest landmark
-- one path-surface brush
-- one decor/filler stamp
+Audit first:
+- current route hover/selection affordance
+- current hunger-cost and hunger-pressure visibility
+- support-detour readability
+- key/boss push commitment read
+- whether art-pilot dressing makes route pressure clearer or noisier
 
 Rules:
-- every runtime asset must have a truthful manifest/provenance row in the same patch
-- source/master paths must be reviewable
-- socket placement must derive from `render_model` sockets, not gameplay truth or ad hoc node-family logic in the canvas
-- socket-smoke placeholders remain provisional and must not be treated as final art
-- hunger/exploration UX remains a separate later lane
+- no save-shape or flow-state change
+- no movement of route, discovery, hunger, current-node, pending-node, key, or boss truth into UI
+- no production-art expansion inside this UX lane
+- use runtime-derived data only
 
 Minimum validation for docs-only cleanup:
 - `py -3 Tools/validate_assets.py`
@@ -102,11 +119,10 @@ Add these when map presentation code, scenes, assets, or tests change:
 - old `Prompt 21-36`: historical combat/content reset wave
 - old `Prompt 06-36`: broader closed-green prompt history archived under `Docs/Archive/Prompts/2026-04-23-closed-green-prompt-packs/`
 
-## After Production Art Pilot
+## After Hunger / Exploration UX Pilot
 
-- If the pilot is green, choose the next lane explicitly from:
+- If the UX pilot is green, choose the next lane explicitly from:
   - production art expansion
-  - hunger/exploration UX pilot
   - additional map structural cleanup
   - broader balance/content work
 - Do not open a new prompt queue until `ROADMAP.md` names it directly.

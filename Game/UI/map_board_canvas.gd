@@ -434,7 +434,7 @@ func _decor_slot_entries() -> Array:
 
 func _path_surface_socket_smoke_entries() -> Array:
 	var entries: Array = []
-	var texture_path: String = UiAssetPathsScript.build_map_socket_smoke_texture_path(UiAssetPathsScript.MAP_SOCKET_SMOKE_KIND_PATH_SURFACE)
+	var texture_path: String = UiAssetPathsScript.build_map_path_surface_socket_texture_path()
 	if texture_path.is_empty():
 		return entries
 	for surface_variant in _path_surface_entries():
@@ -468,7 +468,10 @@ func _landmark_socket_smoke_entries() -> Array:
 		if typeof(slot_variant) != TYPE_DICTIONARY:
 			continue
 		var slot: Dictionary = slot_variant
-		var texture_path: String = _socket_smoke_texture_path_for_slot(slot, UiAssetPathsScript.MAP_SOCKET_SMOKE_KIND_LANDMARK)
+		var texture_path: String = UiAssetPathsScript.build_map_landmark_socket_texture_path(
+			String(slot.get("asset_family_key", "")),
+			String(slot.get("node_family", ""))
+		)
 		if texture_path.is_empty():
 			continue
 		var landmark_half_size: Vector2 = Vector2(slot.get("landmark_half_size", Vector2.ONE * 18.0))
@@ -492,7 +495,7 @@ func _decor_socket_smoke_entries() -> Array:
 		if typeof(slot_variant) != TYPE_DICTIONARY:
 			continue
 		var slot: Dictionary = slot_variant
-		var texture_path: String = _socket_smoke_texture_path_for_slot(slot, UiAssetPathsScript.MAP_SOCKET_SMOKE_KIND_DECOR)
+		var texture_path: String = UiAssetPathsScript.build_map_decor_socket_texture_path(String(slot.get("asset_family_key", "")))
 		if texture_path.is_empty():
 			continue
 		var half_size: Vector2 = Vector2(slot.get("half_size", Vector2.ZERO))
@@ -508,14 +511,6 @@ func _decor_socket_smoke_entries() -> Array:
 			"modulate": Color(1, 1, 1, 0.34),
 		})
 	return entries
-
-
-func _socket_smoke_texture_path_for_slot(slot: Dictionary, fallback_kind: String) -> String:
-	var socket_kind: String = String(slot.get("asset_socket_kind", fallback_kind))
-	var texture_path: String = UiAssetPathsScript.build_map_socket_smoke_texture_path(socket_kind)
-	if texture_path.is_empty():
-		texture_path = UiAssetPathsScript.build_map_socket_smoke_texture_path(fallback_kind)
-	return texture_path
 
 
 func _junction_entries() -> Array:
