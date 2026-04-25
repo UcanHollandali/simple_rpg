@@ -1,6 +1,6 @@
 # SIMPLE RPG - Handoff
 
-Last updated: 2026-04-25 (hunger/exploration UX pilot landed; next lane is live-socket production asset brief)
+Last updated: 2026-04-25 (map asset request pack and hidden production probes added)
 
 This file is a current-state snapshot only.
 It is not a rule contract. If it conflicts with an authority doc, the authority doc wins.
@@ -53,6 +53,25 @@ Use `Docs/ROADMAP.md` for next-lane planning and `Docs/DOC_PRECEDENCE.md` for au
   - all reads are derived from `RunState`, `MapRuntimeState`, and the existing `RunSessionCoordinator.MAP_MOVE_HUNGER_COST`
   - route, discovery, hunger, current-node, pending-node, key, and boss truth remain in their existing owners
   - no save shape, flow state, source-of-truth ownership, asset provenance, or default asset lane changed
+- The current production map asset brief was regenerated from live `.gd` socket metadata:
+  - generator: `Tools/map_socket_asset_brief_export.gd`
+  - runner: `Tools/run_map_socket_asset_brief_export.ps1`
+  - outputs: `Docs/ProductionAssetBriefs/map_socket_production_asset_brief.md` and `.json`
+  - source chain: `RunState` / `MapRuntimeState` -> `MapBoardComposerV2` -> `render_model` -> `MapBoardCanvas` socket entry checks
+  - hidden candidate coverage now includes path brush, blacksmith/combat/boss/key/merchant/rest landmarks, and generic decor
+  - uncovered landmark production gaps are event, reward, hamlet, plus optional start marker
+  - canopy remains mask metadata only and has no runtime asset path
+  - default socket draw entries remain zero; no candidate or production art was enabled in normal/default board render
+- The external map asset request pack is now available:
+  - outputs: `Docs/ProductionAssetBriefs/map_asset_external_request_pack.md` and `.json`
+  - the request pack lists the production ask for path brush, combat/event/reward/blacksmith/hamlet landmarks, and decor/canopy family work
+  - it is a production request handoff only, not runtime approval
+- A hidden production-probe mini set was added to test the socket integration path:
+  - runtime candidates live under `Assets/UI/Map/ProductionProbe/`
+  - source masters live under `SourceArt/Edited/Map/ProductionProbe/`
+  - manifest rows are `candidate` with `replace_before_release=yes`
+  - `MapBoardCanvas` still draws these only when explicit prototype socket dressing is enabled
+  - normal/default board render remains unchanged with zero default socket draw entries
 - Current map-direction truth remains ahead of the old scatter lane:
   - runtime topology backbone exists
   - slot/anchor placement exists
@@ -127,6 +146,8 @@ Use `Docs/ROADMAP.md` for next-lane planning and `Docs/DOC_PRECEDENCE.md` for au
   - `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_portrait_image_diff.ps1 -Capture -CleanOldArtifacts -TimeoutSeconds 180`
   - `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_full_suite.ps1`
   - `git diff --check`
+- Live-socket production asset brief generation passed:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_map_socket_asset_brief_export.ps1`
 - Portrait image diff passed after refreshing the seeded map baselines for the closed `render_model` surface lane.
 - `Tools/run_ai_check.ps1` was not rerun during final closeout; do not cite it as current evidence without rerunning.
 
@@ -137,6 +158,7 @@ Use `Docs/ROADMAP.md` for next-lane planning and `Docs/DOC_PRECEDENCE.md` for au
 - Socket-smoke placeholders remain provisional and must not be treated as final art.
 - Socket-smoke placeholders remain manifest-tracked but hidden from normal/default board render.
 - Art-pilot assets remain provisional, hidden from normal/default board render, and must not be treated as final art or release-safe art.
+- Production-probe assets remain provisional, hidden from normal/default board render, and must not be treated as final art or release-safe art.
 - Wrapper/orchestrator/fallback map data surfaces still exist and must not silently become gameplay owners.
 - Manual portrait playtest and screenshot review are required for map readability, overlay feel, and landmark/route read.
 - `NodeResolve` remains live legacy flow code; do not behavior-change or remove it without a dedicated flow audit.
@@ -145,10 +167,14 @@ Use `Docs/ROADMAP.md` for next-lane planning and `Docs/DOC_PRECEDENCE.md` for au
 
 ## Next Step
 
-1. Build a new production asset brief from current live socket metadata.
-2. Include path brush, boss/key/rest/merchant landmarks, combat/event/reward/blacksmith/hamlet gaps, and canopy/filler/decor family sizing.
-3. Keep candidate art hidden from normal/default board render until a separate manifest/provenance, screenshot-review, and pixel-diff promotion decision.
-4. Do not use archived map art briefs or old audits as active authority for new production art.
+1. Use `Docs/ProductionAssetBriefs/map_asset_external_request_pack.md` as the external production handoff.
+2. Ask for `2-3` variants for each requested asset where practical, keeping transparent backgrounds and no text/UI frame.
+3. When assets return, run a separate intake pass:
+  - copy reviewed masters into `SourceArt/Edited/Map/Production/`
+  - export runtime files under `Assets/UI/Map/Production/`
+  - add or update manifest rows with truthful provenance
+  - wire paths behind explicit prototype socket drawing first
+4. Keep default render promotion as a later separate decision with screenshot review and pixel diff.
 
 ## Locked Decisions
 

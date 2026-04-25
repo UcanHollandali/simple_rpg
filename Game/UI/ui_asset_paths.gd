@@ -65,11 +65,18 @@ const MAP_ART_PILOT_KEY_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/ArtPilot/u
 const MAP_ART_PILOT_REST_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/ArtPilot/ui_map_art_pilot_rest_landmark.svg"
 const MAP_ART_PILOT_MERCHANT_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/ArtPilot/ui_map_art_pilot_merchant_landmark.svg"
 const MAP_ART_PILOT_DECOR_TEXTURE_PATH := "res://Assets/UI/Map/ArtPilot/ui_map_art_pilot_decor_stamp.svg"
+const MAP_PRODUCTION_PROBE_PATH_SURFACE_TEXTURE_PATH := "res://Assets/UI/Map/ProductionProbe/ui_map_production_probe_path_brush.svg"
+const MAP_PRODUCTION_PROBE_COMBAT_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/ProductionProbe/ui_map_production_probe_combat_landmark.svg"
+const MAP_PRODUCTION_PROBE_BLACKSMITH_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/ProductionProbe/ui_map_production_probe_blacksmith_landmark.svg"
 const MAP_ART_PILOT_LANDMARK_TEXTURE_PATHS_BY_FAMILY_PREFIX := {
 	"boss": MAP_ART_PILOT_BOSS_LANDMARK_TEXTURE_PATH,
 	"key": MAP_ART_PILOT_KEY_LANDMARK_TEXTURE_PATH,
 	"rest": MAP_ART_PILOT_REST_LANDMARK_TEXTURE_PATH,
 	"merchant": MAP_ART_PILOT_MERCHANT_LANDMARK_TEXTURE_PATH,
+}
+const MAP_PRODUCTION_PROBE_LANDMARK_TEXTURE_PATHS_BY_FAMILY_PREFIX := {
+	"combat": MAP_PRODUCTION_PROBE_COMBAT_LANDMARK_TEXTURE_PATH,
+	"blacksmith": MAP_PRODUCTION_PROBE_BLACKSMITH_LANDMARK_TEXTURE_PATH,
 }
 
 
@@ -252,6 +259,8 @@ static func build_map_socket_smoke_texture_path(socket_kind: String) -> String:
 
 
 static func build_map_path_surface_socket_texture_path(allow_socket_smoke_placeholder: bool = false) -> String:
+	if _texture_path_exists(MAP_PRODUCTION_PROBE_PATH_SURFACE_TEXTURE_PATH):
+		return MAP_PRODUCTION_PROBE_PATH_SURFACE_TEXTURE_PATH
 	if _texture_path_exists(MAP_ART_PILOT_PATH_SURFACE_TEXTURE_PATH):
 		return MAP_ART_PILOT_PATH_SURFACE_TEXTURE_PATH
 	if not allow_socket_smoke_placeholder:
@@ -267,6 +276,9 @@ static func build_map_landmark_socket_texture_path(
 	var family_prefix: String = String(asset_family_key).strip_edges().to_lower().get_slice(":", 0)
 	if family_prefix.is_empty():
 		family_prefix = String(node_family).strip_edges().to_lower()
+	var probe_texture_path: String = String(MAP_PRODUCTION_PROBE_LANDMARK_TEXTURE_PATHS_BY_FAMILY_PREFIX.get(family_prefix, ""))
+	if _texture_path_exists(probe_texture_path):
+		return probe_texture_path
 	var texture_path: String = String(MAP_ART_PILOT_LANDMARK_TEXTURE_PATHS_BY_FAMILY_PREFIX.get(family_prefix, ""))
 	if _texture_path_exists(texture_path):
 		return texture_path

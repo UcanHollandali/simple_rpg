@@ -225,6 +225,24 @@ func test_map_board_canvas_derives_socket_art_from_render_model_slots() -> void:
 				"landmark_half_size": Vector2(16.0, 18.0),
 				"rotation_degrees": 4.0,
 				"asset_family_key": "blacksmith:forge",
+			}, {
+				"slot_id": "landmark:3",
+				"asset_socket_kind": "landmark",
+				"node_family": "combat",
+				"slot_role": "visible_landmark",
+				"anchor_point": Vector2(136.0, 96.0),
+				"landmark_half_size": Vector2(18.0, 14.0),
+				"rotation_degrees": -10.0,
+				"asset_family_key": "combat:crossed_stakes",
+			}, {
+				"slot_id": "landmark:4",
+				"asset_socket_kind": "landmark",
+				"node_family": "hamlet",
+				"slot_role": "visible_landmark",
+				"anchor_point": Vector2(150.0, 104.0),
+				"landmark_half_size": Vector2(15.0, 17.0),
+				"rotation_degrees": 2.0,
+				"asset_family_key": "hamlet:waypost",
 			}],
 			"decor_slots": [{
 				"slot_id": "decor:filler:0",
@@ -262,6 +280,18 @@ func test_map_board_canvas_derives_socket_art_from_render_model_slots() -> void:
 		"Expected the decor art-pilot runtime asset to be loadable."
 	)
 	assert(
+		SceneLayoutHelperScript.load_texture_or_null(UiAssetPathsScript.MAP_PRODUCTION_PROBE_PATH_SURFACE_TEXTURE_PATH) != null,
+		"Expected the path production-probe runtime asset to be loadable."
+	)
+	assert(
+		SceneLayoutHelperScript.load_texture_or_null(UiAssetPathsScript.MAP_PRODUCTION_PROBE_COMBAT_LANDMARK_TEXTURE_PATH) != null,
+		"Expected the combat production-probe runtime asset to be loadable."
+	)
+	assert(
+		SceneLayoutHelperScript.load_texture_or_null(UiAssetPathsScript.MAP_PRODUCTION_PROBE_BLACKSMITH_LANDMARK_TEXTURE_PATH) != null,
+		"Expected the blacksmith production-probe runtime asset to be loadable."
+	)
+	assert(
 		not bool(board_canvas.call("_draws_prototype_socket_dressing_by_default")),
 		"Expected candidate/prototype socket dressing to stay out of the normal board render until an explicit prototype flag enables it."
 	)
@@ -277,30 +307,38 @@ func test_map_board_canvas_derives_socket_art_from_render_model_slots() -> void:
 	var landmark_entries: Array = board_canvas.call("_landmark_socket_smoke_entries")
 	var decor_entries: Array = board_canvas.call("_decor_socket_smoke_entries")
 	assert(path_entries.size() == 1, "Expected path-surface socket art to derive from render_model.path_surfaces.")
-	assert(landmark_entries.size() == 2, "Expected normal landmark socket art to cover shipped pilot families while skipping uncovered placeholders.")
+	assert(landmark_entries.size() == 4, "Expected normal landmark socket art to cover shipped pilot and production-probe families while skipping uncovered placeholders.")
 	assert(decor_entries.size() == 1, "Expected decor socket art to derive from render_model.decor_slots.")
 
 	var path_entry: Dictionary = path_entries[0]
 	var boss_entry: Dictionary = landmark_entries[0]
 	var merchant_entry: Dictionary = landmark_entries[1]
+	var blacksmith_entry: Dictionary = landmark_entries[2]
+	var combat_entry: Dictionary = landmark_entries[3]
 	var decor_entry: Dictionary = decor_entries[0]
-	assert(String(path_entry.get("texture_path", "")) == UiAssetPathsScript.MAP_ART_PILOT_PATH_SURFACE_TEXTURE_PATH, "Expected path-surface sockets to use the art-pilot path brush.")
+	assert(String(path_entry.get("texture_path", "")) == UiAssetPathsScript.MAP_PRODUCTION_PROBE_PATH_SURFACE_TEXTURE_PATH, "Expected path-surface sockets to prefer the hidden production-probe path brush.")
 	assert(String(boss_entry.get("texture_path", "")) == UiAssetPathsScript.MAP_ART_PILOT_BOSS_LANDMARK_TEXTURE_PATH, "Expected boss landmark sockets to use the art-pilot boss landmark.")
 	assert(String(merchant_entry.get("texture_path", "")) == UiAssetPathsScript.MAP_ART_PILOT_MERCHANT_LANDMARK_TEXTURE_PATH, "Expected merchant landmark sockets to use the art-pilot merchant landmark.")
+	assert(String(blacksmith_entry.get("texture_path", "")) == UiAssetPathsScript.MAP_PRODUCTION_PROBE_BLACKSMITH_LANDMARK_TEXTURE_PATH, "Expected blacksmith landmark sockets to use the hidden production-probe blacksmith landmark.")
+	assert(String(combat_entry.get("texture_path", "")) == UiAssetPathsScript.MAP_PRODUCTION_PROBE_COMBAT_LANDMARK_TEXTURE_PATH, "Expected combat landmark sockets to use the hidden production-probe combat landmark.")
 	assert(String(decor_entry.get("texture_path", "")) == UiAssetPathsScript.MAP_ART_PILOT_DECOR_TEXTURE_PATH, "Expected decor sockets to use the art-pilot decor stamp.")
 	assert(UiAssetPathsScript.build_map_landmark_socket_texture_path("key:shrine", "") == UiAssetPathsScript.MAP_ART_PILOT_KEY_LANDMARK_TEXTURE_PATH, "Expected key landmark sockets to resolve to the key art-pilot asset.")
 	assert(UiAssetPathsScript.build_map_landmark_socket_texture_path("rest:camp", "") == UiAssetPathsScript.MAP_ART_PILOT_REST_LANDMARK_TEXTURE_PATH, "Expected rest landmark sockets to resolve to the rest art-pilot asset.")
 	assert(UiAssetPathsScript.build_map_landmark_socket_texture_path("merchant:stall", "merchant") == UiAssetPathsScript.MAP_ART_PILOT_MERCHANT_LANDMARK_TEXTURE_PATH, "Expected merchant landmark sockets to resolve to the merchant art-pilot asset.")
-	assert(UiAssetPathsScript.build_map_landmark_socket_texture_path("blacksmith:forge", "blacksmith") == "", "Expected unsupported landmark pilot families to skip socket-smoke placeholders by default.")
-	assert(UiAssetPathsScript.build_map_landmark_socket_texture_path("blacksmith:forge", "blacksmith", true) == UiAssetPathsScript.MAP_SOCKET_SMOKE_LANDMARK_TEXTURE_PATH, "Expected explicit debug socket-smoke mode to reveal placeholder landmark art.")
+	assert(UiAssetPathsScript.build_map_landmark_socket_texture_path("blacksmith:forge", "blacksmith") == UiAssetPathsScript.MAP_PRODUCTION_PROBE_BLACKSMITH_LANDMARK_TEXTURE_PATH, "Expected blacksmith sockets to resolve to the hidden production-probe asset.")
+	assert(UiAssetPathsScript.build_map_landmark_socket_texture_path("combat:crossed_stakes", "combat") == UiAssetPathsScript.MAP_PRODUCTION_PROBE_COMBAT_LANDMARK_TEXTURE_PATH, "Expected combat sockets to resolve to the hidden production-probe asset.")
+	assert(UiAssetPathsScript.build_map_landmark_socket_texture_path("hamlet:waypost", "hamlet") == "", "Expected unsupported landmark pilot families to skip socket-smoke placeholders by default.")
+	assert(UiAssetPathsScript.build_map_landmark_socket_texture_path("hamlet:waypost", "hamlet", true) == UiAssetPathsScript.MAP_SOCKET_SMOKE_LANDMARK_TEXTURE_PATH, "Expected explicit debug socket-smoke mode to reveal placeholder landmark art.")
 	assert(Vector2(boss_entry.get("center", Vector2.ZERO)) == Vector2(64.0, 72.0), "Expected landmark smoke placement to come from the socket anchor point.")
 	assert(Vector2(merchant_entry.get("center", Vector2.ZERO)) == Vector2(96.0, 82.0), "Expected merchant art placement to come from the socket anchor point.")
+	assert(Vector2(blacksmith_entry.get("center", Vector2.ZERO)) == Vector2(116.0, 90.0), "Expected blacksmith art placement to come from the socket anchor point.")
+	assert(Vector2(combat_entry.get("center", Vector2.ZERO)) == Vector2(136.0, 96.0), "Expected combat art placement to come from the socket anchor point.")
 	assert(Vector2(decor_entry.get("center", Vector2.ZERO)) == Vector2(128.0, 88.0), "Expected decor smoke placement to come from the socket anchor point.")
 	assert(Vector2(path_entry.get("draw_size", Vector2.ZERO)).x <= 52.0, "Expected path smoke to stay small enough to avoid becoming road truth.")
 	board_canvas.call("set_socket_smoke_placeholder_drawing_enabled", true)
 	var debug_landmark_entries: Array = board_canvas.call("_landmark_socket_smoke_entries")
-	assert(debug_landmark_entries.size() == 3, "Expected explicit debug socket-smoke mode to include uncovered landmark placeholders.")
-	assert(String((debug_landmark_entries[2] as Dictionary).get("texture_path", "")) == UiAssetPathsScript.MAP_SOCKET_SMOKE_LANDMARK_TEXTURE_PATH, "Expected debug socket-smoke mode to use the placeholder landmark texture.")
+	assert(debug_landmark_entries.size() == 5, "Expected explicit debug socket-smoke mode to include uncovered landmark placeholders.")
+	assert(String((debug_landmark_entries[4] as Dictionary).get("texture_path", "")) == UiAssetPathsScript.MAP_SOCKET_SMOKE_LANDMARK_TEXTURE_PATH, "Expected debug socket-smoke mode to use the placeholder landmark texture.")
 	board_canvas.free()
 
 

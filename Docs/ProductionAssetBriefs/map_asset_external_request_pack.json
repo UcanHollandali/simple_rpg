@@ -1,0 +1,90 @@
+{
+  "generated": "2026-04-25",
+  "source": "live_gd_socket_metadata",
+  "purpose": "external_art_request_pack",
+  "default_render_promotion": false,
+  "shared_style": {
+    "theme": "dark forest wayfinder fantasy",
+    "readability": "silhouette first, readable at small map scale",
+    "background": "transparent",
+    "palette": ["dark ink", "muted bark", "aged bronze", "oxidized teal", "pale warm highlight"],
+    "negative": ["no text", "no numbers", "no UI card frame", "no badge frame", "no route truth markings"]
+  },
+  "requests": [
+    {
+      "request_id": "map_path_brush_production",
+      "asset_id": "ui_map_path_brush",
+      "socket_kind": "path_surface",
+      "family_key": "path_surface",
+      "preferred_format": "svg",
+      "master_path": "SourceArt/Edited/Map/Production/ui_map_path_brush_master_v001.svg",
+      "runtime_path": "Assets/UI/Map/Production/ui_map_path_brush.svg",
+      "brief": "Forest trail brush that can rotate along curved path surfaces; worn earth, roots, and subtle guide-light flecks, not a hard UI line."
+    },
+    {
+      "request_id": "map_landmark_combat_production",
+      "asset_id": "ui_map_combat_landmark",
+      "socket_kind": "landmark",
+      "family_key": "combat:crossed_stakes",
+      "preferred_format": "svg",
+      "master_path": "SourceArt/Edited/Map/Production/ui_map_combat_landmark_master_v001.svg",
+      "runtime_path": "Assets/UI/Map/Production/ui_map_combat_landmark.svg",
+      "brief": "Crossed stakes or broken warning totem; clear danger silhouette without skull or cartoon icon language."
+    },
+    {
+      "request_id": "map_landmark_event_production",
+      "asset_id": "ui_map_event_landmark",
+      "socket_kind": "landmark",
+      "family_key": "event:standing_stone",
+      "preferred_format": "svg",
+      "master_path": "SourceArt/Edited/Map/Production/ui_map_event_landmark_master_v001.svg",
+      "runtime_path": "Assets/UI/Map/Production/ui_map_event_landmark.svg",
+      "brief": "Standing stone or omen marker; mysterious but readable, with one simple inner glyph-like shape that is not literal text."
+    },
+    {
+      "request_id": "map_landmark_reward_production",
+      "asset_id": "ui_map_reward_landmark",
+      "socket_kind": "landmark",
+      "family_key": "reward:cache_slab",
+      "preferred_format": "svg",
+      "master_path": "SourceArt/Edited/Map/Production/ui_map_reward_landmark_master_v001.svg",
+      "runtime_path": "Assets/UI/Map/Production/ui_map_reward_landmark.svg",
+      "brief": "Hidden cache slab, covered supply crate, or low treasure marker; implies reward without a shiny chest icon."
+    },
+    {
+      "request_id": "map_landmark_blacksmith_production",
+      "asset_id": "ui_map_blacksmith_landmark",
+      "socket_kind": "landmark",
+      "family_key": "blacksmith:forge",
+      "preferred_format": "svg",
+      "master_path": "SourceArt/Edited/Map/Production/ui_map_blacksmith_landmark_master_v001.svg",
+      "runtime_path": "Assets/UI/Map/Production/ui_map_blacksmith_landmark.svg",
+      "brief": "Small forge/anvil marker; readable as blacksmith support without becoming a full building illustration."
+    },
+    {
+      "request_id": "map_landmark_hamlet_production",
+      "asset_id": "ui_map_hamlet_landmark",
+      "socket_kind": "landmark",
+      "family_key": "hamlet:waypost",
+      "preferred_format": "svg",
+      "master_path": "SourceArt/Edited/Map/Production/ui_map_hamlet_landmark_master_v001.svg",
+      "runtime_path": "Assets/UI/Map/Production/ui_map_hamlet_landmark.svg",
+      "brief": "Tiny settlement waypost or clustered shelter sign; reads as human refuge, not merchant, rest, or blacksmith."
+    },
+    {
+      "request_id": "map_decor_or_canopy_family_production",
+      "asset_id": "ui_map_forest_decor_family",
+      "socket_kind": "decor_or_canopy",
+      "family_key": "forest_decor_or_canopy",
+      "preferred_format": "svg_or_transparent_png",
+      "master_path": "SourceArt/Edited/Map/Production/ui_map_forest_decor_family_master_v001.svg",
+      "runtime_path": "Assets/UI/Map/Production/ui_map_forest_decor_family.svg",
+      "brief": "Small foliage/decor stamp or canopy frame family; adds forest-world texture without hiding route readability."
+    }
+  ],
+  "repo_probe_assets": [
+    "ui_map_production_probe_path_brush",
+    "ui_map_production_probe_combat_landmark",
+    "ui_map_production_probe_blacksmith_landmark"
+  ]
+}

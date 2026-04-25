@@ -1,6 +1,6 @@
 # SIMPLE RPG - Active Roadmap
 
-Last updated: 2026-04-25 (hunger/exploration UX pilot landed; next lane is live-socket production asset brief)
+Last updated: 2026-04-25 (map asset request pack and hidden production probes added)
 
 This is the active short-horizon roadmap for the repo.
 It is a planning file, not an authority doc.
@@ -118,17 +118,63 @@ Validation:
 Goal:
 - generate a fresh production art brief from current live socket metadata instead of archived brief/audit drafts
 
-Include:
+Result:
+- generated `Docs/ProductionAssetBriefs/map_socket_production_asset_brief.md`
+- generated `Docs/ProductionAssetBriefs/map_socket_production_asset_brief.json`
+- added `Tools/map_socket_asset_brief_export.gd`
+- added `Tools/run_map_socket_asset_brief_export.ps1`
+- source chain is live `.gd`: `RunState` / `MapRuntimeState` -> `MapBoardComposerV2` -> `render_model` -> `MapBoardCanvas` socket entry checks
+- export sweep covers stages `1-3`, seeds `11,29,41,73,97`, progress steps `0,3,6`, with all nodes revealed inside the export pass only to observe the full socket family surface
+
+Included:
 - path brush sockets
 - boss/key/rest/merchant landmark sockets
 - missing combat/event/reward/blacksmith/hamlet landmark families
 - canopy, filler, and decor family sizing/placement needs
 
-Rules:
+Still true:
 - do not enable candidate or production art in normal/default board render inside the brief step
 - do not restore archived map art briefs as active routing docs
 - use current manifest state and live render-model/socket metadata
 - keep default render promotion as a later separate decision with provenance, screenshot review, and pixel diff
+
+Validation:
+- `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_map_socket_asset_brief_export.ps1`
+
+## Candidate Map Asset Selection
+
+Goal:
+- choose a narrow `5-8` candidate set from the live-socket brief before any default-render promotion
+
+Result:
+- added `Docs/ProductionAssetBriefs/map_asset_external_request_pack.md`
+- added `Docs/ProductionAssetBriefs/map_asset_external_request_pack.json`
+- selected the external production ask: path brush, combat/event/reward/blacksmith/hamlet landmarks, and decor/canopy family work
+- added hidden repo-authored production probes for path brush, combat landmark, and blacksmith landmark
+- mapped production probes only through explicit prototype socket drawing
+- default render promotion remains closed
+
+Rules:
+- do not widen this into a full production art expansion without a separate selection decision
+- every runtime candidate still needs manifest/provenance truth in the same patch where it crosses into `Assets/`
+- default render promotion remains a later separate decision with screenshot review and pixel diff
+
+Validation:
+- `py -3 Tools/validate_content.py`
+- `py -3 Tools/validate_assets.py`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_map_socket_asset_brief_export.ps1`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_tests.ps1 -Tests test_map_board_composer_v2.gd,test_map_board_canvas.gd,test_map_explore_presenter.gd`
+
+## Next Lane - External Map Asset Intake
+
+Goal:
+- use the request pack to produce external art variants and import only reviewed winners through the asset pipeline
+
+Rules:
+- external assets must arrive with source/provenance notes before runtime import
+- first import stays hidden behind explicit prototype socket drawing
+- update `SourceArt/Edited/Map/Production/`, `Assets/UI/Map/Production/`, and `AssetManifest/asset_manifest.csv` together
+- run screenshot review and pixel diff before any default render promotion
 
 ## Archived Summary
 
@@ -141,11 +187,10 @@ Rules:
 - old `Prompt 06-36`: broader closed-green prompt history archived under `Docs/Archive/Prompts/2026-04-23-closed-green-prompt-packs/`
 - retired map art scope/requirements/brief/audit references: archived under `Docs/Archive/Plans/2026-04-24-retired-map-art-reference/`
 
-## After Production Asset Brief
+## After External Asset Intake
 
-- If the brief is accepted, choose the next lane explicitly from:
-  - 5-8 asset candidate generation
-  - a small manifest-backed default-render pilot for 2-3 approved assets
+- If reviewed external assets are accepted, choose the next lane explicitly from:
+  - a small manifest-backed default-render pilot for `2-3` reviewed assets
   - additional map structural cleanup
   - broader balance/content work
 - Do not open a new prompt queue until `ROADMAP.md` names it directly.

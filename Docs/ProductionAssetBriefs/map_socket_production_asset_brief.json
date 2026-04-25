@@ -1,0 +1,4583 @@
+{
+	"snapshot_date": "2026-04-25",
+	"generator": "Tools/map_socket_asset_brief_export.gd",
+	"source_files": [
+		"Game/RuntimeState/run_state.gd",
+		"Game/RuntimeState/map_runtime_state.gd",
+		"Game/UI/map_board_composer_v2.gd",
+		"Game/UI/map_board_render_model_masks_slots.gd",
+		"Game/UI/map_board_canvas.gd",
+		"Game/UI/ui_asset_paths.gd"
+	],
+	"snapshot_inputs": {
+		"board_size": {
+			"x": 920.0,
+			"y": 1180.0
+		},
+		"stages": [
+			1,
+			2,
+			3
+		],
+		"seeds": [
+			11,
+			29,
+			41,
+			73,
+			97
+		],
+		"progress_steps": [
+			0,
+			3,
+			6
+		],
+		"scenario_count": 45,
+		"coverage_mode": "path/landmark coverage uses all nodes revealed inside export pass; environment family sizing also samples normal visible compositions before reveal"
+	},
+	"default_render_boundary": {
+		"uses_render_model_surface_lane": true,
+		"prototype_socket_dressing_enabled_by_default": false,
+		"default_socket_draw_entry_counts": {
+			"path_surface": 0,
+			"landmark": 0,
+			"decor": 0
+		},
+		"prototype_socket_draw_entry_counts_when_enabled": {
+			"path_surface": 11,
+			"landmark": 10,
+			"decor": 1
+		},
+		"promotion_note": "normal/default render remains render_model.path_surfaces + junctions + clearing_surfaces; socket art requires explicit prototype/debug canvas enablement"
+	},
+	"render_model_summary": {
+		"canopy_mask_count": {
+			"min": 1.0,
+			"max": 1.0
+		},
+		"clearing_surface_count": {
+			"min": 14.0,
+			"max": 14.0
+		},
+		"decor_slot_count": {
+			"min": 1.0,
+			"max": 1.0
+		},
+		"junction_count": {
+			"min": 10.0,
+			"max": 14.0
+		},
+		"landmark_slot_count": {
+			"min": 14.0,
+			"max": 14.0
+		},
+		"orientation_profile_ids": [
+			"center_outward_balanced",
+			"center_outward_east_weighted",
+			"center_outward_west_weighted"
+		],
+		"path_surface_count": {
+			"min": 9.0,
+			"max": 14.0
+		},
+		"template_profiles": [
+			"corridor",
+			"loop",
+			"openfield"
+		],
+		"topology_blueprint_ids": [
+			"procedural_stage_corridor_v1:spine",
+			"procedural_stage_corridor_v1:switchback",
+			"procedural_stage_loop_v1:crossback",
+			"procedural_stage_loop_v1:return",
+			"procedural_stage_openfield_v1:fan",
+			"procedural_stage_openfield_v1:lane"
+		]
+	},
+	"path_surface_summary": {
+		"branch_actionable_corridor": {
+			"asset_family_keys": [],
+			"asset_socket_kinds": [],
+			"candidate_texture_path": "res://Assets/UI/Map/ProductionProbe/ui_map_production_probe_path_brush.svg",
+			"cardinal_directions": [
+				"east",
+				"north",
+				"south",
+				"west"
+			],
+			"cardinal_sides": [],
+			"centerline_point_count": {
+				"min": 4.0,
+				"max": 17.0
+			},
+			"clearance_roles": [],
+			"connected_path_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"count": 88,
+			"frames_clearing_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"frames_path_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_shapes": [],
+			"mask_roles": [],
+			"outer_width": {
+				"min": 38.0,
+				"max": 38.0
+			},
+			"outward_route_hints": [],
+			"path_families": [
+				"gentle_curve",
+				"outward_reconnecting_arc",
+				"short_straight",
+				"wider_curve"
+			],
+			"pocket_half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"pocket_shapes": [],
+			"production_status": "candidate_hidden_by_default",
+			"radius": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"relation_types": [],
+			"route_surface_semantics": [
+				"branch_actionable_corridor"
+			],
+			"scale": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"shapes": [],
+			"signage_scale": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"signage_shapes": [],
+			"slot_roles": [],
+			"source_legacy_fields": [],
+			"state_semantics": [
+				"locked",
+				"open",
+				"resolved"
+			],
+			"surface_width": {
+				"min": 28.0,
+				"max": 28.0
+			}
+		},
+		"branch_history_corridor": {
+			"asset_family_keys": [],
+			"asset_socket_kinds": [],
+			"candidate_texture_path": "res://Assets/UI/Map/ProductionProbe/ui_map_production_probe_path_brush.svg",
+			"cardinal_directions": [
+				"east",
+				"north",
+				"south",
+				"west"
+			],
+			"cardinal_sides": [],
+			"centerline_point_count": {
+				"min": 5.0,
+				"max": 17.0
+			},
+			"clearance_roles": [],
+			"connected_path_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"count": 36,
+			"frames_clearing_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"frames_path_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_shapes": [],
+			"mask_roles": [],
+			"outer_width": {
+				"min": 32.0,
+				"max": 32.0
+			},
+			"outward_route_hints": [],
+			"path_families": [
+				"gentle_curve",
+				"outward_reconnecting_arc",
+				"short_straight",
+				"wider_curve"
+			],
+			"pocket_half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"pocket_shapes": [],
+			"production_status": "candidate_hidden_by_default",
+			"radius": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"relation_types": [],
+			"route_surface_semantics": [
+				"branch_history_corridor"
+			],
+			"scale": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"shapes": [],
+			"signage_scale": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"signage_shapes": [],
+			"slot_roles": [],
+			"source_legacy_fields": [],
+			"state_semantics": [
+				"open",
+				"resolved"
+			],
+			"surface_width": {
+				"min": 22.0,
+				"max": 22.0
+			}
+		},
+		"history_corridor": {
+			"asset_family_keys": [],
+			"asset_socket_kinds": [],
+			"candidate_texture_path": "res://Assets/UI/Map/ProductionProbe/ui_map_production_probe_path_brush.svg",
+			"cardinal_directions": [
+				"east",
+				"north",
+				"south",
+				"west"
+			],
+			"cardinal_sides": [],
+			"centerline_point_count": {
+				"min": 4.0,
+				"max": 17.0
+			},
+			"clearance_roles": [],
+			"connected_path_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"count": 326,
+			"frames_clearing_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"frames_path_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_shapes": [],
+			"mask_roles": [],
+			"outer_width": {
+				"min": 28.0,
+				"max": 28.0
+			},
+			"outward_route_hints": [],
+			"path_families": [
+				"gentle_curve",
+				"outward_reconnecting_arc",
+				"short_straight",
+				"wider_curve"
+			],
+			"pocket_half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"pocket_shapes": [],
+			"production_status": "candidate_hidden_by_default",
+			"radius": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"relation_types": [],
+			"route_surface_semantics": [
+				"history_corridor"
+			],
+			"scale": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"shapes": [],
+			"signage_scale": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"signage_shapes": [],
+			"slot_roles": [],
+			"source_legacy_fields": [],
+			"state_semantics": [
+				"locked",
+				"open",
+				"resolved"
+			],
+			"surface_width": {
+				"min": 18.0,
+				"max": 18.0
+			}
+		},
+		"primary_actionable_corridor": {
+			"asset_family_keys": [],
+			"asset_socket_kinds": [],
+			"candidate_texture_path": "res://Assets/UI/Map/ProductionProbe/ui_map_production_probe_path_brush.svg",
+			"cardinal_directions": [
+				"east",
+				"north",
+				"south",
+				"west"
+			],
+			"cardinal_sides": [],
+			"centerline_point_count": {
+				"min": 4.0,
+				"max": 17.0
+			},
+			"clearance_roles": [],
+			"connected_path_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"count": 45,
+			"frames_clearing_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"frames_path_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_shapes": [],
+			"mask_roles": [],
+			"outer_width": {
+				"min": 44.0,
+				"max": 44.0
+			},
+			"outward_route_hints": [],
+			"path_families": [
+				"gentle_curve",
+				"outward_reconnecting_arc",
+				"short_straight",
+				"wider_curve"
+			],
+			"pocket_half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"pocket_shapes": [],
+			"production_status": "candidate_hidden_by_default",
+			"radius": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"relation_types": [],
+			"route_surface_semantics": [
+				"primary_actionable_corridor"
+			],
+			"scale": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"shapes": [],
+			"signage_scale": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"signage_shapes": [],
+			"slot_roles": [],
+			"source_legacy_fields": [],
+			"state_semantics": [
+				"locked",
+				"open",
+				"resolved"
+			],
+			"surface_width": {
+				"min": 34.0,
+				"max": 34.0
+			}
+		},
+		"reconnect_corridor": {
+			"asset_family_keys": [],
+			"asset_socket_kinds": [],
+			"candidate_texture_path": "res://Assets/UI/Map/ProductionProbe/ui_map_production_probe_path_brush.svg",
+			"cardinal_directions": [
+				"east",
+				"north",
+				"south",
+				"west"
+			],
+			"cardinal_sides": [],
+			"centerline_point_count": {
+				"min": 4.0,
+				"max": 17.0
+			},
+			"clearance_roles": [],
+			"connected_path_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"count": 58,
+			"frames_clearing_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"frames_path_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_shapes": [],
+			"mask_roles": [],
+			"outer_width": {
+				"min": 24.0,
+				"max": 24.0
+			},
+			"outward_route_hints": [],
+			"path_families": [
+				"gentle_curve",
+				"outward_reconnecting_arc",
+				"wider_curve"
+			],
+			"pocket_half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"pocket_shapes": [],
+			"production_status": "candidate_hidden_by_default",
+			"radius": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"relation_types": [],
+			"route_surface_semantics": [
+				"reconnect_corridor"
+			],
+			"scale": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"shapes": [],
+			"signage_scale": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"signage_shapes": [],
+			"slot_roles": [],
+			"source_legacy_fields": [],
+			"state_semantics": [
+				"open",
+				"resolved"
+			],
+			"surface_width": {
+				"min": 14.0,
+				"max": 14.0
+			}
+		}
+	},
+	"landmark_slot_summary": {
+		"blacksmith": {
+			"asset_family_keys": [
+				"blacksmith:forge"
+			],
+			"asset_socket_kinds": [],
+			"candidate_texture_path": "res://Assets/UI/Map/ProductionProbe/ui_map_production_probe_blacksmith_landmark.svg",
+			"cardinal_directions": [
+				"east",
+				"north",
+				"south"
+			],
+			"cardinal_sides": [],
+			"centerline_point_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"clearance_roles": [],
+			"connected_path_count": {
+				"min": 1.0,
+				"max": 2.0
+			},
+			"count": 30,
+			"frames_clearing_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"frames_path_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_half_size": {
+				"min": {
+					"x": 22.7512340545654,
+					"y": 16.1154556274414
+				},
+				"max": {
+					"x": 27.3791999816895,
+					"y": 19.3936004638672
+				}
+			},
+			"landmark_shapes": [
+				"forge"
+			],
+			"mask_roles": [],
+			"outer_width": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"outward_route_hints": [
+				"history_east",
+				"history_north",
+				"history_south",
+				"outward_north"
+			],
+			"path_families": [],
+			"pocket_half_size": {
+				"min": {
+					"x": 66.3577575683594,
+					"y": 44.5544967651367
+				},
+				"max": {
+					"x": 79.8560028076172,
+					"y": 53.6175994873047
+				}
+			},
+			"pocket_shapes": [
+				"rect"
+			],
+			"production_status": "candidate_hidden_by_default",
+			"radius": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"relation_types": [],
+			"route_surface_semantics": [],
+			"scale": {
+				"min": 0.442,
+				"max": 0.48
+			},
+			"shapes": [],
+			"signage_scale": {
+				"min": 0.5,
+				"max": 0.5
+			},
+			"signage_shapes": [
+				"tab"
+			],
+			"slot_roles": [
+				"adjacent_landmark",
+				"known_landmark"
+			],
+			"source_legacy_fields": [],
+			"state_semantics": [
+				"open",
+				"resolved"
+			],
+			"surface_width": {
+				"min": 0.0,
+				"max": 0.0
+			}
+		},
+		"boss": {
+			"asset_family_keys": [
+				"boss:gate"
+			],
+			"asset_socket_kinds": [],
+			"candidate_texture_path": "res://Assets/UI/Map/ArtPilot/ui_map_art_pilot_boss_landmark.svg",
+			"cardinal_directions": [
+				"east",
+				"north",
+				"south",
+				"west"
+			],
+			"cardinal_sides": [],
+			"centerline_point_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"clearance_roles": [],
+			"connected_path_count": {
+				"min": 0.0,
+				"max": 1.0
+			},
+			"count": 45,
+			"frames_clearing_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"frames_path_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_half_size": {
+				"min": {
+					"x": 45.0432014465332,
+					"y": 30.0287990570068
+				},
+				"max": {
+					"x": 45.0432014465332,
+					"y": 30.0287990570068
+				}
+			},
+			"landmark_shapes": [
+				"gate"
+			],
+			"mask_roles": [],
+			"outer_width": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"outward_route_hints": [
+				"history_east",
+				"history_north",
+				"history_south",
+				"outward_east",
+				"outward_north",
+				"outward_south",
+				"outward_west",
+				"slot_east",
+				"slot_north",
+				"slot_south",
+				"slot_west"
+			],
+			"path_families": [],
+			"pocket_half_size": {
+				"min": {
+					"x": 120.115196228027,
+					"y": 77.5744018554688
+				},
+				"max": {
+					"x": 120.115196228027,
+					"y": 77.5744018554688
+				}
+			},
+			"pocket_shapes": [
+				"rect"
+			],
+			"production_status": "candidate_hidden_by_default",
+			"radius": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"relation_types": [],
+			"route_surface_semantics": [],
+			"scale": {
+				"min": 0.72,
+				"max": 0.72
+			},
+			"shapes": [],
+			"signage_scale": {
+				"min": 0.46,
+				"max": 0.46
+			},
+			"signage_shapes": [
+				"tab"
+			],
+			"slot_roles": [
+				"adjacent_landmark",
+				"known_landmark"
+			],
+			"source_legacy_fields": [],
+			"state_semantics": [
+				"locked"
+			],
+			"surface_width": {
+				"min": 0.0,
+				"max": 0.0
+			}
+		},
+		"combat": {
+			"asset_family_keys": [
+				"combat:crossed_stakes"
+			],
+			"asset_socket_kinds": [],
+			"candidate_texture_path": "res://Assets/UI/Map/ProductionProbe/ui_map_production_probe_combat_landmark.svg",
+			"cardinal_directions": [
+				"east",
+				"north",
+				"south",
+				"west"
+			],
+			"cardinal_sides": [],
+			"centerline_point_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"clearance_roles": [],
+			"connected_path_count": {
+				"min": 0.0,
+				"max": 3.0
+			},
+			"count": 270,
+			"frames_clearing_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"frames_path_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_half_size": {
+				"min": {
+					"x": 18.9932174682617,
+					"y": 12.9499206542969
+				},
+				"max": {
+					"x": 23.073600769043,
+					"y": 15.7320003509521
+				}
+			},
+			"landmark_shapes": [
+				"crossed_stakes"
+			],
+			"mask_roles": [],
+			"outer_width": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"outward_route_hints": [
+				"history_east",
+				"history_north",
+				"history_south",
+				"history_west",
+				"outward_east",
+				"outward_north",
+				"outward_south",
+				"outward_west",
+				"reconnect_east",
+				"reconnect_north",
+				"reconnect_south",
+				"reconnect_west",
+				"slot_east",
+				"slot_north",
+				"slot_south",
+				"slot_west"
+			],
+			"path_families": [],
+			"pocket_half_size": {
+				"min": {
+					"x": 66.4762573242188,
+					"y": 47.483039855957
+				},
+				"max": {
+					"x": 83.9878997802734,
+					"y": 59.9913558959961
+				}
+			},
+			"pocket_shapes": [
+				"ellipse"
+			],
+			"production_status": "candidate_hidden_by_default",
+			"radius": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"relation_types": [],
+			"route_surface_semantics": [],
+			"scale": {
+				"min": 0.405,
+				"max": 0.44
+			},
+			"shapes": [],
+			"signage_scale": {
+				"min": 0.56,
+				"max": 0.56
+			},
+			"signage_shapes": [
+				"round_badge"
+			],
+			"slot_roles": [
+				"adjacent_landmark",
+				"current_landmark",
+				"known_landmark"
+			],
+			"source_legacy_fields": [],
+			"state_semantics": [
+				"current",
+				"open",
+				"resolved"
+			],
+			"surface_width": {
+				"min": 0.0,
+				"max": 0.0
+			}
+		},
+		"event": {
+			"asset_family_keys": [
+				"event:standing_stone"
+			],
+			"asset_socket_kinds": [],
+			"candidate_texture_path": "",
+			"cardinal_directions": [
+				"east",
+				"north",
+				"south",
+				"west"
+			],
+			"cardinal_sides": [],
+			"centerline_point_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"clearance_roles": [],
+			"connected_path_count": {
+				"min": 1.0,
+				"max": 3.0
+			},
+			"count": 45,
+			"frames_clearing_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"frames_path_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_half_size": {
+				"min": {
+					"x": 10.3599367141724,
+					"y": 18.1298885345459
+				},
+				"max": {
+					"x": 12.585599899292,
+					"y": 22.0247993469238
+				}
+			},
+			"landmark_shapes": [
+				"standing_stone"
+			],
+			"mask_roles": [],
+			"outer_width": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"outward_route_hints": [
+				"history_east",
+				"history_north",
+				"history_south",
+				"history_west",
+				"outward_east",
+				"outward_south",
+				"outward_west",
+				"reconnect_east",
+				"reconnect_north",
+				"reconnect_south"
+			],
+			"path_families": [],
+			"pocket_half_size": {
+				"min": {
+					"x": 61.2962913513184,
+					"y": 44.8930549621582
+				},
+				"max": {
+					"x": 77.4433898925781,
+					"y": 56.7191047668457
+				}
+			},
+			"pocket_shapes": [
+				"ellipse"
+			],
+			"production_status": "gap",
+			"radius": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"relation_types": [],
+			"route_surface_semantics": [],
+			"scale": {
+				"min": 0.386,
+				"max": 0.42
+			},
+			"shapes": [],
+			"signage_scale": {
+				"min": 0.66,
+				"max": 0.66
+			},
+			"signage_shapes": [
+				"tab"
+			],
+			"slot_roles": [
+				"adjacent_landmark",
+				"current_landmark",
+				"known_landmark"
+			],
+			"source_legacy_fields": [],
+			"state_semantics": [
+				"current",
+				"open",
+				"resolved"
+			],
+			"surface_width": {
+				"min": 0.0,
+				"max": 0.0
+			}
+		},
+		"hamlet": {
+			"asset_family_keys": [
+				"hamlet:waypost"
+			],
+			"asset_socket_kinds": [],
+			"candidate_texture_path": "",
+			"cardinal_directions": [
+				"east",
+				"north",
+				"south",
+				"west"
+			],
+			"cardinal_sides": [],
+			"centerline_point_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"clearance_roles": [],
+			"connected_path_count": {
+				"min": 0.0,
+				"max": 3.0
+			},
+			"count": 45,
+			"frames_clearing_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"frames_path_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_half_size": {
+				"min": {
+					"x": 15.4383363723755,
+					"y": 17.0634231567383
+				},
+				"max": {
+					"x": 18.8784008026123,
+					"y": 20.8656005859375
+				}
+			},
+			"landmark_shapes": [
+				"waypost"
+			],
+			"mask_roles": [],
+			"outer_width": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"outward_route_hints": [
+				"history_east",
+				"history_north",
+				"history_south",
+				"outward_east",
+				"outward_north",
+				"reconnect_east",
+				"reconnect_north",
+				"reconnect_south",
+				"reconnect_west",
+				"slot_east"
+			],
+			"path_families": [],
+			"pocket_half_size": {
+				"min": {
+					"x": 54.4404487609863,
+					"y": 36.5644798278809
+				},
+				"max": {
+					"x": 66.5711975097656,
+					"y": 44.7120018005371
+				}
+			},
+			"pocket_shapes": [
+				"rect"
+			],
+			"production_status": "gap",
+			"radius": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"relation_types": [],
+			"route_surface_semantics": [],
+			"scale": {
+				"min": 0.386,
+				"max": 0.42
+			},
+			"shapes": [],
+			"signage_scale": {
+				"min": 0.52,
+				"max": 0.52
+			},
+			"signage_shapes": [
+				"tab"
+			],
+			"slot_roles": [
+				"adjacent_landmark",
+				"known_landmark"
+			],
+			"source_legacy_fields": [],
+			"state_semantics": [
+				"open",
+				"resolved"
+			],
+			"surface_width": {
+				"min": 0.0,
+				"max": 0.0
+			}
+		},
+		"key": {
+			"asset_family_keys": [
+				"key:shrine"
+			],
+			"asset_socket_kinds": [],
+			"candidate_texture_path": "res://Assets/UI/Map/ArtPilot/ui_map_art_pilot_key_landmark.svg",
+			"cardinal_directions": [
+				"east",
+				"north",
+				"south",
+				"west"
+			],
+			"cardinal_sides": [],
+			"centerline_point_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"clearance_roles": [],
+			"connected_path_count": {
+				"min": 0.0,
+				"max": 1.0
+			},
+			"count": 45,
+			"frames_clearing_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"frames_path_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_half_size": {
+				"min": {
+					"x": 20.5344009399414,
+					"y": 29.6608009338379
+				},
+				"max": {
+					"x": 20.5344009399414,
+					"y": 29.6608009338379
+				}
+			},
+			"landmark_shapes": [
+				"shrine"
+			],
+			"mask_roles": [],
+			"outer_width": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"outward_route_hints": [
+				"history_east",
+				"history_north",
+				"history_south",
+				"history_west",
+				"slot_east",
+				"slot_north"
+			],
+			"path_families": [],
+			"pocket_half_size": {
+				"min": {
+					"x": 80.9968032836914,
+					"y": 66.1663970947266
+				},
+				"max": {
+					"x": 80.9968032836914,
+					"y": 66.1663970947266
+				}
+			},
+			"pocket_shapes": [
+				"diamond"
+			],
+			"production_status": "candidate_hidden_by_default",
+			"radius": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"relation_types": [],
+			"route_surface_semantics": [],
+			"scale": {
+				"min": 0.52,
+				"max": 0.52
+			},
+			"shapes": [],
+			"signage_scale": {
+				"min": 0.48,
+				"max": 0.48
+			},
+			"signage_shapes": [
+				"round_badge"
+			],
+			"slot_roles": [
+				"known_landmark"
+			],
+			"source_legacy_fields": [],
+			"state_semantics": [
+				"open"
+			],
+			"surface_width": {
+				"min": 0.0,
+				"max": 0.0
+			}
+		},
+		"merchant": {
+			"asset_family_keys": [
+				"merchant:stall"
+			],
+			"asset_socket_kinds": [],
+			"candidate_texture_path": "res://Assets/UI/Map/ArtPilot/ui_map_art_pilot_merchant_landmark.svg",
+			"cardinal_directions": [
+				"east",
+				"north",
+				"south"
+			],
+			"cardinal_sides": [],
+			"centerline_point_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"clearance_roles": [],
+			"connected_path_count": {
+				"min": 1.0,
+				"max": 2.0
+			},
+			"count": 30,
+			"frames_clearing_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"frames_path_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_half_size": {
+				"min": {
+					"x": 24.6471672058105,
+					"y": 15.1674890518188
+				},
+				"max": {
+					"x": 29.6608009338379,
+					"y": 18.252799987793
+				}
+			},
+			"landmark_shapes": [
+				"stall"
+			],
+			"mask_roles": [],
+			"outer_width": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"outward_route_hints": [
+				"history_east",
+				"history_north",
+				"history_south"
+			],
+			"path_families": [],
+			"pocket_half_size": {
+				"min": {
+					"x": 67.3057327270508,
+					"y": 43.6065292358398
+				},
+				"max": {
+					"x": 80.9968032836914,
+					"y": 52.4767990112305
+				}
+			},
+			"pocket_shapes": [
+				"rect"
+			],
+			"production_status": "candidate_hidden_by_default",
+			"radius": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"relation_types": [],
+			"route_surface_semantics": [],
+			"scale": {
+				"min": 0.478,
+				"max": 0.52
+			},
+			"shapes": [],
+			"signage_scale": {
+				"min": 0.5,
+				"max": 0.5
+			},
+			"signage_shapes": [
+				"tab"
+			],
+			"slot_roles": [
+				"adjacent_landmark",
+				"known_landmark"
+			],
+			"source_legacy_fields": [],
+			"state_semantics": [
+				"open",
+				"resolved"
+			],
+			"surface_width": {
+				"min": 0.0,
+				"max": 0.0
+			}
+		},
+		"rest": {
+			"asset_family_keys": [
+				"rest:campfire"
+			],
+			"asset_socket_kinds": [],
+			"candidate_texture_path": "res://Assets/UI/Map/ArtPilot/ui_map_art_pilot_rest_landmark.svg",
+			"cardinal_directions": [
+				"east",
+				"north"
+			],
+			"cardinal_sides": [],
+			"centerline_point_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"clearance_roles": [],
+			"connected_path_count": {
+				"min": 1.0,
+				"max": 2.0
+			},
+			"count": 30,
+			"frames_clearing_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"frames_path_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_half_size": {
+				"min": {
+					"x": 21.8032646179199,
+					"y": 15.1674890518188
+				},
+				"max": {
+					"x": 26.2383995056152,
+					"y": 18.252799987793
+				}
+			},
+			"landmark_shapes": [
+				"campfire"
+			],
+			"mask_roles": [],
+			"outer_width": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"outward_route_hints": [
+				"history_east",
+				"history_north"
+			],
+			"path_families": [],
+			"pocket_half_size": {
+				"min": {
+					"x": 64.4618225097656,
+					"y": 46.4504356384277
+				},
+				"max": {
+					"x": 77.5744018554688,
+					"y": 55.8992004394531
+				}
+			},
+			"pocket_shapes": [
+				"ellipse"
+			],
+			"production_status": "candidate_hidden_by_default",
+			"radius": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"relation_types": [],
+			"route_surface_semantics": [],
+			"scale": {
+				"min": 0.423,
+				"max": 0.46
+			},
+			"shapes": [],
+			"signage_scale": {
+				"min": 0.52,
+				"max": 0.52
+			},
+			"signage_shapes": [
+				"round_badge"
+			],
+			"slot_roles": [
+				"adjacent_landmark",
+				"known_landmark"
+			],
+			"source_legacy_fields": [],
+			"state_semantics": [
+				"open",
+				"resolved"
+			],
+			"surface_width": {
+				"min": 0.0,
+				"max": 0.0
+			}
+		},
+		"reward": {
+			"asset_family_keys": [
+				"reward:cache_slab"
+			],
+			"asset_socket_kinds": [],
+			"candidate_texture_path": "",
+			"cardinal_directions": [
+				"east",
+				"north",
+				"south",
+				"west"
+			],
+			"cardinal_sides": [],
+			"centerline_point_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"clearance_roles": [],
+			"connected_path_count": {
+				"min": 0.0,
+				"max": 2.0
+			},
+			"count": 45,
+			"frames_clearing_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"frames_path_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_half_size": {
+				"min": {
+					"x": 22.7512340545654,
+					"y": 13.2715520858765
+				},
+				"max": {
+					"x": 27.3791999816895,
+					"y": 15.9711999893188
+				}
+			},
+			"landmark_shapes": [
+				"cache_slab"
+			],
+			"mask_roles": [],
+			"outer_width": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"outward_route_hints": [
+				"history_east",
+				"history_north",
+				"history_south",
+				"history_west",
+				"outward_east",
+				"outward_south",
+				"outward_west",
+				"slot_south"
+			],
+			"path_families": [],
+			"pocket_half_size": {
+				"min": {
+					"x": 61.617919921875,
+					"y": 43.6065292358398
+				},
+				"max": {
+					"x": 74.1520004272461,
+					"y": 52.4767990112305
+				}
+			},
+			"pocket_shapes": [
+				"rect"
+			],
+			"production_status": "gap",
+			"radius": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"relation_types": [],
+			"route_surface_semantics": [],
+			"scale": {
+				"min": 0.442,
+				"max": 0.48
+			},
+			"shapes": [],
+			"signage_scale": {
+				"min": 0.54,
+				"max": 0.54
+			},
+			"signage_shapes": [
+				"tab"
+			],
+			"slot_roles": [
+				"adjacent_landmark",
+				"known_landmark"
+			],
+			"source_legacy_fields": [],
+			"state_semantics": [
+				"open",
+				"resolved"
+			],
+			"surface_width": {
+				"min": 0.0,
+				"max": 0.0
+			}
+		},
+		"start": {
+			"asset_family_keys": [
+				"start:standing_stone"
+			],
+			"asset_socket_kinds": [],
+			"candidate_texture_path": "",
+			"cardinal_directions": [
+				"east",
+				"north",
+				"south",
+				"west"
+			],
+			"cardinal_sides": [],
+			"centerline_point_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"clearance_roles": [],
+			"connected_path_count": {
+				"min": 0.0,
+				"max": 4.0
+			},
+			"count": 45,
+			"frames_clearing_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"frames_path_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_half_size": {
+				"min": {
+					"x": 14.084095954895,
+					"y": 20.5844478607178
+				},
+				"max": {
+					"x": 16.7439994812012,
+					"y": 24.4720001220703
+				}
+			},
+			"landmark_shapes": [
+				"standing_stone"
+			],
+			"mask_roles": [],
+			"outer_width": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"outward_route_hints": [
+				"history_east",
+				"history_north",
+				"history_south",
+				"history_west",
+				"outward_east",
+				"outward_north",
+				"outward_south",
+				"outward_west",
+				"slot_south"
+			],
+			"path_families": [],
+			"pocket_half_size": {
+				"min": {
+					"x": 79.0876159667969,
+					"y": 58.5031700134277
+				},
+				"max": {
+					"x": 97.7849578857422,
+					"y": 72.3340759277344
+				}
+			},
+			"pocket_shapes": [
+				"ellipse"
+			],
+			"production_status": "gap",
+			"radius": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"relation_types": [],
+			"route_surface_semantics": [],
+			"scale": {
+				"min": 0.35,
+				"max": 0.38
+			},
+			"shapes": [],
+			"signage_scale": {
+				"min": 0.72,
+				"max": 0.72
+			},
+			"signage_shapes": [
+				"round_badge"
+			],
+			"slot_roles": [
+				"current_landmark",
+				"known_landmark"
+			],
+			"source_legacy_fields": [],
+			"state_semantics": [
+				"current",
+				"resolved"
+			],
+			"surface_width": {
+				"min": 0.0,
+				"max": 0.0
+			}
+		}
+	},
+	"clearing_surface_summary": {
+		"blacksmith": {
+			"asset_family_keys": [],
+			"asset_socket_kinds": [],
+			"candidate_texture_path": "",
+			"cardinal_directions": [],
+			"cardinal_sides": [],
+			"centerline_point_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"clearance_roles": [],
+			"connected_path_count": {
+				"min": 1.0,
+				"max": 2.0
+			},
+			"count": 30,
+			"frames_clearing_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"frames_path_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_shapes": [],
+			"mask_roles": [],
+			"outer_width": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"outward_route_hints": [],
+			"path_families": [],
+			"pocket_half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"pocket_shapes": [],
+			"production_status": "",
+			"radius": {
+				"min": 51.52,
+				"max": 57.04
+			},
+			"relation_types": [],
+			"route_surface_semantics": [],
+			"scale": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"shapes": [
+				"clearing_disc"
+			],
+			"signage_scale": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"signage_shapes": [],
+			"slot_roles": [],
+			"source_legacy_fields": [],
+			"state_semantics": [
+				"open",
+				"resolved"
+			],
+			"surface_width": {
+				"min": 0.0,
+				"max": 0.0
+			}
+		},
+		"boss": {
+			"asset_family_keys": [],
+			"asset_socket_kinds": [],
+			"candidate_texture_path": "",
+			"cardinal_directions": [],
+			"cardinal_sides": [],
+			"centerline_point_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"clearance_roles": [],
+			"connected_path_count": {
+				"min": 0.0,
+				"max": 1.0
+			},
+			"count": 45,
+			"frames_clearing_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"frames_path_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_shapes": [],
+			"mask_roles": [],
+			"outer_width": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"outward_route_hints": [],
+			"path_families": [],
+			"pocket_half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"pocket_shapes": [],
+			"production_status": "",
+			"radius": {
+				"min": 62.56,
+				"max": 62.56
+			},
+			"relation_types": [],
+			"route_surface_semantics": [],
+			"scale": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"shapes": [
+				"clearing_disc"
+			],
+			"signage_scale": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"signage_shapes": [],
+			"slot_roles": [],
+			"source_legacy_fields": [],
+			"state_semantics": [
+				"locked"
+			],
+			"surface_width": {
+				"min": 0.0,
+				"max": 0.0
+			}
+		},
+		"combat": {
+			"asset_family_keys": [],
+			"asset_socket_kinds": [],
+			"candidate_texture_path": "",
+			"cardinal_directions": [],
+			"cardinal_sides": [],
+			"centerline_point_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"clearance_roles": [],
+			"connected_path_count": {
+				"min": 0.0,
+				"max": 3.0
+			},
+			"count": 270,
+			"frames_clearing_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"frames_path_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_shapes": [],
+			"mask_roles": [],
+			"outer_width": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"outward_route_hints": [],
+			"path_families": [],
+			"pocket_half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"pocket_shapes": [],
+			"production_status": "",
+			"radius": {
+				"min": 46.92,
+				"max": 52.44
+			},
+			"relation_types": [],
+			"route_surface_semantics": [],
+			"scale": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"shapes": [
+				"clearing_disc"
+			],
+			"signage_scale": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"signage_shapes": [],
+			"slot_roles": [],
+			"source_legacy_fields": [],
+			"state_semantics": [
+				"current",
+				"open",
+				"resolved"
+			],
+			"surface_width": {
+				"min": 0.0,
+				"max": 0.0
+			}
+		},
+		"event": {
+			"asset_family_keys": [],
+			"asset_socket_kinds": [],
+			"candidate_texture_path": "",
+			"cardinal_directions": [],
+			"cardinal_sides": [],
+			"centerline_point_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"clearance_roles": [],
+			"connected_path_count": {
+				"min": 1.0,
+				"max": 3.0
+			},
+			"count": 45,
+			"frames_clearing_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"frames_path_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_shapes": [],
+			"mask_roles": [],
+			"outer_width": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"outward_route_hints": [],
+			"path_families": [],
+			"pocket_half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"pocket_shapes": [],
+			"production_status": "",
+			"radius": {
+				"min": 46.92,
+				"max": 52.44
+			},
+			"relation_types": [],
+			"route_surface_semantics": [],
+			"scale": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"shapes": [
+				"clearing_disc"
+			],
+			"signage_scale": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"signage_shapes": [],
+			"slot_roles": [],
+			"source_legacy_fields": [],
+			"state_semantics": [
+				"current",
+				"open",
+				"resolved"
+			],
+			"surface_width": {
+				"min": 0.0,
+				"max": 0.0
+			}
+		},
+		"hamlet": {
+			"asset_family_keys": [],
+			"asset_socket_kinds": [],
+			"candidate_texture_path": "",
+			"cardinal_directions": [],
+			"cardinal_sides": [],
+			"centerline_point_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"clearance_roles": [],
+			"connected_path_count": {
+				"min": 0.0,
+				"max": 3.0
+			},
+			"count": 45,
+			"frames_clearing_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"frames_path_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_shapes": [],
+			"mask_roles": [],
+			"outer_width": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"outward_route_hints": [],
+			"path_families": [],
+			"pocket_half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"pocket_shapes": [],
+			"production_status": "",
+			"radius": {
+				"min": 44.16,
+				"max": 49.68
+			},
+			"relation_types": [],
+			"route_surface_semantics": [],
+			"scale": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"shapes": [
+				"clearing_disc"
+			],
+			"signage_scale": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"signage_shapes": [],
+			"slot_roles": [],
+			"source_legacy_fields": [],
+			"state_semantics": [
+				"open",
+				"resolved"
+			],
+			"surface_width": {
+				"min": 0.0,
+				"max": 0.0
+			}
+		},
+		"key": {
+			"asset_family_keys": [],
+			"asset_socket_kinds": [],
+			"candidate_texture_path": "",
+			"cardinal_directions": [],
+			"cardinal_sides": [],
+			"centerline_point_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"clearance_roles": [],
+			"connected_path_count": {
+				"min": 0.0,
+				"max": 1.0
+			},
+			"count": 45,
+			"frames_clearing_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"frames_path_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_shapes": [],
+			"mask_roles": [],
+			"outer_width": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"outward_route_hints": [],
+			"path_families": [],
+			"pocket_half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"pocket_shapes": [],
+			"production_status": "",
+			"radius": {
+				"min": 57.04,
+				"max": 57.04
+			},
+			"relation_types": [],
+			"route_surface_semantics": [],
+			"scale": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"shapes": [
+				"clearing_disc"
+			],
+			"signage_scale": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"signage_shapes": [],
+			"slot_roles": [],
+			"source_legacy_fields": [],
+			"state_semantics": [
+				"open"
+			],
+			"surface_width": {
+				"min": 0.0,
+				"max": 0.0
+			}
+		},
+		"merchant": {
+			"asset_family_keys": [],
+			"asset_socket_kinds": [],
+			"candidate_texture_path": "",
+			"cardinal_directions": [],
+			"cardinal_sides": [],
+			"centerline_point_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"clearance_roles": [],
+			"connected_path_count": {
+				"min": 1.0,
+				"max": 2.0
+			},
+			"count": 30,
+			"frames_clearing_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"frames_path_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_shapes": [],
+			"mask_roles": [],
+			"outer_width": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"outward_route_hints": [],
+			"path_families": [],
+			"pocket_half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"pocket_shapes": [],
+			"production_status": "",
+			"radius": {
+				"min": 51.52,
+				"max": 57.04
+			},
+			"relation_types": [],
+			"route_surface_semantics": [],
+			"scale": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"shapes": [
+				"clearing_disc"
+			],
+			"signage_scale": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"signage_shapes": [],
+			"slot_roles": [],
+			"source_legacy_fields": [],
+			"state_semantics": [
+				"open",
+				"resolved"
+			],
+			"surface_width": {
+				"min": 0.0,
+				"max": 0.0
+			}
+		},
+		"rest": {
+			"asset_family_keys": [],
+			"asset_socket_kinds": [],
+			"candidate_texture_path": "",
+			"cardinal_directions": [],
+			"cardinal_sides": [],
+			"centerline_point_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"clearance_roles": [],
+			"connected_path_count": {
+				"min": 1.0,
+				"max": 2.0
+			},
+			"count": 30,
+			"frames_clearing_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"frames_path_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_shapes": [],
+			"mask_roles": [],
+			"outer_width": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"outward_route_hints": [],
+			"path_families": [],
+			"pocket_half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"pocket_shapes": [],
+			"production_status": "",
+			"radius": {
+				"min": 51.52,
+				"max": 57.04
+			},
+			"relation_types": [],
+			"route_surface_semantics": [],
+			"scale": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"shapes": [
+				"clearing_disc"
+			],
+			"signage_scale": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"signage_shapes": [],
+			"slot_roles": [],
+			"source_legacy_fields": [],
+			"state_semantics": [
+				"open",
+				"resolved"
+			],
+			"surface_width": {
+				"min": 0.0,
+				"max": 0.0
+			}
+		},
+		"reward": {
+			"asset_family_keys": [],
+			"asset_socket_kinds": [],
+			"candidate_texture_path": "",
+			"cardinal_directions": [],
+			"cardinal_sides": [],
+			"centerline_point_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"clearance_roles": [],
+			"connected_path_count": {
+				"min": 0.0,
+				"max": 2.0
+			},
+			"count": 45,
+			"frames_clearing_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"frames_path_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_shapes": [],
+			"mask_roles": [],
+			"outer_width": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"outward_route_hints": [],
+			"path_families": [],
+			"pocket_half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"pocket_shapes": [],
+			"production_status": "",
+			"radius": {
+				"min": 51.52,
+				"max": 57.04
+			},
+			"relation_types": [],
+			"route_surface_semantics": [],
+			"scale": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"shapes": [
+				"clearing_disc"
+			],
+			"signage_scale": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"signage_shapes": [],
+			"slot_roles": [],
+			"source_legacy_fields": [],
+			"state_semantics": [
+				"open",
+				"resolved"
+			],
+			"surface_width": {
+				"min": 0.0,
+				"max": 0.0
+			}
+		},
+		"start": {
+			"asset_family_keys": [],
+			"asset_socket_kinds": [],
+			"candidate_texture_path": "",
+			"cardinal_directions": [],
+			"cardinal_sides": [],
+			"centerline_point_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"clearance_roles": [],
+			"connected_path_count": {
+				"min": 0.0,
+				"max": 4.0
+			},
+			"count": 45,
+			"frames_clearing_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"frames_path_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_shapes": [],
+			"mask_roles": [],
+			"outer_width": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"outward_route_hints": [],
+			"path_families": [],
+			"pocket_half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"pocket_shapes": [],
+			"production_status": "",
+			"radius": {
+				"min": 58.88,
+				"max": 64.4
+			},
+			"relation_types": [],
+			"route_surface_semantics": [],
+			"scale": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"shapes": [
+				"clearing_disc"
+			],
+			"signage_scale": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"signage_shapes": [],
+			"slot_roles": [],
+			"source_legacy_fields": [],
+			"state_semantics": [
+				"current",
+				"resolved"
+			],
+			"surface_width": {
+				"min": 0.0,
+				"max": 0.0
+			}
+		}
+	},
+	"canopy_mask_summary": {
+		"canopy": {
+			"asset_family_keys": [],
+			"asset_socket_kinds": [
+				"canopy_mask"
+			],
+			"candidate_texture_path": "",
+			"cardinal_directions": [],
+			"cardinal_sides": [
+				"north",
+				"south",
+				"west"
+			],
+			"centerline_point_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"clearance_roles": [
+				"road_and_clearing_frame"
+			],
+			"connected_path_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"count": 90,
+			"frames_clearing_count": {
+				"min": 3.0,
+				"max": 3.0
+			},
+			"frames_path_count": {
+				"min": 3.0,
+				"max": 3.0
+			},
+			"half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_shapes": [],
+			"mask_roles": [
+				"opening_canopy_frame",
+				"route_canopy_frame"
+			],
+			"outer_width": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"outward_route_hints": [
+				"history_east",
+				"history_north",
+				"history_south",
+				"history_west",
+				"outward_east",
+				"outward_north",
+				"outward_south",
+				"outward_west",
+				"reconnect_east",
+				"reconnect_south",
+				"reconnect_west"
+			],
+			"path_families": [],
+			"pocket_half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"pocket_shapes": [],
+			"production_status": "mask_metadata_only_no_runtime_asset_path",
+			"radius": {
+				"min": 59.745,
+				"max": 138.479
+			},
+			"relation_types": [],
+			"route_surface_semantics": [],
+			"scale": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"shapes": [],
+			"signage_scale": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"signage_shapes": [],
+			"slot_roles": [],
+			"source_legacy_fields": [],
+			"state_semantics": [],
+			"surface_width": {
+				"min": 0.0,
+				"max": 0.0
+			}
+		}
+	},
+	"decor_slot_summary": {
+		"forest_decor": {
+			"asset_family_keys": [],
+			"asset_socket_kinds": [
+				"decor"
+			],
+			"candidate_texture_path": "res://Assets/UI/Map/ArtPilot/ui_map_art_pilot_decor_stamp.svg",
+			"cardinal_directions": [],
+			"cardinal_sides": [
+				"north",
+				"south",
+				"west"
+			],
+			"centerline_point_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"clearance_roles": [],
+			"connected_path_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"count": 90,
+			"frames_clearing_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"frames_path_count": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"landmark_shapes": [],
+			"mask_roles": [],
+			"outer_width": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"outward_route_hints": [
+				"history_east",
+				"history_north",
+				"history_south",
+				"outward_east",
+				"outward_north",
+				"outward_south",
+				"outward_west",
+				"reconnect_south",
+				"reconnect_west"
+			],
+			"path_families": [],
+			"pocket_half_size": {
+				"min": {
+					"x": 0.0,
+					"y": 0.0
+				},
+				"max": {
+					"x": 0.0,
+					"y": 0.0
+				}
+			},
+			"pocket_shapes": [],
+			"production_status": "generic_candidate_hidden_by_default",
+			"radius": {
+				"min": 22.624,
+				"max": 40.725
+			},
+			"relation_types": [
+				"clearing_edge",
+				"route_side"
+			],
+			"route_surface_semantics": [],
+			"scale": {
+				"min": 0.1,
+				"max": 0.1
+			},
+			"shapes": [],
+			"signage_scale": {
+				"min": 0.0,
+				"max": 0.0
+			},
+			"signage_shapes": [],
+			"slot_roles": [
+				"negative_space_decor"
+			],
+			"source_legacy_fields": [
+				"forest_shapes"
+			],
+			"state_semantics": [],
+			"surface_width": {
+				"min": 0.0,
+				"max": 0.0
+			}
+		}
+	},
+	"filler_shape_summary": {
+
+	},
+	"coverage_summary": {
+		"observed_landmark_families": [
+			"blacksmith",
+			"boss",
+			"combat",
+			"event",
+			"hamlet",
+			"key",
+			"merchant",
+			"rest",
+			"reward",
+			"start"
+		],
+		"hidden_candidate_landmark_families": [
+			"blacksmith",
+			"boss",
+			"combat",
+			"key",
+			"merchant",
+			"rest"
+		],
+		"missing_landmark_families": [
+			"event",
+			"hamlet",
+			"reward",
+			"start"
+		],
+		"unobserved_required_families": [],
+		"path_candidate_present": true,
+		"decor_candidate_present": true,
+		"required_gap_callout": "event/reward/hamlet remain production gaps when no hidden candidate texture path exists; start remains optional/lower-priority origin marker gap; production review is still required before default render promotion"
+	},
+	"production_requests": [
+		{
+			"brief_id": "map_path_brush_production",
+			"socket_source": "render_model.path_surfaces",
+			"priority": "pilot_candidate_replacement",
+			"current_status": "candidate hidden by default",
+			"observed_roles": [
+				"branch_actionable_corridor",
+				"branch_history_corridor",
+				"history_corridor",
+				"primary_actionable_corridor",
+				"reconnect_corridor"
+			],
+			"size_reference": {
+				"outer_width": {
+					"min": 24.0,
+					"max": 44.0
+				},
+				"surface_width": {
+					"min": 14.0,
+					"max": 34.0
+				}
+			}
+		},
+		{
+			"brief_id": "map_landmark_blacksmith_production",
+			"socket_source": "render_model.landmark_slots",
+			"priority": "gap_fill",
+			"current_status": "candidate_hidden_by_default",
+			"asset_family_keys": [
+				"blacksmith:forge"
+			],
+			"landmark_shapes": [
+				"forge"
+			],
+			"pocket_shapes": [
+				"rect"
+			],
+			"landmark_half_size": {
+				"min": {
+					"x": 22.7512340545654,
+					"y": 16.1154556274414
+				},
+				"max": {
+					"x": 27.3791999816895,
+					"y": 19.3936004638672
+				}
+			},
+			"pocket_half_size": {
+				"min": {
+					"x": 66.3577575683594,
+					"y": 44.5544967651367
+				},
+				"max": {
+					"x": 79.8560028076172,
+					"y": 53.6175994873047
+				}
+			}
+		},
+		{
+			"brief_id": "map_landmark_boss_production",
+			"socket_source": "render_model.landmark_slots",
+			"priority": "pilot_candidate_replacement",
+			"current_status": "candidate_hidden_by_default",
+			"asset_family_keys": [
+				"boss:gate"
+			],
+			"landmark_shapes": [
+				"gate"
+			],
+			"pocket_shapes": [
+				"rect"
+			],
+			"landmark_half_size": {
+				"min": {
+					"x": 45.0432014465332,
+					"y": 30.0287990570068
+				},
+				"max": {
+					"x": 45.0432014465332,
+					"y": 30.0287990570068
+				}
+			},
+			"pocket_half_size": {
+				"min": {
+					"x": 120.115196228027,
+					"y": 77.5744018554688
+				},
+				"max": {
+					"x": 120.115196228027,
+					"y": 77.5744018554688
+				}
+			}
+		},
+		{
+			"brief_id": "map_landmark_combat_production",
+			"socket_source": "render_model.landmark_slots",
+			"priority": "gap_fill",
+			"current_status": "candidate_hidden_by_default",
+			"asset_family_keys": [
+				"combat:crossed_stakes"
+			],
+			"landmark_shapes": [
+				"crossed_stakes"
+			],
+			"pocket_shapes": [
+				"ellipse"
+			],
+			"landmark_half_size": {
+				"min": {
+					"x": 18.9932174682617,
+					"y": 12.9499206542969
+				},
+				"max": {
+					"x": 23.073600769043,
+					"y": 15.7320003509521
+				}
+			},
+			"pocket_half_size": {
+				"min": {
+					"x": 66.4762573242188,
+					"y": 47.483039855957
+				},
+				"max": {
+					"x": 83.9878997802734,
+					"y": 59.9913558959961
+				}
+			}
+		},
+		{
+			"brief_id": "map_landmark_event_production",
+			"socket_source": "render_model.landmark_slots",
+			"priority": "gap_fill",
+			"current_status": "gap",
+			"asset_family_keys": [
+				"event:standing_stone"
+			],
+			"landmark_shapes": [
+				"standing_stone"
+			],
+			"pocket_shapes": [
+				"ellipse"
+			],
+			"landmark_half_size": {
+				"min": {
+					"x": 10.3599367141724,
+					"y": 18.1298885345459
+				},
+				"max": {
+					"x": 12.585599899292,
+					"y": 22.0247993469238
+				}
+			},
+			"pocket_half_size": {
+				"min": {
+					"x": 61.2962913513184,
+					"y": 44.8930549621582
+				},
+				"max": {
+					"x": 77.4433898925781,
+					"y": 56.7191047668457
+				}
+			}
+		},
+		{
+			"brief_id": "map_landmark_hamlet_production",
+			"socket_source": "render_model.landmark_slots",
+			"priority": "gap_fill",
+			"current_status": "gap",
+			"asset_family_keys": [
+				"hamlet:waypost"
+			],
+			"landmark_shapes": [
+				"waypost"
+			],
+			"pocket_shapes": [
+				"rect"
+			],
+			"landmark_half_size": {
+				"min": {
+					"x": 15.4383363723755,
+					"y": 17.0634231567383
+				},
+				"max": {
+					"x": 18.8784008026123,
+					"y": 20.8656005859375
+				}
+			},
+			"pocket_half_size": {
+				"min": {
+					"x": 54.4404487609863,
+					"y": 36.5644798278809
+				},
+				"max": {
+					"x": 66.5711975097656,
+					"y": 44.7120018005371
+				}
+			}
+		},
+		{
+			"brief_id": "map_landmark_key_production",
+			"socket_source": "render_model.landmark_slots",
+			"priority": "pilot_candidate_replacement",
+			"current_status": "candidate_hidden_by_default",
+			"asset_family_keys": [
+				"key:shrine"
+			],
+			"landmark_shapes": [
+				"shrine"
+			],
+			"pocket_shapes": [
+				"diamond"
+			],
+			"landmark_half_size": {
+				"min": {
+					"x": 20.5344009399414,
+					"y": 29.6608009338379
+				},
+				"max": {
+					"x": 20.5344009399414,
+					"y": 29.6608009338379
+				}
+			},
+			"pocket_half_size": {
+				"min": {
+					"x": 80.9968032836914,
+					"y": 66.1663970947266
+				},
+				"max": {
+					"x": 80.9968032836914,
+					"y": 66.1663970947266
+				}
+			}
+		},
+		{
+			"brief_id": "map_landmark_merchant_production",
+			"socket_source": "render_model.landmark_slots",
+			"priority": "pilot_candidate_replacement",
+			"current_status": "candidate_hidden_by_default",
+			"asset_family_keys": [
+				"merchant:stall"
+			],
+			"landmark_shapes": [
+				"stall"
+			],
+			"pocket_shapes": [
+				"rect"
+			],
+			"landmark_half_size": {
+				"min": {
+					"x": 24.6471672058105,
+					"y": 15.1674890518188
+				},
+				"max": {
+					"x": 29.6608009338379,
+					"y": 18.252799987793
+				}
+			},
+			"pocket_half_size": {
+				"min": {
+					"x": 67.3057327270508,
+					"y": 43.6065292358398
+				},
+				"max": {
+					"x": 80.9968032836914,
+					"y": 52.4767990112305
+				}
+			}
+		},
+		{
+			"brief_id": "map_landmark_rest_production",
+			"socket_source": "render_model.landmark_slots",
+			"priority": "pilot_candidate_replacement",
+			"current_status": "candidate_hidden_by_default",
+			"asset_family_keys": [
+				"rest:campfire"
+			],
+			"landmark_shapes": [
+				"campfire"
+			],
+			"pocket_shapes": [
+				"ellipse"
+			],
+			"landmark_half_size": {
+				"min": {
+					"x": 21.8032646179199,
+					"y": 15.1674890518188
+				},
+				"max": {
+					"x": 26.2383995056152,
+					"y": 18.252799987793
+				}
+			},
+			"pocket_half_size": {
+				"min": {
+					"x": 64.4618225097656,
+					"y": 46.4504356384277
+				},
+				"max": {
+					"x": 77.5744018554688,
+					"y": 55.8992004394531
+				}
+			}
+		},
+		{
+			"brief_id": "map_landmark_reward_production",
+			"socket_source": "render_model.landmark_slots",
+			"priority": "gap_fill",
+			"current_status": "gap",
+			"asset_family_keys": [
+				"reward:cache_slab"
+			],
+			"landmark_shapes": [
+				"cache_slab"
+			],
+			"pocket_shapes": [
+				"rect"
+			],
+			"landmark_half_size": {
+				"min": {
+					"x": 22.7512340545654,
+					"y": 13.2715520858765
+				},
+				"max": {
+					"x": 27.3791999816895,
+					"y": 15.9711999893188
+				}
+			},
+			"pocket_half_size": {
+				"min": {
+					"x": 61.617919921875,
+					"y": 43.6065292358398
+				},
+				"max": {
+					"x": 74.1520004272461,
+					"y": 52.4767990112305
+				}
+			}
+		},
+		{
+			"brief_id": "map_landmark_start_production",
+			"socket_source": "render_model.landmark_slots",
+			"priority": "optional_origin_marker",
+			"current_status": "gap",
+			"asset_family_keys": [
+				"start:standing_stone"
+			],
+			"landmark_shapes": [
+				"standing_stone"
+			],
+			"pocket_shapes": [
+				"ellipse"
+			],
+			"landmark_half_size": {
+				"min": {
+					"x": 14.084095954895,
+					"y": 20.5844478607178
+				},
+				"max": {
+					"x": 16.7439994812012,
+					"y": 24.4720001220703
+				}
+			},
+			"pocket_half_size": {
+				"min": {
+					"x": 79.0876159667969,
+					"y": 58.5031700134277
+				},
+				"max": {
+					"x": 97.7849578857422,
+					"y": 72.3340759277344
+				}
+			}
+		},
+		{
+			"brief_id": "map_canopy_frame_family_production",
+			"socket_source": "render_model.canopy_masks",
+			"priority": "environment_expansion",
+			"current_status": "mask metadata only; no runtime asset path",
+			"observed_families": [
+				"canopy"
+			]
+		},
+		{
+			"brief_id": "map_decor_stamp_family_production",
+			"socket_source": "render_model.decor_slots",
+			"priority": "pilot_candidate_replacement",
+			"current_status": "generic candidate hidden by default",
+			"observed_families": [
+				"forest_decor"
+			]
+		},
+		{
+			"brief_id": "map_filler_shape_family_watch",
+			"socket_source": "filler_shapes wrapper metadata feeding render_model.decor_slots",
+			"priority": "deferred_observation",
+			"current_status": "no live filler_shapes observed in sampled compositions",
+			"observed_families": []
+		}
+	],
+	"scenarios": [
+		{
+			"stage": 1,
+			"seed": 11,
+			"progress_steps": 0,
+			"template_profile": "corridor",
+			"orientation_profile_id": "center_outward_balanced",
+			"topology_blueprint_id": "procedural_stage_corridor_v1:spine",
+			"visible_family_counts": {
+				"start": 1,
+				"reward": 1,
+				"combat": 6,
+				"rest": 1,
+				"event": 1,
+				"merchant": 1,
+				"hamlet": 1,
+				"key": 1,
+				"boss": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 11,
+				"junctions": 12,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 1,
+			"seed": 11,
+			"progress_steps": 3,
+			"template_profile": "corridor",
+			"orientation_profile_id": "center_outward_balanced",
+			"topology_blueprint_id": "procedural_stage_corridor_v1:spine",
+			"visible_family_counts": {
+				"combat": 6,
+				"boss": 1,
+				"start": 1,
+				"reward": 1,
+				"rest": 1,
+				"event": 1,
+				"merchant": 1,
+				"hamlet": 1,
+				"key": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 11,
+				"junctions": 13,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 1,
+			"seed": 11,
+			"progress_steps": 6,
+			"template_profile": "corridor",
+			"orientation_profile_id": "center_outward_balanced",
+			"topology_blueprint_id": "procedural_stage_corridor_v1:spine",
+			"visible_family_counts": {
+				"event": 1,
+				"combat": 6,
+				"hamlet": 1,
+				"start": 1,
+				"reward": 1,
+				"rest": 1,
+				"merchant": 1,
+				"key": 1,
+				"boss": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 11,
+				"junctions": 12,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 1,
+			"seed": 29,
+			"progress_steps": 0,
+			"template_profile": "corridor",
+			"orientation_profile_id": "center_outward_west_weighted",
+			"topology_blueprint_id": "procedural_stage_corridor_v1:switchback",
+			"visible_family_counts": {
+				"start": 1,
+				"rest": 1,
+				"combat": 6,
+				"reward": 1,
+				"merchant": 1,
+				"event": 1,
+				"hamlet": 1,
+				"key": 1,
+				"boss": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 13,
+				"junctions": 14,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 1,
+			"seed": 29,
+			"progress_steps": 3,
+			"template_profile": "corridor",
+			"orientation_profile_id": "center_outward_west_weighted",
+			"topology_blueprint_id": "procedural_stage_corridor_v1:switchback",
+			"visible_family_counts": {
+				"combat": 6,
+				"merchant": 1,
+				"boss": 1,
+				"start": 1,
+				"rest": 1,
+				"reward": 1,
+				"event": 1,
+				"hamlet": 1,
+				"key": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 13,
+				"junctions": 14,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 1,
+			"seed": 29,
+			"progress_steps": 6,
+			"template_profile": "corridor",
+			"orientation_profile_id": "center_outward_west_weighted",
+			"topology_blueprint_id": "procedural_stage_corridor_v1:switchback",
+			"visible_family_counts": {
+				"event": 1,
+				"combat": 6,
+				"hamlet": 1,
+				"start": 1,
+				"rest": 1,
+				"reward": 1,
+				"merchant": 1,
+				"key": 1,
+				"boss": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 13,
+				"junctions": 14,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 1,
+			"seed": 41,
+			"progress_steps": 0,
+			"template_profile": "corridor",
+			"orientation_profile_id": "center_outward_west_weighted",
+			"topology_blueprint_id": "procedural_stage_corridor_v1:switchback",
+			"visible_family_counts": {
+				"start": 1,
+				"combat": 6,
+				"reward": 1,
+				"rest": 1,
+				"event": 1,
+				"merchant": 1,
+				"hamlet": 1,
+				"key": 1,
+				"boss": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 14,
+				"junctions": 14,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 1,
+			"seed": 41,
+			"progress_steps": 3,
+			"template_profile": "corridor",
+			"orientation_profile_id": "center_outward_west_weighted",
+			"topology_blueprint_id": "procedural_stage_corridor_v1:switchback",
+			"visible_family_counts": {
+				"combat": 6,
+				"boss": 1,
+				"start": 1,
+				"reward": 1,
+				"rest": 1,
+				"event": 1,
+				"merchant": 1,
+				"hamlet": 1,
+				"key": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 14,
+				"junctions": 14,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 1,
+			"seed": 41,
+			"progress_steps": 6,
+			"template_profile": "corridor",
+			"orientation_profile_id": "center_outward_west_weighted",
+			"topology_blueprint_id": "procedural_stage_corridor_v1:switchback",
+			"visible_family_counts": {
+				"event": 1,
+				"reward": 1,
+				"hamlet": 1,
+				"start": 1,
+				"combat": 6,
+				"rest": 1,
+				"merchant": 1,
+				"key": 1,
+				"boss": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 14,
+				"junctions": 14,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 1,
+			"seed": 73,
+			"progress_steps": 0,
+			"template_profile": "corridor",
+			"orientation_profile_id": "center_outward_balanced",
+			"topology_blueprint_id": "procedural_stage_corridor_v1:spine",
+			"visible_family_counts": {
+				"start": 1,
+				"rest": 1,
+				"combat": 6,
+				"reward": 1,
+				"merchant": 1,
+				"event": 1,
+				"hamlet": 1,
+				"key": 1,
+				"boss": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 12,
+				"junctions": 14,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 1,
+			"seed": 73,
+			"progress_steps": 3,
+			"template_profile": "corridor",
+			"orientation_profile_id": "center_outward_balanced",
+			"topology_blueprint_id": "procedural_stage_corridor_v1:spine",
+			"visible_family_counts": {
+				"combat": 6,
+				"merchant": 1,
+				"boss": 1,
+				"start": 1,
+				"rest": 1,
+				"reward": 1,
+				"event": 1,
+				"hamlet": 1,
+				"key": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 12,
+				"junctions": 14,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 1,
+			"seed": 73,
+			"progress_steps": 6,
+			"template_profile": "corridor",
+			"orientation_profile_id": "center_outward_balanced",
+			"topology_blueprint_id": "procedural_stage_corridor_v1:spine",
+			"visible_family_counts": {
+				"event": 1,
+				"combat": 6,
+				"hamlet": 1,
+				"start": 1,
+				"rest": 1,
+				"reward": 1,
+				"merchant": 1,
+				"key": 1,
+				"boss": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 9,
+				"junctions": 11,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 1,
+			"seed": 97,
+			"progress_steps": 0,
+			"template_profile": "corridor",
+			"orientation_profile_id": "center_outward_balanced",
+			"topology_blueprint_id": "procedural_stage_corridor_v1:spine",
+			"visible_family_counts": {
+				"start": 1,
+				"reward": 1,
+				"combat": 6,
+				"rest": 1,
+				"event": 1,
+				"merchant": 1,
+				"hamlet": 1,
+				"key": 1,
+				"boss": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 13,
+				"junctions": 14,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 1,
+			"seed": 97,
+			"progress_steps": 3,
+			"template_profile": "corridor",
+			"orientation_profile_id": "center_outward_balanced",
+			"topology_blueprint_id": "procedural_stage_corridor_v1:spine",
+			"visible_family_counts": {
+				"combat": 6,
+				"boss": 1,
+				"start": 1,
+				"reward": 1,
+				"rest": 1,
+				"event": 1,
+				"merchant": 1,
+				"hamlet": 1,
+				"key": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 13,
+				"junctions": 14,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 1,
+			"seed": 97,
+			"progress_steps": 6,
+			"template_profile": "corridor",
+			"orientation_profile_id": "center_outward_balanced",
+			"topology_blueprint_id": "procedural_stage_corridor_v1:spine",
+			"visible_family_counts": {
+				"event": 1,
+				"combat": 6,
+				"hamlet": 1,
+				"start": 1,
+				"reward": 1,
+				"rest": 1,
+				"merchant": 1,
+				"key": 1,
+				"boss": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 13,
+				"junctions": 14,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 2,
+			"seed": 11,
+			"progress_steps": 0,
+			"template_profile": "openfield",
+			"orientation_profile_id": "center_outward_balanced",
+			"topology_blueprint_id": "procedural_stage_openfield_v1:fan",
+			"visible_family_counts": {
+				"start": 1,
+				"merchant": 1,
+				"combat": 6,
+				"reward": 1,
+				"event": 1,
+				"blacksmith": 1,
+				"hamlet": 1,
+				"key": 1,
+				"boss": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 13,
+				"junctions": 14,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 2,
+			"seed": 11,
+			"progress_steps": 3,
+			"template_profile": "openfield",
+			"orientation_profile_id": "center_outward_balanced",
+			"topology_blueprint_id": "procedural_stage_openfield_v1:fan",
+			"visible_family_counts": {
+				"combat": 6,
+				"blacksmith": 1,
+				"boss": 1,
+				"start": 1,
+				"merchant": 1,
+				"reward": 1,
+				"event": 1,
+				"hamlet": 1,
+				"key": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 13,
+				"junctions": 14,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 2,
+			"seed": 11,
+			"progress_steps": 6,
+			"template_profile": "openfield",
+			"orientation_profile_id": "center_outward_balanced",
+			"topology_blueprint_id": "procedural_stage_openfield_v1:fan",
+			"visible_family_counts": {
+				"event": 1,
+				"combat": 6,
+				"hamlet": 1,
+				"start": 1,
+				"merchant": 1,
+				"reward": 1,
+				"blacksmith": 1,
+				"key": 1,
+				"boss": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 13,
+				"junctions": 14,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 2,
+			"seed": 29,
+			"progress_steps": 0,
+			"template_profile": "openfield",
+			"orientation_profile_id": "center_outward_east_weighted",
+			"topology_blueprint_id": "procedural_stage_openfield_v1:lane",
+			"visible_family_counts": {
+				"start": 1,
+				"merchant": 1,
+				"combat": 6,
+				"reward": 1,
+				"blacksmith": 1,
+				"event": 1,
+				"key": 1,
+				"hamlet": 1,
+				"boss": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 14,
+				"junctions": 14,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 2,
+			"seed": 29,
+			"progress_steps": 3,
+			"template_profile": "openfield",
+			"orientation_profile_id": "center_outward_east_weighted",
+			"topology_blueprint_id": "procedural_stage_openfield_v1:lane",
+			"visible_family_counts": {
+				"combat": 6,
+				"blacksmith": 1,
+				"hamlet": 1,
+				"boss": 1,
+				"start": 1,
+				"merchant": 1,
+				"reward": 1,
+				"event": 1,
+				"key": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 14,
+				"junctions": 14,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 2,
+			"seed": 29,
+			"progress_steps": 6,
+			"template_profile": "openfield",
+			"orientation_profile_id": "center_outward_east_weighted",
+			"topology_blueprint_id": "procedural_stage_openfield_v1:lane",
+			"visible_family_counts": {
+				"combat": 6,
+				"event": 1,
+				"start": 1,
+				"merchant": 1,
+				"reward": 1,
+				"blacksmith": 1,
+				"key": 1,
+				"hamlet": 1,
+				"boss": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 14,
+				"junctions": 14,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 2,
+			"seed": 41,
+			"progress_steps": 0,
+			"template_profile": "openfield",
+			"orientation_profile_id": "center_outward_east_weighted",
+			"topology_blueprint_id": "procedural_stage_openfield_v1:lane",
+			"visible_family_counts": {
+				"start": 1,
+				"combat": 6,
+				"reward": 1,
+				"merchant": 1,
+				"event": 1,
+				"blacksmith": 1,
+				"key": 1,
+				"hamlet": 1,
+				"boss": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 12,
+				"junctions": 13,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 2,
+			"seed": 41,
+			"progress_steps": 3,
+			"template_profile": "openfield",
+			"orientation_profile_id": "center_outward_east_weighted",
+			"topology_blueprint_id": "procedural_stage_openfield_v1:lane",
+			"visible_family_counts": {
+				"combat": 6,
+				"hamlet": 1,
+				"boss": 1,
+				"start": 1,
+				"reward": 1,
+				"merchant": 1,
+				"event": 1,
+				"blacksmith": 1,
+				"key": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 13,
+				"junctions": 14,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 2,
+			"seed": 41,
+			"progress_steps": 6,
+			"template_profile": "openfield",
+			"orientation_profile_id": "center_outward_east_weighted",
+			"topology_blueprint_id": "procedural_stage_openfield_v1:lane",
+			"visible_family_counts": {
+				"combat": 6,
+				"reward": 1,
+				"event": 1,
+				"start": 1,
+				"merchant": 1,
+				"blacksmith": 1,
+				"key": 1,
+				"hamlet": 1,
+				"boss": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 11,
+				"junctions": 13,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 2,
+			"seed": 73,
+			"progress_steps": 0,
+			"template_profile": "openfield",
+			"orientation_profile_id": "center_outward_balanced",
+			"topology_blueprint_id": "procedural_stage_openfield_v1:fan",
+			"visible_family_counts": {
+				"start": 1,
+				"merchant": 1,
+				"combat": 6,
+				"reward": 1,
+				"event": 1,
+				"blacksmith": 1,
+				"hamlet": 1,
+				"key": 1,
+				"boss": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 13,
+				"junctions": 13,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 2,
+			"seed": 73,
+			"progress_steps": 3,
+			"template_profile": "openfield",
+			"orientation_profile_id": "center_outward_balanced",
+			"topology_blueprint_id": "procedural_stage_openfield_v1:fan",
+			"visible_family_counts": {
+				"combat": 6,
+				"blacksmith": 1,
+				"boss": 1,
+				"start": 1,
+				"merchant": 1,
+				"reward": 1,
+				"event": 1,
+				"hamlet": 1,
+				"key": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 12,
+				"junctions": 14,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 2,
+			"seed": 73,
+			"progress_steps": 6,
+			"template_profile": "openfield",
+			"orientation_profile_id": "center_outward_balanced",
+			"topology_blueprint_id": "procedural_stage_openfield_v1:fan",
+			"visible_family_counts": {
+				"event": 1,
+				"combat": 6,
+				"hamlet": 1,
+				"start": 1,
+				"merchant": 1,
+				"reward": 1,
+				"blacksmith": 1,
+				"key": 1,
+				"boss": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 13,
+				"junctions": 13,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 2,
+			"seed": 97,
+			"progress_steps": 0,
+			"template_profile": "openfield",
+			"orientation_profile_id": "center_outward_balanced",
+			"topology_blueprint_id": "procedural_stage_openfield_v1:fan",
+			"visible_family_counts": {
+				"start": 1,
+				"merchant": 1,
+				"combat": 6,
+				"reward": 1,
+				"event": 1,
+				"blacksmith": 1,
+				"hamlet": 1,
+				"key": 1,
+				"boss": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 10,
+				"junctions": 10,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 2,
+			"seed": 97,
+			"progress_steps": 3,
+			"template_profile": "openfield",
+			"orientation_profile_id": "center_outward_balanced",
+			"topology_blueprint_id": "procedural_stage_openfield_v1:fan",
+			"visible_family_counts": {
+				"combat": 6,
+				"blacksmith": 1,
+				"boss": 1,
+				"start": 1,
+				"merchant": 1,
+				"reward": 1,
+				"event": 1,
+				"hamlet": 1,
+				"key": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 11,
+				"junctions": 12,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 2,
+			"seed": 97,
+			"progress_steps": 6,
+			"template_profile": "openfield",
+			"orientation_profile_id": "center_outward_balanced",
+			"topology_blueprint_id": "procedural_stage_openfield_v1:fan",
+			"visible_family_counts": {
+				"event": 1,
+				"combat": 6,
+				"hamlet": 1,
+				"start": 1,
+				"merchant": 1,
+				"reward": 1,
+				"blacksmith": 1,
+				"key": 1,
+				"boss": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 11,
+				"junctions": 12,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 3,
+			"seed": 11,
+			"progress_steps": 0,
+			"template_profile": "loop",
+			"orientation_profile_id": "center_outward_west_weighted",
+			"topology_blueprint_id": "procedural_stage_loop_v1:return",
+			"visible_family_counts": {
+				"start": 1,
+				"rest": 1,
+				"combat": 6,
+				"reward": 1,
+				"blacksmith": 1,
+				"key": 1,
+				"hamlet": 1,
+				"event": 1,
+				"boss": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 13,
+				"junctions": 13,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 3,
+			"seed": 11,
+			"progress_steps": 3,
+			"template_profile": "loop",
+			"orientation_profile_id": "center_outward_west_weighted",
+			"topology_blueprint_id": "procedural_stage_loop_v1:return",
+			"visible_family_counts": {
+				"combat": 6,
+				"blacksmith": 1,
+				"boss": 1,
+				"start": 1,
+				"rest": 1,
+				"reward": 1,
+				"key": 1,
+				"hamlet": 1,
+				"event": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 14,
+				"junctions": 14,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 3,
+			"seed": 11,
+			"progress_steps": 6,
+			"template_profile": "loop",
+			"orientation_profile_id": "center_outward_west_weighted",
+			"topology_blueprint_id": "procedural_stage_loop_v1:return",
+			"visible_family_counts": {
+				"combat": 6,
+				"hamlet": 1,
+				"start": 1,
+				"rest": 1,
+				"reward": 1,
+				"blacksmith": 1,
+				"key": 1,
+				"event": 1,
+				"boss": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 13,
+				"junctions": 13,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 3,
+			"seed": 29,
+			"progress_steps": 0,
+			"template_profile": "loop",
+			"orientation_profile_id": "center_outward_east_weighted",
+			"topology_blueprint_id": "procedural_stage_loop_v1:crossback",
+			"visible_family_counts": {
+				"start": 1,
+				"rest": 1,
+				"reward": 1,
+				"combat": 6,
+				"blacksmith": 1,
+				"event": 1,
+				"key": 1,
+				"hamlet": 1,
+				"boss": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 12,
+				"junctions": 12,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 3,
+			"seed": 29,
+			"progress_steps": 3,
+			"template_profile": "loop",
+			"orientation_profile_id": "center_outward_east_weighted",
+			"topology_blueprint_id": "procedural_stage_loop_v1:crossback",
+			"visible_family_counts": {
+				"combat": 6,
+				"blacksmith": 1,
+				"boss": 1,
+				"start": 1,
+				"rest": 1,
+				"reward": 1,
+				"event": 1,
+				"key": 1,
+				"hamlet": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 11,
+				"junctions": 13,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 3,
+			"seed": 29,
+			"progress_steps": 6,
+			"template_profile": "loop",
+			"orientation_profile_id": "center_outward_east_weighted",
+			"topology_blueprint_id": "procedural_stage_loop_v1:crossback",
+			"visible_family_counts": {
+				"event": 1,
+				"reward": 1,
+				"combat": 6,
+				"hamlet": 1,
+				"start": 1,
+				"rest": 1,
+				"blacksmith": 1,
+				"key": 1,
+				"boss": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 12,
+				"junctions": 12,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 3,
+			"seed": 41,
+			"progress_steps": 0,
+			"template_profile": "loop",
+			"orientation_profile_id": "center_outward_east_weighted",
+			"topology_blueprint_id": "procedural_stage_loop_v1:crossback",
+			"visible_family_counts": {
+				"start": 1,
+				"rest": 1,
+				"reward": 1,
+				"combat": 6,
+				"blacksmith": 1,
+				"event": 1,
+				"key": 1,
+				"hamlet": 1,
+				"boss": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 12,
+				"junctions": 13,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 3,
+			"seed": 41,
+			"progress_steps": 3,
+			"template_profile": "loop",
+			"orientation_profile_id": "center_outward_east_weighted",
+			"topology_blueprint_id": "procedural_stage_loop_v1:crossback",
+			"visible_family_counts": {
+				"combat": 6,
+				"blacksmith": 1,
+				"boss": 1,
+				"start": 1,
+				"rest": 1,
+				"reward": 1,
+				"event": 1,
+				"key": 1,
+				"hamlet": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 12,
+				"junctions": 14,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 3,
+			"seed": 41,
+			"progress_steps": 6,
+			"template_profile": "loop",
+			"orientation_profile_id": "center_outward_east_weighted",
+			"topology_blueprint_id": "procedural_stage_loop_v1:crossback",
+			"visible_family_counts": {
+				"combat": 6,
+				"reward": 1,
+				"event": 1,
+				"hamlet": 1,
+				"start": 1,
+				"rest": 1,
+				"blacksmith": 1,
+				"key": 1,
+				"boss": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 12,
+				"junctions": 13,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 3,
+			"seed": 73,
+			"progress_steps": 0,
+			"template_profile": "loop",
+			"orientation_profile_id": "center_outward_west_weighted",
+			"topology_blueprint_id": "procedural_stage_loop_v1:return",
+			"visible_family_counts": {
+				"start": 1,
+				"rest": 1,
+				"reward": 1,
+				"combat": 6,
+				"blacksmith": 1,
+				"key": 1,
+				"hamlet": 1,
+				"event": 1,
+				"boss": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 10,
+				"junctions": 11,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 3,
+			"seed": 73,
+			"progress_steps": 3,
+			"template_profile": "loop",
+			"orientation_profile_id": "center_outward_west_weighted",
+			"topology_blueprint_id": "procedural_stage_loop_v1:return",
+			"visible_family_counts": {
+				"combat": 6,
+				"blacksmith": 1,
+				"boss": 1,
+				"start": 1,
+				"rest": 1,
+				"reward": 1,
+				"key": 1,
+				"hamlet": 1,
+				"event": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 12,
+				"junctions": 14,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 3,
+			"seed": 73,
+			"progress_steps": 6,
+			"template_profile": "loop",
+			"orientation_profile_id": "center_outward_west_weighted",
+			"topology_blueprint_id": "procedural_stage_loop_v1:return",
+			"visible_family_counts": {
+				"combat": 6,
+				"reward": 1,
+				"hamlet": 1,
+				"start": 1,
+				"rest": 1,
+				"blacksmith": 1,
+				"key": 1,
+				"event": 1,
+				"boss": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 12,
+				"junctions": 12,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 3,
+			"seed": 97,
+			"progress_steps": 0,
+			"template_profile": "loop",
+			"orientation_profile_id": "center_outward_west_weighted",
+			"topology_blueprint_id": "procedural_stage_loop_v1:return",
+			"visible_family_counts": {
+				"start": 1,
+				"rest": 1,
+				"reward": 1,
+				"combat": 6,
+				"blacksmith": 1,
+				"key": 1,
+				"hamlet": 1,
+				"event": 1,
+				"boss": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 12,
+				"junctions": 14,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 3,
+			"seed": 97,
+			"progress_steps": 3,
+			"template_profile": "loop",
+			"orientation_profile_id": "center_outward_west_weighted",
+			"topology_blueprint_id": "procedural_stage_loop_v1:return",
+			"visible_family_counts": {
+				"combat": 6,
+				"blacksmith": 1,
+				"boss": 1,
+				"start": 1,
+				"rest": 1,
+				"reward": 1,
+				"key": 1,
+				"hamlet": 1,
+				"event": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 11,
+				"junctions": 13,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		},
+		{
+			"stage": 3,
+			"seed": 97,
+			"progress_steps": 6,
+			"template_profile": "loop",
+			"orientation_profile_id": "center_outward_west_weighted",
+			"topology_blueprint_id": "procedural_stage_loop_v1:return",
+			"visible_family_counts": {
+				"combat": 6,
+				"reward": 1,
+				"hamlet": 1,
+				"start": 1,
+				"rest": 1,
+				"blacksmith": 1,
+				"key": 1,
+				"event": 1,
+				"boss": 1
+			},
+			"render_model_counts": {
+				"path_surfaces": 12,
+				"junctions": 13,
+				"clearing_surfaces": 14,
+				"canopy_masks": 1,
+				"landmark_slots": 14,
+				"decor_slots": 1
+			}
+		}
+	]
+}
