@@ -153,7 +153,7 @@ Minimum set:
 ## Two Week Focus
 
 Days 1-4:
-- Figma foundations and component floor
+- repo UI component floor
 - combat, map, reward, and support shells
 
 Days 5-8:

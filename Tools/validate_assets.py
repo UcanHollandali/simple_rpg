@@ -66,7 +66,6 @@ RUNTIME_TRACKED_EXTENSIONS = {
     ".woff2",
 }
 SOURCE_ART_ROOT_PREFIX = "SourceArt/"
-SOURCE_ART_ARCHIVE_PREFIX = "SourceArt/Archive/"
 SOURCE_ART_GENERATED_PREFIX = "SourceArt/Generated/"
 ACTIVE_SOURCE_PREVIEW_NAME_FRAGMENT = "_preview."
 
@@ -341,16 +340,6 @@ def validate_master_path(
         )
         return
 
-    if normalized.startswith(SOURCE_ART_ARCHIVE_PREFIX):
-        errors.append(
-            ValidationIssue(
-                location,
-                "archived_master_path",
-                "master_path must not point into SourceArt/Archive/; keep runtime-tracked assets linked to an active source/master lane.",
-            )
-        )
-        return
-
     full_path = repo_root / Path(normalized)
     if full_path.exists():
         return
@@ -377,12 +366,12 @@ def validate_active_source_lane_clutter(repo_root: Path) -> list[ValidationIssue
         if ACTIVE_SOURCE_PREVIEW_NAME_FRAGMENT not in name:
             continue
         warnings.append(
-            ValidationIssue(
-                str(path.relative_to(repo_root).as_posix()),
-                "active_source_preview_clutter",
-                "Preview-sheet clutter should not stay in SourceArt/Edited; move review previews into SourceArt/Archive once the active masters are chosen.",
-            )
-        )
+				ValidationIssue(
+					str(path.relative_to(repo_root).as_posix()),
+					"active_source_preview_clutter",
+					"Preview-sheet clutter should not stay in SourceArt/Edited; keep temporary review previews in ignored export output and leave only active masters in SourceArt/Edited.",
+				)
+			)
 
     return warnings
 

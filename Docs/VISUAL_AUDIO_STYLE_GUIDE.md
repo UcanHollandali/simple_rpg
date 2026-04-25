@@ -65,7 +65,7 @@ Ask:
 
 If the answer is no, revise or reject it.
 
-Real moodboard images may later be added in `SourceArt/Generated/` or a Figma board.
+Real moodboard images may later be added in `SourceArt/Generated/`.
 This section is the minimum written anchor until that board exists.
 
 ## Core Palette
@@ -126,7 +126,7 @@ System colors:
 
 - Store approved runtime font files under `Assets/UI/Fonts/`.
 - Keep only the font files actually used by the prototype runtime in that folder.
-- Figma may reference the same families, but runtime font files still need their own tracked source and license record.
+- Design references may use the same families, but runtime font files still need their own tracked source and license record.
 
 ## UI Rules
 

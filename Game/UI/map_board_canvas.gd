@@ -7,10 +7,13 @@ const MapBoardStyleScript = preload("res://Game/UI/map_board_style.gd")
 const MapBoardThroatBlendModelScript = preload("res://Game/UI/map_board_throat_blend_model.gd")
 const UiAssetPathsScript = preload("res://Game/UI/ui_asset_paths.gd")
 
+const BOARD_GROUND_TEXTURE_MODULATE := Color(1, 1, 1, 0.34)
+
 var _composition: Dictionary = {}
 var _board_offset: Vector2 = Vector2.ZERO
 var _active_target_node_id: int = -1
 var _hovered_target_node_id: int = -1
+var _draw_board_ground_texture: bool = false
 var _draw_socket_smoke_placeholders: bool = false
 var _draw_prototype_socket_dressing: bool = false
 var _draw_landmark_pocket_underlays: bool = false
@@ -34,6 +37,13 @@ func set_interaction_state(active_target_node_id: int, hovered_target_node_id: i
 		return
 	_active_target_node_id = active_target_node_id
 	_hovered_target_node_id = hovered_target_node_id
+	queue_redraw()
+
+
+func set_board_ground_texture_enabled(enabled: bool) -> void:
+	if _draw_board_ground_texture == enabled:
+		return
+	_draw_board_ground_texture = enabled
 	queue_redraw()
 
 
@@ -89,6 +99,15 @@ func _draw() -> void:
 
 func _draw_board_background() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), MapBoardStyleScript.ATMOSPHERE_BACKGROUND_COLOR, true)
+	if not _draw_board_ground_texture:
+		return
+	var texture_path: String = UiAssetPathsScript.build_map_board_ground_texture_path()
+	if texture_path.is_empty():
+		return
+	var texture: Texture2D = SceneLayoutHelperScript.load_texture_or_null(texture_path)
+	if texture == null:
+		return
+	draw_texture_rect(texture, Rect2(Vector2.ZERO, size), false, BOARD_GROUND_TEXTURE_MODULATE)
 
 
 func _draw_path_surface_socket_smoke_dressing() -> void:
@@ -462,6 +481,10 @@ func _uses_render_model_surface_lane() -> bool:
 
 func _draws_prototype_socket_dressing_by_default() -> bool:
 	return _draw_prototype_socket_dressing
+
+
+func _draws_board_ground_texture_by_default() -> bool:
+	return _draw_board_ground_texture
 
 
 func _draws_landmark_pocket_underlays_by_default() -> bool:

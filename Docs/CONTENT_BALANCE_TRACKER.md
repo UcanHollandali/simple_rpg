@@ -85,12 +85,12 @@ Use this file to answer:
 
 ### Playtest Read
 
-- current live combat baseline after Prompt `35`:
+- current live combat baseline:
   - `Defend` is no longer dead space; it now buys meaningful HP preservation against the current `5`-damage opener floor at the cost of `+1` extra hunger
   - Pattern Pack A enemies now ask readable turn-order questions instead of reading like flat stat blocks
   - techniques are live and tactically distinct, but their value spread should still be watched
   - hand-slot swap is live and most clearly earns space as broken-weapon recovery rather than broad proactive inventory play
-- concrete baseline examples from the Prompt `35` checkpoint:
+- concrete baseline examples:
   - `bone_raider` opener:
     - `Attack` line: `5` outgoing, `5` incoming
     - `Defend` line: `3` guard, `2` incoming, `2` hunger total for the turn

@@ -27,7 +27,7 @@ Current player-facing combat inventory rules:
   - `armor` and `belt` stay locked
 - backpack reorder is locked during combat
 
-## Technique MVP (Live Prompt 27 Surface)
+## Technique MVP
 
 - Combat now includes exactly `1` additional combat command family: `Technique`.
 - `Technique` is a conditional main-action surface, not a persistent `2`-slot skill bar.
@@ -137,7 +137,7 @@ This order is the only truthful live baseline.
 ## Current Enemy Pattern Slice
 
 - Current live enemy authoring still stays inside ordered sequential `intent_pool` lines plus boss-only optional phase-local intent pools.
-- Prompt 24 Pattern Pack A now uses that narrow slice to ask clearer authored questions without opening a broader enemy-intent system:
+- Pattern Pack A uses that narrow slice to ask clearer authored questions without opening a broader enemy-intent system:
   - `light -> heavy` timing reads through enemies such as `mossback_ram` and `dusk_pikeman`
   - `status pressure -> punish` reads through enemies such as `skeletal_hound` and `grave_chanter`
   - `greed / resource punish` reads through enemies such as `ashen_sapper` and `chain_trapper`
@@ -150,7 +150,7 @@ This order is the only truthful live baseline.
   - enemy-side status ownership
   - reactive trigger-based enemy routing
 
-## Advanced Enemy Intent Expansion Target (Prompt 30, Not Live Yet)
+## Advanced Enemy Intent Expansion Target
 
 This section records the approved advanced-intent spec target.
 It is not current live runtime truth yet.
@@ -282,7 +282,7 @@ Current live config-driven dual-wield baseline:
 - `armor`, `belt`, and backpack reorder remain locked during combat.
 - Scenes must not turn the combat equipment strip into a full backpack or broad gear-management surface.
 
-## Hand-Slot Swap (Live Prompt 29 Surface)
+## Hand-Slot Swap
 
 - Combat now includes exactly `1` additional combat command family: `SwapHand`.
 - `SwapHand` stays inside the existing `Combat` state. It does not add a new main flow state, modal equipment scene, or backpack-management mode.

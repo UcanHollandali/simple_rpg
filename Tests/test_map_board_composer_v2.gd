@@ -177,13 +177,13 @@ func test_map_board_composer_assigns_deterministic_path_families() -> void:
 			)
 			observed_family_set[family] = true
 	for required_family in ["short_straight", "wider_curve", "outward_reconnecting_arc"]:
-		assert(
-			observed_family_set.has(required_family),
-			"Expected curated opening and late-route board views to keep the active Prompt 48 compatibility family set visible instead of collapsing below the short/wide/reconnect baseline."
-		)
+			assert(
+				observed_family_set.has(required_family),
+				"Expected curated opening and late-route board views to keep the active compatibility family set visible instead of collapsing below the short/wide/reconnect baseline."
+			)
 	assert(
 		observed_family_set.size() >= 3,
-		"Expected curated opening and late-route board views to preserve multiple deterministic path families even when the Prompt 48 runtime backbone no longer surfaces every supported family inside the same visible-history window."
+		"Expected curated opening and late-route board views to preserve multiple deterministic path families even when the runtime backbone no longer surfaces every supported family inside the same visible-history window."
 	)
 
 
@@ -1822,15 +1822,15 @@ func test_map_board_composer_exposes_route_surface_semantics_for_visible_edges()
 		assert(primary_actionable_count == 1, "Expected each visible pocket to keep exactly one dominant primary actionable corridor.")
 	assert(
 		observed_reconnect_corridor,
-		"Expected the curated late-route seed set to keep at least one visible reconnect corridor once the Prompt 48 backbone-compatible window is in view."
+		"Expected the curated late-route seed set to keep at least one visible reconnect corridor once the backbone-compatible window is in view."
 	)
 	assert(
 		observed_secondary_actionable,
-		"Expected the curated late-route seed set to keep at least one secondary actionable corridor visible once Prompt 51 hierarchy lands."
+		"Expected the curated late-route seed set to keep at least one secondary actionable corridor visible once the hierarchy lane is active."
 	)
 	assert(
 		observed_branch_history,
-		"Expected the curated late-route seed set to keep at least one branch history corridor visible once Prompt 51 hierarchy lands."
+		"Expected the curated late-route seed set to keep at least one branch history corridor visible once the hierarchy lane is active."
 	)
 
 
@@ -1900,7 +1900,7 @@ func test_map_board_composer_keeps_one_visible_outer_reconnect_in_late_route_his
 		)
 	assert(
 		observed_reconnect_seed_count > 0,
-		"Expected the curated late-route seed set to keep at least one visible same-depth outer reconnect once the Prompt 48 backbone-compatible history window is in view."
+		"Expected the curated late-route seed set to keep at least one visible same-depth outer reconnect once the backbone-compatible history window is in view."
 	)
 
 
@@ -1932,7 +1932,7 @@ func test_map_board_composer_limits_same_depth_reconnect_detours_on_fixed_board(
 		)
 	assert(
 		observed_reconnect_seed_count > 0,
-		"Expected the curated late-route seed set to expose at least one same-depth reconnect for the bounded-detour check once the Prompt 48 backbone-compatible history window is in view."
+		"Expected the curated late-route seed set to expose at least one same-depth reconnect for the bounded-detour check once the backbone-compatible history window is in view."
 	)
 
 

@@ -327,7 +327,7 @@ The current prototype uses authored side-quest definitions for hamlet contract-b
   - current authored content now covers all four mission hooks with multiple stage-local request definitions
   - generic multi-step quest chains, multiple objectives, and non-gear contract rewards remain deferred
 
-### Techniques (Live Prompt 27 Family)
+### Techniques
 
 - First-pass technique definitions now live as an authored content family under `ContentDefinitions/Techniques/*.json`.
 - The current live definition set is:
@@ -348,7 +348,7 @@ The current prototype uses authored side-quest definitions for hamlet contract-b
 - Hamlet training delivery points at these stable technique definition ids with a narrow `2`-offer-plus-`skip` surface; it does not require a broader generic weighted training-pool family.
 - Still deferred:
   - `stun`
-  - dedicated trainer content families behind Prompt `31`
+  - dedicated trainer content families
   - broader multi-technique loadout/buildcraft families
 
 ### Enemies
@@ -636,7 +636,7 @@ These remain part of target architecture direction, but not current runtime trut
 - weighted or tag-driven event template selection
 - generic multi-effect event resolution beyond the current 2-choice / 1-outcome-per-choice slice
 
-## Advanced Enemy Intent Expansion Target (Prompt 30, Not Live Yet)
+## Advanced Enemy Intent Expansion Target
 
 This section records the approved content-grammar target for later advanced enemy-intent work.
 It is not current live content truth yet.

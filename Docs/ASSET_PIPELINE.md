@@ -6,21 +6,18 @@ This file defines the source-of-truth chain, folder ownership, naming rules, pro
 
 ## Source Of Truth Chain
 
-- UI source of truth: `Figma`
+- production asset request truth: `Docs/ProductionAssetBriefs/map_asset_external_request_pack.md` plus the closest production authority docs
 - visual and audio source/master files: `SourceArt/`
 - runtime-ready exports: `Assets/`
 - provenance and release tracking: `AssetManifest/asset_manifest.csv`
 
 Never treat a runtime export as the master file.
 `SourceArt/` and `AssetManifest/` must stay outside Godot's runtime import surface.
-`SourceArt/Archive/` is historical context only. Do not use it as the default source lane during continuation work if `SourceArt/Edited/` or the approved Figma export lane already answers the need.
 
 ## Folder Ownership
 
-- `SourceArt/Figma/`: Figma exports, boards, and UI source snapshots
 - `SourceArt/Generated/`: AI-generated or externally generated source material
 - `SourceArt/Edited/`: cleaned, normalized, or human-edited source files
-- `SourceArt/Archive/`: historical review output, superseded candidates, and one-off tooling dumps; not an active master/source lane
 - `Assets/UI/`: exported runtime UI assets
 - `Assets/Icons/`: exported runtime icons
 - `Assets/Characters/`: runtime character art
@@ -90,8 +87,7 @@ A file may cross from `SourceArt/` into `Assets/` only after all of these are tr
 Do not promote directly from:
 - raw AI output
 - raw asset-library dumps
-- unedited Figma scratch exports
-- `SourceArt/Archive/` review/history output unless the task is explicitly recovering dated rationale or a missing approved master
+- unedited design-tool scratch exports
 
 The minimum safe path is:
 
@@ -141,10 +137,12 @@ Guardrails for that sequence:
 
 For reviewed map socket production assets:
 
+- the only active AI-facing map production handoff is `Docs/ProductionAssetBriefs/map_asset_external_request_pack.md`
 - source masters go under `SourceArt/Edited/Map/Production/`
 - runtime exports go under `Assets/UI/Map/Production/`
 - manifest rows must be added or updated in `AssetManifest/asset_manifest.csv` in the same patch as the runtime export
-- `Game/UI/ui_asset_paths.gd` resolves socket art in this order: `Production` -> `ProductionProbe` -> `ArtPilot` -> `SocketSmoke`
+- the current external map production request uses PNG-primary production targets; existing `ArtPilot` and `SocketSmoke` SVG assets remain fallback/review lanes
+- `Game/UI/ui_asset_paths.gd` resolves socket art in this order: `Production` -> `ArtPilot` -> `SocketSmoke`
 - `MapBoardCanvas` still draws socket art only when explicit prototype socket dressing is enabled
 - adding a file under `Assets/UI/Map/Production/` does not approve normal/default map render promotion by itself
 
@@ -233,7 +231,7 @@ Swap rule for later upgrades:
 - only exported runtime assets go into `Assets/`
 - `SourceArt/` must stay blocked from Godot import via `.gdignore`
 - `AssetManifest/` must stay blocked from Godot import via `.gdignore`
-- do not drop Figma masters, PSDs, Krita files, or AI raw outputs into runtime folders
+- do not drop design-tool masters, PSDs, Krita files, or AI raw outputs into runtime folders
 - do not import broad dumps into Godot without naming and manifest review
 
 ## Export Format Standards
@@ -265,7 +263,7 @@ Swap rule for later upgrades:
 ### UI Exports
 
 - `SVG` for vector assets, `PNG` for raster assets
-- Figma component and export naming should match runtime names in `lower_snake_case`
+- component and export naming should match runtime names in `lower_snake_case`
 
 ### SFX
 
@@ -283,26 +281,6 @@ Swap rule for later upgrades:
 - if no suitable free temp loop exists, a very simple repo-authored generated temp loop is allowed
 - keep manifest provenance truthful in either case
 
-## Figma Foundations
-
-Operational rule:
-- build the system first, screens second
-
-Required pages:
-- `00 Foundations`
-- `01 Components`
-- `02 Screens`
-
-Current first component floor:
-- `Panel/Base`
-- `Button`
-- `Badge`
-- `Resource Bar`
-- `Item Slot`
-- `Choice Card`
-
-See `Docs/FIGMA_TRUTH_ALIGNMENT_PASS.md` for the active screen/component execution brief.
-
 ## Daily Workflow
 
 1. define the asset request
@@ -312,12 +290,11 @@ See `Docs/FIGMA_TRUTH_ALIGNMENT_PASS.md` for the active screen/component executi
 5. export runtime-ready files
 6. import into Godot only after review
 
-## Archive And Tooling Discipline
+## Review Artifact Discipline
 
-- default local search should stay on active source/master lanes; `SourceArt/Archive/` is archive ballast unless a task explicitly needs dated history
-- `SourceArt/Archive/` may be intentionally empty between cleanup passes; keep it as a historical lane, not as an active source/master lane
-- do not leave review preview sheets in `SourceArt/Edited/`; once the active masters are chosen, move those previews into `SourceArt/Archive/`
-- if a future task genuinely needs a dated review dump, treat that output as review/reference material first and promote only through the normal approved-master plus manifest workflow
+- default local search should stay on active source/master lanes
+- do not leave review preview sheets in `SourceArt/Edited/`; keep only reviewed masters there
+- if a future task needs temporary review dumps, keep them in ignored `export/` output and promote only through the normal approved-master plus manifest workflow
 
 ## Placeholder And Release Discipline
 

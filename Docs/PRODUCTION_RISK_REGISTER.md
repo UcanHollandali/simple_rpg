@@ -7,7 +7,7 @@ This file records the current prototype and temporary production-floor risks tha
 This is a reference-only continuation guardrail.
 It is not a rule authority.
 If this file conflicts with `HANDOFF.md` or an authority doc named in `DOC_PRECEDENCE.md`, the authority doc wins.
-Keep only live continuation risks here; resolved or dated status detail should move to `HANDOFF.md` or `Docs/Archive/` instead of accumulating in this file.
+Keep only live continuation risks here; resolved or dated status detail should move to `HANDOFF.md` or be deleted instead of accumulating in this file.
 
 ## Reading Rule
 
@@ -67,17 +67,17 @@ Severity: `P1`
 Blocker type: non-blocking prototype debt
 
 Why it matters:
-The repo now has a real temp-floor asset pipeline with `SourceArt/Edited`, `SourceArt/Figma`, `SourceArt/Archive`, and stable runtime exports. Swapping from the wrong source can leave runtime files correct-looking but historically unexplainable.
+The repo now has a real temp-floor asset pipeline with `SourceArt/Generated`, `SourceArt/Edited`, and stable runtime exports. Swapping from the wrong source can leave runtime files correct-looking but historically unexplainable.
 
 Trigger:
-A future placeholder swap that copies a file from `Archive/`, a scratch Figma export, or an unreviewed candidate without updating the manifest truthfully.
+A future placeholder swap that copies a scratch design-tool export or an unreviewed candidate without updating the manifest truthfully.
 
 Warning sign:
 `runtime_path` changes are proposed during a swap, `master_path` stops matching the real master, or the source file comes from somewhere other than the reviewed source/master lane.
 
 Safe mitigation:
 Swap in place only.
-Prefer `SourceArt/Edited` or the approved Figma export path as the recorded master.
+Prefer `SourceArt/Edited` as the recorded master.
 Update the existing manifest row instead of inventing a new runtime identity.
 
 What not to do:
@@ -212,7 +212,7 @@ Severity: `P2`
 Blocker type: non-blocking prototype debt
 
 Why it matters:
-The current floor mixes repo-authored placeholders, Figma exports, and temp audio loops across multiple lanes. A validator-clean repo can still become visually or sonically inconsistent enough to hurt readability and future swap discipline.
+The current floor mixes repo-authored placeholders, reviewed production candidates, and temp audio loops across multiple lanes. A validator-clean repo can still become visually or sonically inconsistent enough to hurt readability and future swap discipline.
 
 Trigger:
 Incremental additions land one lane at a time without checking whether the whole slice still reads like one game.

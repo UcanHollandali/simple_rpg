@@ -170,7 +170,7 @@ Layer-oriented suffixes are encouraged:
 
 ## Production Technical Locks
 
-- UI source of truth: `Figma`
+- UI implementation truth: repo scenes and `Game/UI` presenters, routed by `Docs/DOC_PRECEDENCE.md`
 - Character and enemy prototype format: `bust + token`
 - Prototype music policy: `safe-first free library music first; if no acceptable safe-first prototype replacement is available, repo-authored generated temp loops are allowed with truthful manifest provenance`
 - All runtime visual/audio assets must be tracked in `AssetManifest/asset_manifest.csv`

@@ -59,26 +59,24 @@ const MAP_SOCKET_SMOKE_TEXTURE_PATHS_BY_KIND := {
 	"landmark": MAP_SOCKET_SMOKE_LANDMARK_TEXTURE_PATH,
 	"decor": MAP_SOCKET_SMOKE_DECOR_TEXTURE_PATH,
 }
-const MAP_PRODUCTION_PATH_SURFACE_TEXTURE_PATH := "res://Assets/UI/Map/Production/ui_map_path_brush.svg"
-const MAP_PRODUCTION_BOSS_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/Production/ui_map_boss_landmark.svg"
-const MAP_PRODUCTION_KEY_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/Production/ui_map_key_landmark.svg"
-const MAP_PRODUCTION_REST_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/Production/ui_map_rest_landmark.svg"
-const MAP_PRODUCTION_MERCHANT_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/Production/ui_map_merchant_landmark.svg"
-const MAP_PRODUCTION_COMBAT_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/Production/ui_map_combat_landmark.svg"
-const MAP_PRODUCTION_EVENT_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/Production/ui_map_event_landmark.svg"
-const MAP_PRODUCTION_REWARD_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/Production/ui_map_reward_landmark.svg"
-const MAP_PRODUCTION_BLACKSMITH_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/Production/ui_map_blacksmith_landmark.svg"
-const MAP_PRODUCTION_HAMLET_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/Production/ui_map_hamlet_landmark.svg"
-const MAP_PRODUCTION_DECOR_TEXTURE_PATH := "res://Assets/UI/Map/Production/ui_map_forest_decor_family.svg"
+const MAP_PRODUCTION_BOARD_GROUND_TEXTURE_PATH := "res://Assets/UI/Map/Production/ui_map_board_ground.png"
+const MAP_PRODUCTION_PATH_SURFACE_TEXTURE_PATH := "res://Assets/UI/Map/Production/ui_map_path_brush.png"
+const MAP_PRODUCTION_BOSS_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/Production/ui_map_boss_landmark.png"
+const MAP_PRODUCTION_KEY_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/Production/ui_map_key_landmark.png"
+const MAP_PRODUCTION_REST_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/Production/ui_map_rest_landmark.png"
+const MAP_PRODUCTION_MERCHANT_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/Production/ui_map_merchant_landmark.png"
+const MAP_PRODUCTION_COMBAT_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/Production/ui_map_combat_landmark.png"
+const MAP_PRODUCTION_EVENT_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/Production/ui_map_event_landmark.png"
+const MAP_PRODUCTION_REWARD_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/Production/ui_map_reward_landmark.png"
+const MAP_PRODUCTION_BLACKSMITH_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/Production/ui_map_blacksmith_landmark.png"
+const MAP_PRODUCTION_HAMLET_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/Production/ui_map_hamlet_landmark.png"
+const MAP_PRODUCTION_DECOR_TEXTURE_PATH := "res://Assets/UI/Map/Production/ui_map_forest_decor_family.png"
 const MAP_ART_PILOT_PATH_SURFACE_TEXTURE_PATH := "res://Assets/UI/Map/ArtPilot/ui_map_art_pilot_path_brush.svg"
 const MAP_ART_PILOT_BOSS_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/ArtPilot/ui_map_art_pilot_boss_landmark.svg"
 const MAP_ART_PILOT_KEY_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/ArtPilot/ui_map_art_pilot_key_landmark.svg"
 const MAP_ART_PILOT_REST_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/ArtPilot/ui_map_art_pilot_rest_landmark.svg"
 const MAP_ART_PILOT_MERCHANT_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/ArtPilot/ui_map_art_pilot_merchant_landmark.svg"
 const MAP_ART_PILOT_DECOR_TEXTURE_PATH := "res://Assets/UI/Map/ArtPilot/ui_map_art_pilot_decor_stamp.svg"
-const MAP_PRODUCTION_PROBE_PATH_SURFACE_TEXTURE_PATH := "res://Assets/UI/Map/ProductionProbe/ui_map_production_probe_path_brush.svg"
-const MAP_PRODUCTION_PROBE_COMBAT_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/ProductionProbe/ui_map_production_probe_combat_landmark.svg"
-const MAP_PRODUCTION_PROBE_BLACKSMITH_LANDMARK_TEXTURE_PATH := "res://Assets/UI/Map/ProductionProbe/ui_map_production_probe_blacksmith_landmark.svg"
 const MAP_PRODUCTION_LANDMARK_TEXTURE_PATHS_BY_FAMILY_PREFIX := {
 	"boss": MAP_PRODUCTION_BOSS_LANDMARK_TEXTURE_PATH,
 	"key": MAP_PRODUCTION_KEY_LANDMARK_TEXTURE_PATH,
@@ -95,10 +93,6 @@ const MAP_ART_PILOT_LANDMARK_TEXTURE_PATHS_BY_FAMILY_PREFIX := {
 	"key": MAP_ART_PILOT_KEY_LANDMARK_TEXTURE_PATH,
 	"rest": MAP_ART_PILOT_REST_LANDMARK_TEXTURE_PATH,
 	"merchant": MAP_ART_PILOT_MERCHANT_LANDMARK_TEXTURE_PATH,
-}
-const MAP_PRODUCTION_PROBE_LANDMARK_TEXTURE_PATHS_BY_FAMILY_PREFIX := {
-	"combat": MAP_PRODUCTION_PROBE_COMBAT_LANDMARK_TEXTURE_PATH,
-	"blacksmith": MAP_PRODUCTION_PROBE_BLACKSMITH_LANDMARK_TEXTURE_PATH,
 }
 
 
@@ -280,11 +274,15 @@ static func build_map_socket_smoke_texture_path(socket_kind: String) -> String:
 	return String(MAP_SOCKET_SMOKE_TEXTURE_PATHS_BY_KIND.get(String(socket_kind).strip_edges().to_lower(), ""))
 
 
+static func build_map_board_ground_texture_path() -> String:
+	if _texture_path_exists(MAP_PRODUCTION_BOARD_GROUND_TEXTURE_PATH):
+		return MAP_PRODUCTION_BOARD_GROUND_TEXTURE_PATH
+	return ""
+
+
 static func build_map_path_surface_socket_texture_path(allow_socket_smoke_placeholder: bool = false) -> String:
 	if _texture_path_exists(MAP_PRODUCTION_PATH_SURFACE_TEXTURE_PATH):
 		return MAP_PRODUCTION_PATH_SURFACE_TEXTURE_PATH
-	if _texture_path_exists(MAP_PRODUCTION_PROBE_PATH_SURFACE_TEXTURE_PATH):
-		return MAP_PRODUCTION_PROBE_PATH_SURFACE_TEXTURE_PATH
 	if _texture_path_exists(MAP_ART_PILOT_PATH_SURFACE_TEXTURE_PATH):
 		return MAP_ART_PILOT_PATH_SURFACE_TEXTURE_PATH
 	if not allow_socket_smoke_placeholder:
@@ -303,9 +301,6 @@ static func build_map_landmark_socket_texture_path(
 	var production_texture_path: String = String(MAP_PRODUCTION_LANDMARK_TEXTURE_PATHS_BY_FAMILY_PREFIX.get(family_prefix, ""))
 	if _texture_path_exists(production_texture_path):
 		return production_texture_path
-	var probe_texture_path: String = String(MAP_PRODUCTION_PROBE_LANDMARK_TEXTURE_PATHS_BY_FAMILY_PREFIX.get(family_prefix, ""))
-	if _texture_path_exists(probe_texture_path):
-		return probe_texture_path
 	var texture_path: String = String(MAP_ART_PILOT_LANDMARK_TEXTURE_PATHS_BY_FAMILY_PREFIX.get(family_prefix, ""))
 	if _texture_path_exists(texture_path):
 		return texture_path
