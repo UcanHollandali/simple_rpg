@@ -1,6 +1,6 @@
 # SIMPLE RPG - Active Roadmap
 
-Last updated: 2026-04-25 (map asset request pack and hidden production probes added)
+Last updated: 2026-04-25 (map production socket lane wired)
 
 This is the active short-horizon roadmap for the repo.
 It is a planning file, not an authority doc.
@@ -174,6 +174,7 @@ Rules:
 - external assets must arrive with source/provenance notes before runtime import
 - first import stays hidden behind explicit prototype socket drawing
 - update `SourceArt/Edited/Map/Production/`, `Assets/UI/Map/Production/`, and `AssetManifest/asset_manifest.csv` together
+- `Game/UI/ui_asset_paths.gd` already resolves production socket paths before production probes, art pilot, and socket smoke
 - run screenshot review and pixel diff before any default render promotion
 
 ## Archived Summary

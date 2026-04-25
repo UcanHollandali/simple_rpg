@@ -137,6 +137,17 @@ Guardrails for that sequence:
 - candidate map assets must still use truthful provenance plus `replace_before_release=yes` when required by their manifest status
 - if structure is not reading correctly yet, the next fix lane is still structural rather than an asset-polish pass
 
+## Map Socket Production Lane
+
+For reviewed map socket production assets:
+
+- source masters go under `SourceArt/Edited/Map/Production/`
+- runtime exports go under `Assets/UI/Map/Production/`
+- manifest rows must be added or updated in `AssetManifest/asset_manifest.csv` in the same patch as the runtime export
+- `Game/UI/ui_asset_paths.gd` resolves socket art in this order: `Production` -> `ProductionProbe` -> `ArtPilot` -> `SocketSmoke`
+- `MapBoardCanvas` still draws socket art only when explicit prototype socket dressing is enabled
+- adding a file under `Assets/UI/Map/Production/` does not approve normal/default map render promotion by itself
+
 ## Manifest Minimum Contract
 
 Required columns:

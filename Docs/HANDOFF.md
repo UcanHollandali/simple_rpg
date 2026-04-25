@@ -1,6 +1,6 @@
 # SIMPLE RPG - Handoff
 
-Last updated: 2026-04-25 (map asset request pack and hidden production probes added)
+Last updated: 2026-04-25 (map production socket lane wired)
 
 This file is a current-state snapshot only.
 It is not a rule contract. If it conflicts with an authority doc, the authority doc wins.
@@ -66,6 +66,8 @@ Use `Docs/ROADMAP.md` for next-lane planning and `Docs/DOC_PRECEDENCE.md` for au
   - outputs: `Docs/ProductionAssetBriefs/map_asset_external_request_pack.md` and `.json`
   - the request pack lists the production ask for path brush, combat/event/reward/blacksmith/hamlet landmarks, and decor/canopy family work
   - it is a production request handoff only, not runtime approval
+  - runtime targets under `Assets/UI/Map/Production/` are now recognized by `Game/UI/ui_asset_paths.gd`
+  - the resolver priority is production -> production probe -> art pilot -> socket smoke, still behind explicit prototype socket dressing
 - A hidden production-probe mini set was added to test the socket integration path:
   - runtime candidates live under `Assets/UI/Map/ProductionProbe/`
   - source masters live under `SourceArt/Edited/Map/ProductionProbe/`
@@ -173,7 +175,7 @@ Use `Docs/ROADMAP.md` for next-lane planning and `Docs/DOC_PRECEDENCE.md` for au
   - copy reviewed masters into `SourceArt/Edited/Map/Production/`
   - export runtime files under `Assets/UI/Map/Production/`
   - add or update manifest rows with truthful provenance
-  - wire paths behind explicit prototype socket drawing first
+  - review them through the already wired explicit prototype socket drawing path first
 4. Keep default render promotion as a later separate decision with screenshot review and pixel diff.
 
 ## Locked Decisions

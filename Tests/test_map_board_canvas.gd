@@ -18,6 +18,7 @@ func _run() -> void:
 	test_map_board_canvas_skips_missing_known_icon_assets_without_crashing()
 	test_map_board_canvas_demotes_history_reconnect_edges_below_actionable_roads()
 	test_map_board_canvas_uses_render_model_surface_lane_by_default()
+	test_map_board_canvas_knows_external_production_socket_paths()
 	test_map_board_canvas_derives_socket_art_from_render_model_slots()
 	test_map_board_canvas_draws_only_endpoint_caps_for_surface_roads()
 	test_map_board_canvas_derives_road_pocket_throat_blends_from_render_model_links()
@@ -50,6 +51,37 @@ func test_map_board_canvas_skips_missing_known_icon_assets_without_crashing() ->
 	}, Vector2(64.0, 64.0), 24.0)
 	assert(true, "Expected missing known-icon assets to short-circuit cleanly before any draw call tries to use them.")
 	board_canvas.free()
+
+
+func test_map_board_canvas_knows_external_production_socket_paths() -> void:
+	assert(
+		UiAssetPathsScript.MAP_PRODUCTION_PATH_SURFACE_TEXTURE_PATH == "res://Assets/UI/Map/Production/ui_map_path_brush.svg",
+		"Expected the production path brush resolver target to match the external request pack runtime path."
+	)
+	assert(
+		UiAssetPathsScript.MAP_PRODUCTION_COMBAT_LANDMARK_TEXTURE_PATH == "res://Assets/UI/Map/Production/ui_map_combat_landmark.svg",
+		"Expected the combat production landmark resolver target to match the external request pack runtime path."
+	)
+	assert(
+		UiAssetPathsScript.MAP_PRODUCTION_EVENT_LANDMARK_TEXTURE_PATH == "res://Assets/UI/Map/Production/ui_map_event_landmark.svg",
+		"Expected the event production landmark resolver target to match the external request pack runtime path."
+	)
+	assert(
+		UiAssetPathsScript.MAP_PRODUCTION_REWARD_LANDMARK_TEXTURE_PATH == "res://Assets/UI/Map/Production/ui_map_reward_landmark.svg",
+		"Expected the reward production landmark resolver target to match the external request pack runtime path."
+	)
+	assert(
+		UiAssetPathsScript.MAP_PRODUCTION_BLACKSMITH_LANDMARK_TEXTURE_PATH == "res://Assets/UI/Map/Production/ui_map_blacksmith_landmark.svg",
+		"Expected the blacksmith production landmark resolver target to match the external request pack runtime path."
+	)
+	assert(
+		UiAssetPathsScript.MAP_PRODUCTION_HAMLET_LANDMARK_TEXTURE_PATH == "res://Assets/UI/Map/Production/ui_map_hamlet_landmark.svg",
+		"Expected the hamlet production landmark resolver target to match the external request pack runtime path."
+	)
+	assert(
+		UiAssetPathsScript.MAP_PRODUCTION_DECOR_TEXTURE_PATH == "res://Assets/UI/Map/Production/ui_map_forest_decor_family.svg",
+		"Expected the decor/canopy production resolver target to match the external request pack runtime path."
+	)
 
 
 func test_map_board_canvas_demotes_history_reconnect_edges_below_actionable_roads() -> void:
