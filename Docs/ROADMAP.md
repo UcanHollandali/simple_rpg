@@ -1,6 +1,6 @@
 # SIMPLE RPG - Active Roadmap
 
-Last updated: 2026-04-24 (retired map art references/source-only candidates cleaned; next lane is hunger/exploration UX pilot)
+Last updated: 2026-04-25 (hunger/exploration UX pilot landed; next lane is live-socket production asset brief)
 
 This is the active short-horizon roadmap for the repo.
 It is a planning file, not an authority doc.
@@ -87,35 +87,48 @@ Still true:
 - these assets are not structural proof
 - blacksmith, hamlet, combat, event, reward, canopy, and broader filler families are not production-art covered by this pilot
 
-## Next Lane - Hunger / Exploration UX Pilot
+## Closed Lane - Hunger / Exploration UX Pilot
 
 Goal:
 - make route choice, hunger pressure, support detours, and branch commitment easier to read without changing gameplay ownership
 
-Audit first:
-- current route hover/selection affordance
-- current hunger-cost and hunger-pressure visibility
-- support-detour readability
-- key/boss push commitment read
-- whether art-pilot dressing makes route pressure clearer or noisier
+Result:
+- route hover/selection affordance already read through marker focus and road emphasis
+- hunger-cost visibility was weak because route button text is intentionally hidden and the prior top HUD line only showed open/seen/cleared counts
+- support-detour readability existed through icons/pockets, but the visible HUD did not name the prep/support opportunity
+- key/boss push commitment existed in hidden/bottom context and route-state chips, but it was not consistently present in the visible top HUD
+- candidate art remains hidden in normal/default render and was not used to solve route pressure
 
-Rules:
-- no save-shape or flow-state change
-- no movement of route, discovery, hunger, current-node, pending-node, key, or boss truth into UI
-- no production-art expansion inside this UX lane
-- use runtime-derived data only
+Applied:
+- visible map HUD now foregrounds next-move hunger cost, route count, prep/support detour state, and key/boss commitment
+- the richer route overview model remains presenter-derived from runtime owners
+- no save-shape, flow-state, source-of-truth ownership, production-art expansion, or default asset-lane change
 
-Minimum validation for docs-only cleanup:
-- `py -3 Tools/validate_assets.py`
-- `py -3 Tools/validate_architecture_guards.py`
-- stale prompt/doc/reference scan
+Validation:
+- targeted map presenter/canvas tests
+- asset and architecture validators
+- map scene isolation
+- portrait review capture
+- portrait image diff
+- explicit full Godot suite
 - `git diff --check`
 
-Add these when map presentation code, scenes, assets, or tests change:
-- targeted map tests for the touched slice
-- `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_scene_isolation.ps1 -ScenePath scenes/map_explore.tscn -QuitAfter 2`
-- `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_portrait_review_capture.ps1 -ScenePaths scenes/map_explore.tscn -ViewportSizes 1080x1920 -TimeoutSeconds 120`
-- `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_full_suite.ps1` before claiming broad cleanliness
+## Next Lane - Production Asset Brief From Live Socket Metadata
+
+Goal:
+- generate a fresh production art brief from current live socket metadata instead of archived brief/audit drafts
+
+Include:
+- path brush sockets
+- boss/key/rest/merchant landmark sockets
+- missing combat/event/reward/blacksmith/hamlet landmark families
+- canopy, filler, and decor family sizing/placement needs
+
+Rules:
+- do not enable candidate or production art in normal/default board render inside the brief step
+- do not restore archived map art briefs as active routing docs
+- use current manifest state and live render-model/socket metadata
+- keep default render promotion as a later separate decision with provenance, screenshot review, and pixel diff
 
 ## Archived Summary
 
@@ -128,10 +141,11 @@ Add these when map presentation code, scenes, assets, or tests change:
 - old `Prompt 06-36`: broader closed-green prompt history archived under `Docs/Archive/Prompts/2026-04-23-closed-green-prompt-packs/`
 - retired map art scope/requirements/brief/audit references: archived under `Docs/Archive/Plans/2026-04-24-retired-map-art-reference/`
 
-## After Hunger / Exploration UX Pilot
+## After Production Asset Brief
 
-- If the UX pilot is green, choose the next lane explicitly from:
-  - production art expansion
+- If the brief is accepted, choose the next lane explicitly from:
+  - 5-8 asset candidate generation
+  - a small manifest-backed default-render pilot for 2-3 approved assets
   - additional map structural cleanup
   - broader balance/content work
 - Do not open a new prompt queue until `ROADMAP.md` names it directly.

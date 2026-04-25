@@ -75,7 +75,11 @@ func test_map_presenter_builds_runtime_graph_labels() -> void:
 		"Expected the map presenter stage badge read to expose a compact Roman numeral for the top-shell medallion."
 	)
 	assert(
-		String(presenter.call("build_progress_text", run_state)).to_lower().contains("open"),
+		String(presenter.call("build_progress_text", run_state)).contains("Hunger -1 11->10"),
+		"Expected map presenter progress text to foreground next-move hunger pressure."
+	)
+	assert(
+		String(presenter.call("build_progress_text", run_state)).contains("routes"),
 		"Expected map presenter progress text to foreground reachable roads."
 	)
 	var run_status_model: Dictionary = presenter.call("build_run_status_model", run_state)
@@ -134,13 +138,41 @@ func test_map_presenter_builds_runtime_graph_labels() -> void:
 		String(presenter.call("build_current_anchor_detail_text", run_state)).contains("Boss locked"),
 		"Expected current-anchor detail text to surface boss-gate legibility before the key is secured."
 	)
+	var route_overview_text: String = String(presenter.call("build_route_overview_text", run_state))
 	assert(
-		String(presenter.call("build_route_overview_text", run_state)).contains("At %s" % current_family_name),
-		"Expected the top route overview to start from the current runtime-owned pocket read."
+		route_overview_text.contains("Hunger -1: 11->10"),
+		"Expected the top route overview to foreground movement hunger pressure from runtime-owned run state."
 	)
 	assert(
-		String(presenter.call("build_route_overview_text", run_state)).contains("Boss locked"),
-		"Expected the top route overview to surface gate readiness without relying on the bottom status log."
+		route_overview_text.contains("Routes:"),
+		"Expected the top route overview to summarize immediate runtime-owned route choices."
+	)
+	assert(
+		route_overview_text.contains("Key"),
+		"Expected the top route overview to surface key/boss commitment without relying on the bottom status log."
+	)
+	var initial_run_state: RunState = RunState.new()
+	initial_run_state.reset_for_new_run()
+	initial_run_state.configure_run_seed(1)
+	var opening_route_overview: String = String(presenter.call("build_route_overview_text", initial_run_state))
+	assert(
+		opening_route_overview.contains("Hunger -1: 20->19"),
+		"Expected the top route overview to surface the next movement hunger cost before route commitment."
+	)
+	assert(
+		opening_route_overview.contains("Routes:"),
+		"Expected the top route overview to summarize immediate runtime-owned route choices."
+	)
+	assert(
+		opening_route_overview.contains("Prep detour:"),
+		"Expected the top route overview to call out the opening support/prep detour when the runtime graph exposes one."
+	)
+	run_state.hunger = 1
+	run_state.player_hp = 7
+	var starvation_route_overview: String = String(presenter.call("build_route_overview_text", run_state))
+	assert(
+		starvation_route_overview.contains("Hunger -1: 1->0, HP 7->6"),
+		"Expected the top route overview to preview starvation HP pressure when the next map move would empty hunger."
 	)
 	assert(
 		String(presenter.call("build_inventory_pressure_text", run_state)).contains("Carry"),

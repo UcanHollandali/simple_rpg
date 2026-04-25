@@ -168,7 +168,7 @@ static func apply_temp_theme(root: Control) -> void:
 	var title_label: Label = root.get_node_or_null("%s/TitleLabel" % HEADER_STACK_PATH) as Label
 	TempScreenThemeScript.apply_label(title_label, "title")
 	if title_label != null:
-		title_label.add_theme_font_size_override("font_size", 30)
+		title_label.add_theme_font_size_override("font_size", 25)
 		title_label.clip_text = true
 		title_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 		title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -177,7 +177,7 @@ static func apply_temp_theme(root: Control) -> void:
 	var progress_label: Label = root.get_node_or_null("%s/ProgressLabel" % HEADER_STACK_PATH) as Label
 	TempScreenThemeScript.apply_label(progress_label, "accent")
 	if progress_label != null:
-		progress_label.add_theme_font_size_override("font_size", 12)
+		progress_label.add_theme_font_size_override("font_size", 11)
 		progress_label.clip_text = true
 		progress_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 		progress_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -186,7 +186,7 @@ static func apply_temp_theme(root: Control) -> void:
 	var route_read_label: Label = root.get_node_or_null("%s/RouteReadLabel" % HEADER_STACK_PATH) as Label
 	TempScreenThemeScript.apply_label(route_read_label, "muted")
 	if route_read_label != null:
-		route_read_label.add_theme_font_size_override("font_size", 14)
+		route_read_label.add_theme_font_size_override("font_size", 12)
 		route_read_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		route_read_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		route_read_label.max_lines_visible = 2
@@ -250,7 +250,7 @@ static func apply_temp_theme(root: Control) -> void:
 
 	var header_stack: VBoxContainer = root.get_node_or_null(HEADER_STACK_PATH) as VBoxContainer
 	if header_stack != null:
-		header_stack.add_theme_constant_override("separation", 3)
+		header_stack.add_theme_constant_override("separation", 2)
 	var current_anchor_stack: VBoxContainer = root.get_node_or_null("Margin/VBox/BottomRow/CurrentAnchorCard/VBox") as VBoxContainer
 	if current_anchor_stack != null:
 		current_anchor_stack.add_theme_constant_override("separation", 3)
@@ -382,7 +382,7 @@ static func apply_portrait_safe_layout(root: Control, max_width: int, min_side_m
 			header_card.size_flags_stretch_ratio = 1.0
 			header_card.custom_minimum_size = Vector2(0.0, 0.0)
 		if route_read_label != null:
-			route_read_label.max_lines_visible = 2 if compact_layout else 1
+			route_read_label.max_lines_visible = 2
 		if run_summary_card != null:
 			run_summary_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			run_summary_card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN

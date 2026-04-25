@@ -1,6 +1,6 @@
 # SIMPLE RPG - Handoff
 
-Last updated: 2026-04-24 (retired map art references/source-only candidates cleaned; next lane is hunger/exploration UX pilot)
+Last updated: 2026-04-25 (hunger/exploration UX pilot landed; next lane is live-socket production asset brief)
 
 This file is a current-state snapshot only.
 It is not a rule contract. If it conflicts with an authority doc, the authority doc wins.
@@ -48,6 +48,11 @@ Use `Docs/ROADMAP.md` for next-lane planning and `Docs/DOC_PRECEDENCE.md` for au
   - it is UI presentation only
   - it uses connected path/clearing surface metadata
   - it does not change route, discovery, movement, hunger, save, or flow truth
+- The hunger/exploration UX pilot is now applied as a UI-only readability pass:
+  - the visible map HUD foregrounds next-move hunger cost, route count, prep/support detour state, and key/boss commitment
+  - all reads are derived from `RunState`, `MapRuntimeState`, and the existing `RunSessionCoordinator.MAP_MOVE_HUNGER_COST`
+  - route, discovery, hunger, current-node, pending-node, key, and boss truth remain in their existing owners
+  - no save shape, flow state, source-of-truth ownership, asset provenance, or default asset lane changed
 - Current map-direction truth remains ahead of the old scatter lane:
   - runtime topology backbone exists
   - slot/anchor placement exists
@@ -113,6 +118,15 @@ Use `Docs/ROADMAP.md` for next-lane planning and `Docs/DOC_PRECEDENCE.md` for au
   - `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_portrait_image_diff.ps1 -Capture -CleanOldArtifacts -TimeoutSeconds 180`
   - `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_full_suite.ps1`
   - `git diff --check`
+- Hunger/exploration UX pilot local checks passed:
+  - `py -3 Tools/validate_assets.py`
+  - `py -3 Tools/validate_architecture_guards.py` with existing hotspot warnings only
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_tests.ps1 -Tests test_map_explore_presenter.gd,test_map_board_canvas.gd`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_scene_isolation.ps1 -ScenePath scenes/map_explore.tscn -QuitAfter 2`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_portrait_review_capture.ps1 -ScenePaths scenes/map_explore.tscn -ViewportSizes 1080x1920 -TimeoutSeconds 120 -CleanOldArtifacts`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_portrait_image_diff.ps1 -Capture -CleanOldArtifacts -TimeoutSeconds 180`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run_godot_full_suite.ps1`
+  - `git diff --check`
 - Portrait image diff passed after refreshing the seeded map baselines for the closed `render_model` surface lane.
 - `Tools/run_ai_check.ps1` was not rerun during final closeout; do not cite it as current evidence without rerunning.
 
@@ -131,10 +145,10 @@ Use `Docs/ROADMAP.md` for next-lane planning and `Docs/DOC_PRECEDENCE.md` for au
 
 ## Next Step
 
-1. Open a `hunger/exploration UX pilot`.
-2. Keep runtime truth, save shape, flow state, and source-of-truth ownership unchanged.
-3. UI may only surface runtime-derived route/hunger pressure; do not add gameplay truth to presentation.
-4. Keep production-art expansion separate until the UX pilot has its own audit result.
+1. Build a new production asset brief from current live socket metadata.
+2. Include path brush, boss/key/rest/merchant landmarks, combat/event/reward/blacksmith/hamlet gaps, and canopy/filler/decor family sizing.
+3. Keep candidate art hidden from normal/default board render until a separate manifest/provenance, screenshot-review, and pixel-diff promotion decision.
+4. Do not use archived map art briefs or old audits as active authority for new production art.
 
 ## Locked Decisions
 

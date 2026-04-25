@@ -9,6 +9,7 @@ const MapQuestLogModelBuilderScript = preload("res://Game/UI/map_quest_log_model
 const RunStatusPresenterScript = preload("res://Game/UI/run_status_presenter.gd")
 const UiAssetPathsScript = preload("res://Game/UI/ui_asset_paths.gd")
 const UiFormattingScript = preload("res://Game/UI/ui_formatting.gd")
+const RunSessionCoordinatorScript = preload("res://Game/Application/run_session_coordinator.gd")
 const DEFAULT_ROUTE_BUTTON_COUNT: int = 6
 
 const FAMILY_SORT_ORDER: Dictionary = {
@@ -23,6 +24,12 @@ const FAMILY_SORT_ORDER: Dictionary = {
 	"key": 8,
 	"boss": 9,
 }
+const SUPPORT_DETOUR_FAMILIES: PackedStringArray = [
+	"rest",
+	"merchant",
+	"blacksmith",
+	"hamlet",
+]
 
 func build_title_text(run_state: RunState) -> String:
 	if run_state == null:
@@ -40,11 +47,15 @@ func build_progress_text(run_state: RunState) -> String:
 	if run_state == null:
 		return ""
 	var map_runtime_state: RefCounted = run_state.map_runtime_state
-	return "Open Routes %d | Seen %d | Cleared %d" % [
-		map_runtime_state.get_discovered_adjacent_node_ids().size(),
-		map_runtime_state.get_discovered_node_count(),
-		map_runtime_state.get_resolved_node_count(),
-	]
+	var detail_parts := PackedStringArray([
+		_build_compact_move_hunger_read_text(run_state),
+		"%d routes" % map_runtime_state.get_discovered_adjacent_node_ids().size(),
+	])
+	var support_detour_read: String = _build_support_detour_read_text(map_runtime_state)
+	if not support_detour_read.is_empty():
+		detail_parts.append(support_detour_read.replace("Prep detour:", "Prep:"))
+	detail_parts.append(_build_key_boss_commitment_read_text(map_runtime_state))
+	return " | ".join(detail_parts)
 
 
 func build_run_status_model(run_state: RunState) -> Dictionary:
@@ -103,13 +114,17 @@ func build_route_overview_text(run_state: RunState) -> String:
 		return ""
 	var map_runtime_state: RefCounted = run_state.map_runtime_state
 	var detail_parts := PackedStringArray()
-	detail_parts.append(build_current_anchor_text(run_state))
-	detail_parts.append("Key %s" % ("taken" if map_runtime_state.is_stage_key_resolved() else "ahead"))
-	detail_parts.append("Boss %s" % ("open" if map_runtime_state.is_stage_key_resolved() else "locked"))
+	detail_parts.append(_build_move_hunger_read_text(run_state))
+	var route_choice_read: String = _build_route_choice_read_text(map_runtime_state)
+	if not route_choice_read.is_empty():
+		detail_parts.append(route_choice_read)
+	var support_detour_read: String = _build_support_detour_read_text(map_runtime_state)
+	if not support_detour_read.is_empty():
+		detail_parts.append(support_detour_read)
+	detail_parts.append(_build_key_boss_commitment_read_text(map_runtime_state))
 	var side_quest_read: String = _build_side_quest_highlight_read_text(map_runtime_state)
 	if not side_quest_read.is_empty():
 		detail_parts.append(side_quest_read)
-	detail_parts.append("%d routes" % map_runtime_state.get_discovered_adjacent_node_ids().size())
 	return " | ".join(detail_parts)
 
 
@@ -372,6 +387,118 @@ func _node_sort_weight(node_snapshot: Dictionary) -> int:
 		_:
 			state_weight = 300
 	return state_weight + int(FAMILY_SORT_ORDER.get(node_family, 999))
+
+
+func _build_move_hunger_read_text(run_state: RunState) -> String:
+	var move_cost: int = RunSessionCoordinatorScript.MAP_MOVE_HUNGER_COST
+	var current_hunger: int = max(0, int(run_state.hunger))
+	var next_hunger: int = max(0, current_hunger - move_cost)
+	if next_hunger == 0:
+		var current_hp: int = max(0, int(run_state.player_hp))
+		var next_hp: int = max(0, current_hp - 1)
+		return "Hunger -%d: %d->%d, HP %d->%d" % [
+			move_cost,
+			current_hunger,
+			next_hunger,
+			current_hp,
+			next_hp,
+		]
+	return "Hunger -%d: %d->%d" % [move_cost, current_hunger, next_hunger]
+
+
+func _build_compact_move_hunger_read_text(run_state: RunState) -> String:
+	var move_cost: int = RunSessionCoordinatorScript.MAP_MOVE_HUNGER_COST
+	var current_hunger: int = max(0, int(run_state.hunger))
+	var next_hunger: int = max(0, current_hunger - move_cost)
+	if next_hunger == 0:
+		var current_hp: int = max(0, int(run_state.player_hp))
+		var next_hp: int = max(0, current_hp - 1)
+		return "Hunger -%d %d->%d HP %d->%d" % [
+			move_cost,
+			current_hunger,
+			next_hunger,
+			current_hp,
+			next_hp,
+		]
+	return "Hunger -%d %d->%d" % [move_cost, current_hunger, next_hunger]
+
+
+func _build_route_choice_read_text(map_runtime_state: RefCounted) -> String:
+	if map_runtime_state == null:
+		return ""
+	var route_labels := PackedStringArray()
+	var adjacent_nodes: Array[Dictionary] = map_runtime_state.build_adjacent_node_snapshots()
+	adjacent_nodes.sort_custom(Callable(self, "_sort_adjacent_node_snapshots"))
+	for node_snapshot in adjacent_nodes:
+		route_labels.append(_display_name_for_snapshot(node_snapshot))
+	var route_count: int = route_labels.size()
+	if route_count <= 0:
+		return "Routes: none"
+	var visible_label_count: int = min(3, route_count)
+	var visible_labels := PackedStringArray()
+	for index in range(visible_label_count):
+		visible_labels.append(route_labels[index])
+	var overflow_count: int = route_count - visible_label_count
+	var route_text: String = ", ".join(visible_labels)
+	if overflow_count > 0:
+		route_text = "%s +%d" % [route_text, overflow_count]
+	return "Routes: %s" % route_text
+
+
+func _build_support_detour_read_text(map_runtime_state: RefCounted) -> String:
+	if map_runtime_state == null:
+		return ""
+	var adjacent_support_labels := PackedStringArray()
+	for node_snapshot in map_runtime_state.build_adjacent_node_snapshots():
+		var node_family: String = String(node_snapshot.get("node_family", ""))
+		if not SUPPORT_DETOUR_FAMILIES.has(node_family):
+			continue
+		if String(node_snapshot.get("node_state", "")) == MapRuntimeStateScript.NODE_STATE_RESOLVED:
+			continue
+		adjacent_support_labels.append(_display_name_for_snapshot(node_snapshot))
+	if not adjacent_support_labels.is_empty():
+		return "Prep detour: %s" % _first_compact_label(adjacent_support_labels)
+
+	var seen_support_labels := PackedStringArray()
+	var current_node_id: int = int(map_runtime_state.current_node_id)
+	var adjacent_node_ids: PackedInt32Array = map_runtime_state.get_adjacent_node_ids()
+	for node_snapshot in map_runtime_state.build_node_snapshots():
+		var node_id: int = int(node_snapshot.get("node_id", MapRuntimeStateScript.NO_PENDING_NODE_ID))
+		if node_id == current_node_id or adjacent_node_ids.has(node_id):
+			continue
+		var node_family: String = String(node_snapshot.get("node_family", ""))
+		var node_state: String = String(node_snapshot.get("node_state", ""))
+		if not SUPPORT_DETOUR_FAMILIES.has(node_family):
+			continue
+		if node_state != MapRuntimeStateScript.NODE_STATE_DISCOVERED:
+			continue
+		seen_support_labels.append(_display_name_for_snapshot(node_snapshot))
+	if seen_support_labels.is_empty():
+		return ""
+	return "Prep seen: %s" % _first_compact_label(seen_support_labels)
+
+
+func _build_key_boss_commitment_read_text(map_runtime_state: RefCounted) -> String:
+	if map_runtime_state == null:
+		return ""
+	if map_runtime_state.is_stage_key_resolved():
+		return "Boss route open"
+	for node_snapshot in map_runtime_state.build_adjacent_node_snapshots():
+		var node_family: String = String(node_snapshot.get("node_family", ""))
+		if node_family == "key":
+			return "Key route open"
+		if node_family == "boss" and String(node_snapshot.get("node_state", "")) == MapRuntimeStateScript.NODE_STATE_LOCKED:
+			return "Boss needs key"
+	return "Key ahead"
+
+
+func _first_compact_label(labels: PackedStringArray) -> String:
+	if labels.is_empty():
+		return ""
+	var first_label: String = labels[0]
+	if labels.size() == 1:
+		return first_label
+	return "%s +%d" % [first_label, labels.size() - 1]
 
 
 func _display_name_for_family(node_family: String, hamlet_personality: String = "") -> String:
